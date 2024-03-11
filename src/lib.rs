@@ -1,4 +1,5 @@
 mod repo;
+mod scanner;
 
 #[cfg(test)]
 mod tests {
