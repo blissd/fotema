@@ -1,0 +1,12 @@
+[package]
+name = "rust-lib-photos"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+kamadak-exif = "0.5.5"
+sqlite = "0.34.0"
+tempdir = "0.3.7"
+walkdir = "2.5.0"
