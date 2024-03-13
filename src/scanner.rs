@@ -81,18 +81,20 @@ impl Scanner {
             time_offset_field: Option<&exif::Field>,
         ) -> Option<DateTime<FixedOffset>> {
             let date_time_field = date_time_field?;
-            let time_offset_field = time_offset_field?;
+            //let time_offset_field = time_offset_field?;
 
             let mut date_time = match date_time_field.value {
                 exif::Value::Ascii(ref vec) => exif::DateTime::from_ascii(&vec[0]).ok(),
                 _ => None,
             }?;
 
-            if let exif::Value::Ascii(ref vec) = time_offset_field.value {
-                date_time.parse_offset(&vec[0]);
+            if let Some(field) = time_offset_field {
+                if let exif::Value::Ascii(ref vec) = field.value {
+                    date_time.parse_offset(&vec[0]);
+                }
             }
 
-            let offset = date_time.offset?; // offset in minutes
+            let offset = date_time.offset.unwrap_or(0); // offset in minutes
             let offset = FixedOffset::east_opt((offset as i32) * 60)?;
 
             let date = NaiveDate::from_ymd_opt(
