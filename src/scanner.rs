@@ -19,12 +19,17 @@ impl Scanner {
         Ok(Scanner { scan_path })
     }
 
-    pub fn scan_all(&self) {
+    pub fn visit_all<F>(&self, func: F)
+    where
+        F: FnMut(PictureInfo),
+    {
         WalkDir::new(&self.scan_path)
             .into_iter()
             .flatten() // skip files we failed to read
             .filter(|x| x.path().is_file())
-            .for_each(|x| println!("{}", x.path().display()));
+            .map(|x| self.scan_one(x.path()))
+            .flatten()
+            .for_each(func);
     }
 
     pub fn scan_one(&self, path: &Path) -> Result<PictureInfo, String> {
@@ -100,10 +105,10 @@ mod tests {
     }
 
     #[test]
-    fn scan_all() {
+    fn visit_all() {
         let test_data_dir = picture_dir();
         let s = Scanner::build(&test_data_dir).unwrap();
-        s.scan_all();
+        s.visit_all(|x| println!("{:?}", x));
     }
 
     #[test]
