@@ -1,3 +1,4 @@
+use chrono;
 use exif;
 use std::fs;
 use std::io::BufReader;
@@ -21,7 +22,9 @@ impl Scanner {
     pub fn scan_all(&self) {
         WalkDir::new(&self.scan_path)
             .into_iter()
-            .for_each(|x| println!("{}", x.unwrap().path().display()));
+            .flatten() // skip files we failed to read
+            .filter(|x| x.path().is_file())
+            .for_each(|x| println!("{}", x.path().display()));
     }
 
     pub fn scan_one(&self, path: &Path) -> Result<PictureInfo, String> {
@@ -37,10 +40,51 @@ impl Scanner {
             .get_field(exif::Tag::PixelYDimension, exif::In::PRIMARY)
             .and_then(|e| e.value.get_uint(0));
 
+        let description = r
+            .get_field(exif::Tag::ImageDescription, exif::In::PRIMARY)
+            .map(|e| e.display_value().to_string());
+
+        fn parse_date_time(date_time_field: Option<&exif::Field>) -> Option<chrono::NaiveDateTime> {
+            let date_time = if let Some(field) = date_time_field {
+                match field.value {
+                    exif::Value::Ascii(ref vec) if !vec.is_empty() => {
+                        exif::DateTime::from_ascii(&vec[0]).ok()
+                    }
+                    _ => None,
+                }
+            } else {
+                None
+            };
+
+            let date_time = date_time.and_then(|x| {
+                let date =
+                    chrono::NaiveDate::from_ymd_opt(x.year.into(), x.month.into(), x.day.into());
+                let time = chrono::NaiveTime::from_hms_opt(
+                    x.hour.into(),
+                    x.minute.into(),
+                    x.second.into(),
+                );
+                // convert to a NaiveDateTime without a time zone
+                let dt = date.and_then(|d| time.map(|t| d.and_time(t)));
+                dt
+            });
+
+            date_time
+        }
+
+        // TODO offsets are in separate fields to timestamps
+        //let created_at_offset = r.get_field(exif::Tag::OffsetTimeOriginal, exif::In::PRIMARY);
+        let created_at =
+            parse_date_time(r.get_field(exif::Tag::DateTimeOriginal, exif::In::PRIMARY));
+        let modified_at = parse_date_time(r.get_field(exif::Tag::DateTime, exif::In::PRIMARY));
+
         Ok(PictureInfo {
             path: PathBuf::from(path),
             width,
             height,
+            description,
+            created_at,
+            modified_at,
         })
     }
 }
@@ -49,21 +93,22 @@ impl Scanner {
 mod tests {
     use super::*;
 
-    #[test]
-    fn scan_all() {
+    fn picture_dir() -> PathBuf {
         let mut test_data_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         test_data_dir.push("resources/test");
-        println!("{}", test_data_dir.display());
+        test_data_dir
+    }
 
+    #[test]
+    fn scan_all() {
+        let test_data_dir = picture_dir();
         let s = Scanner::build(&test_data_dir).unwrap();
         s.scan_all();
     }
 
     #[test]
     fn scan_one() {
-        let mut test_data_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        test_data_dir.push("resources/test");
-
+        let test_data_dir = picture_dir();
         let mut test_file = test_data_dir.clone();
         test_file.push("Birdie.jpg");
 
