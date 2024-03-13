@@ -60,24 +60,19 @@ impl Scanner {
             }
         };
 
+        let mut pic = PictureInfo::new(PathBuf::from(path));
+        pic.fs_modified_at = f.metadata().ok().and_then(|x| x.modified().ok());
+
         let f = &mut BufReader::new(f);
         let r = match exif::Reader::new().read_from_container(f) {
             Ok(file) => file,
             Err(_) => {
                 // Assume this error is when there is no EXIF data.
-                return Ok(PictureInfo::new(PathBuf::from(path)));
+                return Ok(pic);
             }
         };
 
-        let width = r
-            .get_field(exif::Tag::PixelXDimension, exif::In::PRIMARY)
-            .and_then(|e| e.value.get_uint(0));
-
-        let height = r
-            .get_field(exif::Tag::PixelYDimension, exif::In::PRIMARY)
-            .and_then(|e| e.value.get_uint(0));
-
-        let description = r
+        pic.description = r
             .get_field(exif::Tag::ImageDescription, exif::In::PRIMARY)
             .map(|e| e.display_value().to_string());
 
@@ -111,18 +106,11 @@ impl Scanner {
 
         // TODO offsets are in separate fields to timestamps
         //let created_at_offset = r.get_field(exif::Tag::OffsetTimeOriginal, exif::In::PRIMARY);
-        let created_at =
+        pic.created_at =
             parse_date_time(r.get_field(exif::Tag::DateTimeOriginal, exif::In::PRIMARY));
-        let modified_at = parse_date_time(r.get_field(exif::Tag::DateTime, exif::In::PRIMARY));
+        pic.modified_at = parse_date_time(r.get_field(exif::Tag::DateTime, exif::In::PRIMARY));
 
-        Ok(PictureInfo {
-            path: PathBuf::from(path),
-            width,
-            height,
-            description,
-            created_at,
-            modified_at,
-        })
+        Ok(pic)
     }
 }
 
