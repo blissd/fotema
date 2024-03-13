@@ -10,8 +10,8 @@ pub struct PictureInfo {
 
     // From EXIF data
     pub description: Option<String>,
-    pub created_at: Option<NaiveDateTime>,
-    pub modified_at: Option<NaiveDateTime>,
+    pub created_at: Option<DateTime<FixedOffset>>,
+    pub modified_at: Option<DateTime<FixedOffset>>,
 }
 
 impl PictureInfo {

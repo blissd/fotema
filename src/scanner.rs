@@ -1,4 +1,4 @@
-use chrono;
+use chrono::prelude::*;
 use exif;
 use std::fs;
 use std::io::BufReader;
@@ -76,39 +76,49 @@ impl Scanner {
             .get_field(exif::Tag::ImageDescription, exif::In::PRIMARY)
             .map(|e| e.display_value().to_string());
 
-        fn parse_date_time(date_time_field: Option<&exif::Field>) -> Option<chrono::NaiveDateTime> {
-            let date_time = if let Some(field) = date_time_field {
-                match field.value {
-                    exif::Value::Ascii(ref vec) if !vec.is_empty() => {
-                        exif::DateTime::from_ascii(&vec[0]).ok()
-                    }
-                    _ => None,
-                }
-            } else {
-                None
-            };
+        fn parse_date_time(
+            date_time_field: Option<&exif::Field>,
+            time_offset_field: Option<&exif::Field>,
+        ) -> Option<DateTime<FixedOffset>> {
+            let date_time_field = date_time_field?;
+            let time_offset_field = time_offset_field?;
 
-            let date_time = date_time.and_then(|x| {
-                let date =
-                    chrono::NaiveDate::from_ymd_opt(x.year.into(), x.month.into(), x.day.into());
-                let time = chrono::NaiveTime::from_hms_opt(
-                    x.hour.into(),
-                    x.minute.into(),
-                    x.second.into(),
-                );
-                // convert to a NaiveDateTime without a time zone
-                let dt = date.and_then(|d| time.map(|t| d.and_time(t)));
-                dt
-            });
+            let mut date_time = match date_time_field.value {
+                exif::Value::Ascii(ref vec) => exif::DateTime::from_ascii(&vec[0]).ok(),
+                _ => None,
+            }?;
 
-            date_time
+            if let exif::Value::Ascii(ref vec) = time_offset_field.value {
+                date_time.parse_offset(&vec[0]);
+            }
+
+            let offset = date_time.offset?; // offset in minutes
+            let offset = FixedOffset::east_opt((offset as i32) * 60)?;
+
+            let date = NaiveDate::from_ymd_opt(
+                date_time.year.into(),
+                date_time.month.into(),
+                date_time.day.into(),
+            )?;
+
+            let time = NaiveTime::from_hms_opt(
+                date_time.hour.into(),
+                date_time.minute.into(),
+                date_time.second.into(),
+            )?;
+
+            let naive_date_time = date.and_time(time);
+            Some(offset.from_utc_datetime(&naive_date_time))
         }
 
-        // TODO offsets are in separate fields to timestamps
-        //let created_at_offset = r.get_field(exif::Tag::OffsetTimeOriginal, exif::In::PRIMARY);
-        pic.created_at =
-            parse_date_time(r.get_field(exif::Tag::DateTimeOriginal, exif::In::PRIMARY));
-        pic.modified_at = parse_date_time(r.get_field(exif::Tag::DateTime, exif::In::PRIMARY));
+        pic.created_at = parse_date_time(
+            r.get_field(exif::Tag::DateTimeOriginal, exif::In::PRIMARY),
+            r.get_field(exif::Tag::OffsetTimeOriginal, exif::In::PRIMARY),
+        );
+        pic.modified_at = parse_date_time(
+            r.get_field(exif::Tag::DateTime, exif::In::PRIMARY),
+            r.get_field(exif::Tag::OffsetTime, exif::In::PRIMARY),
+        );
 
         Ok(pic)
     }
