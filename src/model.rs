@@ -12,3 +12,16 @@ pub struct PictureInfo {
     pub created_at: Option<NaiveDateTime>,
     pub modified_at: Option<NaiveDateTime>,
 }
+
+impl PictureInfo {
+    pub fn new(path: PathBuf) -> PictureInfo {
+        PictureInfo {
+            path,
+            width: None,
+            height: None,
+            description: None,
+            created_at: None,
+            modified_at: None,
+        }
+    }
+}

@@ -63,9 +63,9 @@ impl Scanner {
         let f = &mut BufReader::new(f);
         let r = match exif::Reader::new().read_from_container(f) {
             Ok(file) => file,
-            Err(e) => {
-                println!("reader for {:?} failed with {}", path, e);
-                return Result::Err(e.to_string());
+            Err(_) => {
+                // Assume this error is when there is no EXIF data.
+                return Ok(PictureInfo::new(PathBuf::from(path)));
             }
         };
 
