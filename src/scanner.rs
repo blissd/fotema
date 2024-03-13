@@ -23,19 +23,51 @@ impl Scanner {
     where
         F: FnMut(PictureInfo),
     {
+        let picture_suffixes = vec![
+            String::from("avif"),
+            String::from("heic"),
+            String::from("jpeg"),
+            String::from("jpg"),
+            String::from("png"),
+            String::from("tiff"),
+            String::from("webp"),
+        ];
+
         WalkDir::new(&self.scan_path)
             .into_iter()
             .flatten() // skip files we failed to read
-            .filter(|x| x.path().is_file())
-            .map(|x| self.scan_one(x.path()))
-            .flatten()
-            .for_each(func);
+            .filter(|x| x.path().is_file()) // only process files
+            .filter(|x| {
+                // only process supported image types
+                let ext = x
+                    .path()
+                    .extension()
+                    .and_then(|s| s.to_str())
+                    .map(|s| s.to_lowercase());
+                picture_suffixes.contains(&ext.unwrap_or(String::from("not_an_image")))
+            })
+            .map(|x| self.scan_one(x.path())) // Get picture info for image path
+            .flatten() // ignore any errors when reading images
+            .for_each(func); // visit
     }
 
     pub fn scan_one(&self, path: &Path) -> Result<PictureInfo, String> {
-        let f = fs::File::open(path).unwrap();
+        let f = match fs::File::open(path) {
+            Ok(file) => file,
+            Err(e) => {
+                println!("file {:?} failed with {}", path, e);
+                return Result::Err(e.to_string());
+            }
+        };
+
         let f = &mut BufReader::new(f);
-        let r = exif::Reader::new().read_from_container(f).unwrap();
+        let r = match exif::Reader::new().read_from_container(f) {
+            Ok(file) => file,
+            Err(e) => {
+                println!("reader for {:?} failed with {}", path, e);
+                return Result::Err(e.to_string());
+            }
+        };
 
         let width = r
             .get_field(exif::Tag::PixelXDimension, exif::In::PRIMARY)
@@ -106,7 +138,8 @@ mod tests {
 
     #[test]
     fn visit_all() {
-        let test_data_dir = picture_dir();
+        //let test_data_dir = picture_dir();
+        let test_data_dir = PathBuf::from("/var/home/david/Pictures");
         let s = Scanner::build(&test_data_dir).unwrap();
         s.visit_all(|x| println!("{:?}", x));
     }
