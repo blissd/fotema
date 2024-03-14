@@ -52,9 +52,23 @@ impl PicturesRepo {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::PathBuf;
+
+    fn picture_dir() -> PathBuf {
+        let mut test_data_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        test_data_dir.push("resources/test");
+        test_data_dir
+    }
 
     #[test]
     fn pictures_repo_build() {
-        let r = PicturesRepo::build(path::Path::new(":memory:"));
+        let r = PicturesRepo::build(path::Path::new(":memory:")).unwrap();
+
+        let test_data_dir = picture_dir();
+        let mut test_file = test_data_dir.clone();
+        test_file.push("Birdie.jpg");
+
+        let pic = PictureInfo::new(test_file);
+        r.add(&pic).unwrap();
     }
 }
