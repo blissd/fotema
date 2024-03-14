@@ -10,7 +10,7 @@ pub struct Repository {
 
 impl Repository {
     pub fn build(_dir_ignored_while_in_memory: &path::Path) -> Result<Repository > {
-        let con = Connection::open_in_memory().map_err(|e| DatabaseError(e.to_string()))?;
+        let con = Connection::open_in_memory().map_err(|e| RepositoryError(e.to_string()))?;
         let repo = Repository { con };
         repo.setup().map(|_| repo)
     }
@@ -25,7 +25,7 @@ impl Repository {
                         )";
 
         let result = self.con.execute(&sql, ());
-        result.map(|_| ()).map_err(|e| DatabaseError(e.to_string()))
+        result.map(|_| ()).map_err(|e| RepositoryError(e.to_string()))
     }
 
     pub fn add(&self, pic: &PictureInfo) -> Result<()> {
@@ -44,7 +44,7 @@ impl Repository {
 
         match result {
             Ok(_) => Ok(()),
-            Err(e) => Err(DatabaseError(e.to_string())),
+            Err(e) => Err(RepositoryError(e.to_string())),
         }
     }
 }
