@@ -1,3 +1,4 @@
+use crate::model::PictureInfo;
 use rusqlite::{Connection, Result};
 use std::path;
 
@@ -23,9 +24,25 @@ impl PicturesRepo {
             .map_err(|e| e.to_string())
     }
 
-    //pub fn add(&self, pic: &PictureInfo) -> Result<(), String> {
-    //self.con.execute(kkkkk)
-    //}
+    pub fn add(&self, pic: &PictureInfo) -> Result<(), String> {
+        let result = self.con.execute(
+            "INSERT INTO PICTURES (
+                path, fs_modified_at, modified_at, created_at, description
+            ) values (?1, ?2, ?3, ?4, ?5)",
+            (
+                &pic.path.as_path().to_str(),
+                &pic.fs_modified_at,
+                &pic.modified_at,
+                &pic.created_at,
+                &pic.description,
+            ),
+        );
+
+        match result {
+            Ok(_) => Ok(()),
+            Err(e) => Err(e.to_string()),
+        }
+    }
 }
 
 #[cfg(test)]
