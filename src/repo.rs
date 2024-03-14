@@ -18,10 +18,11 @@ impl Repository {
     fn setup(&self) -> Result<()> {
         let sql = "CREATE TABLE IF NOT EXISTS PICTURES (
                         path           TEXT PRIMARY KEY UNIQUE ON CONFLICT REPLACE,
-                        fs_modified_at TEXT,
-                        modified_at    TEXT,
-                        created_at     TEXT,
-                        description    TEXT
+                        order_by_ts    TEXT, -- UTC timestamp to order images by
+                        fs_modified_at TEXT, -- UTC timestamp of filesystem modification date
+                        modified_at    TEXT, -- EXIF time offset-aware timestamp of last modification
+                        created_at     TEXT, -- EXIF time offset-aware timestamp of creation
+                        description    TEXT  -- EXIF description
                         )";
 
         let result = self.con.execute(&sql, ());
@@ -29,12 +30,17 @@ impl Repository {
     }
 
     pub fn add(&self, pic: &PictureInfo) -> Result<()> {
+
+        // Pictures are orderd by this UTC date time.
+        let order_by_ts = pic.modified_at.map(|d| d.to_utc()).or(pic.fs_modified_at);
+
         let result = self.con.execute(
             "INSERT INTO PICTURES (
-                path, fs_modified_at, modified_at, created_at, description
-            ) values (?1, ?2, ?3, ?4, ?5)",
+                path, order_by_ts, fs_modified_at, modified_at, created_at, description
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
             (
                 &pic.path.as_path().to_str(),
+                order_by_ts,
                 &pic.fs_modified_at,
                 &pic.modified_at,
                 &pic.created_at,
@@ -61,7 +67,7 @@ mod tests {
     }
 
     #[test]
-    fn pictures_repo_build() {
+    fn repo_add_and_get() {
         let r = Repository::build(path::Path::new(":memory:")).unwrap();
 
         let test_data_dir = picture_dir();
