@@ -9,6 +9,7 @@ edition = "2021"
 chrono = "0.4.35"
 kamadak-exif = "0.5.5"
 #sqlite = "0.34.0"
-rusqlite = { version = "0.31.0", features = ["bundled"] }
+rusqlite = { version = "0.31.0", features = ["bundled", "chrono"] }
 tempdir = "0.3.7"
 walkdir = "2.5.0"
+
