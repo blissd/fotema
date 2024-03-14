@@ -1,12 +1,11 @@
 use chrono::prelude::*;
 use std::path::PathBuf;
-use std::time;
 
 #[derive(Debug)]
 pub struct PictureInfo {
     // From file system
     pub path: PathBuf,
-    pub fs_modified_at: Option<time::SystemTime>,
+    pub fs_modified_at: Option<DateTime<Utc>>,
 
     // From EXIF data
     pub description: Option<String>,

@@ -61,7 +61,11 @@ impl Scanner {
         };
 
         let mut pic = PictureInfo::new(PathBuf::from(path));
-        pic.fs_modified_at = f.metadata().ok().and_then(|x| x.modified().ok());
+        let fs_modified_at = f.metadata().ok().and_then(|x| x.modified().ok());
+        pic.fs_modified_at = fs_modified_at.map(|x| {
+            let dt: DateTime<Utc> = x.into();
+            dt
+        });
 
         let f = &mut BufReader::new(f);
         let r = match exif::Reader::new().read_from_container(f) {
