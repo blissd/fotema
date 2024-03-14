@@ -1,20 +1,32 @@
 use sqlite;
 use std::path;
 
-struct PicturesRepo {
+pub struct PicturesRepo {
     con: sqlite::Connection,
 }
 
 impl PicturesRepo {
-    fn build(dir: &path::Path) -> Result<PicturesRepo, String> {
-        match sqlite::open(dir) {
-            Ok(con) => {
-                let r = PicturesRepo { con };
-                Ok(r)
-            }
-            Err(e) => Err(e.to_string()),
-        }
+    pub fn build(dir: &path::Path) -> Result<PicturesRepo, String> {
+        let con = sqlite::open(dir);
+
+        con.and_then(|con| {
+            let sql = "create table if not exists pictures (
+                        path text primary key unique on conflict replace,
+                        fs_modified_at   text,
+                        modified_at text,
+                        created_at text,
+                        description text
+                        )
+                        ";
+            let result = con.execute(&sql);
+            result.map(|x| PicturesRepo { con })
+        })
+        .map_err(|e| e.to_string())
     }
+
+    //pub fn add(&self, pic: &PictureInfo) -> Result<(), String> {
+    //self.con.execute(kkkkk)
+    //}
 }
 
 #[cfg(test)]
