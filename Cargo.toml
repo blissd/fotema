@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 chrono = "0.4.35"
 kamadak-exif = "0.5.5"
-sqlite = "0.34.0"
+#sqlite = "0.34.0"
+rusqlite = { version = "0.31.0", features = ["bundled"] }
 tempdir = "0.3.7"
 walkdir = "2.5.0"
