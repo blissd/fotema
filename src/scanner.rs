@@ -1,3 +1,5 @@
+use crate::Error::*;
+use crate::Result;
 use chrono::prelude::*;
 use exif;
 use std::fs;
@@ -13,8 +15,8 @@ pub struct Scanner {
 }
 
 impl Scanner {
-    pub fn build(scan_path: &Path) -> Result<Scanner, String> {
-        fs::create_dir_all(scan_path).map_err(|e| e.to_string())?;
+    pub fn build(scan_path: &Path) -> Result<Scanner> {
+        fs::create_dir_all(scan_path).map_err(|e| ScannerError(e.to_string()))?;
         let scan_path = PathBuf::from(scan_path);
         Ok(Scanner { scan_path })
     }
@@ -51,12 +53,12 @@ impl Scanner {
             .for_each(func); // visit
     }
 
-    pub fn scan_one(&self, path: &Path) -> Result<PictureInfo, String> {
+    pub fn scan_one(&self, path: &Path) -> Result<PictureInfo> {
         let f = match fs::File::open(path) {
             Ok(file) => file,
             Err(e) => {
                 println!("file {:?} failed with {}", path, e);
-                return Result::Err(e.to_string());
+                return Err(ScannerError(e.to_string()));
             }
         };
 
