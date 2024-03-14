@@ -1,3 +1,4 @@
+#[derive(Debug)]
 pub enum Error {
     DatabaseError(String),
     FileSystemError(String),

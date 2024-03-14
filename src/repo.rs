@@ -1,5 +1,7 @@
 use crate::model::PictureInfo;
-use rusqlite::{Connection, Result};
+use crate::Error::*;
+use crate::Result;
+use rusqlite::Connection;
 use std::path;
 
 pub struct PicturesRepo {
@@ -7,13 +9,13 @@ pub struct PicturesRepo {
 }
 
 impl PicturesRepo {
-    pub fn build(_dir_ignored_while_in_memory: &path::Path) -> Result<PicturesRepo, String> {
-        let con = Connection::open_in_memory().map_err(|e| e.to_string())?;
+    pub fn build(_dir_ignored_while_in_memory: &path::Path) -> Result<PicturesRepo> {
+        let con = Connection::open_in_memory().map_err(|e| DatabaseError(e.to_string()))?;
         let repo = PicturesRepo { con };
         repo.setup().map(|_| repo)
     }
 
-    fn setup(&self) -> Result<(), String> {
+    fn setup(&self) -> Result<()> {
         let sql = "CREATE TABLE IF NOT EXISTS PICTURES (
                         path           TEXT PRIMARY KEY UNIQUE ON CONFLICT REPLACE,
                         fs_modified_at TEXT,
@@ -23,10 +25,10 @@ impl PicturesRepo {
                         )";
 
         let result = self.con.execute(&sql, ());
-        result.map(|_| ()).map_err(|e| e.to_string())
+        result.map(|_| ()).map_err(|e| DatabaseError(e.to_string()))
     }
 
-    pub fn add(&self, pic: &PictureInfo) -> Result<(), String> {
+    pub fn add(&self, pic: &PictureInfo) -> Result<()> {
         let result = self.con.execute(
             "INSERT INTO PICTURES (
                 path, fs_modified_at, modified_at, created_at, description
@@ -42,7 +44,7 @@ impl PicturesRepo {
 
         match result {
             Ok(_) => Ok(()),
-            Err(e) => Err(e.to_string()),
+            Err(e) => Err(DatabaseError(e.to_string())),
         }
     }
 }
