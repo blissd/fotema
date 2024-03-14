@@ -144,8 +144,8 @@ mod tests {
 
     #[test]
     fn visit_all() {
-        //let test_data_dir = picture_dir();
-        let test_data_dir = PathBuf::from("/var/home/david/Pictures");
+        let test_data_dir = picture_dir();
+        //let test_data_dir = PathBuf::from("/var/home/david/Pictures");
         let s = Scanner::build(&test_data_dir).unwrap();
         s.visit_all(|x| println!("{:?}", x));
     }

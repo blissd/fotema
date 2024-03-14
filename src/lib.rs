@@ -5,7 +5,7 @@ mod scanner;
 
 pub use error::Error;
 pub use model::PictureInfo;
-pub use repo::PicturesRepo;
+pub use repo::Repository;
 pub use scanner::Scanner;
 
 /// A typedef of the result returned by many methods.
