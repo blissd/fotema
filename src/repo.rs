@@ -83,10 +83,9 @@ impl Repository {
             })
         }
 
-        let iter = match stmt.query_map([], |row| row_to_picture(row)) {
-            Ok(f) => f,
-            Err(e) => return Err(RepositoryError(e.to_string())),
-        };
+        let iter = stmt
+            .query_map([], |row| row_to_picture(row))
+            .map_err(|e| RepositoryError(e.to_string()))?;
 
         // Would like to return an iterator... but Rust is defeating me.
         let mut pics = Vec::new();
