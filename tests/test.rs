@@ -16,10 +16,16 @@ fn test_scan_and_persist() {
 
     let repo = Repository::build(&db_path).unwrap();
 
-    let pic_dir = picture_dir();
+    // let pic_dir = picture_dir();
+    let pic_dir = PathBuf::from("/var/home/david/Pictures");
     let scanner = Scanner::build(&pic_dir).unwrap();
 
     scanner.visit_all(|pic| {
         repo.add(&pic).ok();
     });
+
+    let all_pics = repo.all().unwrap();
+    for pic in all_pics {
+        println!("{:?}", pic.path);
+    }
 }

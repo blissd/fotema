@@ -1,21 +1,27 @@
+///! Repository of metadata about pictures on the local filesystem.
 use crate::model::PictureInfo;
 use crate::Error::*;
 use crate::Result;
 use rusqlite::Connection;
-use rusqlite::{MappedRows, Row};
+use rusqlite::Row;
 use std::path;
 
+/// Repository of picture metadata.
+/// Repository is backed by a Sqlite database.
 pub struct Repository {
+    /// Connection to backing Sqlite database.
     con: rusqlite::Connection,
 }
 
 impl Repository {
+    /// Builds a Repository and creates operational tables.
     pub fn build(_dir_ignored_while_in_memory: &path::Path) -> Result<Repository> {
         let con = Connection::open_in_memory().map_err(|e| RepositoryError(e.to_string()))?;
         let repo = Repository { con };
         repo.setup().map(|_| repo)
     }
 
+    /// Creates operational tables.
     fn setup(&self) -> Result<()> {
         let sql = "CREATE TABLE IF NOT EXISTS PICTURES (
                         path           TEXT PRIMARY KEY UNIQUE ON CONFLICT REPLACE,
@@ -32,6 +38,8 @@ impl Repository {
             .map_err(|e| RepositoryError(e.to_string()))
     }
 
+    /// Add a picture to the repository.
+    /// At a minimum a picture must have a path on the file system and file modification date.
     pub fn add(&self, pic: &PictureInfo) -> Result<()> {
         // Pictures are orderd by this UTC date time.
         let order_by_ts = pic.modified_at.map(|d| d.to_utc()).or(pic.fs_modified_at);
@@ -56,6 +64,7 @@ impl Repository {
         }
     }
 
+    /// Gets all pictures in the repository, in ascending order of modification timestamp.
     pub fn all(&self) -> Result<Vec<PictureInfo>> {
         let mut stmt = self
             .con
