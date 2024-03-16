@@ -30,6 +30,6 @@ fn test_scan_and_persist() {
 
     let all_pics = ctl.all().unwrap();
     for pic in all_pics {
-        println!("{:?}", pic.path);
+        println!("{:?}", pic.relative_path);
     }
 }

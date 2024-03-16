@@ -32,7 +32,7 @@ impl Controller {
             let order_by_ts = exif_date_time.map(|d| d.to_utc()).or(fs_date_time);
 
             let pic = repo::Picture {
-                path: pic.relative_path,
+                relative_path: pic.relative_path,
                 order_by_ts,
             };
             match self.repo.add(&pic) {

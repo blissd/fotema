@@ -10,15 +10,17 @@ use std::path::PathBuf;
 /// A picture in the repository
 #[derive(Debug)]
 pub struct Picture {
-    // From file system
-    pub path: PathBuf,
+    /// Relative path from picture library root.
+    pub relative_path: PathBuf,
+
+    /// Ordering timestamp, derived from EXIF metadat or file system timestamps.
     pub order_by_ts: Option<DateTime<Utc>>,
 }
 
 impl Picture {
-    pub fn new(path: PathBuf) -> Picture {
+    pub fn new(relative_path: PathBuf) -> Picture {
         Picture {
-            path,
+            relative_path,
             order_by_ts: None,
         }
     }
@@ -48,7 +50,7 @@ impl Repository {
     /// Creates operational tables.
     fn setup(&self) -> Result<()> {
         let sql = "CREATE TABLE IF NOT EXISTS PICTURES (
-                        path           TEXT PRIMARY KEY UNIQUE ON CONFLICT REPLACE,
+                        relative_path  TEXT PRIMARY KEY UNIQUE ON CONFLICT REPLACE,
                         order_by_ts    DATETIME -- UTC timestamp to order images by
                         )";
 
@@ -62,8 +64,8 @@ impl Repository {
     /// At a minimum a picture must have a path on the file system and file modification date.
     pub fn add(&self, pic: &Picture) -> Result<()> {
         let result = self.con.execute(
-            "INSERT INTO PICTURES (path, order_by_ts) VALUES (?1, ?2)",
-            (pic.path.as_path().to_str(), pic.order_by_ts),
+            "INSERT INTO PICTURES (relative_path, order_by_ts) VALUES (?1, ?2)",
+            (pic.relative_path.as_path().to_str(), pic.order_by_ts),
         );
 
         result
@@ -75,13 +77,13 @@ impl Repository {
     pub fn all(&self) -> Result<Vec<Picture>> {
         let mut stmt = self
             .con
-            .prepare("SELECT  path, order_by_ts from PICTURES order by order_by_ts ASC")
+            .prepare("SELECT relative_path, order_by_ts from PICTURES order by order_by_ts ASC")
             .unwrap();
 
         fn row_to_picture(row: &Row<'_>) -> rusqlite::Result<Picture> {
             let path_result: rusqlite::Result<String> = row.get(0);
-            path_result.map(|path| Picture {
-                path: path::PathBuf::from(path),
+            path_result.map(|relative_path| Picture {
+                relative_path: path::PathBuf::from(relative_path),
                 order_by_ts: row.get(1).ok(),
             })
         }
@@ -105,25 +107,15 @@ mod tests {
     use super::*;
     use std::path::PathBuf;
 
-    fn picture_dir() -> PathBuf {
-        let mut test_data_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        test_data_dir.push("resources/test");
-        test_data_dir
-    }
-
     #[test]
     fn repo_add_and_get() {
         let r = Repository::open_in_memory().unwrap();
-
-        let test_data_dir = picture_dir();
-        let mut test_file = test_data_dir.clone();
-        test_file.push("Birdie.jpg");
-
+        let test_file = PathBuf::from("resources/test/Birdie.jpg");
         let pic = Picture::new(test_file.clone());
         r.add(&pic).unwrap();
 
         let all_pics = r.all().unwrap();
         let pic = all_pics.get(0).unwrap();
-        assert_eq!(pic.path, test_file);
+        assert_eq!(pic.relative_path, test_file);
     }
 }
