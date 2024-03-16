@@ -124,25 +124,29 @@ impl Scanner {
             .and_then(|x| x.modified().ok())
             .map(|x| Into::<DateTime<Utc>>::into(x));
 
-        let relative_path = path
-            .strip_prefix(&self.scan_path)
-            .map_err(|e| ScannerError(e.to_string()))?;
+        let mut pic = {
+            let relative_path = path
+                .strip_prefix(&self.scan_path)
+                .map_err(|e| ScannerError(e.to_string()))?;
+            Picture::new(PathBuf::from(relative_path))
+        };
 
-        let mut pic = Picture::new(PathBuf::from(relative_path));
         pic.fs = fs.to_option();
 
-        let f = &mut BufReader::new(file);
-        let r = match exif::Reader::new().read_from_container(f) {
-            Ok(file) => file,
-            Err(_) => {
-                // Assume this error is when there is no EXIF data.
-                return Ok(pic);
+        let exif_data = {
+            let f = &mut BufReader::new(file);
+            match exif::Reader::new().read_from_container(f) {
+                Ok(file) => file,
+                Err(_) => {
+                    // Assume this error is when there is no EXIF data.
+                    return Ok(pic);
+                }
             }
         };
 
         let mut exif = Exif::default();
 
-        exif.description = r
+        exif.description = exif_data
             .get_field(exif::Tag::ImageDescription, exif::In::PRIMARY)
             .map(|e| e.display_value().to_string());
 
@@ -184,12 +188,12 @@ impl Scanner {
         }
 
         exif.created_at = parse_date_time(
-            r.get_field(exif::Tag::DateTimeOriginal, exif::In::PRIMARY),
-            r.get_field(exif::Tag::OffsetTimeOriginal, exif::In::PRIMARY),
+            exif_data.get_field(exif::Tag::DateTimeOriginal, exif::In::PRIMARY),
+            exif_data.get_field(exif::Tag::OffsetTimeOriginal, exif::In::PRIMARY),
         );
         exif.modified_at = parse_date_time(
-            r.get_field(exif::Tag::DateTime, exif::In::PRIMARY),
-            r.get_field(exif::Tag::OffsetTime, exif::In::PRIMARY),
+            exif_data.get_field(exif::Tag::DateTime, exif::In::PRIMARY),
+            exif_data.get_field(exif::Tag::OffsetTime, exif::In::PRIMARY),
         );
 
         pic.exif = exif.to_option();
