@@ -56,9 +56,7 @@ impl Repository {
     /// At a minimum a picture must have a path on the file system and file modification date.
     pub fn add(&self, pic: &Picture) -> Result<()> {
         let result = self.con.execute(
-            "INSERT INTO PICTURES (
-                path, order_by_ts
-            ) VALUES (?1, ?2)",
+            "INSERT INTO PICTURES (path, order_by_ts) VALUES (?1, ?2)",
             (pic.path.as_path().to_str(), pic.order_by_ts),
         );
 
