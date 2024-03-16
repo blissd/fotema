@@ -125,7 +125,7 @@ impl Scanner {
         fs.created_at = file
             .metadata()
             .ok()
-            .and_then(|x| x.modified().ok())
+            .and_then(|x| x.created().ok())
             .map(|x| Into::<DateTime<Utc>>::into(x));
 
         fs.modified_at = file
