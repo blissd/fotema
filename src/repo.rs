@@ -32,6 +32,7 @@ impl Picture {
 
 /// Repository of picture metadata.
 /// Repository is backed by a Sqlite database.
+#[derive(Debug)]
 pub struct Repository {
     /// Connection to backing Sqlite database.
     con: rusqlite::Connection,

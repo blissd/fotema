@@ -7,12 +7,14 @@ use crate::scanner;
 use crate::Result;
 
 /// Aggregate API for the scanner and the repository.
+#[derive(Debug)]
 pub struct Controller {
     repo: repo::Repository,
     scan: scanner::Scanner,
 }
 
 /// Summary of a scan
+#[derive(Debug)]
 pub struct ScanSummary {
     /// Count of pictures scanned.
     success_count: u32,
