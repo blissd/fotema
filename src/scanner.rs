@@ -109,24 +109,17 @@ impl Scanner {
     }
 
     pub fn scan_one(&self, path: &Path) -> Result<Picture> {
-        let f = match fs::File::open(path) {
-            Ok(file) => file,
-            Err(e) => {
-                println!("file {:?} failed with {}", path, e);
-                return Err(ScannerError(e.to_string()));
-            }
-        };
-
+        let file = fs::File::open(path).map_err(|e| ScannerError(e.to_string()))?;
         let mut pic = Picture::new(PathBuf::from(path));
         let mut fs = FsMetadata::default();
 
-        fs.created_at = f
+        fs.created_at = file
             .metadata()
             .ok()
             .and_then(|x| x.modified().ok())
             .map(|x| Into::<DateTime<Utc>>::into(x));
 
-        fs.modified_at = f
+        fs.modified_at = file
             .metadata()
             .ok()
             .and_then(|x| x.modified().ok())
@@ -134,7 +127,7 @@ impl Scanner {
 
         pic.fs = fs.to_option();
 
-        let f = &mut BufReader::new(f);
+        let f = &mut BufReader::new(file);
         let r = match exif::Reader::new().read_from_container(f) {
             Ok(file) => file,
             Err(_) => {
@@ -214,9 +207,10 @@ mod tests {
     #[test]
     fn visit_all() {
         let test_data_dir = picture_dir();
-        //let test_data_dir = PathBuf::from("/var/home/david/Pictures");
+        let mut count = 0;
         let s = Scanner::build(&test_data_dir).unwrap();
-        s.visit_all(|x| println!("{:?}", x));
+        s.visit_all(|_| count += 1);
+        assert_eq!(6, count);
     }
 
     #[test]
@@ -227,6 +221,7 @@ mod tests {
 
         let s = Scanner::build(&test_data_dir).unwrap();
         let info = s.scan_one(&test_file).unwrap();
-        println!("{:?}", info);
+
+        assert!(info.path.to_str().unwrap().ends_with("Birdie.jpg"));
     }
 }
