@@ -96,7 +96,7 @@ impl Scanner {
 
             if let Some(field) = time_offset_field {
                 if let exif::Value::Ascii(ref vec) = field.value {
-                    date_time.parse_offset(&vec[0]);
+                    let _ = date_time.parse_offset(&vec[0]);
                 }
             }
 
