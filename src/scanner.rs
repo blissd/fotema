@@ -222,18 +222,18 @@ mod tests {
         let mut count = 0;
         let s = Scanner::build(&test_data_dir).unwrap();
         s.visit_all(|_| count += 1);
-        assert_eq!(6, count);
+        assert_eq!(5, count);
     }
 
     #[test]
     fn scan_one() {
         let test_data_dir = picture_dir();
         let mut test_file = test_data_dir.clone();
-        test_file.push("Birdie.jpg");
+        test_file.push("Sandow.jpg");
 
         let s = Scanner::build(&test_data_dir).unwrap();
         let pic = s.scan_one(&test_file).unwrap();
 
-        assert!(pic.relative_path.to_str().unwrap().ends_with("Birdie.jpg"));
+        assert!(pic.relative_path.to_str().unwrap().ends_with("Sandow.jpg"));
     }
 }
