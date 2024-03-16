@@ -60,10 +60,9 @@ impl Repository {
             (pic.path.as_path().to_str(), pic.order_by_ts),
         );
 
-        match result {
-            Ok(_) => Ok(()),
-            Err(e) => Err(RepositoryError(e.to_string())),
-        }
+        result
+            .map(|_| ())
+            .map_err(|e| RepositoryError(e.to_string()))
     }
 
     /// Gets all pictures in the repository, in ascending order of modification timestamp.
