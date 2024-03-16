@@ -75,18 +75,15 @@ impl Repository {
             .prepare("SELECT  path, order_by_ts from PICTURES order by order_by_ts ASC")
             .unwrap();
 
-        fn row_to_picture_info(row: &Row<'_>) -> rusqlite::Result<Picture> {
+        fn row_to_picture(row: &Row<'_>) -> rusqlite::Result<Picture> {
             let path_result: rusqlite::Result<String> = row.get(0);
-            if let Some(path) = path_result.ok() {
-                Ok(Picture {
-                    path: path::PathBuf::from(path),
-                    order_by_ts: row.get(1).ok(),
-                })
-            } else {
-                Err(rusqlite::Error::ExecuteReturnedResults) // probably not the right error
-            }
+            path_result.map(|path| Picture {
+                path: path::PathBuf::from(path),
+                order_by_ts: row.get(1).ok(),
+            })
         }
-        let iter = match stmt.query_map([], |row| row_to_picture_info(row)) {
+
+        let iter = match stmt.query_map([], |row| row_to_picture(row)) {
             Ok(f) => f,
             Err(e) => return Err(RepositoryError(e.to_string())),
         };
