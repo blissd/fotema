@@ -5,9 +5,8 @@ use std::path::PathBuf;
 use tempfile;
 
 fn picture_dir() -> PathBuf {
-    let test_data_dir = PathBuf::from("/var/home/david/Pictures");
-    //let mut test_data_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    //test_data_dir.push("resources/test");
+    let mut test_data_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    test_data_dir.push("resources/test");
     test_data_dir
 }
 
