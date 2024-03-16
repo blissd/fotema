@@ -10,16 +10,16 @@ use walkdir::WalkDir;
 
 #[derive(Debug)]
 pub struct Picture {
-    // From file system
-    pub path: PathBuf,
+    /// Relative path to file under scanner's scan_path
+    pub relative_path: PathBuf,
     pub fs: Option<FsMetadata>,
     pub exif: Option<Exif>,
 }
 
 impl Picture {
-    pub fn new(path: PathBuf) -> Picture {
+    pub fn new(relative_path: PathBuf) -> Picture {
         Picture {
-            path,
+            relative_path,
             fs: None,
             exif: None,
         }
@@ -110,7 +110,6 @@ impl Scanner {
 
     pub fn scan_one(&self, path: &Path) -> Result<Picture> {
         let file = fs::File::open(path).map_err(|e| ScannerError(e.to_string()))?;
-        let mut pic = Picture::new(PathBuf::from(path));
         let mut fs = FsMetadata::default();
 
         fs.created_at = file
@@ -125,6 +124,11 @@ impl Scanner {
             .and_then(|x| x.modified().ok())
             .map(|x| Into::<DateTime<Utc>>::into(x));
 
+        let relative_path = path
+            .strip_prefix(&self.scan_path)
+            .map_err(|e| ScannerError(e.to_string()))?;
+
+        let mut pic = Picture::new(PathBuf::from(relative_path));
         pic.fs = fs.to_option();
 
         let f = &mut BufReader::new(file);
@@ -220,8 +224,8 @@ mod tests {
         test_file.push("Birdie.jpg");
 
         let s = Scanner::build(&test_data_dir).unwrap();
-        let info = s.scan_one(&test_file).unwrap();
+        let pic = s.scan_one(&test_file).unwrap();
 
-        assert!(info.path.to_str().unwrap().ends_with("Birdie.jpg"));
+        assert!(pic.relative_path.to_str().unwrap().ends_with("Birdie.jpg"));
     }
 }
