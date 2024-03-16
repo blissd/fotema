@@ -32,9 +32,15 @@ pub struct Repository {
 }
 
 impl Repository {
-    /// Builds a Repository and creates operational tables.
-    pub fn build(_dir_ignored_while_in_memory: &path::Path) -> Result<Repository> {
+    pub fn open_in_memory() -> Result<Repository> {
         let con = Connection::open_in_memory().map_err(|e| RepositoryError(e.to_string()))?;
+        let repo = Repository { con };
+        repo.setup().map(|_| repo)
+    }
+
+    /// Builds a Repository and creates operational tables.
+    pub fn open(db_path: &path::Path) -> Result<Repository> {
+        let con = Connection::open(db_path).map_err(|e| RepositoryError(e.to_string()))?;
         let repo = Repository { con };
         repo.setup().map(|_| repo)
     }
@@ -107,7 +113,7 @@ mod tests {
 
     #[test]
     fn repo_add_and_get() {
-        let r = Repository::build(path::Path::new(":memory:")).unwrap();
+        let r = Repository::open_in_memory().unwrap();
 
         let test_data_dir = picture_dir();
         let mut test_file = test_data_dir.clone();
