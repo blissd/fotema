@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: © 2024 David Bliss
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 ///! Repository of metadata about pictures on the local filesystem.
 use crate::Error::*;
 use crate::Result;

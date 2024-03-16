@@ -1,0 +1,30 @@
+# SPDX-FileCopyrightText: © 2024 David Bliss
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+# https://taskfile.dev
+
+version: '3'
+
+vars:
+  COPYRIGHT: "David Bliss"
+  YEAR:
+    sh: "date +%Y"
+
+tasks:
+  licences:
+    desc: "Update licence annotations for project files"
+    cmds:
+      - reuse annotate 
+        --recursive 
+        --fallback-dot-license 
+        --copyright "{{ .COPYRIGHT }}" 
+        --license "GPL-3.0-or-later"
+        --year {{ .YEAR }} 
+        --copyright-style spdx-symbol 
+        .
+
+  licence-lint:
+    desc: "Lint licences"
+    cmds:
+      - reuse lint

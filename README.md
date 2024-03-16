@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: © 2024 David Bliss
+
+SPDX-License-Identifier: GPL-3.0-or-later
+-->
+
 # rust-lib-photos
 
 Rust API for scanning photos on a local file system, extracting EXIF and file system metadata, and persisting

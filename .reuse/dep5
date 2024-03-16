@@ -1,0 +1,8 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: Photos
+Upstream-Contact: David Bliss <vivid.map6767@davidbliss.me>
+Source: https://github.com/blissd/rust-lib-photos
+
+Files: Cargo.lock
+Copyright: © 2024 David Bliss <vivid.map6767@davidbliss.me>
+License: GPL-3.0-or-later
