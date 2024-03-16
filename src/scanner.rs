@@ -8,9 +8,64 @@ use std::path::Path;
 use std::path::PathBuf;
 use walkdir::WalkDir;
 
-use crate::model::PictureInfo;
+#[derive(Debug)]
+pub struct Picture {
+    // From file system
+    pub path: PathBuf,
+    pub fs: Option<FsMetadata>,
+    pub exif: Option<Exif>,
+}
 
+impl Picture {
+    pub fn new(path: PathBuf) -> Picture {
+        Picture {
+            path,
+            fs: None,
+            exif: None,
+        }
+    }
+}
+
+/// Metadata from EXIF tags
+#[derive(Debug, Default)]
+pub struct Exif {
+    pub description: Option<String>,
+    pub created_at: Option<DateTime<FixedOffset>>,
+    pub modified_at: Option<DateTime<FixedOffset>>,
+}
+
+impl Exif {
+    /// If any fields are present, then wrap self in an Option::Some. Otherwise, return None.
+    pub fn to_option(self) -> Option<Exif> {
+        if self.description.is_some() || self.created_at.is_some() || self.modified_at.is_some() {
+            Some(self)
+        } else {
+            None
+        }
+    }
+}
+
+/// Metadata from the file system.
+#[derive(Debug, Default)]
+pub struct FsMetadata {
+    pub created_at: Option<DateTime<Utc>>,
+    pub modified_at: Option<DateTime<Utc>>,
+}
+
+impl FsMetadata {
+    /// If any fields are present, then wrap self in an Option::Some. Otherwise, return None.
+    pub fn to_option(self) -> Option<FsMetadata> {
+        if self.created_at.is_some() || self.modified_at.is_some() {
+            Some(self)
+        } else {
+            None
+        }
+    }
+}
+
+/// Scans a file system for pictures.
 pub struct Scanner {
+    /// File system path to scan.
     scan_path: PathBuf,
 }
 
@@ -23,7 +78,7 @@ impl Scanner {
 
     pub fn visit_all<F>(&self, func: F)
     where
-        F: FnMut(PictureInfo),
+        F: FnMut(Picture),
     {
         let picture_suffixes = vec![
             String::from("avif"),
@@ -53,7 +108,7 @@ impl Scanner {
             .for_each(func); // visit
     }
 
-    pub fn scan_one(&self, path: &Path) -> Result<PictureInfo> {
+    pub fn scan_one(&self, path: &Path) -> Result<Picture> {
         let f = match fs::File::open(path) {
             Ok(file) => file,
             Err(e) => {
@@ -62,12 +117,22 @@ impl Scanner {
             }
         };
 
-        let mut pic = PictureInfo::new(PathBuf::from(path));
-        let fs_modified_at = f.metadata().ok().and_then(|x| x.modified().ok());
-        pic.fs_modified_at = fs_modified_at.map(|x| {
-            let dt: DateTime<Utc> = x.into();
-            dt
-        });
+        let mut pic = Picture::new(PathBuf::from(path));
+        let mut fs = FsMetadata::default();
+
+        fs.created_at = f
+            .metadata()
+            .ok()
+            .and_then(|x| x.modified().ok())
+            .map(|x| Into::<DateTime<Utc>>::into(x));
+
+        fs.modified_at = f
+            .metadata()
+            .ok()
+            .and_then(|x| x.modified().ok())
+            .map(|x| Into::<DateTime<Utc>>::into(x));
+
+        pic.fs = fs.to_option();
 
         let f = &mut BufReader::new(f);
         let r = match exif::Reader::new().read_from_container(f) {
@@ -78,7 +143,9 @@ impl Scanner {
             }
         };
 
-        pic.description = r
+        let mut exif = Exif::default();
+
+        exif.description = r
             .get_field(exif::Tag::ImageDescription, exif::In::PRIMARY)
             .map(|e| e.display_value().to_string());
 
@@ -119,14 +186,16 @@ impl Scanner {
             Some(offset.from_utc_datetime(&naive_date_time))
         }
 
-        pic.created_at = parse_date_time(
+        exif.created_at = parse_date_time(
             r.get_field(exif::Tag::DateTimeOriginal, exif::In::PRIMARY),
             r.get_field(exif::Tag::OffsetTimeOriginal, exif::In::PRIMARY),
         );
-        pic.modified_at = parse_date_time(
+        exif.modified_at = parse_date_time(
             r.get_field(exif::Tag::DateTime, exif::In::PRIMARY),
             r.get_field(exif::Tag::OffsetTime, exif::In::PRIMARY),
         );
+
+        pic.exif = exif.to_option();
 
         Ok(pic)
     }

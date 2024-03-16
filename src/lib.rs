@@ -1,10 +1,8 @@
 mod error;
-mod model;
-mod repo;
-mod scanner;
+pub mod repo;
+pub mod scanner;
 
 pub use error::Error;
-pub use model::PictureInfo;
 pub use repo::Repository;
 pub use scanner::Scanner;
 

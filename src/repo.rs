@@ -1,10 +1,36 @@
 ///! Repository of metadata about pictures on the local filesystem.
-use crate::model::PictureInfo;
 use crate::Error::*;
 use crate::Result;
+use chrono::*;
 use rusqlite::Connection;
 use rusqlite::Row;
 use std::path;
+use std::path::PathBuf;
+
+/// A picture in the repository
+#[derive(Debug)]
+pub struct Picture {
+    // From file system
+    pub path: PathBuf,
+    pub fs_modified_at: Option<DateTime<Utc>>,
+
+    // From EXIF data
+    pub description: Option<String>,
+    pub created_at: Option<DateTime<FixedOffset>>,
+    pub modified_at: Option<DateTime<FixedOffset>>,
+}
+
+impl Picture {
+    pub fn new(path: PathBuf) -> Picture {
+        Picture {
+            path,
+            fs_modified_at: None,
+            description: None,
+            created_at: None,
+            modified_at: None,
+        }
+    }
+}
 
 /// Repository of picture metadata.
 /// Repository is backed by a Sqlite database.
@@ -40,7 +66,7 @@ impl Repository {
 
     /// Add a picture to the repository.
     /// At a minimum a picture must have a path on the file system and file modification date.
-    pub fn add(&self, pic: &PictureInfo) -> Result<()> {
+    pub fn add(&self, pic: &Picture) -> Result<()> {
         // Pictures are orderd by this UTC date time.
         let order_by_ts = pic.modified_at.map(|d| d.to_utc()).or(pic.fs_modified_at);
 
@@ -65,7 +91,7 @@ impl Repository {
     }
 
     /// Gets all pictures in the repository, in ascending order of modification timestamp.
-    pub fn all(&self) -> Result<Vec<PictureInfo>> {
+    pub fn all(&self) -> Result<Vec<Picture>> {
         let mut stmt = self
             .con
             .prepare(
@@ -79,10 +105,10 @@ impl Repository {
             )
             .unwrap();
 
-        fn row_to_picture_info(row: &Row<'_>) -> rusqlite::Result<PictureInfo> {
+        fn row_to_picture_info(row: &Row<'_>) -> rusqlite::Result<Picture> {
             let path_result: rusqlite::Result<String> = row.get(0);
             if let Some(path) = path_result.ok() {
-                Ok(PictureInfo {
+                Ok(Picture {
                     path: path::PathBuf::from(path),
                     // order_by_ts: row.get(0).ok(),
                     fs_modified_at: row.get(1).ok(),
@@ -128,7 +154,7 @@ mod tests {
         let mut test_file = test_data_dir.clone();
         test_file.push("Birdie.jpg");
 
-        let pic = PictureInfo::new(test_file.clone());
+        let pic = Picture::new(test_file.clone());
         r.add(&pic).unwrap();
 
         let all_pics = r.all().unwrap();

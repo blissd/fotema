@@ -21,6 +21,13 @@ fn test_scan_and_persist() {
     let scanner = Scanner::build(&pic_dir).unwrap();
 
     scanner.visit_all(|pic| {
+        let pic = photos::repo::Picture {
+            path: pic.path,
+            fs_modified_at: pic.fs.as_ref().and_then(|x| x.modified_at),
+            created_at: pic.exif.as_ref().and_then(|x| x.created_at),
+            modified_at: pic.exif.as_ref().and_then(|x| x.modified_at),
+            description: pic.exif.as_ref().and_then(|x| x.description.clone()),
+        };
         repo.add(&pic).ok();
     });
 
