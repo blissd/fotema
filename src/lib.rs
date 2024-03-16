@@ -1,7 +1,9 @@
+pub mod controller;
 mod error;
 pub mod repo;
 pub mod scanner;
 
+pub use controller::Controller;
 pub use error::Error;
 pub use repo::Repository;
 pub use scanner::Scanner;

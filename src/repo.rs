@@ -12,22 +12,14 @@ use std::path::PathBuf;
 pub struct Picture {
     // From file system
     pub path: PathBuf,
-    pub fs_modified_at: Option<DateTime<Utc>>,
-
-    // From EXIF data
-    pub description: Option<String>,
-    pub created_at: Option<DateTime<FixedOffset>>,
-    pub modified_at: Option<DateTime<FixedOffset>>,
+    pub order_by_ts: Option<DateTime<Utc>>,
 }
 
 impl Picture {
     pub fn new(path: PathBuf) -> Picture {
         Picture {
             path,
-            fs_modified_at: None,
-            description: None,
-            created_at: None,
-            modified_at: None,
+            order_by_ts: None,
         }
     }
 }
@@ -51,11 +43,7 @@ impl Repository {
     fn setup(&self) -> Result<()> {
         let sql = "CREATE TABLE IF NOT EXISTS PICTURES (
                         path           TEXT PRIMARY KEY UNIQUE ON CONFLICT REPLACE,
-                        order_by_ts    TEXT, -- UTC timestamp to order images by
-                        fs_modified_at TEXT, -- UTC timestamp of filesystem modification date
-                        modified_at    TEXT, -- EXIF time offset-aware timestamp of last modification
-                        created_at     TEXT, -- EXIF time offset-aware timestamp of creation
-                        description    TEXT  -- EXIF description
+                        order_by_ts    DATETIME -- UTC timestamp to order images by
                         )";
 
         let result = self.con.execute(&sql, ());
@@ -67,21 +55,11 @@ impl Repository {
     /// Add a picture to the repository.
     /// At a minimum a picture must have a path on the file system and file modification date.
     pub fn add(&self, pic: &Picture) -> Result<()> {
-        // Pictures are orderd by this UTC date time.
-        let order_by_ts = pic.modified_at.map(|d| d.to_utc()).or(pic.fs_modified_at);
-
         let result = self.con.execute(
             "INSERT INTO PICTURES (
-                path, order_by_ts, fs_modified_at, modified_at, created_at, description
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            (
-                &pic.path.as_path().to_str(),
-                order_by_ts,
-                &pic.fs_modified_at,
-                &pic.modified_at,
-                &pic.created_at,
-                &pic.description,
-            ),
+                path, order_by_ts
+            ) VALUES (?1, ?2)",
+            (pic.path.as_path().to_str(), pic.order_by_ts),
         );
 
         match result {
@@ -94,15 +72,7 @@ impl Repository {
     pub fn all(&self) -> Result<Vec<Picture>> {
         let mut stmt = self
             .con
-            .prepare(
-                "SELECT 
-            path,
-            fs_modified_at,
-            modified_at, 
-            created_at, 
-            description
-            from PICTURES order by order_by_ts ASC",
-            )
+            .prepare("SELECT  path, order_by_ts from PICTURES order by order_by_ts ASC")
             .unwrap();
 
         fn row_to_picture_info(row: &Row<'_>) -> rusqlite::Result<Picture> {
@@ -110,11 +80,7 @@ impl Repository {
             if let Some(path) = path_result.ok() {
                 Ok(Picture {
                     path: path::PathBuf::from(path),
-                    // order_by_ts: row.get(0).ok(),
-                    fs_modified_at: row.get(1).ok(),
-                    modified_at: row.get(2).ok(),
-                    created_at: row.get(3).ok(),
-                    description: row.get(4).ok(),
+                    order_by_ts: row.get(1).ok(),
                 })
             } else {
                 Err(rusqlite::Error::ExecuteReturnedResults) // probably not the right error
