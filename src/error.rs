@@ -2,10 +2,9 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+/// Bespoke errors
 #[derive(Debug)]
 pub enum Error {
     RepositoryError(String),
-    FileSystemError(String),
-    MetadataError(String),
     ScannerError(String),
 }

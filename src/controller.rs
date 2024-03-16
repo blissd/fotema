@@ -6,6 +6,7 @@ use crate::repo;
 use crate::scanner;
 use crate::Result;
 
+/// Aggregate API for the scanner and the repository.
 pub struct Controller {
     repo: repo::Repository,
     scan: scanner::Scanner,
@@ -13,9 +14,9 @@ pub struct Controller {
 
 /// Summary of a scan
 pub struct ScanSummary {
-    /// Count of pictures scanned
+    /// Count of pictures scanned.
     success_count: u32,
-    // Count of pictures that could not be processed
+    /// Count of pictures that could not be processed.
     error_count: u32,
 }
 
@@ -24,6 +25,7 @@ impl Controller {
         Controller { repo, scan }
     }
 
+    /// Scans all photos and adds them to the repository.
     pub fn scan(&self) -> Result<ScanSummary> {
         let mut summary = ScanSummary {
             success_count: 0,
@@ -48,6 +50,7 @@ impl Controller {
         Ok(summary)
     }
 
+    /// Gets all photos.
     pub fn all(&self) -> Result<Vec<repo::Picture>> {
         self.repo.all()
     }

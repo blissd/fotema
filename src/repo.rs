@@ -17,7 +17,7 @@ pub struct Picture {
     /// Relative path from picture library root.
     pub relative_path: PathBuf,
 
-    /// Ordering timestamp, derived from EXIF metadat or file system timestamps.
+    /// Ordering timestamp, derived from EXIF metadata or file system timestamps.
     pub order_by_ts: Option<DateTime<Utc>>,
 }
 
@@ -114,7 +114,7 @@ mod tests {
     #[test]
     fn repo_add_and_get() {
         let r = Repository::open_in_memory().unwrap();
-        let test_file = PathBuf::from("resources/test/Birdie.jpg");
+        let test_file = PathBuf::from("some/random/path.jpg");
         let pic = Picture::new(test_file.clone());
         r.add(&pic).unwrap();
 

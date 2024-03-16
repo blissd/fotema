@@ -12,15 +12,21 @@ use std::path::Path;
 use std::path::PathBuf;
 use walkdir::WalkDir;
 
+/// A picture on the local file systme that has been scanned.
 #[derive(Debug)]
 pub struct Picture {
-    /// Relative path to file under scanner's scan_path
+    /// Relative path to file under scanner's scan_path.
     pub relative_path: PathBuf,
+
+    /// Metadata from the file system.
     pub fs: Option<FsMetadata>,
+
+    /// Metadata from the EXIF tags.
     pub exif: Option<Exif>,
 }
 
 impl Picture {
+    /// Creates a new Picture for a given relative path.
     pub fn new(relative_path: PathBuf) -> Picture {
         Picture {
             relative_path,
@@ -70,14 +76,14 @@ impl FsMetadata {
 /// Scans a file system for pictures.
 pub struct Scanner {
     /// File system path to scan.
-    scan_path: PathBuf,
+    scan_base: PathBuf,
 }
 
 impl Scanner {
-    pub fn build(scan_path: &Path) -> Result<Scanner> {
-        fs::create_dir_all(scan_path).map_err(|e| ScannerError(e.to_string()))?;
-        let scan_path = PathBuf::from(scan_path);
-        Ok(Scanner { scan_path })
+    pub fn build(scan_base: &Path) -> Result<Scanner> {
+        fs::create_dir_all(scan_base).map_err(|e| ScannerError(e.to_string()))?;
+        let scan_base = PathBuf::from(scan_base);
+        Ok(Scanner { scan_base })
     }
 
     pub fn visit_all<F>(&self, func: F)
@@ -94,7 +100,7 @@ impl Scanner {
             String::from("webp"),
         ];
 
-        WalkDir::new(&self.scan_path)
+        WalkDir::new(&self.scan_base)
             .into_iter()
             .flatten() // skip files we failed to read
             .filter(|x| x.path().is_file()) // only process files
@@ -130,7 +136,7 @@ impl Scanner {
 
         let mut pic = {
             let relative_path = path
-                .strip_prefix(&self.scan_path)
+                .strip_prefix(&self.scan_base)
                 .map_err(|e| ScannerError(e.to_string()))?;
             Picture::new(PathBuf::from(relative_path))
         };
@@ -159,7 +165,6 @@ impl Scanner {
             time_offset_field: Option<&exif::Field>,
         ) -> Option<DateTime<FixedOffset>> {
             let date_time_field = date_time_field?;
-            //let time_offset_field = time_offset_field?;
 
             let mut date_time = match date_time_field.value {
                 exif::Value::Ascii(ref vec) => exif::DateTime::from_ascii(&vec[0]).ok(),
