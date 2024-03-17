@@ -14,12 +14,10 @@ pub struct Controller {
 }
 
 /// Summary of a scan
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct ScanSummary {
     /// Count of pictures scanned.
-    success_count: u32,
-    /// Count of pictures that could not be processed.
-    error_count: u32,
+    success_count: usize,
 }
 
 impl Controller {
@@ -28,28 +26,29 @@ impl Controller {
     }
 
     /// Scans all photos and adds them to the repository.
-    pub fn scan(&self) -> Result<ScanSummary> {
-        let mut summary = ScanSummary {
-            success_count: 0,
-            error_count: 0,
-        };
-
-        self.scan.visit_all(|pic| {
+    pub fn scan(&mut self) -> Result<ScanSummary> {
+        fn as_repo_pic(pic: scanner::Picture) -> repo::Picture {
             let exif_date_time = pic.exif.and_then(|x| x.created_at);
             let fs_date_time = pic.fs.and_then(|x| x.created_at);
             let order_by_ts = exif_date_time.map(|d| d.to_utc()).or(fs_date_time);
 
-            let pic = repo::Picture {
+            repo::Picture {
                 relative_path: pic.relative_path,
                 order_by_ts,
-            };
-            match self.repo.add(&pic) {
-                Ok(_) => summary.success_count += 1,
-                Err(_) => summary.error_count += 1,
             }
-        });
+        }
 
-        Ok(summary)
+        match self.scan.scan_all() {
+            Ok(pics) => {
+                // TODO can an interator be passes to add_all instead of a vector?
+                let pics = pics.into_iter().map(|p| as_repo_pic(p)).collect();
+                self.repo.add_all(&pics)?;
+                Ok(ScanSummary {
+                    success_count: pics.len(),
+                })
+            }
+            Err(e) => Err(e),
+        }
     }
 
     /// Gets all photos.

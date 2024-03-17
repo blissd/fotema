@@ -27,7 +27,7 @@ fn test_scan_and_persist() {
         Scanner::build(&pic_dir).unwrap()
     };
 
-    let ctl = Controller::new(repo, scanner);
+    let mut ctl = Controller::new(repo, scanner);
 
     ctl.scan().unwrap();
 

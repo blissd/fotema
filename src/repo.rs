@@ -6,6 +6,7 @@
 use crate::Error::*;
 use crate::Result;
 use chrono::*;
+use rusqlite::params;
 use rusqlite::Connection;
 use rusqlite::Row;
 use std::path;
@@ -76,6 +77,31 @@ impl Repository {
         result
             .map(|_| ())
             .map_err(|e| RepositoryError(e.to_string()))
+    }
+
+    /// Add all Pictures received from a vector.
+    pub fn add_all(&mut self, pics: &Vec<Picture>) -> Result<()> {
+        let tx = self
+            .con
+            .transaction()
+            .map_err(|e| RepositoryError(e.to_string()))?;
+
+        // Create a scope to make borrowing of tx not be an error.
+        {
+            let mut stmt = tx
+                .prepare_cached("INSERT INTO PICTURES (relative_path, order_by_ts) VALUES (?1, ?2)")
+                .map_err(|e| RepositoryError(e.to_string()))?;
+
+            for pic in pics {
+                stmt.execute(params![
+                    pic.relative_path.as_path().to_str(),
+                    pic.order_by_ts
+                ])
+                .map_err(|e| RepositoryError(e.to_string()))?;
+            }
+        }
+
+        tx.commit().map_err(|e| RepositoryError(e.to_string()))
     }
 
     /// Gets all pictures in the repository, in ascending order of modification timestamp.

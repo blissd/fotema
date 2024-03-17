@@ -87,7 +87,8 @@ impl Scanner {
         Ok(Scanner { scan_base })
     }
 
-    pub fn visit_all<F>(&self, func: F)
+    /// Scans all pictures in the base directory for function `func` to visit.
+    pub fn scan_all_visit<F>(&self, func: F)
     where
         F: FnMut(Picture),
     {
@@ -117,6 +118,16 @@ impl Scanner {
             .map(|x| self.scan_one(x.path())) // Get picture info for image path
             .flatten() // ignore any errors when reading images
             .for_each(func); // visit
+    }
+
+    pub fn scan_all(&self) -> Result<Vec<Picture>> {
+        // Count of files in scan_base.
+        // Note: no filtering here, so count could be greater than number of pictures.
+        // Might want to use the same WalkDir logic in visit_all(...) to get exact count.
+        let file_count = WalkDir::new(&self.scan_base).into_iter().count();
+        let mut pics = Vec::with_capacity(file_count);
+        self.scan_all_visit(|pic| pics.push(pic));
+        Ok(pics)
     }
 
     pub fn scan_one(&self, path: &Path) -> Result<Picture> {
@@ -223,12 +234,26 @@ mod tests {
     }
 
     #[test]
-    fn visit_all() {
+    fn scan_all_visit() {
         let test_data_dir = picture_dir();
         let mut count = 0;
         let s = Scanner::build(&test_data_dir).unwrap();
-        s.visit_all(|_| count += 1);
+        s.scan_all_visit(|_| count += 1);
         assert_eq!(5, count);
+    }
+
+    #[test]
+    fn scan_all() {
+        let test_data_dir = picture_dir();
+        let s = Scanner::build(&test_data_dir).unwrap();
+        let mut all = s.scan_all().unwrap();
+        assert_eq!(5, all.len());
+        all.sort_unstable_by(|a, b| a.relative_path.cmp(&b.relative_path));
+        assert!(all[0].relative_path.ends_with("Dog.jpg"));
+        assert!(all[1].relative_path.ends_with("Frog.jpg"));
+        assert!(all[2].relative_path.ends_with("Kingfisher.jpg"));
+        assert!(all[3].relative_path.ends_with("Lavender.jpg"));
+        assert!(all[4].relative_path.ends_with("Sandow.jpg"));
     }
 
     #[test]
