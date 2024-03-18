@@ -4,10 +4,12 @@ SPDX-FileCopyrightText: © 2024 David Bliss
 SPDX-License-Identifier: GFDL-1.3-or-later
 -->
 
-# rust-lib-photos
+# rs-lib-photos
 
 Rust API for scanning photos on a local file system, extracting EXIF and file system metadata, and persisting
 that data to an SQLite database.
+
+This project exists for me to learn Rust.
 
 ## Example:
 
