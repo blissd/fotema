@@ -940,6 +940,7 @@ name = "photo-romantic"
 version = "0.1.0"
 dependencies = [
  "gettext-rs",
+ "photos_core",
  "relm4",
  "tracing",
  "tracing-subscriber",
