@@ -17,6 +17,7 @@ tasks:
     cmds:
       - reuse annotate 
         --recursive 
+        --skip-existing
         --fallback-dot-license 
         --copyright "{{ .COPYRIGHT }}" 
         --license "GPL-3.0-or-later"
