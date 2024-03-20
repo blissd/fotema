@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: © 2024 David Bliss
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 use gtk::prelude::GtkWindowExt;
 use relm4::{adw, gtk, ComponentParts, ComponentSender, SimpleComponent};
 
@@ -15,17 +19,14 @@ impl SimpleComponent for AboutDialog {
     fn init_root() -> Self::Root {
         adw::AboutWindow::builder()
             .application_icon(APP_ID)
-            // Insert your license of choice here
-            // .license_type(gtk::License::MitX11)
-            // Insert your website here
-            // .website("https://gitlab.gnome.org/bilelmoussaoui/photo-romantic/")
-            // Insert your Issues page
-            // .issue_url("https://gitlab.gnome.org/World/Rust/photo-romantic/-/issues")
+            .license_type(gtk::License::Gpl30)
+            .website("https://github.com/blissd/photo-romantic")
+            .issue_url("https://github.com/blissd/photo-romantic/issues")
             // Insert your application name here
-            .application_name("Relm4-template")
+            .application_name("Photo Romantic")
             .version(VERSION)
-            .translator_credits("translator-credits")
-            .copyright("© 2023 David Bliss")
+            //.translator_credits("translator-credits")
+            .copyright("© 2024 David Bliss")
             .developers(vec!["David Bliss"])
             .designers(vec!["David Bliss"])
             .hide_on_close(true)

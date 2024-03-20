@@ -1,4 +1,8 @@
 #!/bin/sh
+# SPDX-FileCopyrightText: © 2024 David Bliss
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
 # Since Meson invokes this script as
 # "/bin/sh .../dist-vendor.sh DIST SOURCE_ROOT" we can't rely on bash features
 set -eu
