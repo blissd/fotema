@@ -2,4 +2,16 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-/target
+/target/
+/build/
+/_build/
+/builddir/
+/build-aux/app
+/build-aux/.flatpak-builder/
+/src/config.rs
+*.ui.in~
+*.ui~
+/.flatpak/
+/vendor
+/.vscode
+.flatpak-builder/

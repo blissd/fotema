@@ -1,0 +1,6 @@
+data/dev.romantics.Photos.desktop.in.in
+data/dev.romantics.Photos.gschema.xml.in
+data/dev.romantics.Photos.metainfo.xml.in.in
+data/resources/ui/shortcuts.ui
+data/resources/ui/window.ui
+src/application.rs

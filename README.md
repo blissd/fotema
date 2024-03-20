@@ -1,44 +1,21 @@
-<!--
-SPDX-FileCopyrightText: © 2024 David Bliss
+# Photo Romantic
 
-SPDX-License-Identifier: GFDL-1.3-or-later
--->
+Clean and simple GNOME photo gallery.
 
-# rs-lib-photos
+## Building the project
 
-Rust API for scanning photos on a local file system, extracting EXIF and file system metadata, and persisting
-that data to an SQLite database.
+Make sure you have `flatpak` and `flatpak-builder` installed. Then run the commands below. Replace `<application_id>` with the value you entered during project creation. Please note that these commands are just for demonstration purposes. Normally this would be handled by your IDE, such as GNOME Builder or VS Code with the Flatpak extension.
 
-This project exists for me to learn Rust.
-
-## Example:
-
-```rust
-use photos::Controller;
-use photos::Repository;
-use photos::Scanner;
-use std::path::PathBuf;
-use tempfile;
-
-fn scan_pictures() {
-    let repo = {
-        let mut db_path = tempfile::tempdir().unwrap().into_path();
-        db_path.push("test.sqlite");
-        Repository::open(&db_path).unwrap()
-    };
-
-    let scanner = {
-        let pic_dir = PathBuf::from(env!("XDG_PICTURES_DIR"));
-        Scanner::build(&pic_dir).unwrap()
-    };
-
-    let ctl = Controller::new(repo, scanner);
-
-    ctl.scan().unwrap();
-
-    let all_pics = ctl.all().unwrap();
-    for pic in all_pics {
-        println!("{:?}", pic.relative_path);
-    }
-}
 ```
+flatpak install --user org.gnome.Sdk//45 org.freedesktop.Sdk.Extension.rust-stable//23.08 org.gnome.Platform//45 org.freedesktop.Sdk.Extension.llvm16//23.08
+flatpak-builder --user flatpak_app build-aux/dev.romantics.Photos.Devel.json
+```
+
+## Running the project
+
+Once the project is build, run the command below. Please note that these commands are just for demonstration purposes. Normally this would be handled by your IDE, such as GNOME Builder or VS Code with the Flatpak extension.
+
+```
+flatpak-builder --run flatpak_app build-aux/dev.romantics.Photos.Devel.json photo-romantic
+```
+
