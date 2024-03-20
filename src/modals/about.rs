@@ -22,7 +22,6 @@ impl SimpleComponent for AboutDialog {
             .license_type(gtk::License::Gpl30)
             .website("https://github.com/blissd/photo-romantic")
             .issue_url("https://github.com/blissd/photo-romantic/issues")
-            // Insert your application name here
             .application_name("Photo Romantic")
             .version(VERSION)
             //.translator_credits("translator-credits")
