@@ -1,10 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- David Bliss 2019 <david@romantics.dev> -->
+<!-- David Bliss 2024 <david@romantics.dev> -->
 <component type="desktop-application">
   <id>@app-id@</id>
   <metadata_license>CC0</metadata_license>
-  <!-- Insert your license of choice here -->
-  <!-- <project_license>MIT</project_license> -->
+  <project_license>GPL-3.0-or-later</project_license>
   <name>Photo Romantic</name>
   <summary>Write a GTK + Rust application</summary>
   <description>
@@ -23,10 +22,6 @@
     <release version="0.1.0" date="2019-07-11" />
   </releases>
   <kudos>
-     <!--
-       GNOME Software kudos:
-       https://gitlab.gnome.org/GNOME/gnome-software/-/blob/main/doc/kudos.md
-     -->
      <kudo>ModernToolkit</kudo>
      <kudo>HiDpiIcon</kudo>
   </kudos>

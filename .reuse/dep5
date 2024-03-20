@@ -1,8 +1,28 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
-Upstream-Name: Photos
-Upstream-Contact: David Bliss <vivid.map6767@davidbliss.me>
-Source: https://github.com/blissd/rust-lib-photos
+Upstream-Name: Photo Romantic
+Upstream-Contact: David Bliss <david@romantics.dev>
+Source: https://github.com/blissd/photo-romantic
+
+Files: build-aux/*.json
+Copyright: © 2024 David Bliss <david@romantics.dev>
+License: GPL-3.0-or-later
 
 Files: Cargo.lock
-Copyright: © 2024 David Bliss <vivid.map6767@davidbliss.me>
+Copyright: © 2024 David Bliss <david@romantics.dev>
+License: GPL-3.0-or-later
+
+Files: data/*.in
+Copyright: © 2024 David Bliss <david@romantics.dev>
+License: GPL-3.0-or-later
+
+Files: data/icons/*.svg
+Copyright: © 2024 David Bliss <david@romantics.dev>
+License: GPL-3.0-or-later
+
+Files: hooks/*
+Copyright: © 2024 David Bliss <david@romantics.dev>
+License: GPL-3.0-or-later
+
+Files: po/*
+Copyright: © 2024 David Bliss <david@romantics.dev>
 License: GPL-3.0-or-later

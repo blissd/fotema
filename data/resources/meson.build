@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: © 2024 David Bliss
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 # Resources
 resources = gnome.compile_resources(
   'resources',

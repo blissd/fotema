@@ -1,4 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+SPDX-FileCopyrightText: © 2024 David Bliss
+
+SPDX-License-Identifier: GPL-3.0-or-later
+-->
+
 <gresources>
   <gresource prefix="/dev/romantics/Photos/">
     <!-- see https://gtk-rs.org/gtk4-rs/git/docs/gtk4/struct.Application.html#automatic-resources -->
