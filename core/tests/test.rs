@@ -2,9 +2,9 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use photos::Controller;
-use photos::Repository;
-use photos::Scanner;
+use photos_core::Controller;
+use photos_core::Repository;
+use photos_core::Scanner;
 use std::path::PathBuf;
 use tempfile;
 
