@@ -23,10 +23,9 @@ jobs:
     - name: Install Dependencies
       run: |
         sudo apt-get install -y libgtk-4-dev libglib2.0-dev libadwaita-1-dev build-essential
-        dpkg -L libglib2.0-dev
     - name: Build
       run: cargo build --verbose
       env:
-        PKG_CONFIG_PATH: /usr/local/lib
+        PKG_CONFIG_PATH: /usr/lib/x86_64-linux-gnu/pkgconfig
     - name: Run tests
       run: cargo test --verbose
