@@ -1,12 +1,12 @@
 [Desktop Entry]
 Name=Photo Romantic
-Comment=Write a GTK + Rust application
+Comment=Clean and simple photo gallery
 Type=Application
 Exec=photo-romantic
 Terminal=false
-Categories=GNOME;GTK;
+Categories=GNOME;GTK;Photography;Viewer;
 # Translators: Search terms to find this application. Do NOT translate or localize the semicolons! The list MUST also end with a semicolon!
-Keywords=Gnome;GTK;
+Keywords=Gnome;GTK;Photography;Viewer;
 # Translators: Do NOT translate or transliterate this text (this is an icon file name)!
 Icon=@icon@
 StartupNotify=true
