@@ -15,18 +15,16 @@ env:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
-
+    container:
+      image: ghcr.io/gtk-rs/gtk4-rs/gtk4:latest # TODO enable minor version tags / pinning
     steps:
-    - uses: actions/checkout@v4
-    - name: Install Dependencies
-      run: |
-        sudo apt-get install -y libgtk-4-dev libglib2.0-dev libadwaita-1-dev build-essential
-        dpkg -L libglib2.0-dev
+    - uses: actions/checkout@v3
+    - uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
     - name: Build
-      run: cargo build --verbose
-      env:
-        PKG_CONFIG_PATH: /usr/lib/x86_64-linux-gnu/pkgconfig
-    - name: Run tests
-      run: cargo test --verbose
+      run: cargo build
+    - name: Test
+      run: cargo test
