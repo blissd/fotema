@@ -4,6 +4,7 @@
 
 #[rustfmt::skip]
 mod config;
+mod all_photos;
 mod app;
 mod modals;
 

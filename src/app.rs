@@ -13,11 +13,13 @@ use gtk::prelude::{
 };
 use gtk::{gio, glib};
 
+use crate::all_photos::AllPhotos;
 use crate::config::{APP_ID, PROFILE};
 use crate::modals::about::AboutDialog;
 
 pub(super) struct App {
     about_dialog: Controller<AboutDialog>,
+    all_photos: Controller<AllPhotos>,
 }
 
 #[derive(Debug)]
@@ -82,11 +84,18 @@ impl SimpleComponent for App {
                     }
                 },
 
+
                 gtk::Label {
                     set_label: "Hello world!",
                     add_css_class: "title-header",
                     set_vexpand: true,
+                },
+
+                gtk::Stack {
+
+                    add_child = model.all_photos.widget(),
                 }
+
             }
 
         }
@@ -102,7 +111,12 @@ impl SimpleComponent for App {
             .launch(())
             .detach();
 
-        let model = Self { about_dialog };
+        let all_photos = AllPhotos::builder().launch(()).detach();
+
+        let model = Self {
+            about_dialog,
+            all_photos,
+        };
 
         let widgets = view_output!();
 
