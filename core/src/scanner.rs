@@ -12,11 +12,11 @@ use std::path::Path;
 use std::path::PathBuf;
 use walkdir::WalkDir;
 
-/// A picture on the local file systme that has been scanned.
+/// A picture on the local file system that has been scanned.
 #[derive(Debug)]
 pub struct Picture {
-    /// Relative path to file under scanner's scan_path.
-    pub relative_path: PathBuf,
+    /// Full path to picture file.
+    pub path: PathBuf,
 
     /// Metadata from the file system.
     pub fs: Option<FsMetadata>,
@@ -26,10 +26,10 @@ pub struct Picture {
 }
 
 impl Picture {
-    /// Creates a new Picture for a given relative path.
-    pub fn new(relative_path: PathBuf) -> Picture {
+    /// Creates a new Picture for a given full path.
+    pub fn new(path: PathBuf) -> Picture {
         Picture {
-            relative_path,
+            path,
             fs: None,
             exif: None,
         }
@@ -146,13 +146,7 @@ impl Scanner {
             .and_then(|x| x.modified().ok())
             .map(|x| Into::<DateTime<Utc>>::into(x));
 
-        let mut pic = {
-            let relative_path = path
-                .strip_prefix(&self.scan_base)
-                .map_err(|e| ScannerError(e.to_string()))?;
-            Picture::new(PathBuf::from(relative_path))
-        };
-
+        let mut pic = Picture::new(PathBuf::from(path));
         pic.fs = fs.to_option();
 
         let exif_data = {
@@ -248,12 +242,12 @@ mod tests {
         let s = Scanner::build(&test_data_dir).unwrap();
         let mut all = s.scan_all().unwrap();
         assert_eq!(5, all.len());
-        all.sort_unstable_by(|a, b| a.relative_path.cmp(&b.relative_path));
-        assert!(all[0].relative_path.ends_with("Dog.jpg"));
-        assert!(all[1].relative_path.ends_with("Frog.jpg"));
-        assert!(all[2].relative_path.ends_with("Kingfisher.jpg"));
-        assert!(all[3].relative_path.ends_with("Lavender.jpg"));
-        assert!(all[4].relative_path.ends_with("Sandow.jpg"));
+        all.sort_unstable_by(|a, b| a.path.cmp(&b.path));
+        assert!(all[0].path.ends_with("Dog.jpg"));
+        assert!(all[1].path.ends_with("Frog.jpg"));
+        assert!(all[2].path.ends_with("Kingfisher.jpg"));
+        assert!(all[3].path.ends_with("Lavender.jpg"));
+        assert!(all[4].path.ends_with("Sandow.jpg"));
     }
 
     #[test]
@@ -265,6 +259,6 @@ mod tests {
         let s = Scanner::build(&test_data_dir).unwrap();
         let pic = s.scan_one(&test_file).unwrap();
 
-        assert!(pic.relative_path.to_str().unwrap().ends_with("Sandow.jpg"));
+        assert!(pic.path.to_str().unwrap().ends_with("Sandow.jpg"));
     }
 }

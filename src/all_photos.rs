@@ -1,10 +1,11 @@
+// SPDX-FileCopyrightText: © 2024 David Bliss
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 use gtk::glib;
 use gtk::prelude::{BoxExt, OrientableExt};
 use photos_core;
-use relm4::factory::{DynamicIndex, FactoryComponent, FactorySender, FactoryVecDeque};
 use relm4::gtk;
-use relm4::gtk::prelude::Cast;
-use relm4::gtk::prelude::ListItemExt;
 use relm4::gtk::prelude::WidgetExt;
 use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
 use relm4::*;
@@ -49,7 +50,7 @@ impl RelmGridItem for PicturePreview {
         (my_box, widgets)
     }
 
-    fn bind(&mut self, widgets: &mut Self::Widgets, root: &mut Self::Root) {
+    fn bind(&mut self, widgets: &mut Self::Widgets, _root: &mut Self::Root) {
         widgets.picture.set_filename(Some(&self.path));
     }
 
@@ -94,27 +95,26 @@ impl SimpleComponent for AllPhotos {
         root: Self::Root,
         _sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
+        let pic_base_dir = path::Path::new("/var/home/david/Pictures");
         let repo = {
             let db_path = glib::user_data_dir().join("photo-romantic");
             let _ = std::fs::create_dir_all(&db_path);
             let db_path = db_path.join("pictures.sqlite");
-            photos_core::Repository::open(&db_path).unwrap()
+            photos_core::Repository::open(&pic_base_dir, &db_path).unwrap()
         };
 
-        let scan = {
-            let pic_dir = path::Path::new("/var/home/david/Pictures");
-            photos_core::Scanner::build(&pic_dir).unwrap()
-        };
+        let scan = { photos_core::Scanner::build(&pic_base_dir).unwrap() };
 
         let mut controller = photos_core::Controller::new(repo, scan);
 
         // Time consuming!
         let _ = controller.scan();
 
-        let all_pictures = controller.all().unwrap().into_iter().map(|p| {
-            let path = path::PathBuf::from("/var/home/david/Pictures").join(&p.relative_path);
-            PicturePreview { path }
-        });
+        let all_pictures = controller
+            .all()
+            .unwrap()
+            .into_iter()
+            .map(|p| PicturePreview { path: p.path });
 
         let mut grid_view_wrapper: TypedGridView<PicturePreview, gtk::SingleSelection> =
             TypedGridView::new();

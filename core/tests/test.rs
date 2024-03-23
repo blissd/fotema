@@ -16,16 +16,14 @@ fn picture_dir() -> PathBuf {
 
 #[test]
 fn test_scan_and_persist() {
+    let pic_dir_base = picture_dir();
     let repo = {
         let mut db_path = tempfile::tempdir().unwrap().into_path();
         db_path.push("test.sqlite");
-        Repository::open(&db_path).unwrap()
+        Repository::open(&pic_dir_base, &db_path).unwrap()
     };
 
-    let scanner = {
-        let pic_dir = picture_dir();
-        Scanner::build(&pic_dir).unwrap()
-    };
+    let scanner = Scanner::build(&pic_dir_base).unwrap();
 
     let mut ctl = Controller::new(repo, scanner);
 
@@ -33,6 +31,6 @@ fn test_scan_and_persist() {
 
     let all_pics = ctl.all().unwrap();
     for pic in all_pics {
-        println!("{:?}", pic.relative_path);
+        println!("{:?}", pic.path);
     }
 }

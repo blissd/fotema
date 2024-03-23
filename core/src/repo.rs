@@ -7,25 +7,25 @@ use crate::Error::*;
 use crate::Result;
 use chrono::*;
 use rusqlite::params;
+use rusqlite::Batch;
 use rusqlite::Connection;
-use rusqlite::Row;
 use std::path;
 use std::path::PathBuf;
 
 /// A picture in the repository
 #[derive(Debug)]
 pub struct Picture {
-    /// Relative path from picture library root.
-    pub relative_path: PathBuf,
+    /// Full path from picture library root.
+    pub path: PathBuf,
 
     /// Ordering timestamp, derived from EXIF metadata or file system timestamps.
     pub order_by_ts: Option<DateTime<Utc>>,
 }
 
 impl Picture {
-    pub fn new(relative_path: PathBuf) -> Picture {
+    pub fn new(path: PathBuf) -> Picture {
         Picture {
-            relative_path,
+            path,
             order_by_ts: None,
         }
     }
@@ -35,30 +35,53 @@ impl Picture {
 /// Repository is backed by a Sqlite database.
 #[derive(Debug)]
 pub struct Repository {
+    /// Base path to picture library on file system
+    base_path: path::PathBuf,
+
     /// Connection to backing Sqlite database.
     con: rusqlite::Connection,
 }
 
 impl Repository {
-    pub fn open_in_memory() -> Result<Repository> {
+    pub fn open_in_memory(base_path: &path::Path) -> Result<Repository> {
         let con = Connection::open_in_memory().map_err(|e| RepositoryError(e.to_string()))?;
-        let repo = Repository { con };
+        let base_path = path::PathBuf::from(base_path);
+        let repo = Repository { base_path, con };
         repo.setup().map(|_| repo)
     }
 
     /// Builds a Repository and creates operational tables.
-    pub fn open(db_path: &path::Path) -> Result<Repository> {
+    pub fn open(base_path: &path::Path, db_path: &path::Path) -> Result<Repository> {
         let con = Connection::open(db_path).map_err(|e| RepositoryError(e.to_string()))?;
-        let repo = Repository { con };
+        let base_path = path::PathBuf::from(base_path);
+        let repo = Repository { base_path, con };
         repo.setup().map(|_| repo)
     }
 
     /// Creates operational tables.
     fn setup(&self) -> Result<()> {
-        let sql = "CREATE TABLE IF NOT EXISTS PICTURES (
-                        relative_path  TEXT PRIMARY KEY UNIQUE ON CONFLICT REPLACE,
-                        order_by_ts    DATETIME -- UTC timestamp to order images by
-                        )";
+        if !self.base_path.is_dir() {
+            return Err(RepositoryError(format!(
+                "{} is not a directory",
+                self.base_path.to_string_lossy()
+            )));
+        }
+
+        let sql = vec![
+            "CREATE TABLE IF NOT EXISTS PICTURES (
+            picture_id     INTEGER PRIMARY KEY UNIQUE, -- unique ID for picture
+            relative_path  TEXT UNIQUE ON CONFLICT IGNORE,
+            order_by_ts    DATETIME -- UTC timestamp to order images by
+            )",
+        ];
+
+        let sql = sql.join(";\n") + ";";
+
+        let mut batch = Batch::new(&self.con, &sql);
+        while let Some(mut stmt) = batch.next().map_err(|e| RepositoryError(e.to_string()))? {
+            stmt.execute([])
+                .map_err(|e| RepositoryError(e.to_string()))?;
+        }
 
         let result = self.con.execute(&sql, ());
         result
@@ -69,9 +92,15 @@ impl Repository {
     /// Add a picture to the repository.
     /// At a minimum a picture must have a path on the file system and file modification date.
     pub fn add(&self, pic: &Picture) -> Result<()> {
+        // convert to relative path before saving to database
+        let path = pic
+            .path
+            .strip_prefix(&self.base_path)
+            .map_err(|e| RepositoryError(e.to_string()))?;
+
         let result = self.con.execute(
             "INSERT INTO PICTURES (relative_path, order_by_ts) VALUES (?1, ?2)",
-            (pic.relative_path.as_path().to_str(), pic.order_by_ts),
+            (path.to_str(), pic.order_by_ts),
         );
 
         result
@@ -93,11 +122,14 @@ impl Repository {
                 .map_err(|e| RepositoryError(e.to_string()))?;
 
             for pic in pics {
-                stmt.execute(params![
-                    pic.relative_path.as_path().to_str(),
-                    pic.order_by_ts
-                ])
-                .map_err(|e| RepositoryError(e.to_string()))?;
+                // convert to relative path before saving to database
+                let path = pic
+                    .path
+                    .strip_prefix(&self.base_path)
+                    .map_err(|e| RepositoryError(e.to_string()))?;
+
+                stmt.execute(params![path.to_str(), pic.order_by_ts])
+                    .map_err(|e| RepositoryError(e.to_string()))?;
             }
         }
 
@@ -111,16 +143,14 @@ impl Repository {
             .prepare("SELECT relative_path, order_by_ts from PICTURES order by order_by_ts ASC")
             .unwrap();
 
-        fn row_to_picture(row: &Row<'_>) -> rusqlite::Result<Picture> {
-            let path_result: rusqlite::Result<String> = row.get(0);
-            path_result.map(|relative_path| Picture {
-                relative_path: path::PathBuf::from(relative_path),
-                order_by_ts: row.get(1).ok(),
-            })
-        }
-
         let iter = stmt
-            .query_map([], |row| row_to_picture(row))
+            .query_map([], |row| {
+                let path_result: rusqlite::Result<String> = row.get(0);
+                path_result.map(|relative_path| Picture {
+                    path: self.base_path.join(relative_path),
+                    order_by_ts: row.get(1).ok(),
+                })
+            })
             .map_err(|e| RepositoryError(e.to_string()))?;
 
         // Would like to return an iterator... but Rust is defeating me.
@@ -140,13 +170,13 @@ mod tests {
 
     #[test]
     fn repo_add_and_get() {
-        let r = Repository::open_in_memory().unwrap();
-        let test_file = PathBuf::from("some/random/path.jpg");
+        let r = Repository::open_in_memory(path::Path::new("/var/empty")).unwrap();
+        let test_file = PathBuf::from("/var/empty/some/random/path.jpg");
         let pic = Picture::new(test_file.clone());
         r.add(&pic).unwrap();
 
         let all_pics = r.all().unwrap();
         let pic = all_pics.get(0).unwrap();
-        assert_eq!(pic.relative_path, test_file);
+        assert_eq!(pic.path, test_file);
     }
 }
