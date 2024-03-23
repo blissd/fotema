@@ -7,4 +7,5 @@
 pub enum Error {
     RepositoryError(String),
     ScannerError(String),
+    PreviewError(String),
 }

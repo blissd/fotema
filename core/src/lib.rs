@@ -4,6 +4,7 @@
 
 pub mod controller;
 pub mod error;
+pub mod preview;
 pub mod repo;
 pub mod scanner;
 
