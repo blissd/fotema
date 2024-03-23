@@ -2,6 +2,8 @@ use gtk::glib;
 use gtk::prelude::{BoxExt, OrientableExt};
 use photos_core;
 use relm4::factory::{DynamicIndex, FactoryComponent, FactorySender, FactoryVecDeque};
+use relm4::gtk;
+use relm4::gtk::prelude::WidgetExt;
 use relm4::*;
 use std::path;
 
@@ -13,8 +15,6 @@ pub enum InputMsg {
 #[derive(Debug)]
 pub struct PicturePreview {
     path: path::PathBuf,
-    //controller: photos_core::Controller,
-    //pictures: Vec<photos_core::repo::Picture>,
 }
 
 #[relm4::factory(pub)]
@@ -23,17 +23,19 @@ impl FactoryComponent for PicturePreview {
     type Input = InputMsg;
     type Output = ();
     type CommandOutput = ();
-    type ParentWidget = gtk::Box;
+    type ParentWidget = gtk::FlowBox;
 
     view! {
     #[root]
         gtk::Box {
             set_orientation: gtk::Orientation::Vertical,
-            set_spacing: 5,
-            set_margin_all: 5,
+            set_margin_all: 1,
 
             gtk::Picture {
                 set_filename: Some(&self.path),
+                set_can_shrink: true,
+                set_width_request: 200,
+                set_height_request: 200,
             }
         }
     }
@@ -42,7 +44,7 @@ impl FactoryComponent for PicturePreview {
         Self { path }
     }
 
-    fn update(&mut self, msg: Self::Input, _sender: FactorySender<Self>) {}
+    fn update(&mut self, _msg: Self::Input, _sender: FactorySender<Self>) {}
 }
 
 pub struct AllPhotos {
@@ -62,22 +64,27 @@ impl SimpleComponent for AllPhotos {
             set_spacing: 5,
             set_margin_all: 5,
 
-            #[local_ref]
-            pictures_box -> gtk::Box {
-                set_orientation: gtk::Orientation::Vertical,
-                set_spacing: 5,
-                set_margin_all: 5,
-            }
+            gtk::ScrolledWindow {
+                set_propagate_natural_height: true,
+                set_has_frame: true,
+
+                #[local_ref]
+                pictures_box -> gtk::FlowBox {
+                    set_max_children_per_line: 3,
+                    set_min_children_per_line: 3,
+                    set_homogeneous: false,
+                },
+            },
         }
     }
 
     fn init(
-        counter: Self::Init,
+        _init: Self::Init,
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
         let repo = {
-            let db_path = glib::user_data_dir().join("photos");
+            let db_path = glib::user_data_dir().join("photo-romantic");
             let _ = std::fs::create_dir_all(&db_path);
             let db_path = db_path.join("pictures.sqlite");
             photos_core::Repository::open(&db_path).unwrap()
@@ -89,11 +96,14 @@ impl SimpleComponent for AllPhotos {
         };
 
         let mut controller = photos_core::Controller::new(repo, scan);
+
+        // Time consuming!
         let _ = controller.scan();
+
         let all_pictures = controller.all().unwrap();
 
         let mut pictures = FactoryVecDeque::builder()
-            .launch(gtk::Box::default())
+            .launch(gtk::FlowBox::default())
             .forward(sender.input_sender(), |_output| {});
 
         for p in all_pictures.iter().take(10) {
@@ -104,6 +114,8 @@ impl SimpleComponent for AllPhotos {
         let model = AllPhotos { pictures };
 
         let pictures_box = model.pictures.widget();
+        pictures_box.set_max_children_per_line(3);
+
         let widgets = view_output!();
 
         ComponentParts { model, widgets }

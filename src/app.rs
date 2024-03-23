@@ -84,15 +84,7 @@ impl SimpleComponent for App {
                     }
                 },
 
-
-                gtk::Label {
-                    set_label: "Hello world!",
-                    add_css_class: "title-header",
-                    set_vexpand: true,
-                },
-
                 gtk::Stack {
-
                     add_child = model.all_photos.widget(),
                 }
 
