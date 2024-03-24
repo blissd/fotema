@@ -5,8 +5,9 @@
 use crate::preview;
 use crate::repo;
 use crate::scanner;
+use crate::Error::*;
 use crate::Result;
-use rayon::prelude::*;
+use std::path;
 
 /// Aggregate API for the scanner and the repository.
 #[derive(Debug)]
@@ -40,7 +41,7 @@ impl Controller {
             }
         }
 
-        let mut all_pics = match self.scan.scan_all() {
+        let all_pics = match self.scan.scan_all() {
             Ok(pics) => {
                 let pics = pics.into_iter().map(|p| as_repo_pic(p)).collect();
                 self.repo.add_all(&pics)?;
@@ -52,31 +53,22 @@ impl Controller {
             }
         };
 
-        let all_pics = all_pics
-            .into_par_iter()
-            .flat_map(|pic| {
-                let path = self
-                    .prev
-                    .from_picture(pic.picture_id.map(|id| id.id()).unwrap_or(0), &pic.path)
-                    .ok();
-                path.map(|p| repo::Picture {
-                    square_preview_path: Some(p.clone()),
-                    ..(pic)
-                })
-            })
-            .collect::<Vec<repo::Picture>>();
-
-        for pic in all_pics {
-            self.repo.add_preview(&pic)?;
-        }
-
         Ok(())
-
-        //let all_pics = self.repo.all()?;
     }
 
     /// Gets all photos.
     pub fn all(&self) -> Result<Vec<repo::Picture>> {
         self.repo.all()
+    }
+
+    pub fn add_preview(&mut self, pic: &mut repo::Picture) -> Result<path::PathBuf> {
+        let preview = self
+            .prev
+            .from_picture(pic.picture_id.unwrap().id(), &pic.path);
+        if let Ok(ref path) = preview {
+            pic.square_preview_path = Some(path.clone());
+            self.repo.add_preview(pic)?;
+        }
+        preview
     }
 }

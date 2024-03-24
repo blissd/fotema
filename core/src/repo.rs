@@ -122,18 +122,29 @@ impl Repository {
     }
 
     pub fn add_preview(&mut self, pic: &Picture) -> Result<()> {
-        let mut stmt = self
+        let tx = self
             .con
-            .prepare("UPDATE PICTURES SET square_preview_path = ?1 WHERE picture_id = ?2")
-            .unwrap();
+            .transaction()
+            .map_err(|e| RepositoryError(e.to_string()))?;
 
-        let result = stmt.execute(params![
-            pic.square_preview_path.as_ref().map(|p| p.to_str()),
-            pic.picture_id.map(|v| v.0)
-        ]);
-        result
-            .map(|_| ())
-            .map_err(|e| RepositoryError(e.to_string()))
+        {
+            let mut stmt = tx
+                .prepare("UPDATE PICTURES SET square_preview_path = ?1 WHERE picture_id = ?2")
+                .map_err(|e| RepositoryError(e.to_string()))?;
+
+            let result = stmt.execute(params![
+                pic.square_preview_path.as_ref().map(|p| p.to_str()),
+                pic.picture_id.map(|v| v.0),
+            ]);
+
+            println!("result = {:?}", result);
+
+            result
+                .map(|_| ())
+                .map_err(|e| RepositoryError(e.to_string()));
+        }
+
+        tx.commit().map_err(|e| RepositoryError(e.to_string()))
     }
 
     /// Add all Pictures received from a vector.
@@ -169,7 +180,7 @@ impl Repository {
         let mut stmt = self
             .con
             .prepare("SELECT picture_id, relative_path, square_preview_path, order_by_ts from PICTURES order by order_by_ts ASC")
-            .unwrap();
+            .map_err(|e| RepositoryError(e.to_string()))?;
 
         let iter = stmt
             .query_map([], |row| {

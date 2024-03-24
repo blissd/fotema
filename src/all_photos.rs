@@ -9,11 +9,14 @@ use relm4::gtk;
 use relm4::gtk::prelude::WidgetExt;
 use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
 use relm4::*;
+use std::cell::RefCell;
 use std::path;
+use std::rc::Rc;
 
 #[derive(Debug)]
 pub struct PicturePreview {
-    path: path::PathBuf,
+    controller: Rc<RefCell<photos_core::Controller>>,
+    picture: photos_core::repo::Picture,
 }
 
 pub struct Widgets {
@@ -46,7 +49,25 @@ impl RelmGridItem for PicturePreview {
     }
 
     fn bind(&mut self, widgets: &mut Self::Widgets, _root: &mut Self::Root) {
-        widgets.picture.set_filename(Some(&self.path));
+        println!(
+            "binding for {:?} {:?}",
+            self.picture.picture_id, self.picture.path
+        );
+
+        // compute preview image if it is absent
+        if self.picture.square_preview_path.is_none() {
+            let mut controller = self.controller.borrow_mut();
+            let path = controller.add_preview(&mut self.picture);
+            if let Ok(p) = path {
+                self.picture.square_preview_path = Some(p);
+            }
+        }
+
+        if widgets.picture.file().is_none() {
+            widgets
+                .picture
+                .set_filename(self.picture.square_preview_path.clone());
+        }
     }
 
     //fn unbind(&mut self, widgets: &mut Self::Widgets, root: &mut Self::Root) {
@@ -120,12 +141,17 @@ impl SimpleComponent for AllPhotos {
             _ => {}
         }
 
+        let controller = Rc::new(RefCell::new(controller));
+
         let all_pictures = controller
+            .borrow_mut()
             .all()
             .unwrap()
             .into_iter()
-            .flat_map(|p| p.square_preview_path)
-            .map(|p| PicturePreview { path: p });
+            .map(|picture| PicturePreview {
+                picture,
+                controller: controller.clone(),
+            });
 
         let mut grid_view_wrapper: TypedGridView<PicturePreview, gtk::SingleSelection> =
             TypedGridView::new();

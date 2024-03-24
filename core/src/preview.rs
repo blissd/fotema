@@ -27,14 +27,16 @@ impl Previewer {
     /// Computes a preview square for an image that has been inserted
     /// into the Repository. Preview image will be written to file system.
     pub fn from_picture(&self, picture_id: i64, path: &path::Path) -> Result<path::PathBuf> {
-        println!("pic = {:?}", path);
+        let square_path = {
+            let file_name = format!("{}_{}x{}.jpg", picture_id, EDGE, EDGE);
+            self.base_path.join("square").join(file_name)
+        };
+
+        if square_path.exists() {
+            return Ok(square_path);
+        }
 
         let square = self.from_path(path)?;
-
-        let preview_file_name =
-            format!("{}_{}x{}.jpg", picture_id, square.width(), square.height());
-
-        let square_path = self.base_path.join("square").join(preview_file_name);
 
         println!("preview = {:?}", square_path);
 
