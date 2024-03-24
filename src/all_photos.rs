@@ -52,9 +52,14 @@ impl RelmGridItem for PicturePreview {
         // compute preview image if it is absent
         if self.picture.square_preview_path.is_none() {
             let mut controller = self.controller.borrow_mut();
-            let path = controller.add_preview(&mut self.picture);
-            if let Ok(p) = path {
-                self.picture.square_preview_path = Some(p);
+            match controller.add_preview(&mut self.picture) {
+                Ok(_) => {}
+                Err(e) => {
+                    println!(
+                        "Failed computing preview for {:?} with {:?}",
+                        self.picture.path, e
+                    );
+                }
             }
         }
 
@@ -84,8 +89,8 @@ impl SimpleComponent for AllPhotos {
     view! {
         gtk::Box {
             set_orientation: gtk::Orientation::Vertical,
-            set_spacing: 5,
-            set_margin_all: 5,
+            set_spacing: 0,
+            set_margin_all: 0,
 
             gtk::ScrolledWindow {
                 //set_propagate_natural_height: true,
@@ -95,7 +100,7 @@ impl SimpleComponent for AllPhotos {
                 #[local_ref]
                 pictures_box -> gtk::GridView {
                     set_orientation: gtk::Orientation::Vertical,
-                    set_max_columns: 3,
+                    //set_max_columns: 3,
                 },
             },
         }
@@ -140,7 +145,8 @@ impl SimpleComponent for AllPhotos {
 
         let all_pictures = controller
             .borrow_mut()
-            .all()
+            //.all()
+            .all_with_previews()
             .unwrap()
             .into_iter()
             .map(|picture| PicturePreview {

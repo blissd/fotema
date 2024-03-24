@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+use crate::repo;
 use crate::Error::*;
 use crate::Result;
 use image::imageops::FilterType;
@@ -26,17 +27,22 @@ impl Previewer {
 
     /// Computes a preview square for an image that has been inserted
     /// into the Repository. Preview image will be written to file system.
-    pub fn from_picture(&self, picture_id: i64, path: &path::Path) -> Result<path::PathBuf> {
+    pub fn set_preview(&self, pic: &mut repo::Picture) -> Result<()> {
+        if pic.square_preview_path.is_some() {
+            return Ok(());
+        }
+
         let square_path = {
-            let file_name = format!("{}_{}x{}.jpg", picture_id, EDGE, EDGE);
+            let file_name = format!("{}_{}x{}.jpg", pic.picture_id, EDGE, EDGE);
             self.base_path.join("square").join(file_name)
         };
 
         if square_path.exists() {
-            return Ok(square_path);
+            pic.square_preview_path = Some(square_path);
+            return Ok(());
         }
 
-        let square = self.from_path(path)?;
+        let square = self.from_path(&pic.path)?;
 
         println!("preview = {:?}", square_path);
 
@@ -44,11 +50,11 @@ impl Previewer {
             .save(&square_path)
             .map_err(|e| RepositoryError(e.to_string()))?;
 
-        Ok(square_path)
+        Ok(())
     }
 
     /// Computes a preview square for an image on the file system.
-    pub fn from_path(&self, path: &path::Path) -> Result<DynamicImage> {
+    fn from_path(&self, path: &path::Path) -> Result<DynamicImage> {
         let img = ImageReader::open(path)
             .map_err(|e| PreviewError(e.to_string()))?
             .decode()

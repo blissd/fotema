@@ -6,7 +6,6 @@ use crate::preview;
 use crate::repo;
 use crate::scanner;
 use crate::Result;
-use std::path;
 
 /// Aggregate API for the scanner and the repository.
 #[derive(Debug)]
@@ -33,17 +32,41 @@ impl Controller {
         Ok(())
     }
 
+    // Gets all photos that have a preview
+    // TODO make a database query for this instead of filtering
+    pub fn all_with_previews(&self) -> Result<Vec<repo::Picture>> {
+        let pics = self.repo.all()?;
+        let pics = pics
+            .into_iter()
+            .filter(|p| p.square_preview_path.is_some())
+            .collect();
+        Ok(pics)
+    }
+
     /// Gets all photos.
     pub fn all(&self) -> Result<Vec<repo::Picture>> {
         self.repo.all()
     }
 
-    pub fn add_preview(&mut self, pic: &mut repo::Picture) -> Result<path::PathBuf> {
-        let preview = self.prev.from_picture(pic.picture_id.id(), &pic.path);
-        if let Ok(ref path) = preview {
-            pic.square_preview_path = Some(path.clone());
-            self.repo.add_preview(pic)?;
+    pub fn update_previews(&mut self) -> Result<()> {
+        // TODO make a database query to get pictures
+        // that need a preview to be computed
+        let pics = self.repo.all()?;
+        let pics = pics
+            .into_iter()
+            .filter(|p| p.square_preview_path.is_none())
+            .collect::<Vec<repo::Picture>>();
+
+        for mut pic in pics {
+            self.prev.set_preview(&mut pic)?;
+            self.repo.add_preview(&pic)?;
         }
-        preview
+
+        Ok(())
+    }
+
+    pub fn add_preview(&mut self, pic: &mut repo::Picture) -> Result<()> {
+        self.prev.set_preview(pic)?;
+        self.repo.add_preview(pic)
     }
 }
