@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use photos_core::Controller;
+use photos_core::Previewer;
 use photos_core::Repository;
 use photos_core::Scanner;
 use std::path::PathBuf;
@@ -23,9 +24,12 @@ fn test_scan_and_persist() {
         Repository::open(&pic_dir_base, &db_path).unwrap()
     };
 
-    let scanner = Scanner::build(&pic_dir_base).unwrap();
+    let scan = Scanner::build(&pic_dir_base).unwrap();
 
-    let mut ctl = Controller::new(repo, scanner);
+    let target_dir = PathBuf::from("target");
+    let prev = Previewer::build(&target_dir).unwrap();
+
+    let mut ctl = Controller::new(scan, repo, prev);
 
     ctl.scan().unwrap();
 

@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+use crate::repo;
 use crate::Error::*;
 use crate::Result;
 use image::imageops::FilterType;
@@ -9,33 +10,70 @@ use image::io::Reader as ImageReader;
 use image::DynamicImage;
 use std::path;
 
-/// A square version of a picture with a resolution normalized to 400x400.
-pub struct SquarePicture {}
-
 const EDGE: u32 = 400;
 
-/// Create a square copy of an image
-pub fn to_square(path: &path::Path) -> Result<DynamicImage> {
-    let img = ImageReader::open(path)
-        .map_err(|e| PreviewError(e.to_string()))?
-        .decode()
-        .map_err(|e| PreviewError(e.to_string()))?;
+#[derive(Debug)]
+pub struct Previewer {
+    base_path: path::PathBuf,
+}
 
-    let img = if img.width() == img.height() && img.width() == EDGE {
-        return Ok(img); // the perfect image for previewing :-)
-                        //return Ok(img.resize(EDGE, EDGE, FilterType::Nearest));
-    } else if img.width() == img.height() {
-        img
-    } else if img.width() < img.height() {
-        let h = (img.height() - img.width()) / 2;
-        img.crop_imm(0, h, img.width(), img.width())
-    } else {
-        let w = (img.width() - img.height()) / 2;
-        img.crop_imm(w, 0, img.height(), img.height())
-    };
+impl Previewer {
+    pub fn build(base_path: &path::Path) -> Result<Previewer> {
+        let base_path = path::PathBuf::from(base_path);
+        std::fs::create_dir_all(base_path.join("square"))
+            .map_err(|e| RepositoryError(e.to_string()))?;
+        Ok(Previewer { base_path })
+    }
 
-    let img = img.resize(EDGE, EDGE, FilterType::Triangle);
-    Ok(img)
+    /// Computes a preview square for an image that has been inserted
+    /// into the Repository. Preview image will be written to file system.
+    pub fn from_picture(&self, pic: &repo::Picture) -> Result<path::PathBuf> {
+        let picture_id = pic.picture_id.ok_or(PreviewError(format!(
+            "missing picture id for {:?}",
+            &pic.path
+        )))?;
+
+        println!("pic = {:?}", &pic.path);
+
+        let square = self.from_path(&pic.path)?;
+
+        let preview_file_name =
+            format!("{}_{}x{}.jpg", picture_id, square.width(), square.height());
+
+        let square_path = self.base_path.join("square").join(preview_file_name);
+
+        println!("preview = {:?}", square_path);
+
+        square
+            .save(&square_path)
+            .map_err(|e| RepositoryError(e.to_string()))?;
+
+        Ok(square_path)
+    }
+
+    /// Computes a preview square for an image on the file system.
+    pub fn from_path(&self, path: &path::Path) -> Result<DynamicImage> {
+        let img = ImageReader::open(path)
+            .map_err(|e| PreviewError(e.to_string()))?
+            .decode()
+            .map_err(|e| PreviewError(e.to_string()))?;
+
+        let img = if img.width() == img.height() && img.width() == EDGE {
+            return Ok(img); // the perfect image for previewing :-)
+                            //return Ok(img.resize(EDGE, EDGE, FilterType::Nearest));
+        } else if img.width() == img.height() {
+            img
+        } else if img.width() < img.height() {
+            let h = (img.height() - img.width()) / 2;
+            img.crop_imm(0, h, img.width(), img.width())
+        } else {
+            let w = (img.width() - img.height()) / 2;
+            img.crop_imm(w, 0, img.height(), img.height())
+        };
+
+        let img = img.resize(EDGE, EDGE, FilterType::Triangle);
+        Ok(img)
+    }
 }
 
 #[cfg(test)]
@@ -55,8 +93,10 @@ mod tests {
         let mut test_file = test_data_dir.clone();
         test_file.push("Frog.jpg");
 
-        let img = to_square(&test_file).unwrap();
-        let output = path::Path::new("out.jpg");
+        let target_dir = PathBuf::from("target");
+        let prev = Previewer::build(&target_dir).unwrap();
+        let img = prev.from_path(&test_file).unwrap();
+        let output = target_dir.join("out.jpg");
         let _ = img.save(&output);
     }
 }

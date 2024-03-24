@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+use crate::preview;
 use crate::repo;
 use crate::scanner;
 use crate::Result;
@@ -9,13 +10,18 @@ use crate::Result;
 /// Aggregate API for the scanner and the repository.
 #[derive(Debug)]
 pub struct Controller {
-    repo: repo::Repository,
     scan: scanner::Scanner,
+    repo: repo::Repository,
+    prev: preview::Previewer,
 }
 
 impl Controller {
-    pub fn new(repo: repo::Repository, scan: scanner::Scanner) -> Controller {
-        Controller { repo, scan }
+    pub fn new(
+        scan: scanner::Scanner,
+        repo: repo::Repository,
+        prev: preview::Previewer,
+    ) -> Controller {
+        Controller { scan, repo, prev }
     }
 
     /// Scans all photos and adds them to the repository.
@@ -27,21 +33,32 @@ impl Controller {
 
             repo::Picture {
                 path: pic.path,
+                picture_id: None,
                 square_preview_path: None,
                 order_by_ts,
             }
         }
 
-        match self.scan.scan_all() {
+        let all_pics = match self.scan.scan_all() {
             Ok(pics) => {
                 let pics = pics.into_iter().map(|p| as_repo_pic(p)).collect();
-                self.repo.add_all(&pics)
+                self.repo.add_all(&pics)?;
+                self.repo.all()?
             }
             Err(e) => {
                 println!("Failed: {:?}", e);
-                Err(e)
+                return Err(e);
             }
+        };
+
+        for pic in all_pics {
+            let preview_path = self.prev.from_picture(&pic)?;
+            self.repo.add_preview(&pic, &preview_path)?;
         }
+
+        Ok(())
+
+        //let all_pics = self.repo.all()?;
     }
 
     /// Gets all photos.

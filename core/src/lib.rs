@@ -10,6 +10,7 @@ pub mod scanner;
 
 pub use controller::Controller;
 pub use error::Error;
+pub use preview::Previewer;
 pub use repo::Repository;
 pub use scanner::Scanner;
 

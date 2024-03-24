@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use crate::preview;
 ///! Repository of metadata about pictures on the local filesystem.
 use crate::Error::*;
 use crate::Result;
@@ -10,14 +9,28 @@ use chrono::*;
 use rusqlite::params;
 use rusqlite::Batch;
 use rusqlite::Connection;
+use std::fmt::Display;
 use std::path;
 use std::path::PathBuf;
+
+/// Database ID of picture
+#[derive(Debug, Clone, Copy)]
+pub struct PictureId(i64);
+
+impl Display for PictureId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 /// A picture in the repository
 #[derive(Debug)]
 pub struct Picture {
     /// Full path from picture library root.
     pub path: PathBuf,
+
+    /// Database primary key for picture
+    pub picture_id: Option<PictureId>,
 
     /// Full path to square preview image
     pub square_preview_path: Option<PathBuf>,
@@ -30,6 +43,7 @@ impl Picture {
     pub fn new(path: PathBuf) -> Picture {
         Picture {
             path,
+            picture_id: None,
             square_preview_path: None,
             order_by_ts: None,
         }
@@ -43,40 +57,27 @@ pub struct Repository {
     /// Base path to picture library on file system
     library_base_path: path::PathBuf,
 
-    /// Base path to generated preview images.
-    preview_base_path: path::PathBuf,
-
     /// Connection to backing Sqlite database.
     con: rusqlite::Connection,
 }
 
 impl Repository {
     pub fn open_in_memory(library_base_path: &path::Path) -> Result<Repository> {
-        let preview_base_path = std::env::temp_dir().join("photo-romantic");
-        std::fs::create_dir(&preview_base_path).map_err(|e| RepositoryError(e.to_string()))?;
-
         let con = Connection::open_in_memory().map_err(|e| RepositoryError(e.to_string()))?;
         let library_base_path = path::PathBuf::from(library_base_path);
         let repo = Repository {
             library_base_path,
-            preview_base_path,
             con,
         };
         repo.setup().map(|_| repo)
     }
 
     /// Builds a Repository and creates operational tables.
-    pub fn open(
-        library_base_path: &path::Path,
-        preview_base_path: &path::Path,
-        db_path: &path::Path,
-    ) -> Result<Repository> {
+    pub fn open(library_base_path: &path::Path, db_path: &path::Path) -> Result<Repository> {
         let con = Connection::open(db_path).map_err(|e| RepositoryError(e.to_string()))?;
         let library_base_path = path::PathBuf::from(library_base_path);
-        let preview_base_path = path::PathBuf::from(preview_base_path);
         let repo = Repository {
             library_base_path,
-            preview_base_path,
             con,
         };
         repo.setup().map(|_| repo)
@@ -90,16 +91,6 @@ impl Repository {
                 self.library_base_path.to_string_lossy()
             )));
         }
-
-        if !self.preview_base_path.is_dir() {
-            return Err(RepositoryError(format!(
-                "{} is not a directory",
-                self.preview_base_path.to_string_lossy()
-            )));
-        }
-
-        std::fs::create_dir_all(self.preview_base_path.join("square"))
-            .map_err(|e| RepositoryError(e.to_string()))?;
 
         let sql = vec![
             "CREATE TABLE IF NOT EXISTS PICTURES (
@@ -119,6 +110,17 @@ impl Repository {
         }
 
         let result = self.con.execute(&sql, ());
+        result
+            .map(|_| ())
+            .map_err(|e| RepositoryError(e.to_string()))
+    }
+    pub fn add_preview(&mut self, pic: &Picture, preview_path: &path::Path) -> Result<()> {
+        let mut stmt = self
+            .con
+            .prepare("UPDATE PICTURES SET square_preview_path = ?1 WHERE picture_id = ?2")
+            .unwrap();
+
+        let result = stmt.execute(params![preview_path.to_str(), pic.picture_id.map(|v| v.0)]);
         result
             .map(|_| ())
             .map_err(|e| RepositoryError(e.to_string()))
@@ -146,27 +148,6 @@ impl Repository {
 
                 stmt.execute(params![path.to_str(), pic.order_by_ts])
                     .map_err(|e| RepositoryError(e.to_string()))?;
-
-                // compute preview image for display in grid views
-                // TODO not 100% convinced computing the preview should be in the repository.
-                // Maybe pull up to the Controller or elsewhere?
-                let picture_id = tx.last_insert_rowid();
-                println!("pic = {:?}", &pic.path);
-                let square = preview::to_square(&pic.path)?;
-
-                let preview_file_name =
-                    format!("{}_{}x{}.jpg", picture_id, square.width(), square.height());
-
-                let square_path = self
-                    .preview_base_path
-                    .join("square")
-                    .join(preview_file_name);
-
-                println!("preview = {:?}", square_path);
-
-                square
-                    .save(square_path)
-                    .map_err(|e| RepositoryError(e.to_string()))?;
             }
         }
 
@@ -177,16 +158,17 @@ impl Repository {
     pub fn all(&self) -> Result<Vec<Picture>> {
         let mut stmt = self
             .con
-            .prepare("SELECT relative_path, square_preview_path, order_by_ts from PICTURES order by order_by_ts ASC")
+            .prepare("SELECT picture_id, relative_path, square_preview_path, order_by_ts from PICTURES order by order_by_ts ASC")
             .unwrap();
 
         let iter = stmt
             .query_map([], |row| {
-                let path_result: rusqlite::Result<String> = row.get(0);
+                let path_result: rusqlite::Result<String> = row.get(1);
                 path_result.map(|relative_path| Picture {
+                    picture_id: row.get(0).map(|v| PictureId(v)).ok(),
                     path: self.library_base_path.join(relative_path),
-                    square_preview_path: row.get(1).ok().map(|p: String| path::PathBuf::from(p)),
-                    order_by_ts: row.get(2).ok(),
+                    square_preview_path: row.get(2).ok().map(|p: String| path::PathBuf::from(p)),
+                    order_by_ts: row.get(3).ok(),
                 })
             })
             .map_err(|e| RepositoryError(e.to_string()))?;
