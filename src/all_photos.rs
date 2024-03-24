@@ -95,12 +95,17 @@ impl SimpleComponent for AllPhotos {
         root: Self::Root,
         _sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
+        let data_dir = glib::user_data_dir().join("photo-romantic");
+        let _ = std::fs::create_dir_all(&data_dir);
+        let cache_dir = glib::user_cache_dir().join("photo-romantic");
+        let _ = std::fs::create_dir_all(&cache_dir);
+
         let pic_base_dir = path::Path::new("/var/home/david/Pictures");
         let repo = {
-            let db_path = glib::user_data_dir().join("photo-romantic");
-            let _ = std::fs::create_dir_all(&db_path);
-            let db_path = db_path.join("pictures.sqlite");
-            photos_core::Repository::open(&pic_base_dir, &db_path).unwrap()
+            let db_path = data_dir.join("pictures.sqlite");
+            let preview_base_path = cache_dir.join("previews");
+            let _ = std::fs::create_dir_all(&preview_base_path);
+            photos_core::Repository::open(&pic_base_dir, &preview_base_path, &db_path).unwrap()
         };
 
         let scan = { photos_core::Scanner::build(&pic_base_dir).unwrap() };
@@ -108,13 +113,19 @@ impl SimpleComponent for AllPhotos {
         let mut controller = photos_core::Controller::new(repo, scan);
 
         // Time consuming!
-        let _ = controller.scan();
+        match controller.scan() {
+            Err(e) => {
+                println!("Failed scanning: {:?}", e);
+            }
+            _ => {}
+        }
 
         let all_pictures = controller
             .all()
             .unwrap()
             .into_iter()
-            .map(|p| PicturePreview { path: p.path });
+            .flat_map(|p| p.square_preview_path)
+            .map(|p| PicturePreview { path: p });
 
         let mut grid_view_wrapper: TypedGridView<PicturePreview, gtk::SingleSelection> =
             TypedGridView::new();

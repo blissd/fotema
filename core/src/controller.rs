@@ -27,18 +27,20 @@ impl Controller {
 
             repo::Picture {
                 path: pic.path,
+                square_preview_path: None,
                 order_by_ts,
             }
         }
 
         match self.scan.scan_all() {
             Ok(pics) => {
-                // TODO can an interator be passed to add_all instead of a vector?
                 let pics = pics.into_iter().map(|p| as_repo_pic(p)).collect();
-                self.repo.add_all(&pics)?;
-                Ok(())
+                self.repo.add_all(&pics)
             }
-            Err(e) => Err(e),
+            Err(e) => {
+                println!("Failed: {:?}", e);
+                Err(e)
+            }
         }
     }
 

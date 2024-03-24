@@ -94,7 +94,7 @@ impl Scanner {
     {
         let picture_suffixes = vec![
             String::from("avif"),
-            String::from("heic"),
+            //String::from("heic"), // not supported by image-rs
             String::from("jpeg"),
             String::from("jpg"),
             String::from("png"),
