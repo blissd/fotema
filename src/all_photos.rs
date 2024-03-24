@@ -49,11 +49,6 @@ impl RelmGridItem for PicturePreview {
     }
 
     fn bind(&mut self, widgets: &mut Self::Widgets, _root: &mut Self::Root) {
-        println!(
-            "binding for {:?} {:?}",
-            self.picture.picture_id, self.picture.path
-        );
-
         // compute preview image if it is absent
         if self.picture.square_preview_path.is_none() {
             let mut controller = self.controller.borrow_mut();

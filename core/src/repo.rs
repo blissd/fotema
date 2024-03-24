@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+use crate::scanner;
 ///! Repository of metadata about pictures on the local filesystem.
 use crate::Error::*;
 use crate::Result;
@@ -36,24 +37,13 @@ pub struct Picture {
     pub path: PathBuf,
 
     /// Database primary key for picture
-    pub picture_id: Option<PictureId>,
+    pub picture_id: PictureId,
 
     /// Full path to square preview image
     pub square_preview_path: Option<PathBuf>,
 
     /// Ordering timestamp, derived from EXIF metadata or file system timestamps.
     pub order_by_ts: Option<DateTime<Utc>>,
-}
-
-impl Picture {
-    pub fn new(path: PathBuf) -> Picture {
-        Picture {
-            path,
-            picture_id: None,
-            square_preview_path: None,
-            order_by_ts: None,
-        }
-    }
 }
 
 /// Repository of picture metadata.
@@ -99,11 +89,17 @@ impl Repository {
         }
 
         let sql = vec![
-            "CREATE TABLE IF NOT EXISTS PICTURES (
-            picture_id     INTEGER PRIMARY KEY UNIQUE, -- unique ID for picture
-            relative_path  TEXT UNIQUE ON CONFLICT IGNORE,
+            "CREATE TABLE IF NOT EXISTS pictures (
+            picture_id     INTEGER PRIMARY KEY UNIQUE NOT NULL, -- unique ID for picture
+            relative_path  TEXT UNIQUE NOT NULL ON CONFLICT IGNORE,
             square_preview_path TEXT UNIQUE,
             order_by_ts    DATETIME -- UTC timestamp to order images by
+            )",
+            "CREATE TABLE IF NOT EXISTS previews (
+                preview_id INTEGER PRIMARY KEY UNIQUE NOT NULL, -- pk for preview
+                picture_id INTEGER NOT NULL, -- fk to pictures
+                full_path  TEXT UNIQUE NOT NULL, -- full path to preview image
+                FOREIGN KEY (picture_id) REFERENCES pictures (picture_id)
             )",
         ];
 
@@ -134,21 +130,19 @@ impl Repository {
 
             let result = stmt.execute(params![
                 pic.square_preview_path.as_ref().map(|p| p.to_str()),
-                pic.picture_id.map(|v| v.0),
+                pic.picture_id.0,
             ]);
-
-            println!("result = {:?}", result);
 
             result
                 .map(|_| ())
-                .map_err(|e| RepositoryError(e.to_string()));
+                .map_err(|e| RepositoryError(e.to_string()))?;
         }
 
         tx.commit().map_err(|e| RepositoryError(e.to_string()))
     }
 
     /// Add all Pictures received from a vector.
-    pub fn add_all(&mut self, pics: &Vec<Picture>) -> Result<()> {
+    pub fn add_all(&mut self, pics: &Vec<scanner::Picture>) -> Result<()> {
         let tx = self
             .con
             .transaction()
@@ -167,7 +161,11 @@ impl Repository {
                     .strip_prefix(&self.library_base_path)
                     .map_err(|e| RepositoryError(e.to_string()))?;
 
-                stmt.execute(params![path.to_str(), pic.order_by_ts])
+                let exif_date_time = pic.exif.as_ref().and_then(|x| x.created_at);
+                let fs_date_time = pic.fs.as_ref().and_then(|x| x.created_at);
+                let order_by_ts = exif_date_time.map(|d| d.to_utc()).or(fs_date_time);
+
+                stmt.execute(params![path.to_str(), order_by_ts])
                     .map_err(|e| RepositoryError(e.to_string()))?;
             }
         }
@@ -186,8 +184,8 @@ impl Repository {
             .query_map([], |row| {
                 let path_result: rusqlite::Result<String> = row.get(1);
                 path_result.map(|relative_path| Picture {
-                    picture_id: row.get(0).map(|v| PictureId(v)).ok(),
-                    path: self.library_base_path.join(relative_path),
+                    picture_id: PictureId(row.get(0).unwrap()), // should always have a primary key
+                    path: self.library_base_path.join(relative_path), // compute full path
                     square_preview_path: row.get(2).ok().map(|p: String| path::PathBuf::from(p)),
                     order_by_ts: row.get(3).ok(),
                 })
@@ -213,7 +211,7 @@ mod tests {
     fn repo_add_and_get() {
         let mut r = Repository::open_in_memory(path::Path::new("/var/empty")).unwrap();
         let test_file = PathBuf::from("/var/empty/some/random/path.jpg");
-        let pic = Picture::new(test_file.clone());
+        let pic = scanner::Picture::new(test_file.clone());
         let pics = vec![pic];
         r.add_all(&pics).unwrap();
 
