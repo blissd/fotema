@@ -13,6 +13,7 @@ edition = "2021"
 chrono = "0.4.35"
 image = "0.25.0"
 kamadak-exif = "0.5.5"
+rayon = "1.10.0"
 rusqlite = { version = "0.31.0", features = ["bundled", "chrono"] }
 walkdir = "2.5.0"
 

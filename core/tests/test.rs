@@ -17,7 +17,8 @@ fn picture_dir() -> PathBuf {
 
 #[test]
 fn test_scan_and_persist() {
-    let pic_dir_base = picture_dir();
+    //let pic_dir_base = picture_dir();
+    let pic_dir_base = PathBuf::from("/var/home/david/Pictures");
     let repo = {
         let mut db_path = tempfile::tempdir().unwrap().into_path();
         db_path.push("test.sqlite");

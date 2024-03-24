@@ -92,20 +92,25 @@ impl SimpleComponent for AllPhotos {
     ) -> ComponentParts<Self> {
         let data_dir = glib::user_data_dir().join("photo-romantic");
         let _ = std::fs::create_dir_all(&data_dir);
+
         let cache_dir = glib::user_cache_dir().join("photo-romantic");
         let _ = std::fs::create_dir_all(&cache_dir);
 
         let pic_base_dir = path::Path::new("/var/home/david/Pictures");
         let repo = {
             let db_path = data_dir.join("pictures.sqlite");
-            let preview_base_path = cache_dir.join("previews");
-            let _ = std::fs::create_dir_all(&preview_base_path);
-            photos_core::Repository::open(&pic_base_dir, &preview_base_path, &db_path).unwrap()
+            photos_core::Repository::open(&pic_base_dir, &db_path).unwrap()
         };
 
-        let scan = { photos_core::Scanner::build(&pic_base_dir).unwrap() };
+        let scan = photos_core::Scanner::build(&pic_base_dir).unwrap();
 
-        let mut controller = photos_core::Controller::new(repo, scan);
+        let previewer = {
+            let preview_base_path = cache_dir.join("previews");
+            let _ = std::fs::create_dir_all(&preview_base_path);
+            photos_core::Previewer::build(&preview_base_path).unwrap()
+        };
+
+        let mut controller = photos_core::Controller::new(scan, repo, previewer);
 
         // Time consuming!
         match controller.scan() {

@@ -6,6 +6,7 @@ use crate::preview;
 use crate::repo;
 use crate::scanner;
 use crate::Result;
+use rayon::prelude::*;
 
 /// Aggregate API for the scanner and the repository.
 #[derive(Debug)]
@@ -39,7 +40,7 @@ impl Controller {
             }
         }
 
-        let all_pics = match self.scan.scan_all() {
+        let mut all_pics = match self.scan.scan_all() {
             Ok(pics) => {
                 let pics = pics.into_iter().map(|p| as_repo_pic(p)).collect();
                 self.repo.add_all(&pics)?;
@@ -51,9 +52,22 @@ impl Controller {
             }
         };
 
+        let all_pics = all_pics
+            .into_par_iter()
+            .flat_map(|pic| {
+                let path = self
+                    .prev
+                    .from_picture(pic.picture_id.map(|id| id.id()).unwrap_or(0), &pic.path)
+                    .ok();
+                path.map(|p| repo::Picture {
+                    square_preview_path: Some(p.clone()),
+                    ..(pic)
+                })
+            })
+            .collect::<Vec<repo::Picture>>();
+
         for pic in all_pics {
-            let preview_path = self.prev.from_picture(&pic)?;
-            self.repo.add_preview(&pic, &preview_path)?;
+            self.repo.add_preview(&pic)?;
         }
 
         Ok(())

@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use crate::repo;
 use crate::Error::*;
 use crate::Result;
 use image::imageops::FilterType;
@@ -27,15 +26,10 @@ impl Previewer {
 
     /// Computes a preview square for an image that has been inserted
     /// into the Repository. Preview image will be written to file system.
-    pub fn from_picture(&self, pic: &repo::Picture) -> Result<path::PathBuf> {
-        let picture_id = pic.picture_id.ok_or(PreviewError(format!(
-            "missing picture id for {:?}",
-            &pic.path
-        )))?;
+    pub fn from_picture(&self, picture_id: i64, path: &path::Path) -> Result<path::PathBuf> {
+        println!("pic = {:?}", path);
 
-        println!("pic = {:?}", &pic.path);
-
-        let square = self.from_path(&pic.path)?;
+        let square = self.from_path(path)?;
 
         let preview_file_name =
             format!("{}_{}x{}.jpg", picture_id, square.width(), square.height());

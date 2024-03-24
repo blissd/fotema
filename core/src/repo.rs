@@ -17,6 +17,12 @@ use std::path::PathBuf;
 #[derive(Debug, Clone, Copy)]
 pub struct PictureId(i64);
 
+impl PictureId {
+    pub fn id(&self) -> i64 {
+        self.0
+    }
+}
+
 impl Display for PictureId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
@@ -114,13 +120,17 @@ impl Repository {
             .map(|_| ())
             .map_err(|e| RepositoryError(e.to_string()))
     }
-    pub fn add_preview(&mut self, pic: &Picture, preview_path: &path::Path) -> Result<()> {
+
+    pub fn add_preview(&mut self, pic: &Picture) -> Result<()> {
         let mut stmt = self
             .con
             .prepare("UPDATE PICTURES SET square_preview_path = ?1 WHERE picture_id = ?2")
             .unwrap();
 
-        let result = stmt.execute(params![preview_path.to_str(), pic.picture_id.map(|v| v.0)]);
+        let result = stmt.execute(params![
+            pic.square_preview_path.as_ref().map(|p| p.to_str()),
+            pic.picture_id.map(|v| v.0)
+        ]);
         result
             .map(|_| ())
             .map_err(|e| RepositoryError(e.to_string()))
