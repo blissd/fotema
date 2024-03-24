@@ -12,11 +12,6 @@ use relm4::*;
 use std::path;
 
 #[derive(Debug)]
-pub enum InputMsg {
-    View,
-}
-
-#[derive(Debug)]
 pub struct PicturePreview {
     path: path::PathBuf,
 }

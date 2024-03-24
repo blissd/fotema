@@ -7,8 +7,6 @@ use crate::Result;
 use image::imageops::FilterType;
 use image::io::Reader as ImageReader;
 use image::DynamicImage;
-use std::cmp;
-use std::io::Cursor;
 use std::path;
 
 /// A square version of a picture with a resolution normalized to 400x400.
