@@ -28,7 +28,6 @@ impl Controller {
     pub fn scan(&mut self) -> Result<()> {
         let pics = self.scan.scan_all()?;
         self.repo.add_all(&pics)?;
-        self.repo.all()?;
         Ok(())
     }
 

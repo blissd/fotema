@@ -143,6 +143,10 @@ impl SimpleComponent for AllPhotos {
 
         let controller = Rc::new(RefCell::new(controller));
 
+        {
+            controller.borrow_mut().update_previews();
+        }
+
         let all_pictures = controller
             .borrow_mut()
             //.all()

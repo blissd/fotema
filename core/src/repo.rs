@@ -10,6 +10,8 @@ use chrono::*;
 use rusqlite::params;
 use rusqlite::Batch;
 use rusqlite::Connection;
+use rusqlite::Error::SqliteFailure;
+use rusqlite::ErrorCode::ConstraintViolation;
 use std::fmt::Display;
 use std::path;
 use std::path::PathBuf;
@@ -83,22 +85,21 @@ impl Repository {
     fn setup(&self) -> Result<()> {
         if !self.library_base_path.is_dir() {
             return Err(RepositoryError(format!(
-                "{} is not a directory",
-                self.library_base_path.to_string_lossy()
+                "{:?} is not a directory",
+                self.library_base_path
             )));
         }
 
         let sql = vec![
             "CREATE TABLE IF NOT EXISTS pictures (
-            picture_id     INTEGER PRIMARY KEY UNIQUE NOT NULL, -- unique ID for picture
-            relative_path  TEXT UNIQUE NOT NULL ON CONFLICT IGNORE,
-            square_preview_path TEXT UNIQUE,
-            order_by_ts    DATETIME -- UTC timestamp to order images by
+                picture_id     INTEGER PRIMARY KEY UNIQUE NOT NULL, -- unique ID for picture
+                relative_path  TEXT UNIQUE NOT NULL ON CONFLICT IGNORE,
+                order_by_ts    DATETIME -- UTC timestamp to order images by
             )",
             "CREATE TABLE IF NOT EXISTS previews (
                 preview_id INTEGER PRIMARY KEY UNIQUE NOT NULL, -- pk for preview
-                picture_id INTEGER NOT NULL, -- fk to pictures
-                full_path  TEXT UNIQUE NOT NULL, -- full path to preview image
+                picture_id INTEGER UNIQUE NOT NULL ON CONFLICT IGNORE, -- fk to pictures. Only one preview allowed for now.
+                full_path  TEXT UNIQUE NOT NULL ON CONFLICT IGNORE, -- full path to preview image
                 FOREIGN KEY (picture_id) REFERENCES pictures (picture_id)
             )",
         ];
@@ -125,12 +126,12 @@ impl Repository {
 
         {
             let mut stmt = tx
-                .prepare("UPDATE PICTURES SET square_preview_path = ?1 WHERE picture_id = ?2")
+                .prepare("INSERT INTO previews (picture_id, full_path) VALUES (?1, ?2)")
                 .map_err(|e| RepositoryError(e.to_string()))?;
 
             let result = stmt.execute(params![
-                pic.square_preview_path.as_ref().map(|p| p.to_str()),
                 pic.picture_id.0,
+                pic.square_preview_path.as_ref().map(|p| p.to_str()),
             ]);
 
             result
@@ -146,38 +147,57 @@ impl Repository {
         let tx = self
             .con
             .transaction()
-            .map_err(|e| RepositoryError(e.to_string()))?;
+            .map_err(|e| RepositoryError(format!("Starting transaction: {}", e)))?;
 
         // Create a scope to make borrowing of tx not be an error.
         {
             let mut stmt = tx
-                .prepare_cached("INSERT INTO PICTURES (relative_path, order_by_ts) VALUES (?1, ?2)")
-                .map_err(|e| RepositoryError(e.to_string()))?;
+                .prepare_cached("INSERT INTO pictures (relative_path, order_by_ts) VALUES (?1, ?2)")
+                .map_err(|e| RepositoryError(format!("Preparing statement: {}", e)))?;
 
             for pic in pics {
                 // convert to relative path before saving to database
                 let path = pic
                     .path
                     .strip_prefix(&self.library_base_path)
-                    .map_err(|e| RepositoryError(e.to_string()))?;
+                    .map_err(|e| {
+                        RepositoryError(format!("Stripping prefix for {:?}: {}", &pic.path, e))
+                    })?;
 
                 let exif_date_time = pic.exif.as_ref().and_then(|x| x.created_at);
                 let fs_date_time = pic.fs.as_ref().and_then(|x| x.created_at);
                 let order_by_ts = exif_date_time.map(|d| d.to_utc()).or(fs_date_time);
 
-                stmt.execute(params![path.to_str(), order_by_ts])
-                    .map_err(|e| RepositoryError(e.to_string()))?;
+                let result = stmt.execute(params![path.to_str(), order_by_ts]);
+
+                // The "on conflict ignore" constraints look like errors to rusqlite
+                match result {
+                    Err(e @ SqliteFailure(_, _))
+                        if e.sqlite_error_code() == Some(ConstraintViolation) =>
+                    {
+                        // println!("Skipping {:?} {}", path, e);
+                    }
+                    other => {
+                        other.map_err(|e| RepositoryError(format!("Inserting: {}", e)))?;
+                    }
+                }
             }
         }
 
-        tx.commit().map_err(|e| RepositoryError(e.to_string()))
+        tx.commit()
+            .map_err(|e| RepositoryError(format!("Committing transaction: {}", e)))
     }
 
     /// Gets all pictures in the repository, in ascending order of modification timestamp.
     pub fn all(&self) -> Result<Vec<Picture>> {
         let mut stmt = self
             .con
-            .prepare("SELECT picture_id, relative_path, square_preview_path, order_by_ts from PICTURES order by order_by_ts ASC")
+            .prepare(
+                "SELECT pictures.picture_id, pictures.relative_path, previews.full_path as square_preview_path, pictures.order_by_ts
+                FROM pictures
+                LEFT JOIN previews ON pictures.picture_id = previews.picture_id
+                ORDER BY order_by_ts ASC",
+            )
             .map_err(|e| RepositoryError(e.to_string()))?;
 
         let iter = stmt
