@@ -28,27 +28,26 @@ impl Previewer {
     /// Computes a preview square for an image that has been inserted
     /// into the Repository. Preview image will be written to file system.
     pub fn set_preview(&self, pic: &mut repo::Picture) -> Result<()> {
-        if pic.square_preview_path.is_some() {
+        if pic.square_preview_path.as_ref().is_some_and(|p| p.exists()) {
             return Ok(());
         }
+
+        pic.square_preview_path = None;
+
+        let square = self.from_path(&pic.path)?;
 
         let square_path = {
             let file_name = format!("{}_{}x{}.jpg", pic.picture_id, EDGE, EDGE);
             self.base_path.join("square").join(file_name)
         };
 
-        if square_path.exists() {
-            pic.square_preview_path = Some(square_path);
-            return Ok(());
-        }
-
-        let square = self.from_path(&pic.path)?;
-
         println!("preview = {:?}", square_path);
 
         square
             .save(&square_path)
-            .map_err(|e| RepositoryError(e.to_string()))?;
+            .map_err(|e| PreviewError(format!("image save: {}", e)))?;
+
+        pic.square_preview_path = Some(square_path);
 
         Ok(())
     }
@@ -56,9 +55,9 @@ impl Previewer {
     /// Computes a preview square for an image on the file system.
     fn from_path(&self, path: &path::Path) -> Result<DynamicImage> {
         let img = ImageReader::open(path)
-            .map_err(|e| PreviewError(e.to_string()))?
+            .map_err(|e| PreviewError(format!("image open: {}", e)))?
             .decode()
-            .map_err(|e| PreviewError(e.to_string()))?;
+            .map_err(|e| PreviewError(format!("image decode: {}", e)))?;
 
         let img = if img.width() == img.height() && img.width() == EDGE {
             return Ok(img); // the perfect image for previewing :-)

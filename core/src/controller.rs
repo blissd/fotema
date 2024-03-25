@@ -57,7 +57,11 @@ impl Controller {
             .collect::<Vec<repo::Picture>>();
 
         for mut pic in pics {
-            self.prev.set_preview(&mut pic)?;
+            let result = self.prev.set_preview(&mut pic);
+            if let Err(e) = result {
+                println!("Failed set_preview: {:?}", e);
+                continue;
+            }
             self.repo.add_preview(&pic)?;
         }
 
