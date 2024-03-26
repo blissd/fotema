@@ -12,7 +12,13 @@ vars:
     sh: "date +%Y"
 
 tasks:
-  licences:
+
+  flatpak-build:
+    desc: Build and install with flatpak-builder
+    cmds: 
+      - flatpak-builder --user --install --force-clean flatpak_app build-aux/dev.romantics.Photos.Devel.json
+
+  licence-update:
     desc: "Update licence annotations for project files"
     cmds:
       - reuse annotate 
