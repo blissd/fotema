@@ -5,9 +5,9 @@
 #[rustfmt::skip]
 mod config;
 mod all_photos;
-mod year_photos;
 mod app;
 mod modals;
+mod year_photos;
 
 use app::App;
 use config::{APP_ID, GETTEXT_PACKAGE, LOCALEDIR, RESOURCES_FILE};

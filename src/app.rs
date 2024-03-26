@@ -15,9 +15,9 @@ use gtk::{gio, glib};
 use relm4::adw::prelude::AdwApplicationWindowExt;
 
 use crate::all_photos::AllPhotos;
-use crate::year_photos::YearPhotos;
 use crate::config::{APP_ID, PROFILE};
 use crate::modals::about::AboutDialog;
+use crate::year_photos::YearPhotos;
 
 pub(super) struct App {
     about_dialog: Controller<AboutDialog>,
@@ -139,7 +139,6 @@ impl SimpleComponent for App {
 
         let all_photos = AllPhotos::builder().launch(()).detach();
         let year_photos = YearPhotos::builder().launch(()).detach();
-
 
         let model = Self {
             about_dialog,

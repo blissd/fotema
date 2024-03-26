@@ -1326,8 +1326,8 @@ checksum = "de3145af08024dea9fa9914f381a17b8fc6034dfb00f3a84013f7ff43f29ed4c"
 name = "photo-romantic"
 version = "0.1.0"
 dependencies = [
- "chrono",
  "gettext-rs",
+ "itertools",
  "photos_core",
  "relm4",
  "tracing",

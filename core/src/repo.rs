@@ -48,6 +48,14 @@ pub struct Picture {
     pub order_by_ts: Option<DateTime<Utc>>,
 }
 
+impl Picture {
+    pub fn year(&self) -> u32 {
+        self.order_by_ts
+            .map(|ts| ts.date_naive().year_ce().1)
+            .unwrap_or(0)
+    }
+}
+
 /// Repository of picture metadata.
 /// Repository is backed by a Sqlite database.
 #[derive(Debug)]

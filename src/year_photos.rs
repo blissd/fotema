@@ -5,27 +5,26 @@
 use gtk::glib;
 use gtk::prelude::{BoxExt, OrientableExt};
 use photos_core;
-use chrono::Datelike;
 
+use itertools::Itertools;
 use relm4::gtk;
+use relm4::gtk::prelude::FrameExt;
 use relm4::gtk::prelude::WidgetExt;
 use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
 use relm4::*;
 use std::cell::RefCell;
 use std::path;
 use std::rc::Rc;
-use relm4::gtk::prelude::FrameExt;
 
 #[derive(Debug)]
 pub struct PicturePreview {
     controller: Rc<RefCell<photos_core::Controller>>,
     picture: photos_core::repo::Picture,
-    year: u32,
 }
 
 pub struct Widgets {
     picture: gtk::Picture,
-    frame: gtk::Frame,
+    label: gtk::Label,
 }
 
 impl RelmGridItem for PicturePreview {
@@ -38,9 +37,15 @@ impl RelmGridItem for PicturePreview {
                 set_orientation: gtk::Orientation::Vertical,
                 set_margin_all: 1,
 
-                #[name = "frame"]
+                #[name(label)]
+                gtk::Label {},
+
+                adw::Clamp {
+                        set_maximum_size: 200,
+
                 gtk::Frame {
-                    #[name = "picture"]
+
+                    #[name(picture)]
                     gtk::Picture {
                         set_can_shrink: true,
                         set_valign: gtk::Align::Center,
@@ -48,16 +53,19 @@ impl RelmGridItem for PicturePreview {
                         set_height_request: 200,
                     }
                 }
+                }
             }
         }
 
-        let widgets = Widgets { picture, frame };
+        let widgets = Widgets { picture, label };
 
         (my_box, widgets)
     }
 
     fn bind(&mut self, widgets: &mut Self::Widgets, _root: &mut Self::Root) {
-        widgets.frame.set_label(Some(format!("{}", self.year).as_str()));
+        widgets
+            .label
+            .set_label(format!("{}", self.picture.year()).as_str());
 
         // compute preview image if it is absent
         if self.picture.square_preview_path.is_none() {
@@ -160,13 +168,10 @@ impl SimpleComponent for YearPhotos {
             .all_with_previews()
             .unwrap()
             .into_iter()
-            .map(|picture| {
-                let year = picture.order_by_ts.map(|ts| ts.date_naive().year_ce().1).unwrap();
-                PicturePreview {
-                    picture,
-                    year,
-                    controller: controller.clone(),
-                }
+            .dedup_by(|x, y| x.year() == y.year())
+            .map(|picture| PicturePreview {
+                picture,
+                controller: controller.clone(),
             });
 
         let mut grid_view_wrapper: TypedGridView<PicturePreview, gtk::SingleSelection> =
