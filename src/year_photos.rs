@@ -80,7 +80,7 @@ impl RelmGridItem for PicturePreview {
 
 pub struct YearPhotos {
     //    controller: photos_core::Controller,
-    pictures_grid_view: TypedGridView<PicturePreview, gtk::SingleSelection>,
+    pictures_grid_view: TypedGridView<PicturePreview, gtk::NoSelection>,
 }
 
 #[relm4::component(pub)]
@@ -126,7 +126,7 @@ impl SimpleComponent for YearPhotos {
                 controller: controller.clone(),
             });
 
-        let mut grid_view_wrapper: TypedGridView<PicturePreview, gtk::SingleSelection> =
+        let mut grid_view_wrapper: TypedGridView<PicturePreview, gtk::NoSelection> =
             TypedGridView::new();
 
         grid_view_wrapper.extend_from_iter(all_pictures.into_iter());
