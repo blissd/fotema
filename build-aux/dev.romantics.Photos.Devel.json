@@ -13,6 +13,7 @@
         "--socket=fallback-x11",
         "--socket=wayland",
         "--device=dri",
+        "--filesystem=xdg-pictures:ro",
         "--env=RUST_LOG=photo_romantic=debug",
         "--env=G_MESSAGES_DEBUG=none",
         "--env=RUST_BACKTRACE=1"
