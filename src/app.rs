@@ -8,10 +8,12 @@ use relm4::{
     Controller, SimpleComponent,
 };
 
+use gtk::glib::prelude::*;
 use gtk::prelude::{
     ApplicationExt, ApplicationWindowExt, GtkWindowExt, OrientableExt, SettingsExt, WidgetExt,
 };
 use gtk::{gio, glib};
+use relm4::adw::prelude::AdwApplicationWindowExt;
 
 use crate::all_photos::AllPhotos;
 use crate::config::{APP_ID, PROFILE};
@@ -74,18 +76,47 @@ impl SimpleComponent for App {
                     None
                 },
 
+
+            add_breakpoint = adw::Breakpoint::new(adw::BreakpointCondition::new_length(
+                adw::BreakpointConditionLengthType::MaxWidth,
+                500.0,
+                adw::LengthUnit::Sp,
+            )) {
+                add_setter: (&header_bar, "show-title", &false.into()),
+                add_setter: (&switcher_bar, "reveal", &true.into()),
+            },
+
             gtk::Box {
                 set_orientation: gtk::Orientation::Vertical,
 
+                #[name(header_bar)]
                 adw::HeaderBar {
+                    #[wrap(Some)]
+                    set_title_widget = &adw::ViewSwitcher {
+                        set_stack: Some(&stack),
+                    },
+
                     pack_end = &gtk::MenuButton {
                         set_icon_name: "open-menu-symbolic",
                         set_menu_model: Some(&primary_menu),
                     }
                 },
 
-                gtk::Stack {
-                    add_child = model.all_photos.widget(),
+                #[name(stack)]
+                adw::ViewStack {
+
+                    add_titled_with_icon[None, "Month", "month-symbolic"] = &gtk::Box {
+                        gtk::Label {
+                            set_label: "Hello",
+                        }
+                    },
+
+                    add_titled_with_icon[None, "All", "today-symbolic"] = model.all_photos.widget(),
+                },
+
+                #[name(switcher_bar)]
+                adw::ViewSwitcherBar {
+                    set_stack: Some(&stack),
                 }
 
             }

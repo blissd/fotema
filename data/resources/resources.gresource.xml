@@ -12,4 +12,8 @@ SPDX-License-Identifier: GPL-3.0-or-later
     <file compressed="true" preprocess="xml-stripblanks" alias="gtk/help-overlay.ui">ui/shortcuts.ui</file>
     <file compressed="true">style.css</file>
   </gresource>
+  <gresource prefix="/dev/romantics/Photos/icons/">
+    <file alias="today-symbolic.svg" preprocess="xml-stripblanks">../icons/today-symbolic.svg</file>
+    <file alias="month-symbolic.svg" preprocess="xml-stripblanks">../icons/month-symbolic.svg</file>
+  </gresource>
 </gresources>
