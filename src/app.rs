@@ -112,7 +112,7 @@ impl SimpleComponent for App {
 
                     add_titled_with_icon[None, "Month", "month-symbolic"] = model.month_photos.widget(),
 
-                    add_titled_with_icon[None, "All", "today-symbolic"] = model.all_photos.widget(),
+                    add_titled_with_icon[None, "All", "playlist-infinite-symbolic"] = model.all_photos.widget(),
                 },
 
                 #[name(switcher_bar)]
