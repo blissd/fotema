@@ -139,7 +139,10 @@ impl SimpleComponent for App {
         let cache_dir = glib::user_cache_dir().join("photo-romantic");
         let _ = std::fs::create_dir_all(&cache_dir);
 
-        let pic_base_dir = path::Path::new("/var/home/david/Pictures");
+        // TODO use XDG_PICTURES_DIR as the default, but let users override in preferences.
+        let pic_base_dir = glib::user_special_dir(glib::enums::UserDirectory::Pictures)
+            .expect("Expect XDG_PICTURES_DIR");
+
         let repo = {
             let db_path = data_dir.join("pictures.sqlite");
             photos_core::Repository::open(&pic_base_dir, &db_path).unwrap()

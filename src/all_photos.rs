@@ -54,7 +54,7 @@ impl RelmGridItem for PicturePreview {
             .set_filename(self.picture.square_preview_path.clone());
     }
 
-    fn unbind(&mut self, widgets: &mut Self::Widgets, root: &mut Self::Root) {
+    fn unbind(&mut self, widgets: &mut Self::Widgets, _root: &mut Self::Root) {
         widgets.picture.set_filename(None::<&path::Path>);
     }
 }
@@ -77,6 +77,7 @@ impl SimpleComponent for AllPhotos {
             set_margin_all: 0,
 
             gtk::ScrolledWindow {
+
                 //set_propagate_natural_height: true,
                 //set_has_frame: true,
                 set_vexpand: true,
