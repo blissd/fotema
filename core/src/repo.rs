@@ -32,6 +32,25 @@ impl Display for PictureId {
     }
 }
 
+#[derive(Debug, PartialOrd, PartialEq)]
+pub struct YearMonth(i32, chrono::Month);
+
+impl Display for YearMonth {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} {}", self.1.name(), self.0)
+    }
+}
+
+impl YearMonth {
+    pub fn year(&self) -> i32 {
+        self.0
+    }
+
+    pub fn month(&self) -> chrono::Month {
+        self.1
+    }
+}
+
 /// A picture in the repository
 #[derive(Debug)]
 pub struct Picture {
@@ -53,6 +72,19 @@ impl Picture {
         self.order_by_ts
             .map(|ts| ts.date_naive().year_ce().1)
             .unwrap_or(0)
+    }
+
+    pub fn year_month(&self) -> YearMonth {
+        self.order_by_ts
+            .map(|ts| {
+                let y = ts.date_naive().year();
+                let m = ts.date_naive().month();
+                YearMonth(
+                    y,
+                    chrono::Month::try_from(u8::try_from(m).unwrap()).unwrap(),
+                )
+            })
+            .unwrap_or(YearMonth(0, chrono::Month::January))
     }
 }
 

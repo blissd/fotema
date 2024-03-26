@@ -7,6 +7,7 @@ mod config;
 mod all_photos;
 mod app;
 mod modals;
+mod month_photos;
 mod year_photos;
 
 use app::App;

@@ -8,7 +8,6 @@ use photos_core;
 
 use itertools::Itertools;
 use relm4::gtk;
-use relm4::gtk::prelude::FrameExt;
 use relm4::gtk::prelude::WidgetExt;
 use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
 use relm4::*;
@@ -41,18 +40,18 @@ impl RelmGridItem for PicturePreview {
                 gtk::Label {},
 
                 adw::Clamp {
-                        set_maximum_size: 200,
+                    set_maximum_size: 200,
 
-                gtk::Frame {
+                    gtk::Frame {
 
-                    #[name(picture)]
-                    gtk::Picture {
-                        set_can_shrink: true,
-                        set_valign: gtk::Align::Center,
-                        set_width_request: 200,
-                        set_height_request: 200,
+                        #[name(picture)]
+                        gtk::Picture {
+                            set_can_shrink: true,
+                            set_valign: gtk::Align::Center,
+                            set_width_request: 200,
+                            set_height_request: 200,
+                        }
                     }
-                }
                 }
             }
         }

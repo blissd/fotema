@@ -17,11 +17,13 @@ use relm4::adw::prelude::AdwApplicationWindowExt;
 use crate::all_photos::AllPhotos;
 use crate::config::{APP_ID, PROFILE};
 use crate::modals::about::AboutDialog;
+use crate::month_photos::MonthPhotos;
 use crate::year_photos::YearPhotos;
 
 pub(super) struct App {
     about_dialog: Controller<AboutDialog>,
     all_photos: Controller<AllPhotos>,
+    month_photos: Controller<MonthPhotos>,
     year_photos: Controller<YearPhotos>,
 }
 
@@ -108,11 +110,7 @@ impl SimpleComponent for App {
 
                     add_titled_with_icon[None, "Year", "year-symbolic"] = model.year_photos.widget(),
 
-                    add_titled_with_icon[None, "Month", "month-symbolic"] = &gtk::Box {
-                        gtk::Label {
-                            set_label: "Hello",
-                        }
-                    },
+                    add_titled_with_icon[None, "Month", "month-symbolic"] = model.month_photos.widget(),
 
                     add_titled_with_icon[None, "All", "today-symbolic"] = model.all_photos.widget(),
                 },
@@ -138,11 +136,13 @@ impl SimpleComponent for App {
             .detach();
 
         let all_photos = AllPhotos::builder().launch(()).detach();
+        let month_photos = MonthPhotos::builder().launch(()).detach();
         let year_photos = YearPhotos::builder().launch(()).detach();
 
         let model = Self {
             about_dialog,
             all_photos,
+            month_photos,
             year_photos,
         };
 
