@@ -105,6 +105,12 @@ impl SimpleComponent for App {
                 #[name(stack)]
                 adw::ViewStack {
 
+                    add_titled_with_icon[None, "Year", "year-symbolic"] = &gtk::Box {
+                        gtk::Label {
+                            set_label: "Hello",
+                        }
+                    },
+
                     add_titled_with_icon[None, "Month", "month-symbolic"] = &gtk::Box {
                         gtk::Label {
                             set_label: "Hello",

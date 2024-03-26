@@ -15,5 +15,6 @@ SPDX-License-Identifier: GPL-3.0-or-later
   <gresource prefix="/dev/romantics/Photos/icons/">
     <file alias="today-symbolic.svg" preprocess="xml-stripblanks">../icons/today-symbolic.svg</file>
     <file alias="month-symbolic.svg" preprocess="xml-stripblanks">../icons/month-symbolic.svg</file>
+    <file alias="year-symbolic.svg" preprocess="xml-stripblanks">../icons/year-symbolic.svg</file>
   </gresource>
 </gresources>
