@@ -20,6 +20,7 @@ gettext-rs = { version = "0.7", features = ["gettext-system"] }
 tracing = "0.1.37"
 tracing-subscriber = "0.3"
 relm4 = { version = "0.8.1", features = ["libadwaita", "gnome_45"] }
+chrono = "0.4.35"
 
 
 [dependencies.photos_core]
