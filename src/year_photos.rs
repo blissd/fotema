@@ -85,7 +85,7 @@ pub struct YearPhotos {
 
 #[relm4::component(pub)]
 impl SimpleComponent for YearPhotos {
-    type Init = ();
+    type Init = Rc<RefCell<photos_core::Controller>>;
     type Input = ();
     type Output = ();
 
@@ -110,47 +110,10 @@ impl SimpleComponent for YearPhotos {
     }
 
     fn init(
-        _init: Self::Init,
+        controller: Self::Init,
         root: Self::Root,
         _sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        let data_dir = glib::user_data_dir().join("photo-romantic");
-        let _ = std::fs::create_dir_all(&data_dir);
-
-        let cache_dir = glib::user_cache_dir().join("photo-romantic");
-        let _ = std::fs::create_dir_all(&cache_dir);
-
-        let pic_base_dir = path::Path::new("/var/home/david/Pictures");
-        let repo = {
-            let db_path = data_dir.join("pictures.sqlite");
-            photos_core::Repository::open(&pic_base_dir, &db_path).unwrap()
-        };
-
-        let scan = photos_core::Scanner::build(&pic_base_dir).unwrap();
-
-        let previewer = {
-            let preview_base_path = cache_dir.join("previews");
-            let _ = std::fs::create_dir_all(&preview_base_path);
-            photos_core::Previewer::build(&preview_base_path).unwrap()
-        };
-
-        let mut controller = photos_core::Controller::new(scan, repo, previewer);
-
-        // Time consuming!
-        match controller.scan() {
-            Err(e) => {
-                println!("Failed scanning: {:?}", e);
-            }
-            _ => {}
-        }
-
-        let controller = Rc::new(RefCell::new(controller));
-
-        {
-            //let result = controller.borrow_mut().update_previews();
-            //println!("preview result: {:?}", result);
-        }
-
         let all_pictures = controller
             .borrow_mut()
             //.all()

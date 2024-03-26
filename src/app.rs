@@ -19,6 +19,9 @@ use crate::config::{APP_ID, PROFILE};
 use crate::modals::about::AboutDialog;
 use crate::month_photos::MonthPhotos;
 use crate::year_photos::YearPhotos;
+use std::cell::RefCell;
+use std::path;
+use std::rc::Rc;
 
 pub(super) struct App {
     about_dialog: Controller<AboutDialog>,
@@ -130,14 +133,51 @@ impl SimpleComponent for App {
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
+        let data_dir = glib::user_data_dir().join("photo-romantic");
+        let _ = std::fs::create_dir_all(&data_dir);
+
+        let cache_dir = glib::user_cache_dir().join("photo-romantic");
+        let _ = std::fs::create_dir_all(&cache_dir);
+
+        let pic_base_dir = path::Path::new("/var/home/david/Pictures");
+        let repo = {
+            let db_path = data_dir.join("pictures.sqlite");
+            photos_core::Repository::open(&pic_base_dir, &db_path).unwrap()
+        };
+
+        let scan = photos_core::Scanner::build(&pic_base_dir).unwrap();
+
+        let previewer = {
+            let preview_base_path = cache_dir.join("previews");
+            let _ = std::fs::create_dir_all(&preview_base_path);
+            photos_core::Previewer::build(&preview_base_path).unwrap()
+        };
+
+        let mut controller = photos_core::Controller::new(scan, repo, previewer);
+
+        // Time consuming!
+        match controller.scan() {
+            Err(e) => {
+                println!("Failed scanning: {:?}", e);
+            }
+            _ => {}
+        }
+
+        let controller = Rc::new(RefCell::new(controller));
+
+        {
+            //let result = controller.borrow_mut().update_previews();
+            //println!("preview result: {:?}", result);
+        }
+
+        let all_photos = AllPhotos::builder().launch(controller.clone()).detach();
+        let month_photos = MonthPhotos::builder().launch(controller.clone()).detach();
+        let year_photos = YearPhotos::builder().launch(controller.clone()).detach();
+
         let about_dialog = AboutDialog::builder()
             .transient_for(&root)
             .launch(())
             .detach();
-
-        let all_photos = AllPhotos::builder().launch(()).detach();
-        let month_photos = MonthPhotos::builder().launch(()).detach();
-        let year_photos = YearPhotos::builder().launch(()).detach();
 
         let model = Self {
             about_dialog,
