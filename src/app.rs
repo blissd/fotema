@@ -110,12 +110,9 @@ impl SimpleComponent for App {
 
                 #[name(stack)]
                 adw::ViewStack {
-
-                    add_titled_with_icon[None, "Year", "year-symbolic"] = model.year_photos.widget(),
-
-                    add_titled_with_icon[None, "Month", "month-symbolic"] = model.month_photos.widget(),
-
                     add_titled_with_icon[None, "All", "playlist-infinite-symbolic"] = model.all_photos.widget(),
+                    add_titled_with_icon[None, "Month", "month-symbolic"] = model.month_photos.widget(),
+                    add_titled_with_icon[None, "Year", "year-symbolic"] = model.year_photos.widget(),
                 },
 
                 #[name(switcher_bar)]
