@@ -66,25 +66,15 @@ impl RelmGridItem for PicturePreview {
             .label
             .set_label(format!("{}", self.picture.year()).as_str());
 
-        // compute preview image if it is absent
-        if self.picture.square_preview_path.is_none() {
-            let mut controller = self.controller.borrow_mut();
-            match controller.add_preview(&mut self.picture) {
-                Ok(_) => {}
-                Err(e) => {
-                    println!(
-                        "Failed computing preview for {:?} with {:?}",
-                        self.picture.path, e
-                    );
-                }
-            }
-        }
-
         if widgets.picture.file().is_none() {
             widgets
                 .picture
                 .set_filename(self.picture.square_preview_path.clone());
         }
+    }
+
+    fn unbind(&mut self, widgets: &mut Self::Widgets, root: &mut Self::Root) {
+        widgets.picture.set_filename(None::<&path::Path>);
     }
 }
 

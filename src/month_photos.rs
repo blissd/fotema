@@ -8,6 +8,7 @@ use photos_core;
 
 use itertools::Itertools;
 use relm4::gtk;
+use relm4::gtk::gio;
 use relm4::gtk::prelude::WidgetExt;
 use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
 use relm4::*;
@@ -68,25 +69,15 @@ impl RelmGridItem for PicturePreview {
             .label
             .set_label(format!("{} {}", ym.month().name(), ym.year()).as_str());
 
-        // compute preview image if it is absent
-        if self.picture.square_preview_path.is_none() {
-            let mut controller = self.controller.borrow_mut();
-            match controller.add_preview(&mut self.picture) {
-                Ok(_) => {}
-                Err(e) => {
-                    println!(
-                        "Failed computing preview for {:?} with {:?}",
-                        self.picture.path, e
-                    );
-                }
-            }
-        }
-
         if widgets.picture.file().is_none() {
             widgets
                 .picture
                 .set_filename(self.picture.square_preview_path.clone());
         }
+    }
+
+    fn unbind(&mut self, widgets: &mut Self::Widgets, root: &mut Self::Root) {
+        widgets.picture.set_filename(None::<&path::Path>);
     }
 }
 

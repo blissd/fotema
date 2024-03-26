@@ -49,30 +49,14 @@ impl RelmGridItem for PicturePreview {
     }
 
     fn bind(&mut self, widgets: &mut Self::Widgets, _root: &mut Self::Root) {
-        // compute preview image if it is absent
-        if self.picture.square_preview_path.is_none() {
-            let mut controller = self.controller.borrow_mut();
-            match controller.add_preview(&mut self.picture) {
-                Ok(_) => {}
-                Err(e) => {
-                    println!(
-                        "Failed computing preview for {:?} with {:?}",
-                        self.picture.path, e
-                    );
-                }
-            }
-        }
-
-        if widgets.picture.file().is_none() {
-            widgets
-                .picture
-                .set_filename(self.picture.square_preview_path.clone());
-        }
+        widgets
+            .picture
+            .set_filename(self.picture.square_preview_path.clone());
     }
 
-    //fn unbind(&mut self, widgets: &mut Self::Widgets, root: &mut Self::Root) {
-    //    widgets.picture.set_filename(None::<&path::Path>);
-    //}
+    fn unbind(&mut self, widgets: &mut Self::Widgets, root: &mut Self::Root) {
+        widgets.picture.set_filename(None::<&path::Path>);
+    }
 }
 
 pub struct AllPhotos {
