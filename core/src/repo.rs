@@ -260,6 +260,33 @@ impl Repository {
 
         Ok(pics)
     }
+
+    pub fn get(&mut self, picture_id: PictureId) -> Result<Option<Picture>> {
+        let mut stmt = self
+            .con
+            .prepare(
+                "SELECT pictures.picture_id, pictures.relative_path, previews.full_path as square_preview_path, pictures.order_by_ts
+                FROM pictures
+                LEFT JOIN previews ON pictures.picture_id = previews.picture_id
+                WHERE pictures.picture_id = ?1",
+            )
+            .map_err(|e| RepositoryError(e.to_string()))?;
+
+        let iter = stmt
+            .query_map([picture_id.0], |row| {
+                let path_result: rusqlite::Result<String> = row.get(1);
+                path_result.map(|relative_path| Picture {
+                    picture_id: PictureId(row.get(0).unwrap()), // should always have a primary key
+                    path: self.library_base_path.join(relative_path), // compute full path
+                    square_preview_path: row.get(2).ok().map(|p: String| path::PathBuf::from(p)),
+                    order_by_ts: row.get(3).ok(),
+                })
+            })
+            .map_err(|e| RepositoryError(e.to_string()))?;
+
+        let head = iter.flatten().nth(0);
+        Ok(head)
+    }
 }
 
 #[cfg(test)]

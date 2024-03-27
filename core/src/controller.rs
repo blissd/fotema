@@ -47,6 +47,11 @@ impl Controller {
         self.repo.all()
     }
 
+    /// Get one photo.
+    pub fn get(&mut self, picture_id: repo::PictureId) -> Result<Option<repo::Picture>> {
+        self.repo.get(picture_id)
+    }
+
     pub fn update_previews(&mut self) -> Result<()> {
         // TODO make a database query to get pictures
         // that need a preview to be computed

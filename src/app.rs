@@ -21,14 +21,18 @@ use crate::modals::about::AboutDialog;
 use crate::month_photos::MonthPhotos;
 use crate::year_photos::YearPhotos;
 use photos_core::repo::PictureId;
+use relm4::adw::prelude::NavigationPageExt;
 use std::cell::RefCell;
 use std::rc::Rc;
 
 pub(super) struct App {
+    controller: Rc<RefCell<photos_core::Controller>>,
     about_dialog: Controller<AboutDialog>,
     all_photos: Controller<AllPhotos>,
     month_photos: Controller<MonthPhotos>,
     year_photos: Controller<YearPhotos>,
+    picture_navigation_view: adw::NavigationView,
+    picture_view: gtk::Picture,
 }
 
 #[derive(Debug)]
@@ -98,8 +102,12 @@ impl SimpleComponent for App {
                 add_setter: (&switcher_bar, "reveal", &true.into()),
             },
 
-            adw::NavigationView {
+            #[local_ref]
+            picture_navigation_view -> adw::NavigationView {
+                set_pop_on_escape: true,
+
                 adw::NavigationPage {
+                    set_tag: Some("time_period_views"),
                     gtk::Box {
                         set_orientation: gtk::Orientation::Vertical,
 
@@ -129,13 +137,15 @@ impl SimpleComponent for App {
                         }
                     },
                 },
-                #[name(picture_view_page)]
+
                 adw::NavigationPage {
+                    set_tag: Some("picture"),
+
                     gtk::Box {
                         set_orientation: gtk::Orientation::Vertical,
 
-                        #[name(picture_view)]
-                        gtk::Picture {
+                        #[local_ref]
+                        picture_view -> gtk::Picture {
                             set_can_shrink: true,
                             set_valign: gtk::Align::Center,
                         }
@@ -202,11 +212,18 @@ impl SimpleComponent for App {
             .launch(())
             .detach();
 
+        let picture_view = gtk::Picture::new();
+
+        let picture_navigation_view = adw::NavigationView::builder().build();
+
         let model = Self {
+            controller,
             about_dialog,
             all_photos,
             month_photos,
             year_photos,
+            picture_navigation_view: picture_navigation_view.clone(),
+            picture_view: picture_view.clone(),
         };
 
         let widgets = view_output!();
@@ -241,6 +258,13 @@ impl SimpleComponent for App {
             AppMsg::Quit => main_application().quit(),
             AppMsg::ViewPhoto(picture_id) => {
                 println!("Showing photo for {}", picture_id);
+                let result = self.controller.borrow_mut().get(picture_id);
+                if let Ok(Some(pic)) = result {
+                    self.picture_view.set_filename(Some(pic.path));
+                    self.picture_navigation_view.push_by_tag("picture");
+                } else {
+                    println!("Failed loading {}: {:?}", picture_id, result);
+                }
             }
         }
     }
