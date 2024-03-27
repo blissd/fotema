@@ -14,13 +14,14 @@ use gtk::prelude::{
 use gtk::{gio, glib};
 use relm4::adw::prelude::AdwApplicationWindowExt;
 
+use crate::all_photos;
 use crate::all_photos::AllPhotos;
 use crate::config::{APP_ID, PROFILE};
 use crate::modals::about::AboutDialog;
 use crate::month_photos::MonthPhotos;
 use crate::year_photos::YearPhotos;
+use photos_core::repo::PictureId;
 use std::cell::RefCell;
-use std::path;
 use std::rc::Rc;
 
 pub(super) struct App {
@@ -33,6 +34,9 @@ pub(super) struct App {
 #[derive(Debug)]
 pub(super) enum AppMsg {
     Quit,
+
+    // Show picture for ID.
+    ViewPhoto(PictureId),
 }
 
 relm4::new_action_group!(pub(super) WindowActionGroup, "win");
@@ -60,6 +64,8 @@ impl SimpleComponent for App {
     view! {
         main_window = adw::ApplicationWindow::new(&main_application()) {
             set_visible: true,
+            set_width_request: 400,
+            set_height_request: 400,
 
             connect_close_request[sender] => move |_| {
                 sender.input(AppMsg::Quit);
@@ -92,36 +98,50 @@ impl SimpleComponent for App {
                 add_setter: (&switcher_bar, "reveal", &true.into()),
             },
 
-            gtk::Box {
-                set_orientation: gtk::Orientation::Vertical,
+            adw::NavigationView {
+                adw::NavigationPage {
+                    gtk::Box {
+                        set_orientation: gtk::Orientation::Vertical,
 
-                #[name(header_bar)]
-                adw::HeaderBar {
-                    #[wrap(Some)]
-                    set_title_widget = &adw::ViewSwitcher {
-                        set_stack: Some(&stack),
+                        #[name(header_bar)]
+                        adw::HeaderBar {
+                            #[wrap(Some)]
+                            set_title_widget = &adw::ViewSwitcher {
+                                set_stack: Some(&stack),
+                            },
+
+                            pack_end = &gtk::MenuButton {
+                                set_icon_name: "open-menu-symbolic",
+                                set_menu_model: Some(&primary_menu),
+                            }
+                        },
+
+                        #[name(stack)]
+                        adw::ViewStack {
+                            add_titled_with_icon[None, "All", "playlist-infinite-symbolic"] = model.all_photos.widget(),
+                            add_titled_with_icon[None, "Month", "month-symbolic"] = model.month_photos.widget(),
+                            add_titled_with_icon[None, "Year", "year-symbolic"] = model.year_photos.widget(),
+                        },
+
+                        #[name(switcher_bar)]
+                        adw::ViewSwitcherBar {
+                            set_stack: Some(&stack),
+                        }
                     },
+                },
+                #[name(picture_view_page)]
+                adw::NavigationPage {
+                    gtk::Box {
+                        set_orientation: gtk::Orientation::Vertical,
 
-                    pack_end = &gtk::MenuButton {
-                        set_icon_name: "open-menu-symbolic",
-                        set_menu_model: Some(&primary_menu),
+                        #[name(picture_view)]
+                        gtk::Picture {
+                            set_can_shrink: true,
+                            set_valign: gtk::Align::Center,
+                        }
                     }
                 },
-
-                #[name(stack)]
-                adw::ViewStack {
-                    add_titled_with_icon[None, "All", "playlist-infinite-symbolic"] = model.all_photos.widget(),
-                    add_titled_with_icon[None, "Month", "month-symbolic"] = model.month_photos.widget(),
-                    add_titled_with_icon[None, "Year", "year-symbolic"] = model.year_photos.widget(),
-                },
-
-                #[name(switcher_bar)]
-                adw::ViewSwitcherBar {
-                    set_stack: Some(&stack),
-                }
-
-            }
-
+            },
         }
     }
 
@@ -170,7 +190,10 @@ impl SimpleComponent for App {
             //println!("preview result: {:?}", result);
         }
 
-        let all_photos = AllPhotos::builder().launch(controller.clone()).detach();
+        let all_photos = AllPhotos::builder()
+            .launch(controller.clone())
+            .forward(sender.input_sender(), convert_all_photos_output);
+
         let month_photos = MonthPhotos::builder().launch(controller.clone()).detach();
         let year_photos = YearPhotos::builder().launch(controller.clone()).detach();
 
@@ -216,11 +239,20 @@ impl SimpleComponent for App {
     fn update(&mut self, message: Self::Input, _sender: ComponentSender<Self>) {
         match message {
             AppMsg::Quit => main_application().quit(),
+            AppMsg::ViewPhoto(picture_id) => {
+                println!("Showing photo for {}", picture_id);
+            }
         }
     }
 
     fn shutdown(&mut self, widgets: &mut Self::Widgets, _output: relm4::Sender<Self::Output>) {
         widgets.save_window_size().unwrap();
+    }
+}
+
+fn convert_all_photos_output(msg: all_photos::PhotoGridOutput) -> AppMsg {
+    match msg {
+        all_photos::PhotoGridOutput::ViewPhoto(id) => AppMsg::ViewPhoto(id),
     }
 }
 

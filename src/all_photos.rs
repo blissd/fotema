@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use gtk::glib;
 use gtk::prelude::{BoxExt, OrientableExt};
 use photos_core;
 use relm4::gtk;
@@ -21,6 +20,17 @@ pub struct PicturePreview {
 
 pub struct Widgets {
     picture: gtk::Picture,
+}
+
+#[derive(Debug)]
+pub enum PhotoGridInput {
+    /// View picture at given offset of gridview
+    ViewPhoto(u32),
+}
+
+#[derive(Debug)]
+pub enum PhotoGridOutput {
+    ViewPhoto(photos_core::repo::PictureId),
 }
 
 impl RelmGridItem for PicturePreview {
@@ -59,6 +69,7 @@ impl RelmGridItem for PicturePreview {
     }
 }
 
+#[derive(Debug)]
 pub struct AllPhotos {
     //    controller: photos_core::Controller,
     pictures_grid_view: TypedGridView<PicturePreview, gtk::SingleSelection>,
@@ -67,8 +78,8 @@ pub struct AllPhotos {
 #[relm4::component(pub)]
 impl SimpleComponent for AllPhotos {
     type Init = Rc<RefCell<photos_core::Controller>>;
-    type Input = ();
-    type Output = ();
+    type Input = PhotoGridInput;
+    type Output = PhotoGridOutput;
 
     view! {
         gtk::Box {
@@ -85,7 +96,12 @@ impl SimpleComponent for AllPhotos {
                 #[local_ref]
                 pictures_box -> gtk::GridView {
                     set_orientation: gtk::Orientation::Vertical,
+                    set_single_click_activate: true,
                     //set_max_columns: 3,
+
+                    connect_activate[sender] => move |_, idx| {
+                        sender.input(PhotoGridInput::ViewPhoto(idx))
+                    },
                 },
             },
         }
@@ -93,8 +109,8 @@ impl SimpleComponent for AllPhotos {
 
     fn init(
         controller: Self::Init,
-        root: Self::Root,
-        _sender: ComponentSender<Self>,
+        _root: Self::Root,
+        sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
         let all_pictures = controller
             .borrow_mut()
@@ -122,5 +138,17 @@ impl SimpleComponent for AllPhotos {
         ComponentParts { model, widgets }
     }
 
-    fn update(&mut self, _msg: Self::Input, _sender: ComponentSender<Self>) {}
+    fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
+        match msg {
+            PhotoGridInput::ViewPhoto(index) => {
+                if let Some(item) = self.pictures_grid_view.get(index) {
+                    let picture_id = item.borrow().picture.picture_id;
+                    println!("index {} has picture_id {}", index, picture_id);
+                    sender
+                        .output(PhotoGridOutput::ViewPhoto(picture_id))
+                        .unwrap();
+                }
+            }
+        }
+    }
 }

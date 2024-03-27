@@ -3,14 +3,15 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #[rustfmt::skip]
-mod config;
 mod all_photos;
 mod app;
+mod config;
 mod modals;
 mod month_photos;
 mod year_photos;
 
 use app::App;
+
 use config::{APP_ID, GETTEXT_PACKAGE, LOCALEDIR, RESOURCES_FILE};
 use gettextrs::{gettext, LocaleCategory};
 use gtk::prelude::ApplicationExt;
