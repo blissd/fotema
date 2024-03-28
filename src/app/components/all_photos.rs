@@ -13,7 +13,7 @@ use std::path;
 use std::rc::Rc;
 
 #[derive(Debug)]
-pub struct PicturePreview {
+pub struct PhotoGridItem {
     controller: Rc<RefCell<photos_core::Controller>>,
     picture: photos_core::repo::Picture,
 }
@@ -23,17 +23,17 @@ pub struct Widgets {
 }
 
 #[derive(Debug)]
-pub enum PhotoGridInput {
+pub enum AllPhotosInput {
     /// View picture at given offset of gridview
     ViewPhoto(u32),
 }
 
 #[derive(Debug)]
-pub enum PhotoGridOutput {
+pub enum AllPhotosOutput {
     ViewPhoto(photos_core::repo::PictureId),
 }
 
-impl RelmGridItem for PicturePreview {
+impl RelmGridItem for PhotoGridItem {
     type Root = gtk::Box;
     type Widgets = Widgets;
 
@@ -72,14 +72,14 @@ impl RelmGridItem for PicturePreview {
 #[derive(Debug)]
 pub struct AllPhotos {
     //    controller: photos_core::Controller,
-    pictures_grid_view: TypedGridView<PicturePreview, gtk::SingleSelection>,
+    pictures_grid_view: TypedGridView<PhotoGridItem, gtk::SingleSelection>,
 }
 
 #[relm4::component(pub)]
 impl SimpleComponent for AllPhotos {
     type Init = Rc<RefCell<photos_core::Controller>>;
-    type Input = PhotoGridInput;
-    type Output = PhotoGridOutput;
+    type Input = AllPhotosInput;
+    type Output = AllPhotosOutput;
 
     view! {
         gtk::Box {
@@ -100,7 +100,7 @@ impl SimpleComponent for AllPhotos {
                     //set_max_columns: 3,
 
                     connect_activate[sender] => move |_, idx| {
-                        sender.input(PhotoGridInput::ViewPhoto(idx))
+                        sender.input(AllPhotosInput::ViewPhoto(idx))
                     },
                 },
             },
@@ -118,12 +118,12 @@ impl SimpleComponent for AllPhotos {
             .all_with_previews()
             .unwrap()
             .into_iter()
-            .map(|picture| PicturePreview {
+            .map(|picture| PhotoGridItem {
                 picture,
                 controller: controller.clone(),
             });
 
-        let mut grid_view_wrapper: TypedGridView<PicturePreview, gtk::SingleSelection> =
+        let mut grid_view_wrapper: TypedGridView<PhotoGridItem, gtk::SingleSelection> =
             TypedGridView::new();
 
         grid_view_wrapper.extend_from_iter(all_pictures.into_iter());
@@ -140,12 +140,12 @@ impl SimpleComponent for AllPhotos {
 
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
-            PhotoGridInput::ViewPhoto(index) => {
+            AllPhotosInput::ViewPhoto(index) => {
                 if let Some(item) = self.pictures_grid_view.get(index) {
                     let picture_id = item.borrow().picture.picture_id;
                     println!("index {} has picture_id {}", index, picture_id);
                     sender
-                        .output(PhotoGridOutput::ViewPhoto(picture_id))
+                        .output(AllPhotosOutput::ViewPhoto(picture_id))
                         .unwrap();
                 }
             }

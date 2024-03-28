@@ -27,7 +27,7 @@ use self::{
     components::{
         about::AboutDialog,
         all_photos::AllPhotos,
-        all_photos::PhotoGridOutput,
+        all_photos::AllPhotosOutput,
         month_photos::MonthPhotos,
         year_photos::YearPhotos,
     }
@@ -294,9 +294,9 @@ impl SimpleComponent for App {
     }
 }
 
-fn convert_all_photos_output(msg: PhotoGridOutput) -> AppMsg {
+fn convert_all_photos_output(msg: AllPhotosOutput) -> AppMsg {
     match msg {
-        PhotoGridOutput::ViewPhoto(id) => AppMsg::ViewPhoto(id),
+        AllPhotosOutput::ViewPhoto(id) => AppMsg::ViewPhoto(id),
     }
 }
 
