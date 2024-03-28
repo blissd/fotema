@@ -24,7 +24,7 @@ jobs:
       with:
         profile: minimal
         toolchain: stable
-    - name: Build
-      run: cargo build
-    - name: Test
-      run: cargo test
+    - uses: BSFishy/meson-build@v1.0.3
+      with:
+        action: build
+
