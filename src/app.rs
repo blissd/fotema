@@ -14,16 +14,24 @@ use gtk::prelude::{
 use gtk::{gio, glib};
 use relm4::adw::prelude::AdwApplicationWindowExt;
 
-use crate::all_photos;
-use crate::all_photos::AllPhotos;
 use crate::config::{APP_ID, PROFILE};
-use crate::modals::about::AboutDialog;
-use crate::month_photos::MonthPhotos;
-use crate::year_photos::YearPhotos;
 use photos_core::repo::PictureId;
 use relm4::adw::prelude::NavigationPageExt;
 use std::cell::RefCell;
 use std::rc::Rc;
+
+
+mod components;
+
+use self::{
+    components::{
+        about::AboutDialog,
+        all_photos::AllPhotos,
+        all_photos::PhotoGridOutput,
+        month_photos::MonthPhotos,
+        year_photos::YearPhotos,
+    }
+};
 
 pub(super) struct App {
     controller: Rc<RefCell<photos_core::Controller>>,
@@ -279,9 +287,9 @@ impl SimpleComponent for App {
     }
 }
 
-fn convert_all_photos_output(msg: all_photos::PhotoGridOutput) -> AppMsg {
+fn convert_all_photos_output(msg: PhotoGridOutput) -> AppMsg {
     match msg {
-        all_photos::PhotoGridOutput::ViewPhoto(id) => AppMsg::ViewPhoto(id),
+        PhotoGridOutput::ViewPhoto(id) => AppMsg::ViewPhoto(id),
     }
 }
 

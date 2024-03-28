@@ -3,12 +3,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #[rustfmt::skip]
-mod all_photos;
 mod app;
 mod config;
-mod modals;
-mod month_photos;
-mod year_photos;
 
 use app::App;
 
