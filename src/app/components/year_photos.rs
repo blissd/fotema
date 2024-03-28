@@ -15,16 +15,16 @@ use std::path;
 use std::rc::Rc;
 
 #[derive(Debug)]
-pub struct PicturePreview {
+struct PhotoGridItem {
     picture: photos_core::repo::Picture,
 }
 
-pub struct Widgets {
+struct Widgets {
     picture: gtk::Picture,
     label: gtk::Label,
 }
 
-impl RelmGridItem for PicturePreview {
+impl RelmGridItem for PhotoGridItem {
     type Root = gtk::Box;
     type Widgets = Widgets;
 
@@ -77,7 +77,7 @@ impl RelmGridItem for PicturePreview {
 }
 
 pub struct YearPhotos {
-    pictures_grid_view: TypedGridView<PicturePreview, gtk::NoSelection>,
+    pictures_grid_view: TypedGridView<PhotoGridItem, gtk::NoSelection>,
 }
 
 #[relm4::component(pub)]
@@ -118,11 +118,11 @@ impl SimpleComponent for YearPhotos {
             .unwrap()
             .into_iter()
             .dedup_by(|x, y| x.year() == y.year())
-            .map(|picture| PicturePreview {
+            .map(|picture| PhotoGridItem {
                 picture,
             });
 
-        let mut grid_view_wrapper: TypedGridView<PicturePreview, gtk::NoSelection> =
+        let mut grid_view_wrapper: TypedGridView<PhotoGridItem, gtk::NoSelection> =
             TypedGridView::new();
 
         grid_view_wrapper.extend_from_iter(all_pictures.into_iter());
