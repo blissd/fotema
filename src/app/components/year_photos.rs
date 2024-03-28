@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use gtk::glib;
 use gtk::prelude::{BoxExt, OrientableExt};
 use photos_core;
 
@@ -17,7 +16,6 @@ use std::rc::Rc;
 
 #[derive(Debug)]
 pub struct PicturePreview {
-    controller: Rc<RefCell<photos_core::Controller>>,
     picture: photos_core::repo::Picture,
 }
 
@@ -73,13 +71,12 @@ impl RelmGridItem for PicturePreview {
         }
     }
 
-    fn unbind(&mut self, widgets: &mut Self::Widgets, root: &mut Self::Root) {
+    fn unbind(&mut self, widgets: &mut Self::Widgets, _root: &mut Self::Root) {
         widgets.picture.set_filename(None::<&path::Path>);
     }
 }
 
 pub struct YearPhotos {
-    //    controller: photos_core::Controller,
     pictures_grid_view: TypedGridView<PicturePreview, gtk::NoSelection>,
 }
 
@@ -123,7 +120,6 @@ impl SimpleComponent for YearPhotos {
             .dedup_by(|x, y| x.year() == y.year())
             .map(|picture| PicturePreview {
                 picture,
-                controller: controller.clone(),
             });
 
         let mut grid_view_wrapper: TypedGridView<PicturePreview, gtk::NoSelection> =

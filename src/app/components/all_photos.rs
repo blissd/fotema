@@ -13,12 +13,11 @@ use std::path;
 use std::rc::Rc;
 
 #[derive(Debug)]
-pub struct PhotoGridItem {
-    controller: Rc<RefCell<photos_core::Controller>>,
+struct PhotoGridItem {
     picture: photos_core::repo::Picture,
 }
 
-pub struct Widgets {
+struct Widgets {
     picture: gtk::Picture,
 }
 
@@ -120,7 +119,6 @@ impl SimpleComponent for AllPhotos {
             .into_iter()
             .map(|picture| PhotoGridItem {
                 picture,
-                controller: controller.clone(),
             });
 
         let mut grid_view_wrapper: TypedGridView<PhotoGridItem, gtk::SingleSelection> =
