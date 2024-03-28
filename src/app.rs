@@ -30,6 +30,8 @@ use self::{
         all_photos::AllPhotosOutput,
         month_photos::MonthPhotos,
         year_photos::YearPhotos,
+        one_photo::OnePhoto,
+        one_photo::OnePhotoInput,
     }
 };
 
@@ -39,8 +41,8 @@ pub(super) struct App {
     all_photos: Controller<AllPhotos>,
     month_photos: Controller<MonthPhotos>,
     year_photos: Controller<YearPhotos>,
+    one_photo: Controller<OnePhoto>,
     picture_navigation_view: adw::NavigationView,
-    picture_view: gtk::Picture,
 }
 
 #[derive(Debug)]
@@ -156,20 +158,8 @@ impl SimpleComponent for App {
                 adw::NavigationPage {
                     set_tag: Some("picture"),
 
-                    adw::ToolbarView {
-                        add_top_bar = &adw::HeaderBar,
-
-                        #[wrap(Some)]
-                        set_content = &gtk::Box {
-                            set_orientation: gtk::Orientation::Vertical,
-
-                            #[local_ref]
-                            picture_view -> gtk::Picture {
-                                set_can_shrink: true,
-                                set_valign: gtk::Align::Center,
-                            }
-                        }
-                    },
+                    // one_photo is the full-screen display of a given photo
+                    model.one_photo.widget(),
                 },
             },
         }
@@ -226,6 +216,7 @@ impl SimpleComponent for App {
 
         let month_photos = MonthPhotos::builder().launch(controller.clone()).detach();
         let year_photos = YearPhotos::builder().launch(controller.clone()).detach();
+        let one_photo = OnePhoto::builder().launch(controller.clone()).detach();
 
         let about_dialog = AboutDialog::builder()
             .transient_for(&root)
@@ -242,8 +233,8 @@ impl SimpleComponent for App {
             all_photos,
             month_photos,
             year_photos,
+            one_photo,
             picture_navigation_view: picture_navigation_view.clone(),
-            picture_view: picture_view.clone(),
         };
 
         let widgets = view_output!();
@@ -277,14 +268,12 @@ impl SimpleComponent for App {
         match message {
             AppMsg::Quit => main_application().quit(),
             AppMsg::ViewPhoto(picture_id) => {
-                println!("Showing photo for {}", picture_id);
-                let result = self.controller.borrow_mut().get(picture_id);
-                if let Ok(Some(pic)) = result {
-                    self.picture_view.set_filename(Some(pic.path));
-                    self.picture_navigation_view.push_by_tag("picture");
-                } else {
-                    println!("Failed loading {}: {:?}", picture_id, result);
-                }
+                println!("Forward Showing photo for {}", picture_id);
+                // Send message to OnePhoto to show image
+                self.one_photo.emit(OnePhotoInput::ViewPhoto(picture_id));
+
+                // Display navigation page for viewing an individual photo.
+                self.picture_navigation_view.push_by_tag("picture");
             }
         }
     }
