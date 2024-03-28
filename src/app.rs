@@ -141,15 +141,20 @@ impl SimpleComponent for App {
                 adw::NavigationPage {
                     set_tag: Some("picture"),
 
-                    gtk::Box {
-                        set_orientation: gtk::Orientation::Vertical,
+                    adw::ToolbarView {
+                        add_top_bar = &adw::HeaderBar,
 
-                        #[local_ref]
-                        picture_view -> gtk::Picture {
-                            set_can_shrink: true,
-                            set_valign: gtk::Align::Center,
+                        #[wrap(Some)]
+                        set_content = &gtk::Box {
+                            set_orientation: gtk::Orientation::Vertical,
+
+                            #[local_ref]
+                            picture_view -> gtk::Picture {
+                                set_can_shrink: true,
+                                set_valign: gtk::Align::Center,
+                            }
                         }
-                    }
+                    },
                 },
             },
         }
