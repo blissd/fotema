@@ -116,14 +116,16 @@ impl SimpleComponent for App {
 
                 adw::NavigationPage {
                     set_tag: Some("time_period_views"),
-                    gtk::Box {
-                        set_orientation: gtk::Orientation::Vertical,
+                    adw::ToolbarView {
 
-                        #[name(header_bar)]
-                        adw::HeaderBar {
+                        #[name = "header_bar"]
+                        add_top_bar = &adw::HeaderBar {
+						    set_hexpand: true,
+
                             #[wrap(Some)]
                             set_title_widget = &adw::ViewSwitcher {
                                 set_stack: Some(&stack),
+                                set_policy: adw::ViewSwitcherPolicy::Wide,
                             },
 
                             pack_end = &gtk::MenuButton {
@@ -132,17 +134,22 @@ impl SimpleComponent for App {
                             }
                         },
 
-                        #[name(stack)]
-                        adw::ViewStack {
-                            add_titled_with_icon[None, "All", "playlist-infinite-symbolic"] = model.all_photos.widget(),
-                            add_titled_with_icon[None, "Month", "month-symbolic"] = model.month_photos.widget(),
-                            add_titled_with_icon[None, "Year", "year-symbolic"] = model.year_photos.widget(),
-                        },
+                        #[wrap(Some)]
+                        set_content = &gtk::Box {
+                            set_orientation: gtk::Orientation::Vertical,
 
-                        #[name(switcher_bar)]
-                        adw::ViewSwitcherBar {
-                            set_stack: Some(&stack),
-                        }
+                            #[name(stack)]
+                            adw::ViewStack {
+                                add_titled_with_icon[None, "All", "playlist-infinite-symbolic"] = model.all_photos.widget(),
+                                add_titled_with_icon[None, "Month", "month-symbolic"] = model.month_photos.widget(),
+                                add_titled_with_icon[None, "Year", "year-symbolic"] = model.year_photos.widget(),
+                            },
+
+                            #[name(switcher_bar)]
+                            adw::ViewSwitcherBar {
+                                set_stack: Some(&stack),
+                            },
+                        },
                     },
                 },
 
