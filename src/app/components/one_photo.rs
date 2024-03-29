@@ -62,7 +62,7 @@ impl SimpleComponent for OnePhoto {
         ComponentParts { model, widgets }
     }
 
-    fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
+    fn update(&mut self, msg: Self::Input, _sender: ComponentSender<Self>) {
      match msg {
             OnePhotoInput::ViewPhoto(picture_id) => {
                 println!("Showing photo for {}", picture_id);

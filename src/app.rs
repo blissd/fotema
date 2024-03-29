@@ -36,7 +36,6 @@ use self::{
 };
 
 pub(super) struct App {
-    controller: Rc<RefCell<photos_core::Controller>>,
     about_dialog: Controller<AboutDialog>,
     all_photos: Controller<AllPhotos>,
     month_photos: Controller<MonthPhotos>,
@@ -223,12 +222,9 @@ impl SimpleComponent for App {
             .launch(())
             .detach();
 
-        let picture_view = gtk::Picture::new();
-
         let picture_navigation_view = adw::NavigationView::builder().build();
 
         let model = Self {
-            controller,
             about_dialog,
             all_photos,
             month_photos,
