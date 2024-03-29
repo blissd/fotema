@@ -15,7 +15,7 @@ use gtk::{gio, glib};
 use relm4::adw::prelude::AdwApplicationWindowExt;
 
 use crate::config::{APP_ID, PROFILE};
-use photos_core::repo::PictureId;
+use photos_core::repo::{PictureId, YearMonth};
 use relm4::adw::prelude::NavigationPageExt;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -27,8 +27,10 @@ use self::{
     components::{
         about::AboutDialog,
         all_photos::AllPhotos,
+        all_photos::AllPhotosInput,
         all_photos::AllPhotosOutput,
         month_photos::MonthPhotos,
+        month_photos::MonthPhotosOutput,
         year_photos::YearPhotos,
         one_photo::OnePhoto,
         one_photo::OnePhotoInput,
@@ -41,6 +43,11 @@ pub(super) struct App {
     month_photos: Controller<MonthPhotos>,
     year_photos: Controller<YearPhotos>,
     one_photo: Controller<OnePhoto>,
+
+    // Library pages
+    view_stack: adw::ViewStack,
+
+    // Switch between library views and single image view.
     picture_navigation_view: adw::NavigationView,
 }
 
@@ -50,6 +57,10 @@ pub(super) enum AppMsg {
 
     // Show picture for ID.
     ViewPhoto(PictureId),
+
+    // Scroll to first picture in month
+    ViewMonth(YearMonth),
+
 }
 
 relm4::new_action_group!(pub(super) WindowActionGroup, "win");
@@ -125,7 +136,7 @@ impl SimpleComponent for App {
 
                             #[wrap(Some)]
                             set_title_widget = &adw::ViewSwitcher {
-                                set_stack: Some(&stack),
+                                set_stack: Some(&view_stack),
                                 set_policy: adw::ViewSwitcherPolicy::Wide,
                             },
 
@@ -139,16 +150,16 @@ impl SimpleComponent for App {
                         set_content = &gtk::Box {
                             set_orientation: gtk::Orientation::Vertical,
 
-                            #[name(stack)]
-                            adw::ViewStack {
-                                add_titled_with_icon[None, "All", "playlist-infinite-symbolic"] = model.all_photos.widget(),
-                                add_titled_with_icon[None, "Month", "month-symbolic"] = model.month_photos.widget(),
-                                add_titled_with_icon[None, "Year", "year-symbolic"] = model.year_photos.widget(),
+                            #[local_ref]
+                            view_stack -> adw::ViewStack {
+                                add_titled_with_icon[Some("all"), "All", "playlist-infinite-symbolic"] = model.all_photos.widget(),
+                                add_titled_with_icon[Some("month"), "Month", "month-symbolic"] = model.month_photos.widget(),
+                                add_titled_with_icon[Some("year"), "Year", "year-symbolic"] = model.year_photos.widget(),
                             },
 
                             #[name(switcher_bar)]
                             adw::ViewSwitcherBar {
-                                set_stack: Some(&stack),
+                                set_stack: Some(&view_stack),
                             },
                         },
                     },
@@ -211,9 +222,15 @@ impl SimpleComponent for App {
 
         let all_photos = AllPhotos::builder()
             .launch(controller.clone())
-            .forward(sender.input_sender(), convert_all_photos_output);
+            .forward(sender.input_sender(), |msg| match msg {
+                AllPhotosOutput::ViewPhoto(id) => AppMsg::ViewPhoto(id),
+            });
 
-        let month_photos = MonthPhotos::builder().launch(controller.clone()).detach();
+        let month_photos = MonthPhotos::builder().launch(controller.clone())
+            .forward(sender.input_sender(), |msg| match msg {
+                MonthPhotosOutput::ViewMonth(ym) => AppMsg::ViewMonth(ym),
+            });
+
         let year_photos = YearPhotos::builder().launch(controller.clone()).detach();
         let one_photo = OnePhoto::builder().launch(controller.clone()).detach();
 
@@ -221,6 +238,8 @@ impl SimpleComponent for App {
             .transient_for(&root)
             .launch(())
             .detach();
+
+        let view_stack = adw::ViewStack::new();
 
         let picture_navigation_view = adw::NavigationView::builder().build();
 
@@ -230,6 +249,7 @@ impl SimpleComponent for App {
             month_photos,
             year_photos,
             one_photo,
+            view_stack: view_stack.clone(),
             picture_navigation_view: picture_navigation_view.clone(),
         };
 
@@ -270,18 +290,18 @@ impl SimpleComponent for App {
 
                 // Display navigation page for viewing an individual photo.
                 self.picture_navigation_view.push_by_tag("picture");
-            }
+            },
+            AppMsg::ViewMonth(ym) => {
+                // Display all photos view.
+                self.view_stack.set_visible_child_name("all");
+                self.all_photos.emit(AllPhotosInput::ViewMonth(ym));
+            },
+
         }
     }
 
     fn shutdown(&mut self, widgets: &mut Self::Widgets, _output: relm4::Sender<Self::Output>) {
         widgets.save_window_size().unwrap();
-    }
-}
-
-fn convert_all_photos_output(msg: AllPhotosOutput) -> AppMsg {
-    match msg {
-        AllPhotosOutput::ViewPhoto(id) => AppMsg::ViewPhoto(id),
     }
 }
 

@@ -23,6 +23,16 @@ struct Widgets {
     picture: gtk::Picture,
     label: gtk::Label,
 }
+#[derive(Debug)]
+pub enum MonthPhotosInput {
+    /// View pictures for month at given offset of gridview
+    ViewMonth(u32),
+}
+
+#[derive(Debug)]
+pub enum MonthPhotosOutput {
+    ViewMonth(photos_core::repo::YearMonth),
+}
 
 impl RelmGridItem for PhotoGridItem {
     type Root = gtk::Box;
@@ -80,14 +90,14 @@ impl RelmGridItem for PhotoGridItem {
 
 pub struct MonthPhotos {
     //    controller: photos_core::Controller,
-    pictures_grid_view: TypedGridView<PhotoGridItem, gtk::NoSelection>,
+    pictures_grid_view: TypedGridView<PhotoGridItem, gtk::SingleSelection>,
 }
 
 #[relm4::component(pub)]
 impl SimpleComponent for MonthPhotos {
     type Init = Rc<RefCell<photos_core::Controller>>;
-    type Input = ();
-    type Output = ();
+    type Input = MonthPhotosInput;
+    type Output = MonthPhotosOutput;
 
     view! {
         gtk::Box {
@@ -104,6 +114,10 @@ impl SimpleComponent for MonthPhotos {
                 pictures_box -> gtk::GridView {
                     set_orientation: gtk::Orientation::Vertical,
                     //set_max_columns: 3,
+
+                    connect_activate[sender] => move |_, idx| {
+                        sender.input(MonthPhotosInput::ViewMonth(idx))
+                    },
                 },
             },
         }
@@ -112,7 +126,7 @@ impl SimpleComponent for MonthPhotos {
     fn init(
         controller: Self::Init,
         _root: Self::Root,
-        _sender: ComponentSender<Self>,
+        sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
         let all_pictures = controller
             .borrow_mut()
@@ -125,7 +139,7 @@ impl SimpleComponent for MonthPhotos {
                 picture,
             });
 
-        let mut grid_view_wrapper: TypedGridView<PhotoGridItem, gtk::NoSelection> =
+        let mut grid_view_wrapper: TypedGridView<PhotoGridItem, gtk::SingleSelection> =
             TypedGridView::new();
 
         grid_view_wrapper.extend_from_iter(all_pictures.into_iter());
@@ -140,5 +154,16 @@ impl SimpleComponent for MonthPhotos {
         ComponentParts { model, widgets }
     }
 
-    fn update(&mut self, _msg: Self::Input, _sender: ComponentSender<Self>) {}
+    fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
+        match msg {
+           MonthPhotosInput::ViewMonth(index) => {
+                if let Some(item) = self.pictures_grid_view.get(index) {
+                    let ym = item.borrow().picture.year_month();
+                    println!("index {} has year_month {}", index, ym);
+                    let result = sender.output(MonthPhotosOutput::ViewMonth(ym));
+                    println!("Result = {:?}", result);
+                }
+            }
+        }
+    }
 }

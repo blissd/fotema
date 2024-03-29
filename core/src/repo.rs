@@ -86,6 +86,10 @@ impl Picture {
             })
             .unwrap_or(YearMonth(0, chrono::Month::January))
     }
+
+    pub fn date(&self) -> Option<chrono::NaiveDate> {
+        self.order_by_ts.map(|ts| ts.date_naive())
+    }
 }
 
 /// Repository of picture metadata.

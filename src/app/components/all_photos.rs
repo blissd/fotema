@@ -25,6 +25,9 @@ struct Widgets {
 pub enum AllPhotosInput {
     /// View picture at given offset of gridview
     ViewPhoto(u32),
+
+    // Scroll to first photo of year/month.
+    ViewMonth(photos_core::repo::YearMonth),
 }
 
 #[derive(Debug)]
@@ -142,10 +145,20 @@ impl SimpleComponent for AllPhotos {
                 if let Some(item) = self.pictures_grid_view.get(index) {
                     let picture_id = item.borrow().picture.picture_id;
                     println!("index {} has picture_id {}", index, picture_id);
-                    sender
-                        .output(AllPhotosOutput::ViewPhoto(picture_id))
-                        .unwrap();
+                    let result = sender.output(AllPhotosOutput::ViewPhoto(picture_id));
+                    println!("Result = {:?}", result);
                 }
+            },
+            AllPhotosInput::ViewMonth(ym) => {
+                println!("Showing for month: {}", ym);
+                let index_opt = self.pictures_grid_view.find(|p| p.picture.year_month() == ym);
+                println!("Found: {:?}", index_opt);
+                if let Some(index) = self.pictures_grid_view.find(|p| p.picture.year_month() == ym) {
+                    let flags = gtk::ListScrollFlags::SELECT;
+                    println!("Scrolling to {}", index);
+                    self.pictures_grid_view.view.scroll_to(index, flags, None);
+                }
+
             }
         }
     }
