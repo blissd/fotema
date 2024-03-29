@@ -23,16 +23,17 @@ struct Widgets {
 
 #[derive(Debug)]
 pub enum AllPhotosInput {
-    /// View picture at given offset of gridview
-    ViewPhoto(u32),
+    /// User has selected photo in grid view
+    PhotoSelected(u32),
 
     // Scroll to first photo of year/month.
-    ViewMonth(photos_core::repo::YearMonth),
+    GoToMonth(photos_core::repo::YearMonth),
 }
 
 #[derive(Debug)]
 pub enum AllPhotosOutput {
-    ViewPhoto(photos_core::repo::PictureId),
+    /// User has selected photo in grid view
+    PhotoSelected(photos_core::repo::PictureId),
 }
 
 impl RelmGridItem for PhotoGridItem {
@@ -102,7 +103,7 @@ impl SimpleComponent for AllPhotos {
                     //set_max_columns: 3,
 
                     connect_activate[sender] => move |_, idx| {
-                        sender.input(AllPhotosInput::ViewPhoto(idx))
+                        sender.input(AllPhotosInput::PhotoSelected(idx))
                     },
                 },
             },
@@ -141,24 +142,23 @@ impl SimpleComponent for AllPhotos {
 
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
-            AllPhotosInput::ViewPhoto(index) => {
+            AllPhotosInput::PhotoSelected(index) => {
                 if let Some(item) = self.pictures_grid_view.get(index) {
                     let picture_id = item.borrow().picture.picture_id;
                     println!("index {} has picture_id {}", index, picture_id);
-                    let result = sender.output(AllPhotosOutput::ViewPhoto(picture_id));
+                    let result = sender.output(AllPhotosOutput::PhotoSelected(picture_id));
                     println!("Result = {:?}", result);
                 }
             },
-            AllPhotosInput::ViewMonth(ym) => {
+            AllPhotosInput::GoToMonth(ym) => {
                 println!("Showing for month: {}", ym);
                 let index_opt = self.pictures_grid_view.find(|p| p.picture.year_month() == ym);
                 println!("Found: {:?}", index_opt);
-                if let Some(index) = self.pictures_grid_view.find(|p| p.picture.year_month() == ym) {
+                if let Some(index) = index_opt {
                     let flags = gtk::ListScrollFlags::SELECT;
                     println!("Scrolling to {}", index);
                     self.pictures_grid_view.view.scroll_to(index, flags, None);
                 }
-
             }
         }
     }

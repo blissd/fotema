@@ -18,6 +18,16 @@ use std::rc::Rc;
 struct PhotoGridItem {
     picture: photos_core::repo::Picture,
 }
+#[derive(Debug)]
+pub enum YearPhotosInput {
+    /// User has selected year in grid view
+    YearSelected(u32),
+}
+
+#[derive(Debug)]
+pub enum YearPhotosOutput {
+    YearSelected(i32), // TODO make alias type for Year
+}
 
 struct Widgets {
     picture: gtk::Picture,
@@ -83,8 +93,8 @@ pub struct YearPhotos {
 #[relm4::component(pub)]
 impl SimpleComponent for YearPhotos {
     type Init = Rc<RefCell<photos_core::Controller>>;
-    type Input = ();
-    type Output = ();
+    type Input = YearPhotosInput;
+    type Output = YearPhotosOutput;
 
     view! {
         gtk::Box {
@@ -100,7 +110,12 @@ impl SimpleComponent for YearPhotos {
                 #[local_ref]
                 pictures_box -> gtk::GridView {
                     set_orientation: gtk::Orientation::Vertical,
+                    set_single_click_activate: true,
                     //set_max_columns: 3,
+
+                    connect_activate[sender] => move |_, idx| {
+                        sender.input(YearPhotosInput::YearSelected(idx))
+                    },
                 },
             },
         }
@@ -109,7 +124,7 @@ impl SimpleComponent for YearPhotos {
     fn init(
         controller: Self::Init,
         root: Self::Root,
-        _sender: ComponentSender<Self>,
+        sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
         let all_pictures = controller
             .borrow_mut()
@@ -137,5 +152,16 @@ impl SimpleComponent for YearPhotos {
         ComponentParts { model, widgets }
     }
 
-    fn update(&mut self, _msg: Self::Input, _sender: ComponentSender<Self>) {}
+    fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
+        match msg {
+           YearPhotosInput::YearSelected(index) => {
+                if let Some(item) = self.pictures_grid_view.get(index) {
+                    let date = item.borrow().picture.year_month();
+                    println!("index {} has year {}", index, date.year());
+                    let result = sender.output(YearPhotosOutput::YearSelected(date.year()));
+                    println!("Result = {:?}", result);
+                }
+            }
+        }
+    }
 }

@@ -30,8 +30,10 @@ use self::{
         all_photos::AllPhotosInput,
         all_photos::AllPhotosOutput,
         month_photos::MonthPhotos,
+        month_photos::MonthPhotosInput,
         month_photos::MonthPhotosOutput,
         year_photos::YearPhotos,
+        year_photos::YearPhotosOutput,
         one_photo::OnePhoto,
         one_photo::OnePhotoInput,
     }
@@ -55,11 +57,14 @@ pub(super) struct App {
 pub(super) enum AppMsg {
     Quit,
 
-    // Show picture for ID.
+    // Show photo for ID.
     ViewPhoto(PictureId),
 
-    // Scroll to first picture in month
-    ViewMonth(YearMonth),
+    // Scroll to first photo in month
+    GoToMonth(YearMonth),
+
+    // Scroll to first photo in year
+    GoToYear(i32),
 
 }
 
@@ -223,15 +228,19 @@ impl SimpleComponent for App {
         let all_photos = AllPhotos::builder()
             .launch(controller.clone())
             .forward(sender.input_sender(), |msg| match msg {
-                AllPhotosOutput::ViewPhoto(id) => AppMsg::ViewPhoto(id),
+                AllPhotosOutput::PhotoSelected(id) => AppMsg::ViewPhoto(id),
             });
 
         let month_photos = MonthPhotos::builder().launch(controller.clone())
             .forward(sender.input_sender(), |msg| match msg {
-                MonthPhotosOutput::ViewMonth(ym) => AppMsg::ViewMonth(ym),
+                MonthPhotosOutput::MonthSelected(ym) => AppMsg::GoToMonth(ym),
             });
 
-        let year_photos = YearPhotos::builder().launch(controller.clone()).detach();
+        let year_photos = YearPhotos::builder().launch(controller.clone())
+            .forward(sender.input_sender(), |msg| match msg {
+                YearPhotosOutput::YearSelected(year) => AppMsg::GoToYear(year),
+            });
+
         let one_photo = OnePhoto::builder().launch(controller.clone()).detach();
 
         let about_dialog = AboutDialog::builder()
@@ -291,10 +300,15 @@ impl SimpleComponent for App {
                 // Display navigation page for viewing an individual photo.
                 self.picture_navigation_view.push_by_tag("picture");
             },
-            AppMsg::ViewMonth(ym) => {
+            AppMsg::GoToMonth(ym) => {
                 // Display all photos view.
                 self.view_stack.set_visible_child_name("all");
-                self.all_photos.emit(AllPhotosInput::ViewMonth(ym));
+                self.all_photos.emit(AllPhotosInput::GoToMonth(ym));
+            },
+            AppMsg::GoToYear(year) => {
+                // Display month photos view.
+                self.view_stack.set_visible_child_name("month");
+                self.month_photos.emit(MonthPhotosInput::GoToYear(year));
             },
 
         }

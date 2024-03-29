@@ -25,13 +25,16 @@ struct Widgets {
 }
 #[derive(Debug)]
 pub enum MonthPhotosInput {
-    /// View pictures for month at given offset of gridview
-    ViewMonth(u32),
+    /// A month has been selected in the grid view
+    MonthSelected(u32),
+
+    /// Scroll to first photo of year
+    GoToYear(i32),
 }
 
 #[derive(Debug)]
 pub enum MonthPhotosOutput {
-    ViewMonth(photos_core::repo::YearMonth),
+    MonthSelected(photos_core::repo::YearMonth),
 }
 
 impl RelmGridItem for PhotoGridItem {
@@ -113,10 +116,11 @@ impl SimpleComponent for MonthPhotos {
                 #[local_ref]
                 pictures_box -> gtk::GridView {
                     set_orientation: gtk::Orientation::Vertical,
+                    set_single_click_activate: true,
                     //set_max_columns: 3,
 
                     connect_activate[sender] => move |_, idx| {
-                        sender.input(MonthPhotosInput::ViewMonth(idx))
+                        sender.input(MonthPhotosInput::MonthSelected(idx))
                     },
                 },
             },
@@ -156,12 +160,22 @@ impl SimpleComponent for MonthPhotos {
 
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
-           MonthPhotosInput::ViewMonth(index) => {
+           MonthPhotosInput::MonthSelected(index) => {
                 if let Some(item) = self.pictures_grid_view.get(index) {
                     let ym = item.borrow().picture.year_month();
                     println!("index {} has year_month {}", index, ym);
-                    let result = sender.output(MonthPhotosOutput::ViewMonth(ym));
+                    let result = sender.output(MonthPhotosOutput::MonthSelected(ym));
                     println!("Result = {:?}", result);
+                }
+            }
+           MonthPhotosInput::GoToYear(year) => {
+                println!("Showing for year: {}", year);
+                let index_opt = self.pictures_grid_view.find(|p| p.picture.year_month().year() == year);
+                println!("Found: {:?}", index_opt);
+                if let Some(index) = index_opt {
+                    let flags = gtk::ListScrollFlags::SELECT;
+                    println!("Scrolling to {}", index);
+                    self.pictures_grid_view.view.scroll_to(index, flags, None);
                 }
             }
         }
