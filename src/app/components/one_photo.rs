@@ -9,6 +9,7 @@ use relm4::gtk::prelude::WidgetExt;
 use relm4::*;
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::sync::{Arc, Mutex};
 
 #[derive(Debug)]
 pub enum OnePhotoInput {
@@ -17,13 +18,13 @@ pub enum OnePhotoInput {
 
 #[derive(Debug)]
 pub struct OnePhoto {
-    controller: Rc<RefCell<photos_core::Controller>>,
+    controller: Arc<Mutex<photos_core::Controller>>,
     picture: gtk::Picture,
 }
 
 #[relm4::component(pub)]
 impl SimpleComponent for OnePhoto {
-    type Init = Rc<RefCell<photos_core::Controller>>;
+    type Init = Arc<Mutex<photos_core::Controller>>;
     type Input = OnePhotoInput;
     type Output = ();
 
@@ -66,7 +67,7 @@ impl SimpleComponent for OnePhoto {
      match msg {
             OnePhotoInput::ViewPhoto(picture_id) => {
                 println!("Showing photo for {}", picture_id);
-                let result = self.controller.borrow_mut().get(picture_id);
+                let result = self.controller.lock().unwrap().get(picture_id);
                 if let Ok(Some(pic)) = result {
                     self.picture.set_filename(Some(pic.path));
                     //self.picture_navigation_view.push_by_tag("picture");

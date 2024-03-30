@@ -25,7 +25,12 @@ impl Controller {
     }
 
     /// Scans all photos and adds them to the repository.
-    pub fn scan(&mut self) -> Result<()> {
+    pub fn scan(&mut self) -> Result<Vec<scanner::Picture>> {
+        self.scan.scan_all()
+    }
+
+    /// Scans all photos and adds them to the repository.
+    pub fn scan_and_add(&mut self) -> Result<()> {
         let pics = self.scan.scan_all()?;
         self.repo.add_all(&pics)?;
         Ok(())

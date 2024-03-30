@@ -19,6 +19,7 @@ use photos_core::repo::{PictureId, YearMonth};
 use relm4::adw::prelude::NavigationPageExt;
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::sync::{Arc, Mutex};
 
 mod components;
 
@@ -210,16 +211,10 @@ impl SimpleComponent for App {
         };
 
         let controller = photos_core::Controller::new(scan.clone(), repo, previewer);
-
-        let controller = Rc::new(RefCell::new(controller));
-
-        {
-            //let result = controller.borrow_mut().update_previews();
-            //println!("preview result: {:?}", result);
-        }
+        let controller = Arc::new(Mutex::new(controller));
 
         let scan_photos = ScanPhotos::builder()
-            .detach_worker(scan)
+            .detach_worker(controller.clone())
             .forward(sender.input_sender(), |msg| match msg {
                 ScanPhotosOutput::ScanAllCompleted(pics) => AppMsg::ScanAllCompleted(pics),
             });

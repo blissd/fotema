@@ -13,6 +13,7 @@ use relm4::*;
 use std::cell::RefCell;
 use std::path;
 use std::rc::Rc;
+use std::sync::{Arc, Mutex};
 
 #[derive(Debug)]
 struct PhotoGridItem {
@@ -98,7 +99,7 @@ pub struct MonthPhotos {
 
 #[relm4::component(pub)]
 impl SimpleComponent for MonthPhotos {
-    type Init = Rc<RefCell<photos_core::Controller>>;
+    type Init = Arc<Mutex<photos_core::Controller>>;
     type Input = MonthPhotosInput;
     type Output = MonthPhotosOutput;
 
@@ -133,8 +134,7 @@ impl SimpleComponent for MonthPhotos {
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
         let all_pictures = controller
-            .borrow_mut()
-            //.all()
+            .lock().unwrap()
             .all_with_previews()
             .unwrap()
             .into_iter()
