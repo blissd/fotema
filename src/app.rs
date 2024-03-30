@@ -5,7 +5,7 @@
 use relm4::{
     actions::{RelmAction, RelmActionGroup},
     adw, gtk, main_application, Component, ComponentController, ComponentParts, ComponentSender,
-    Controller, SimpleComponent,
+    Controller, SimpleComponent, WorkerController,
 };
 
 use gtk::prelude::{
@@ -20,26 +20,25 @@ use relm4::adw::prelude::NavigationPageExt;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-
 mod components;
 
-use self::{
-    components::{
-        about::AboutDialog,
-        all_photos::AllPhotos,
-        all_photos::AllPhotosInput,
-        all_photos::AllPhotosOutput,
-        month_photos::MonthPhotos,
-        month_photos::MonthPhotosInput,
-        month_photos::MonthPhotosOutput,
-        year_photos::YearPhotos,
-        year_photos::YearPhotosOutput,
-        one_photo::OnePhoto,
-        one_photo::OnePhotoInput,
-    }
+use self::components::{
+    about::AboutDialog, all_photos::AllPhotos, all_photos::AllPhotosInput,
+    all_photos::AllPhotosOutput, month_photos::MonthPhotos, month_photos::MonthPhotosInput,
+    month_photos::MonthPhotosOutput, one_photo::OnePhoto, one_photo::OnePhotoInput,
+    year_photos::YearPhotos, year_photos::YearPhotosOutput,
+};
+
+mod background;
+
+use self::background::{
+    scan_photos::ScanPhotos,
+    scan_photos::ScanPhotosInput,
+    scan_photos::ScanPhotosOutput,
 };
 
 pub(super) struct App {
+    scan_photos: WorkerController<ScanPhotos>,
     about_dialog: Controller<AboutDialog>,
     all_photos: Controller<AllPhotos>,
     month_photos: Controller<MonthPhotos>,
@@ -66,6 +65,8 @@ pub(super) enum AppMsg {
     // Scroll to first photo in year
     GoToYear(i32),
 
+    // Photos have been scanned and repo can be updated
+    ScanAllCompleted(Vec<photos_core::scanner::Picture>),
 }
 
 relm4::new_action_group!(pub(super) WindowActionGroup, "win");
@@ -137,7 +138,7 @@ impl SimpleComponent for App {
 
                         #[name = "header_bar"]
                         add_top_bar = &adw::HeaderBar {
-						    set_hexpand: true,
+                            set_hexpand: true,
 
                             #[wrap(Some)]
                             set_title_widget = &adw::ViewSwitcher {
@@ -208,15 +209,7 @@ impl SimpleComponent for App {
             photos_core::Previewer::build(&preview_base_path).unwrap()
         };
 
-        let mut controller = photos_core::Controller::new(scan, repo, previewer);
-
-        // Time consuming!
-        match controller.scan() {
-            Err(e) => {
-                println!("Failed scanning: {:?}", e);
-            }
-            _ => {}
-        }
+        let controller = photos_core::Controller::new(scan.clone(), repo, previewer);
 
         let controller = Rc::new(RefCell::new(controller));
 
@@ -225,18 +218,27 @@ impl SimpleComponent for App {
             //println!("preview result: {:?}", result);
         }
 
+        let scan_photos = ScanPhotos::builder()
+            .detach_worker(scan)
+            .forward(sender.input_sender(), |msg| match msg {
+                ScanPhotosOutput::ScanAllCompleted(pics) => AppMsg::ScanAllCompleted(pics),
+            });
+
+
         let all_photos = AllPhotos::builder()
             .launch(controller.clone())
             .forward(sender.input_sender(), |msg| match msg {
                 AllPhotosOutput::PhotoSelected(id) => AppMsg::ViewPhoto(id),
             });
 
-        let month_photos = MonthPhotos::builder().launch(controller.clone())
+        let month_photos = MonthPhotos::builder()
+            .launch(controller.clone())
             .forward(sender.input_sender(), |msg| match msg {
                 MonthPhotosOutput::MonthSelected(ym) => AppMsg::GoToMonth(ym),
             });
 
-        let year_photos = YearPhotos::builder().launch(controller.clone())
+        let year_photos = YearPhotos::builder()
+            .launch(controller.clone())
             .forward(sender.input_sender(), |msg| match msg {
                 YearPhotosOutput::YearSelected(year) => AppMsg::GoToYear(year),
             });
@@ -253,6 +255,7 @@ impl SimpleComponent for App {
         let picture_navigation_view = adw::NavigationView::builder().build();
 
         let model = Self {
+            scan_photos,
             about_dialog,
             all_photos,
             month_photos,
@@ -286,6 +289,8 @@ impl SimpleComponent for App {
 
         widgets.load_window_size();
 
+        model.scan_photos.sender().emit(ScanPhotosInput::ScanAll);
+
         ComponentParts { model, widgets }
     }
 
@@ -293,7 +298,6 @@ impl SimpleComponent for App {
         match message {
             AppMsg::Quit => main_application().quit(),
             AppMsg::ViewPhoto(picture_id) => {
-                println!("Forward Showing photo for {}", picture_id);
                 // Send message to OnePhoto to show image
                 self.one_photo.emit(OnePhotoInput::ViewPhoto(picture_id));
 
@@ -310,7 +314,9 @@ impl SimpleComponent for App {
                 self.view_stack.set_visible_child_name("month");
                 self.month_photos.emit(MonthPhotosInput::GoToYear(year));
             },
-
+            AppMsg::ScanAllCompleted(pics) => {
+                println!("Scan all completed msg received. {} pics.", pics.len());
+            },
         }
     }
 

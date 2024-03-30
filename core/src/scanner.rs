@@ -74,7 +74,7 @@ impl FsMetadata {
 }
 
 /// Scans a file system for pictures.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Scanner {
     /// File system path to scan.
     scan_base: PathBuf,
