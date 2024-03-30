@@ -49,7 +49,9 @@ impl RelmGridItem for PhotoGridItem {
                 set_margin_all: 1,
 
                 #[name(label)]
-                gtk::Label {},
+                gtk::Label {
+                    add_css_class: "caption-heading",
+                },
 
                 adw::Clamp {
                     set_maximum_size: 200,
@@ -156,7 +158,7 @@ impl SimpleComponent for MonthPhotos {
         };
 
         let pictures_box = &model.pictures_grid_view.view;
-        pictures_box.scroll_to(model.pictures_grid_view.len()-1, gtk::ListScrollFlags::SELECT, None);
+        pictures_box.scroll_to(model.pictures_grid_view.len(), gtk::ListScrollFlags::SELECT, None);
 
         let widgets = view_output!();
         ComponentParts { model, widgets }
