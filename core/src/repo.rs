@@ -178,9 +178,21 @@ impl Repository {
                 pic.square_preview_path.as_ref().map(|p| p.to_str()),
             ]);
 
-            result
-                .map(|_| ())
-                .map_err(|e| RepositoryError(e.to_string()))?;
+            //result
+              //  .map(|_| ())
+                //.map_err(|e| RepositoryError(e.to_string()))?;
+
+             // The "on conflict ignore" constraints look like errors to rusqlite
+            match result {
+                Err(e @ SqliteFailure(_, _))
+                    if e.sqlite_error_code() == Some(ConstraintViolation) =>
+                {
+                    // println!("Skipping {:?} {}", path, e);
+                }
+                other => {
+                    other.map_err(|e| RepositoryError(format!("Preview: {}", e)))?;
+                }
+            }
         }
 
         tx.commit().map_err(|e| RepositoryError(e.to_string()))

@@ -41,7 +41,7 @@ impl Previewer {
             self.base_path.join("square").join(file_name)
         };
 
-        println!("preview = {:?}", square_path);
+        // println!("preview = {:?}", square_path);
 
         square
             .save(&square_path)

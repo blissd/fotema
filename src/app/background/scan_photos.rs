@@ -34,10 +34,8 @@ impl Worker for ScanPhotos {
         match msg {
             ScanPhotosInput::ScanAll => {
                 println!("Scanning file system for pictures...");
-                let start_at = std::time::SystemTime::now();
                 let result = self.scan.scan_all().unwrap();
                 self.repo.lock().expect("mutex lock").add_all(&result);
-                let end_at = std::time::SystemTime::now();
                 sender.output(ScanPhotosOutput::ScanAllCompleted);
             }
         };

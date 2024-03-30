@@ -20,18 +20,23 @@ pub enum GeneratePreviewsOutput {
 pub struct GeneratePreviews {
     scan: photos_core::Scanner,
     previewer: photos_core::Previewer,
+
+    // Danger! Don't hold the repo mutex for too long as it blocks viewing images.
     repo: Arc<Mutex<photos_core::Repository>>,
 }
 
 impl GeneratePreviews {
 
     fn update_previews(&self) -> Result<()> {
-        let pics = self.repo.lock().unwrap().all()?;
+        let start = std::time::Instant::now();
 
-        let pics = pics
-            .into_iter()
-            .filter(|p| p.square_preview_path.is_none())
-            .collect::<Vec<photos_core::repo::Picture>>();
+        let pics = self.repo.lock().unwrap().all()?;
+        let pics_count = pics.len();
+
+        //let pics = pics
+        //    .into_iter()
+        //    .filter(|p| p.square_preview_path.is_none())
+        //    .collect::<Vec<photos_core::repo::Picture>>();
 
         for mut pic in pics {
             let result = self.previewer.set_preview(&mut pic);
@@ -40,9 +45,15 @@ impl GeneratePreviews {
                 continue;
             }
 
-            self.repo.lock().unwrap().add_preview(&pic)?;
+            let result = self.repo.lock().unwrap().add_preview(&pic);
+            if let Err(e) = result {
+                println!("Failed add_preview: {:?}", e);
+                continue;
+            }
 
         }
+
+        println!("Generated {} previews in {} seconds.", pics_count, start.elapsed().as_secs());
 
         Ok(())
     }
