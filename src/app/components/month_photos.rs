@@ -80,10 +80,14 @@ impl RelmGridItem for PhotoGridItem {
             .label
             .set_label(format!("{} {}", ym.month().name(), ym.year()).as_str());
 
-        if widgets.picture.file().is_none() {
+        if self.picture.square_preview_path.as_ref().is_some_and(|f|f.exists()) {
             widgets
                 .picture
                 .set_filename(self.picture.square_preview_path.clone());
+        } else {
+            widgets
+                .picture
+                .set_resource(Some("/dev/romantics/Photos/icons/image-missing-symbolic.svg"));
         }
     }
 

@@ -63,9 +63,15 @@ impl RelmGridItem for PhotoGridItem {
     }
 
     fn bind(&mut self, widgets: &mut Self::Widgets, _root: &mut Self::Root) {
-        widgets
-            .picture
-            .set_filename(self.picture.square_preview_path.clone());
+        if self.picture.square_preview_path.as_ref().is_some_and(|f|f.exists()) {
+            widgets
+                .picture
+                .set_filename(self.picture.square_preview_path.clone());
+        } else {
+            widgets
+                .picture
+                .set_resource(Some("/dev/romantics/Photos/icons/image-missing-symbolic.svg"));
+        }
     }
 
     fn unbind(&mut self, widgets: &mut Self::Widgets, _root: &mut Self::Root) {

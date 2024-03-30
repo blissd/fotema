@@ -17,5 +17,6 @@ SPDX-License-Identifier: GPL-3.0-or-later
     <file alias="month-symbolic.svg" preprocess="xml-stripblanks">../icons/month-symbolic.svg</file>
     <file alias="year-symbolic.svg" preprocess="xml-stripblanks">../icons/year-symbolic.svg</file>
     <file alias="playlist-infinite-symbolic.svg" preprocess="xml-stripblanks">../icons/playlist-infinite-symbolic.svg</file>
+    <file alias="image-missing-symbolic.svg" preprocess="xml-stripblanks">../icons/image-missing-symbolic.svg</file>
   </gresource>
 </gresources>
