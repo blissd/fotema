@@ -12,7 +12,7 @@ use std::path;
 
 const EDGE: u32 = 400;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Previewer {
     base_path: path::PathBuf,
 }

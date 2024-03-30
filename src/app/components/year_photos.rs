@@ -93,7 +93,7 @@ pub struct YearPhotos {
 
 #[relm4::component(pub)]
 impl SimpleComponent for YearPhotos {
-    type Init = Arc<Mutex<photos_core::Controller>>;
+    type Init = Arc<Mutex<photos_core::Repository>>;
     type Input = YearPhotosInput;
     type Output = YearPhotosOutput;
 
@@ -123,13 +123,13 @@ impl SimpleComponent for YearPhotos {
     }
 
     fn init(
-        controller: Self::Init,
+        repo: Self::Init,
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        let all_pictures = controller
+        let all_pictures = repo
             .lock().unwrap()
-            .all_with_previews()
+            .all()
             .unwrap()
             .into_iter()
             .dedup_by(|x, y| x.year() == y.year())

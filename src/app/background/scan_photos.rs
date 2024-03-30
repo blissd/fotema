@@ -13,20 +13,21 @@ pub enum ScanPhotosInput {
 
 #[derive(Debug)]
 pub enum ScanPhotosOutput {
-    ScanAllCompleted(Vec<photos_core::scanner::Picture>),
+    ScanAllCompleted,
 }
 
 pub struct ScanPhotos {
-    controller: Arc<Mutex<photos_core::Controller>>,
+    scan: photos_core::Scanner,
+    repo: Arc<Mutex<photos_core::Repository>>,
 }
 
 impl Worker for ScanPhotos {
-    type Init = Arc<Mutex<photos_core::Controller>>;
+    type Init = (photos_core::Scanner, Arc<Mutex<photos_core::Repository>>);
     type Input = ScanPhotosInput;
     type Output = ScanPhotosOutput;
 
-    fn init(controller: Self::Init, _sender: ComponentSender<Self>) -> Self {
-        Self { controller }
+    fn init((scan, repo): Self::Init, _sender: ComponentSender<Self>) -> Self {
+        Self { scan, repo }
     }
 
     fn update(&mut self, msg: ScanPhotosInput, sender: ComponentSender<Self>) {
@@ -34,16 +35,10 @@ impl Worker for ScanPhotos {
             ScanPhotosInput::ScanAll => {
                 println!("Scanning file system for pictures...");
                 let start_at = std::time::SystemTime::now();
-                let result = self.controller.lock().expect("lock mutex").scan_and_add();
+                let result = self.scan.scan_all().unwrap();
+                self.repo.lock().expect("mutex lock").add_all(&result);
                 let end_at = std::time::SystemTime::now();
-
-                if let Ok(pics) = result {
-                    let duration = end_at.duration_since(start_at).unwrap_or(std::time::Duration::new(0, 0));
-                    println!("Scanned some items in {} seconds",duration.as_secs());
-                    //let _ = sender.output(ScanPhotosOutput::ScanAllCompleted(pics));
-                } else {
-                    println!("Failed scanning: {:?}", result);
-                }
+                sender.output(ScanPhotosOutput::ScanAllCompleted);
             }
         };
     }

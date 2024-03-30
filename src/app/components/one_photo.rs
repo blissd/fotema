@@ -18,13 +18,13 @@ pub enum OnePhotoInput {
 
 #[derive(Debug)]
 pub struct OnePhoto {
-    controller: Arc<Mutex<photos_core::Controller>>,
+    repo: Arc<Mutex<photos_core::Repository>>,
     picture: gtk::Picture,
 }
 
 #[relm4::component(pub)]
 impl SimpleComponent for OnePhoto {
-    type Init = Arc<Mutex<photos_core::Controller>>;
+    type Init = Arc<Mutex<photos_core::Repository>>;
     type Input = OnePhotoInput;
     type Output = ();
 
@@ -46,7 +46,7 @@ impl SimpleComponent for OnePhoto {
     }
 
     fn init(
-        controller: Self::Init,
+        repo: Self::Init,
         _root: Self::Root,
         _sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
@@ -56,7 +56,7 @@ impl SimpleComponent for OnePhoto {
         let widgets = view_output!();
 
         let model = OnePhoto {
-            controller,
+            repo,
             picture,
         };
 
@@ -67,7 +67,7 @@ impl SimpleComponent for OnePhoto {
      match msg {
             OnePhotoInput::ViewPhoto(picture_id) => {
                 println!("Showing photo for {}", picture_id);
-                let result = self.controller.lock().unwrap().get(picture_id);
+                let result = self.repo.lock().unwrap().get(picture_id);
                 if let Ok(Some(pic)) = result {
                     self.picture.set_filename(Some(pic.path));
                     //self.picture_navigation_view.push_by_tag("picture");

@@ -36,10 +36,14 @@ use self::background::{
     scan_photos::ScanPhotos,
     scan_photos::ScanPhotosInput,
     scan_photos::ScanPhotosOutput,
+    generate_previews::GeneratePreviews,
+    generate_previews::GeneratePreviewsInput,
+    generate_previews::GeneratePreviewsOutput,
 };
 
 pub(super) struct App {
     scan_photos: WorkerController<ScanPhotos>,
+    generate_previews: WorkerController<GeneratePreviews>,
     about_dialog: Controller<AboutDialog>,
     all_photos: Controller<AllPhotos>,
     month_photos: Controller<MonthPhotos>,
@@ -67,7 +71,10 @@ pub(super) enum AppMsg {
     GoToYear(i32),
 
     // Photos have been scanned and repo can be updated
-    ScanAllCompleted(Vec<photos_core::scanner::Picture>),
+    ScanAllCompleted,
+
+    // Preview generation completed
+    PreviewsGenerated,
 }
 
 relm4::new_action_group!(pub(super) WindowActionGroup, "win");
@@ -210,35 +217,44 @@ impl SimpleComponent for App {
             photos_core::Previewer::build(&preview_base_path).unwrap()
         };
 
-        let controller = photos_core::Controller::new(scan.clone(), repo, previewer);
-        let controller = Arc::new(Mutex::new(controller));
+        let repo = Arc::new(Mutex::new(repo));
+
+        //let controller = photos_core::Controller::new(scan.clone(), repo, previewer);
+        //let controller = Arc::new(Mutex::new(controller));
 
         let scan_photos = ScanPhotos::builder()
-            .detach_worker(controller.clone())
+            .detach_worker((scan.clone(), repo.clone()))
             .forward(sender.input_sender(), |msg| match msg {
-                ScanPhotosOutput::ScanAllCompleted(pics) => AppMsg::ScanAllCompleted(pics),
+                ScanPhotosOutput::ScanAllCompleted => AppMsg::ScanAllCompleted,
             });
 
+        let generate_previews = GeneratePreviews::builder()
+            .detach_worker((scan.clone(), previewer.clone(), repo.clone()))
+            .forward(sender.input_sender(), |msg| match msg {
+                GeneratePreviewsOutput::PreviewsGenerated => AppMsg::PreviewsGenerated,
+            });
 
         let all_photos = AllPhotos::builder()
-            .launch(controller.clone())
+            .launch(repo.clone())
             .forward(sender.input_sender(), |msg| match msg {
                 AllPhotosOutput::PhotoSelected(id) => AppMsg::ViewPhoto(id),
             });
 
         let month_photos = MonthPhotos::builder()
-            .launch(controller.clone())
+            .launch(repo.clone())
             .forward(sender.input_sender(), |msg| match msg {
                 MonthPhotosOutput::MonthSelected(ym) => AppMsg::GoToMonth(ym),
             });
 
         let year_photos = YearPhotos::builder()
-            .launch(controller.clone())
+            .launch(repo.clone())
             .forward(sender.input_sender(), |msg| match msg {
                 YearPhotosOutput::YearSelected(year) => AppMsg::GoToYear(year),
             });
 
-        let one_photo = OnePhoto::builder().launch(controller.clone()).detach();
+        let one_photo = OnePhoto::builder()
+            .launch(repo.clone())
+            .detach();
 
         let about_dialog = AboutDialog::builder()
             .transient_for(&root)
@@ -251,6 +267,7 @@ impl SimpleComponent for App {
 
         let model = Self {
             scan_photos,
+            generate_previews,
             about_dialog,
             all_photos,
             month_photos,
@@ -309,8 +326,12 @@ impl SimpleComponent for App {
                 self.view_stack.set_visible_child_name("month");
                 self.month_photos.emit(MonthPhotosInput::GoToYear(year));
             },
-            AppMsg::ScanAllCompleted(pics) => {
-                println!("Scan all completed msg received. {} pics.", pics.len());
+            AppMsg::ScanAllCompleted => {
+                println!("Scan all completed msg received.");
+                self.generate_previews.emit(GeneratePreviewsInput::Generate);
+            },
+            AppMsg::PreviewsGenerated => {
+                println!("Previews generated completed.");
             },
         }
     }

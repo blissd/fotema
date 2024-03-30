@@ -93,13 +93,12 @@ impl RelmGridItem for PhotoGridItem {
 }
 
 pub struct MonthPhotos {
-    //    controller: photos_core::Controller,
     pictures_grid_view: TypedGridView<PhotoGridItem, gtk::SingleSelection>,
 }
 
 #[relm4::component(pub)]
 impl SimpleComponent for MonthPhotos {
-    type Init = Arc<Mutex<photos_core::Controller>>;
+    type Init = Arc<Mutex<photos_core::Repository>>;
     type Input = MonthPhotosInput;
     type Output = MonthPhotosOutput;
 
@@ -129,13 +128,13 @@ impl SimpleComponent for MonthPhotos {
     }
 
     fn init(
-        controller: Self::Init,
+        repo: Self::Init,
         _root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        let all_pictures = controller
+        let all_pictures = repo
             .lock().unwrap()
-            .all_with_previews()
+            .all()
             .unwrap()
             .into_iter()
             .dedup_by(|x, y| x.year_month() == y.year_month())
