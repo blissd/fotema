@@ -252,7 +252,7 @@ impl SimpleComponent for App {
             });
 
         let one_photo = OnePhoto::builder()
-            .launch(repo.clone())
+            .launch((scan.clone(), repo.clone()))
             .detach();
 
         let about_dialog = AboutDialog::builder()

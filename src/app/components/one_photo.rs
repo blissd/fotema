@@ -9,6 +9,8 @@ use relm4::gtk::prelude::WidgetExt;
 use relm4::*;
 use std::sync::{Arc, Mutex};
 
+use crate::app::components::photo_info::PhotoInfo;
+
 #[derive(Debug)]
 pub enum OnePhotoInput {
     ViewPhoto(PictureId),
@@ -17,12 +19,14 @@ pub enum OnePhotoInput {
 #[derive(Debug)]
 pub struct OnePhoto {
     repo: Arc<Mutex<photos_core::Repository>>,
+    photo_info: Controller<PhotoInfo>,
     picture: gtk::Picture,
+
 }
 
 #[relm4::component(pub)]
 impl SimpleComponent for OnePhoto {
-    type Init = Arc<Mutex<photos_core::Repository>>;
+    type Init = (photos_core::Scanner, Arc<Mutex<photos_core::Repository>>);
     type Input = OnePhotoInput;
     type Output = ();
 
@@ -31,32 +35,43 @@ impl SimpleComponent for OnePhoto {
             add_top_bar = &adw::HeaderBar,
 
             #[wrap(Some)]
-            set_content = &gtk::Box {
-                set_orientation: gtk::Orientation::Vertical,
+            set_content = &adw::OverlaySplitView {
+                #[wrap(Some)]
+                set_sidebar = model.photo_info.widget(),
 
-                #[local_ref]
-                picture -> gtk::Picture {
-                    set_can_shrink: true,
-                    set_valign: gtk::Align::Center,
+                set_sidebar_position: gtk::PackType::End,
+
+                #[wrap(Some)]
+                set_content = &gtk::Box {
+                    set_orientation: gtk::Orientation::Vertical,
+
+                    #[local_ref]
+                    picture -> gtk::Picture {
+                        set_can_shrink: true,
+                        set_valign: gtk::Align::Center,
+                    }
                 }
             }
         }
     }
 
     fn init(
-        repo: Self::Init,
+        (scanner, repo): Self::Init,
         _root: Self::Root,
         _sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
 
         let picture = gtk::Picture::new();
 
-        let widgets = view_output!();
+        let photo_info = PhotoInfo::builder().launch(scanner).detach();
 
         let model = OnePhoto {
             repo,
-            picture,
+            picture: picture.clone(),
+            photo_info,
         };
+
+        let widgets = view_output!();
 
         ComponentParts { model, widgets }
     }
