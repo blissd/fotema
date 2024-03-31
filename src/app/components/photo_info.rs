@@ -7,6 +7,8 @@ use gtk::prelude::OrientableExt;
 use relm4::gtk;
 use relm4::*;
 use relm4::adw::prelude::PreferencesRowExt;
+use relm4::adw::prelude::ActionRowExt;
+use relm4::gtk::prelude::WidgetExt;
 
 
 #[derive(Debug)]
@@ -24,10 +26,18 @@ impl SimpleComponent for PhotoInfo {
     view! {
        gtk::Box {
             set_orientation: gtk::Orientation::Vertical,
+            set_margin_all: 10,
 
-            gtk::ListBox {
+            adw::PreferencesGroup {
                 adw::ActionRow {
                     set_title: "Test Title",
+                    set_subtitle: "Subtitle",
+                    add_css_class: "property",
+                    set_subtitle_selectable: true,
+                },
+
+                adw::ActionRow {
+                    set_title: "Another Title",
                 }
             }
         }
