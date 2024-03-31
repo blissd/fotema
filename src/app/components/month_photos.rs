@@ -10,10 +10,10 @@ use relm4::gtk;
 use relm4::gtk::prelude::WidgetExt;
 use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
 use relm4::*;
-use std::cell::RefCell;
 use std::path;
-use std::rc::Rc;
 use std::sync::{Arc, Mutex};
+use photos_core::YearMonth;
+use photos_core::Year;
 
 #[derive(Debug)]
 struct PhotoGridItem {
@@ -27,15 +27,15 @@ struct Widgets {
 #[derive(Debug)]
 pub enum MonthPhotosInput {
     /// A month has been selected in the grid view
-    MonthSelected(u32),
+    MonthSelected(u32), // WARN this is an index into a Vec, not a month
 
     /// Scroll to first photo of year
-    GoToYear(i32),
+    GoToYear(Year),
 }
 
 #[derive(Debug)]
 pub enum MonthPhotosOutput {
-    MonthSelected(photos_core::repo::YearMonth),
+    MonthSelected(YearMonth),
 }
 
 impl RelmGridItem for PhotoGridItem {
@@ -80,7 +80,7 @@ impl RelmGridItem for PhotoGridItem {
 
         widgets
             .label
-            .set_label(format!("{} {}", ym.month().name(), ym.year()).as_str());
+            .set_label(format!("{} {}", ym.month.name(), ym.year).as_str());
 
         if self.picture.square_preview_path.as_ref().is_some_and(|f|f.exists()) {
             widgets
@@ -176,7 +176,7 @@ impl SimpleComponent for MonthPhotos {
             }
            MonthPhotosInput::GoToYear(year) => {
                 println!("Showing for year: {}", year);
-                let index_opt = self.pictures_grid_view.find(|p| p.picture.year_month().year() == year);
+                let index_opt = self.pictures_grid_view.find(|p| p.picture.year_month().year == year);
                 println!("Found: {:?}", index_opt);
                 if let Some(index) = index_opt {
                     let flags = gtk::ListScrollFlags::SELECT;

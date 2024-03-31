@@ -15,10 +15,9 @@ use gtk::{gio, glib};
 use relm4::adw::prelude::AdwApplicationWindowExt;
 
 use crate::config::{APP_ID, PROFILE};
-use photos_core::repo::{PictureId, YearMonth};
+use photos_core::repo::PictureId;
+use photos_core::YearMonth;
 use relm4::adw::prelude::NavigationPageExt;
-use std::cell::RefCell;
-use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
 mod components;

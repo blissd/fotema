@@ -6,6 +6,7 @@ use crate::scanner;
 ///! Repository of metadata about pictures on the local filesystem.
 use crate::Error::*;
 use crate::Result;
+use crate::YearMonth;
 use chrono::*;
 use rusqlite::params;
 use rusqlite::Batch;
@@ -29,25 +30,6 @@ impl PictureId {
 impl Display for PictureId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
-    }
-}
-
-#[derive(Debug, PartialOrd, PartialEq)]
-pub struct YearMonth(i32, chrono::Month);
-
-impl Display for YearMonth {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} {}", self.1.name(), self.0)
-    }
-}
-
-impl YearMonth {
-    pub fn year(&self) -> i32 {
-        self.0
-    }
-
-    pub fn month(&self) -> chrono::Month {
-        self.1
     }
 }
 
@@ -77,14 +59,18 @@ impl Picture {
     pub fn year_month(&self) -> YearMonth {
         self.order_by_ts
             .map(|ts| {
-                let y = ts.date_naive().year();
-                let m = ts.date_naive().month();
-                YearMonth(
-                    y,
-                    chrono::Month::try_from(u8::try_from(m).unwrap()).unwrap(),
-                )
+                let year = ts.date_naive().year();
+                let month = ts.date_naive().month();
+                let month = chrono::Month::try_from(u8::try_from(month).unwrap()).unwrap();
+                YearMonth {
+                    year: year,
+                    month: month,
+                }
             })
-            .unwrap_or(YearMonth(0, chrono::Month::January))
+            .unwrap_or(YearMonth {
+                year: 0,
+                month: chrono::Month::January,
+            })
     }
 
     pub fn date(&self) -> Option<chrono::NaiveDate> {
@@ -179,10 +165,10 @@ impl Repository {
             ]);
 
             //result
-              //  .map(|_| ())
-                //.map_err(|e| RepositoryError(e.to_string()))?;
+            //  .map(|_| ())
+            //.map_err(|e| RepositoryError(e.to_string()))?;
 
-             // The "on conflict ignore" constraints look like errors to rusqlite
+            // The "on conflict ignore" constraints look like errors to rusqlite
             match result {
                 Err(e @ SqliteFailure(_, _))
                     if e.sqlite_error_code() == Some(ConstraintViolation) =>

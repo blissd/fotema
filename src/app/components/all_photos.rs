@@ -8,10 +8,9 @@ use relm4::gtk;
 use relm4::gtk::prelude::WidgetExt;
 use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
 use relm4::*;
-use std::cell::RefCell;
 use std::path;
-use std::rc::Rc;
 use std::sync::{Arc, Mutex};
+use photos_core::YearMonth;
 
 #[derive(Debug)]
 struct PhotoGridItem {
@@ -25,10 +24,10 @@ struct Widgets {
 #[derive(Debug)]
 pub enum AllPhotosInput {
     /// User has selected photo in grid view
-    PhotoSelected(u32),
+    PhotoSelected(u32), // Index into a Vec
 
     // Scroll to first photo of year/month.
-    GoToMonth(photos_core::repo::YearMonth),
+    GoToMonth(YearMonth),
 }
 
 #[derive(Debug)]

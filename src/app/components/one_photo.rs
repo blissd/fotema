@@ -7,8 +7,6 @@ use photos_core::repo::PictureId;
 use relm4::gtk;
 use relm4::gtk::prelude::WidgetExt;
 use relm4::*;
-use std::cell::RefCell;
-use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
 #[derive(Debug)]
@@ -70,7 +68,6 @@ impl SimpleComponent for OnePhoto {
                 let result = self.repo.lock().unwrap().get(picture_id);
                 if let Ok(Some(pic)) = result {
                     self.picture.set_filename(Some(pic.path));
-                    //self.picture_navigation_view.push_by_tag("picture");
                 } else {
                     println!("Failed loading {}: {:?}", picture_id, result);
                 }

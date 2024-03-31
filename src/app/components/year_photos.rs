@@ -10,10 +10,9 @@ use relm4::gtk;
 use relm4::gtk::prelude::WidgetExt;
 use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
 use relm4::*;
-use std::cell::RefCell;
 use std::path;
-use std::rc::Rc;
 use std::sync::{Arc, Mutex};
+use photos_core::Year;
 
 #[derive(Debug)]
 struct PhotoGridItem {
@@ -22,12 +21,12 @@ struct PhotoGridItem {
 #[derive(Debug)]
 pub enum YearPhotosInput {
     /// User has selected year in grid view
-    YearSelected(u32),
+    YearSelected(u32), // WARN this is an index into an Vec, not a year.
 }
 
 #[derive(Debug)]
 pub enum YearPhotosOutput {
-    YearSelected(i32), // TODO make alias type for Year
+    YearSelected(Year),
 }
 
 struct Widgets {
@@ -164,8 +163,8 @@ impl SimpleComponent for YearPhotos {
            YearPhotosInput::YearSelected(index) => {
                 if let Some(item) = self.pictures_grid_view.get(index) {
                     let date = item.borrow().picture.year_month();
-                    println!("index {} has year {}", index, date.year());
-                    let result = sender.output(YearPhotosOutput::YearSelected(date.year()));
+                    println!("index {} has year {}", index, date.year);
+                    let result = sender.output(YearPhotosOutput::YearSelected(date.year));
                     println!("Result = {:?}", result);
                 }
             }
