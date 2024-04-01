@@ -152,7 +152,9 @@ impl SimpleComponent for YearPhotos {
         };
 
         let pictures_box = &model.pictures_grid_view.view;
-        pictures_box.scroll_to(model.pictures_grid_view.len(), gtk::ListScrollFlags::SELECT, None);
+        if !model.pictures_grid_view.is_empty(){
+            pictures_box.scroll_to(model.pictures_grid_view.len() - 1, gtk::ListScrollFlags::SELECT, None);
+        }
 
         let widgets = view_output!();
         ComponentParts { model, widgets }
