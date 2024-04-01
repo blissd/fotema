@@ -8,3 +8,4 @@ pub mod month_photos;
 pub mod year_photos;
 pub mod one_photo;
 pub mod photo_info;
+pub mod selfie_photos;

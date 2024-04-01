@@ -27,6 +27,7 @@ use self::components::{
     all_photos::AllPhotosOutput, month_photos::MonthPhotos, month_photos::MonthPhotosInput,
     month_photos::MonthPhotosOutput, one_photo::OnePhoto, one_photo::OnePhotoInput,
     year_photos::YearPhotos, year_photos::YearPhotosOutput,
+    selfie_photos::SelfiePhotos,
 };
 
 mod background;
@@ -48,6 +49,7 @@ pub(super) struct App {
     month_photos: Controller<MonthPhotos>,
     year_photos: Controller<YearPhotos>,
     one_photo: Controller<OnePhoto>,
+    selfie_photos: Controller<SelfiePhotos>,
 
     // Library pages
     view_stack: adw::ViewStack,
@@ -140,39 +142,61 @@ impl SimpleComponent for App {
                 set_pop_on_escape: true,
 
                 adw::NavigationPage {
-                    set_tag: Some("time_period_views"),
-                    adw::ToolbarView {
-
-                        #[name = "header_bar"]
-                        add_top_bar = &adw::HeaderBar {
-                            set_hexpand: true,
-
-                            #[wrap(Some)]
-                            set_title_widget = &adw::ViewSwitcher {
-                                set_stack: Some(&view_stack),
-                                set_policy: adw::ViewSwitcherPolicy::Wide,
+                    adw::NavigationSplitView {
+                        #[wrap(Some)]
+                        set_sidebar = &adw::NavigationPage {
+                            gtk::StackSidebar {
+                                set_stack: &stack,
                             },
-
-                            pack_end = &gtk::MenuButton {
-                                set_icon_name: "open-menu-symbolic",
-                                set_menu_model: Some(&primary_menu),
-                            }
                         },
 
                         #[wrap(Some)]
-                        set_content = &gtk::Box {
-                            set_orientation: gtk::Orientation::Vertical,
+                        set_content = &adw::NavigationPage {
+                            #[name = "stack"]
+                            gtk::Stack {
+                                add_child = &adw::ToolbarView {
+                                    #[name = "header_bar"]
+                                    add_top_bar = &adw::HeaderBar {
+                                        set_hexpand: true,
 
-                            #[local_ref]
-                            view_stack -> adw::ViewStack {
-                                add_titled_with_icon[Some("all"), "All", "playlist-infinite-symbolic"] = model.all_photos.widget(),
-                                add_titled_with_icon[Some("month"), "Month", "month-symbolic"] = model.month_photos.widget(),
-                                add_titled_with_icon[Some("year"), "Year", "year-symbolic"] = model.year_photos.widget(),
-                            },
+                                        #[wrap(Some)]
+                                        set_title_widget = &adw::ViewSwitcher {
+                                            set_stack: Some(&view_stack),
+                                            set_policy: adw::ViewSwitcherPolicy::Wide,
+                                        },
 
-                            #[name(switcher_bar)]
-                            adw::ViewSwitcherBar {
-                                set_stack: Some(&view_stack),
+                                        pack_end = &gtk::MenuButton {
+                                            set_icon_name: "open-menu-symbolic",
+                                            set_menu_model: Some(&primary_menu),
+                                        }
+                                    },
+
+                                    #[wrap(Some)]
+                                    set_content = &gtk::Box {
+                                        set_orientation: gtk::Orientation::Vertical,
+
+                                        #[local_ref]
+                                        view_stack -> adw::ViewStack {
+                                            add_titled_with_icon[Some("all"), "All", "playlist-infinite-symbolic"] = model.all_photos.widget(),
+                                            add_titled_with_icon[Some("month"), "Month", "month-symbolic"] = model.month_photos.widget(),
+                                            add_titled_with_icon[Some("year"), "Year", "year-symbolic"] = model.year_photos.widget(),
+                                        },
+
+                                        #[name(switcher_bar)]
+                                        adw::ViewSwitcherBar {
+                                            set_stack: Some(&view_stack),
+                                        },
+                                    },
+                                } -> {
+                                    set_title: "Library",
+                                },
+
+                                 add_child = &gtk::Box {
+                                    set_orientation: gtk::Orientation::Vertical,
+                                    container_add: model.selfie_photos.widget()
+                                } -> {
+                                    set_title: "Selfies",
+                                 },
                             },
                         },
                     },
@@ -255,10 +279,15 @@ impl SimpleComponent for App {
             .launch((scan.clone(), repo.clone()))
             .detach();
 
+        let selfie_photos = SelfiePhotos::builder()
+            .launch(repo.clone())
+            .detach();
+
         let about_dialog = AboutDialog::builder()
             .transient_for(&root)
             .launch(())
             .detach();
+
 
         let view_stack = adw::ViewStack::new();
 
@@ -272,6 +301,7 @@ impl SimpleComponent for App {
             month_photos,
             year_photos,
             one_photo,
+            selfie_photos,
             view_stack: view_stack.clone(),
             picture_navigation_view: picture_navigation_view.clone(),
         };
