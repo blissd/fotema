@@ -145,9 +145,25 @@ impl SimpleComponent for App {
                     adw::NavigationSplitView {
                         #[wrap(Some)]
                         set_sidebar = &adw::NavigationPage {
-                            gtk::StackSidebar {
-                                set_stack: &stack,
-                            },
+
+                            adw::ToolbarView {
+                                add_top_bar = &adw::HeaderBar {
+
+                                    #[wrap(Some)]
+                                    set_title_widget = &gtk::Label {
+                                        set_label: "Photos",
+                                    },
+
+                                    pack_end = &gtk::MenuButton {
+                                        set_icon_name: "open-menu-symbolic",
+                                        set_menu_model: Some(&primary_menu),
+                                    }
+                                },
+                                #[wrap(Some)]
+                                set_content = &gtk::StackSidebar {
+                                    set_stack: &stack,
+                                },
+                            }
                         },
 
                         #[wrap(Some)]
@@ -164,11 +180,6 @@ impl SimpleComponent for App {
                                             set_stack: Some(&view_stack),
                                             set_policy: adw::ViewSwitcherPolicy::Wide,
                                         },
-
-                                        pack_end = &gtk::MenuButton {
-                                            set_icon_name: "open-menu-symbolic",
-                                            set_menu_model: Some(&primary_menu),
-                                        }
                                     },
 
                                     #[wrap(Some)]
