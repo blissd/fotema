@@ -5,7 +5,7 @@
 use gtk::prelude::{ OrientableExt};
 use photos_core::repo::PictureId;
 use relm4::gtk;
-use relm4::gtk::prelude::WidgetExt;
+use relm4::gtk::prelude::*;
 use relm4::*;
 use std::sync::{Arc, Mutex};
 
@@ -15,14 +15,21 @@ use crate::app::components::photo_info::PhotoInfoInput;
 #[derive(Debug)]
 pub enum OnePhotoInput {
     ViewPhoto(PictureId),
+    ToggleInfo,
 }
 
 #[derive(Debug)]
 pub struct OnePhoto {
     repo: Arc<Mutex<photos_core::Repository>>,
-    photo_info: Controller<PhotoInfo>,
+
+    // Photo to show
     picture: gtk::Picture,
 
+    // Info for photo
+    photo_info: Controller<PhotoInfo>,
+
+    // Photo and photo info views
+    split_view: adw::OverlaySplitView,
 }
 
 #[relm4::component(pub)]
@@ -32,11 +39,18 @@ impl SimpleComponent for OnePhoto {
     type Output = ();
 
     view! {
+
         adw::ToolbarView {
-            add_top_bar = &adw::HeaderBar,
+            add_top_bar = &adw::HeaderBar {
+                pack_end = &gtk::Button {
+                    set_icon_name: "info-outline-symbolic",
+                    connect_clicked => OnePhotoInput::ToggleInfo,
+                }
+            },
 
             #[wrap(Some)]
-            set_content = &adw::OverlaySplitView {
+            #[local_ref]
+            set_content = &split_view -> adw::OverlaySplitView {
                 #[wrap(Some)]
                 set_sidebar = model.photo_info.widget(),
 
@@ -58,7 +72,7 @@ impl SimpleComponent for OnePhoto {
 
     fn init(
         (scanner, repo): Self::Init,
-        _root: Self::Root,
+        root: Self::Root,
         _sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
 
@@ -66,10 +80,13 @@ impl SimpleComponent for OnePhoto {
 
         let photo_info = PhotoInfo::builder().launch(scanner).detach();
 
+        let split_view = adw::OverlaySplitView::new();
+
         let model = OnePhoto {
             repo,
             picture: picture.clone(),
             photo_info,
+            split_view: split_view.clone(),
         };
 
         let widgets = view_output!();
@@ -88,6 +105,10 @@ impl SimpleComponent for OnePhoto {
                 } else {
                     println!("Failed loading {}: {:?}", picture_id, result);
                 }
+            },
+            OnePhotoInput::ToggleInfo => {
+                let show = self.split_view.shows_sidebar();
+                self.split_view.set_show_sidebar(!show);
             }
         }
     }
