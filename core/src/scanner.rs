@@ -7,11 +7,52 @@ use crate::Result;
 use chrono;
 use chrono::prelude::*;
 use exif;
+use std::fmt::Display;
 use std::fs;
 use std::io::BufReader;
 use std::path::Path;
 use std::path::PathBuf;
 use walkdir::WalkDir;
+
+#[derive(Debug, Clone)]
+pub enum ImageFormat {
+    Avif,
+    Jpeg,
+    Png,
+    Tiff,
+    Webp,
+}
+
+impl Display for ImageFormat {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = format!("{:?}", self);
+        write!(f, "{}", s.to_uppercase())
+    }
+}
+
+impl ImageFormat {
+    fn from(extension: &str) -> Option<ImageFormat> {
+        match extension.to_lowercase().as_ref() {
+            "jpg" | "jpeg" => Some(ImageFormat::Jpeg),
+            "webp" => Some(ImageFormat::Webp),
+            "avif" => Some(ImageFormat::Avif),
+            "tiff" => Some(ImageFormat::Tiff),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ImageSize {
+    width: u32,
+    height: u32,
+}
+
+impl Display for ImageSize {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} x {}", self.width, self.height)
+    }
+}
 
 /// A picture on the local file system that has been scanned.
 #[derive(Debug, Clone)]
@@ -24,6 +65,10 @@ pub struct Picture {
 
     /// Metadata from the EXIF tags.
     pub exif: Option<Exif>,
+
+    pub image_format: Option<ImageFormat>,
+
+    pub image_size: Option<ImageSize>,
 }
 
 impl Picture {
@@ -33,6 +78,8 @@ impl Picture {
             path,
             fs: None,
             exif: None,
+            image_format: None,
+            image_size: None,
         }
     }
 
@@ -73,12 +120,14 @@ impl Exif {
 pub struct FsMetadata {
     pub created_at: Option<DateTime<Utc>>,
     pub modified_at: Option<DateTime<Utc>>,
+    pub file_size_bytes: Option<u64>,
 }
 
 impl FsMetadata {
     /// If any fields are present, then wrap self in an Option::Some. Otherwise, return None.
     pub fn to_option(self) -> Option<FsMetadata> {
-        if self.created_at.is_some() || self.modified_at.is_some() {
+        if self.created_at.is_some() || self.modified_at.is_some() || self.file_size_bytes.is_some()
+        {
             Some(self)
         } else {
             None
@@ -159,8 +208,17 @@ impl Scanner {
             .and_then(|x| x.modified().ok())
             .map(|x| Into::<DateTime<Utc>>::into(x));
 
+        fs.file_size_bytes = file.metadata().ok().map(|x| x.len());
+
         let mut pic = Picture::new(PathBuf::from(path));
         pic.fs = fs.to_option();
+
+        // TODO don't use extension, get real file type from image bytes
+        pic.image_format = ImageFormat::from(
+            path.extension()
+                .and_then(|x| x.to_str())
+                .unwrap_or("unknown"),
+        );
 
         let exif_data = {
             let f = &mut BufReader::new(file);
@@ -174,6 +232,18 @@ impl Scanner {
         };
 
         let mut exif = Exif::default();
+
+        let width_opt = exif_data.get_field(exif::Tag::ImageWidth, exif::In::PRIMARY);
+        println!("width = {:?}", width_opt);
+        let width_opt = width_opt.and_then(|x| x.value.get_uint(0));
+
+        let height_opt = exif_data
+            .get_field(exif::Tag::ImageWidth, exif::In::PRIMARY)
+            .and_then(|x| x.value.get_uint(0));
+
+        if let (Some(width), Some(height)) = (width_opt, height_opt) {
+            pic.image_size = Some(ImageSize { width, height });
+        }
 
         exif.description = exif_data
             .get_field(exif::Tag::ImageDescription, exif::In::PRIMARY)

@@ -12,7 +12,7 @@ use relm4::gtk;
 use relm4::*;
 use relm4::adw::prelude::*;
 use std::path::PathBuf;
-use std::convert::identity;
+use humansize::{format_size, DECIMAL};
 
 #[derive(Debug)]
 pub enum PhotoInfoInput {
@@ -28,6 +28,11 @@ pub struct PhotoInfo {
     date_time: adw::PreferencesGroup,
     created_at: adw::ActionRow,
     modified_at: adw::ActionRow,
+
+    image: adw::PreferencesGroup,
+    image_size: adw::ActionRow,
+    image_format: adw::ActionRow,
+    file_size: adw::ActionRow,
 }
 
 
@@ -67,7 +72,32 @@ impl SimpleComponent for PhotoInfo {
                     add_css_class: "property",
                     set_subtitle_selectable: true,
                 },
+            },
+
+            #[local_ref]
+            image -> adw::PreferencesGroup {
+                #[local_ref]
+                image_size -> adw::ActionRow {
+                    set_title: "Image Size",
+                    add_css_class: "property",
+                    set_subtitle_selectable: true,
+                },
+
+                #[local_ref]
+                image_format -> adw::ActionRow {
+                    set_title: "Image Format",
+                    add_css_class: "property",
+                    set_subtitle_selectable: true,
+                },
+
+                #[local_ref]
+                file_size -> adw::ActionRow {
+                    set_title: "File Size",
+                    add_css_class: "property",
+                    set_subtitle_selectable: true,
+                },
             }
+
         }
     }
 
@@ -83,6 +113,11 @@ impl SimpleComponent for PhotoInfo {
         let created_at = adw::ActionRow::new();
         let modified_at = adw::ActionRow::new();
 
+        let image = adw::PreferencesGroup::new();
+        let image_size = adw::ActionRow::new();
+        let image_format = adw::ActionRow::new();
+        let file_size = adw::ActionRow::new();
+
         let model = PhotoInfo {
             scanner,
             folder: folder.clone(),
@@ -90,6 +125,11 @@ impl SimpleComponent for PhotoInfo {
             date_time: date_time.clone(),
             created_at: created_at.clone(),
             modified_at: modified_at.clone(),
+
+             image: image.clone(),
+             image_size: image_size.clone(),
+             image_format: image_format.clone(),
+             file_size: file_size.clone(),
         };
 
         let widgets = view_output!();
@@ -129,6 +169,16 @@ impl PhotoInfo {
         .any(|x| x);
 
         self.date_time.set_visible(has_timestamps);
+
+        let has_image_info = [
+            Self::update_row(&self.image_size, pic.image_size.map(|x| x.to_string())),
+            Self::update_row(&self.image_format, pic.image_format.map(|x| x.to_string())),
+            Self::update_row(&self.file_size, pic.fs.and_then(|fs| fs.file_size_bytes.map(|x| format_size(x, DECIMAL)))),
+        ]
+        .into_iter()
+        .any(|x| x);
+
+        self.image.set_visible(has_image_info);
     }
 
     /// Borrowed from Loupe.
