@@ -102,6 +102,9 @@ pub struct Exif {
     pub description: Option<String>,
     pub created_at: Option<DateTime<FixedOffset>>,
     pub modified_at: Option<DateTime<FixedOffset>>,
+
+    /// On iPhone the lens model tells you if it was the front or back camera.
+    pub lens_model: Option<String>,
 }
 
 impl Exif {
@@ -233,17 +236,21 @@ impl Scanner {
 
         let mut exif = Exif::default();
 
-        let width_opt = exif_data.get_field(exif::Tag::ImageWidth, exif::In::PRIMARY);
-        println!("width = {:?}", width_opt);
-        let width_opt = width_opt.and_then(|x| x.value.get_uint(0));
+        let width_opt = exif_data
+            .get_field(exif::Tag::ImageWidth, exif::In::PRIMARY)
+            .and_then(|x| x.value.get_uint(0));
 
         let height_opt = exif_data
-            .get_field(exif::Tag::ImageWidth, exif::In::PRIMARY)
+            .get_field(exif::Tag::ImageLength, exif::In::PRIMARY)
             .and_then(|x| x.value.get_uint(0));
 
         if let (Some(width), Some(height)) = (width_opt, height_opt) {
             pic.image_size = Some(ImageSize { width, height });
         }
+
+        exif.lens_model = exif_data
+            .get_field(exif::Tag::LensModel, exif::In::PRIMARY)
+            .map(|e| e.display_value().to_string());
 
         exif.description = exif_data
             .get_field(exif::Tag::ImageDescription, exif::In::PRIMARY)

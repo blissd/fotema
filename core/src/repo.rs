@@ -47,6 +47,9 @@ pub struct Picture {
 
     /// Ordering timestamp, derived from EXIF metadata or file system timestamps.
     pub order_by_ts: Option<DateTime<Utc>>,
+
+    /// Was picture taken with front camera?
+    pub is_selfie: bool,
 }
 
 impl Picture {
@@ -62,10 +65,7 @@ impl Picture {
                 let year = ts.date_naive().year();
                 let month = ts.date_naive().month();
                 let month = chrono::Month::try_from(u8::try_from(month).unwrap()).unwrap();
-                YearMonth {
-                    year: year,
-                    month: month,
-                }
+                YearMonth { year, month }
             })
             .unwrap_or(YearMonth {
                 year: 0,
@@ -124,7 +124,8 @@ impl Repository {
             "CREATE TABLE IF NOT EXISTS pictures (
                 picture_id     INTEGER PRIMARY KEY UNIQUE NOT NULL, -- unique ID for picture
                 relative_path  TEXT UNIQUE NOT NULL ON CONFLICT IGNORE,
-                order_by_ts    DATETIME -- UTC timestamp to order images by
+                order_by_ts    DATETIME, -- UTC timestamp to order images by
+                is_selfie      BOOLEAN NOT NULL CHECK (is_selfie IN (0, 1)) -- front camera?
             )",
             "CREATE TABLE IF NOT EXISTS previews (
                 preview_id INTEGER PRIMARY KEY UNIQUE NOT NULL, -- pk for preview
@@ -194,7 +195,13 @@ impl Repository {
         // Create a scope to make borrowing of tx not be an error.
         {
             let mut stmt = tx
-                .prepare_cached("INSERT INTO pictures (relative_path, order_by_ts) VALUES (?1, ?2)")
+                .prepare_cached(
+                    "INSERT INTO pictures (
+                    relative_path,
+                    order_by_ts,
+                    is_selfie
+                ) VALUES (?1, ?2, ?3)",
+                )
                 .map_err(|e| RepositoryError(format!("Preparing statement: {}", e)))?;
 
             for pic in pics {
@@ -209,8 +216,13 @@ impl Repository {
                 let exif_date_time = pic.exif.as_ref().and_then(|x| x.created_at);
                 let fs_date_time = pic.fs.as_ref().and_then(|x| x.created_at);
                 let order_by_ts = exif_date_time.map(|d| d.to_utc()).or(fs_date_time);
+                let is_selfie = pic
+                    .exif
+                    .as_ref()
+                    .and_then(|x| x.lens_model.as_ref())
+                    .is_some_and(|x| x.contains("front"));
 
-                let result = stmt.execute(params![path.to_str(), order_by_ts]);
+                let result = stmt.execute(params![path.to_str(), order_by_ts, is_selfie]);
 
                 // The "on conflict ignore" constraints look like errors to rusqlite
                 match result {
@@ -235,7 +247,12 @@ impl Repository {
         let mut stmt = self
             .con
             .prepare(
-                "SELECT pictures.picture_id, pictures.relative_path, previews.full_path as square_preview_path, pictures.order_by_ts
+                "SELECT
+                    pictures.picture_id,
+                    pictures.relative_path,
+                    previews.full_path as square_preview_path,
+                    pictures.order_by_ts,
+                    pictures.is_selfie
                 FROM pictures
                 LEFT JOIN previews ON pictures.picture_id = previews.picture_id
                 ORDER BY order_by_ts ASC",
@@ -250,6 +267,7 @@ impl Repository {
                     path: self.library_base_path.join(relative_path), // compute full path
                     square_preview_path: row.get(2).ok().map(|p: String| path::PathBuf::from(p)),
                     order_by_ts: row.get(3).ok(),
+                    is_selfie: row.get(4).ok().unwrap_or(false),
                 })
             })
             .map_err(|e| RepositoryError(e.to_string()))?;
@@ -267,7 +285,12 @@ impl Repository {
         let mut stmt = self
             .con
             .prepare(
-                "SELECT pictures.picture_id, pictures.relative_path, previews.full_path as square_preview_path, pictures.order_by_ts
+                "SELECT
+                    pictures.picture_id,
+                    pictures.relative_path,
+                    previews.full_path as square_preview_path,
+                    pictures.order_by_ts,
+                    pictures.is_selfie
                 FROM pictures
                 LEFT JOIN previews ON pictures.picture_id = previews.picture_id
                 WHERE pictures.picture_id = ?1",
@@ -282,6 +305,7 @@ impl Repository {
                     path: self.library_base_path.join(relative_path), // compute full path
                     square_preview_path: row.get(2).ok().map(|p: String| path::PathBuf::from(p)),
                     order_by_ts: row.get(3).ok(),
+                    is_selfie: row.get(4).ok().unwrap_or(false),
                 })
             })
             .map_err(|e| RepositoryError(e.to_string()))?;
