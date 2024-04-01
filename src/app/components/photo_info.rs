@@ -40,11 +40,10 @@ impl SimpleComponent for PhotoInfo {
     view! {
        gtk::Box {
             set_orientation: gtk::Orientation::Vertical,
-            set_margin_all: 10,
+            set_margin_all: 12,
+            set_spacing: 12,
 
             adw::PreferencesGroup {
-                set_margin_all: 10,
-
                 #[local_ref]
                 folder -> adw::ActionRow {
                     set_title: "Folder",
@@ -55,8 +54,6 @@ impl SimpleComponent for PhotoInfo {
 
             #[local_ref]
             date_time -> adw::PreferencesGroup {
-                set_margin_all: 10,
-
                 #[local_ref]
                 created_at -> adw::ActionRow {
                     set_title: "File Created",
