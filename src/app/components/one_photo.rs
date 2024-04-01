@@ -10,6 +10,7 @@ use relm4::*;
 use std::sync::{Arc, Mutex};
 
 use crate::app::components::photo_info::PhotoInfo;
+use crate::app::components::photo_info::PhotoInfoInput;
 
 #[derive(Debug)]
 pub enum OnePhotoInput {
@@ -82,7 +83,8 @@ impl SimpleComponent for OnePhoto {
                 println!("Showing photo for {}", picture_id);
                 let result = self.repo.lock().unwrap().get(picture_id);
                 if let Ok(Some(pic)) = result {
-                    self.picture.set_filename(Some(pic.path));
+                    self.picture.set_filename(Some(pic.path.clone()));
+                    self.photo_info.emit(PhotoInfoInput::ShowInfo(pic.path));
                 } else {
                     println!("Failed loading {}: {:?}", picture_id, result);
                 }

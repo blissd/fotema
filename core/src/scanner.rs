@@ -13,7 +13,7 @@ use std::path::PathBuf;
 use walkdir::WalkDir;
 
 /// A picture on the local file system that has been scanned.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Picture {
     /// Full path to picture file.
     pub path: PathBuf,
@@ -37,7 +37,7 @@ impl Picture {
 }
 
 /// Metadata from EXIF tags
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Exif {
     pub description: Option<String>,
     pub created_at: Option<DateTime<FixedOffset>>,
@@ -56,7 +56,7 @@ impl Exif {
 }
 
 /// Metadata from the file system.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct FsMetadata {
     pub created_at: Option<DateTime<Utc>>,
     pub modified_at: Option<DateTime<Utc>>,
