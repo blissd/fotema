@@ -10,10 +10,9 @@ use photos_core::scanner::Picture;
 use gtk::prelude::OrientableExt;
 use relm4::gtk;
 use relm4::*;
-use relm4::adw::prelude::PreferencesRowExt;
-use relm4::adw::prelude::ActionRowExt;
-use relm4::gtk::prelude::WidgetExt;
+use relm4::adw::prelude::*;
 use std::path::PathBuf;
+use std::convert::identity;
 
 #[derive(Debug)]
 pub enum PhotoInfoInput {
@@ -25,6 +24,10 @@ pub struct PhotoInfo {
     scanner: Scanner,
 
     folder: adw::ActionRow,
+
+    date_time: adw::PreferencesGroup,
+    created_at: adw::ActionRow,
+    modified_at: adw::ActionRow,
 }
 
 
@@ -40,17 +43,32 @@ impl SimpleComponent for PhotoInfo {
             set_margin_all: 10,
 
             adw::PreferencesGroup {
+                set_margin_all: 10,
 
                 #[local_ref]
                 folder -> adw::ActionRow {
                     set_title: "Folder",
-                    //set_subtitle: &model.path,
+                    add_css_class: "property",
+                    set_subtitle_selectable: true,
+                },
+            },
+
+            #[local_ref]
+            date_time -> adw::PreferencesGroup {
+                set_margin_all: 10,
+
+                #[local_ref]
+                created_at -> adw::ActionRow {
+                    set_title: "File Created",
                     add_css_class: "property",
                     set_subtitle_selectable: true,
                 },
 
-                adw::ActionRow {
-                    set_title: "Another Title",
+                #[local_ref]
+                modified_at -> adw::ActionRow {
+                    set_title: "File Modified",
+                    add_css_class: "property",
+                    set_subtitle_selectable: true,
                 },
             }
         }
@@ -64,9 +82,17 @@ impl SimpleComponent for PhotoInfo {
 
         let folder = adw::ActionRow::new();
 
+        let date_time = adw::PreferencesGroup::new();
+        let created_at = adw::ActionRow::new();
+        let modified_at = adw::ActionRow::new();
+
         let model = PhotoInfo {
             scanner,
             folder: folder.clone(),
+
+            date_time: date_time.clone(),
+            created_at: created_at.clone(),
+            modified_at: modified_at.clone(),
         };
 
         let widgets = view_output!();
@@ -97,6 +123,15 @@ impl PhotoInfo {
         };
 
         Self::update_row(&self.folder, Self::folder_name(path));
+
+        let has_timestamps = [
+            Self::update_row(&self.created_at,  pic.created_at().map(|x| x.to_string())),
+            Self::update_row(&self.modified_at, pic.modified_at().map(|x| x.to_string())),
+        ]
+        .into_iter()
+        .any(|x| x);
+
+        self.date_time.set_visible(has_timestamps);
     }
 
     /// Borrowed from Loupe.

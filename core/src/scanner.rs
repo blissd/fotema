@@ -4,6 +4,7 @@
 
 use crate::Error::*;
 use crate::Result;
+use chrono;
 use chrono::prelude::*;
 use exif;
 use std::fs;
@@ -33,6 +34,18 @@ impl Picture {
             fs: None,
             exif: None,
         }
+    }
+
+    pub fn created_at(&self) -> Option<chrono::DateTime<Utc>> {
+        let exif_ts = self.exif.as_ref().and_then(|x| x.created_at);
+        let fs_ts = self.fs.as_ref().and_then(|x| x.created_at);
+        exif_ts.map(|x| x.to_utc()).or(fs_ts)
+    }
+
+    pub fn modified_at(&self) -> Option<chrono::DateTime<Utc>> {
+        let exif_ts = self.exif.as_ref().and_then(|x| x.modified_at);
+        let fs_ts = self.fs.as_ref().and_then(|x| x.modified_at);
+        exif_ts.map(|x| x.to_utc()).or(fs_ts)
     }
 }
 
