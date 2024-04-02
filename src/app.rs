@@ -29,7 +29,7 @@ use self::components::{
     all_photos::AllPhotosOutput, month_photos::MonthPhotos, month_photos::MonthPhotosInput,
     month_photos::MonthPhotosOutput, one_photo::OnePhoto, one_photo::OnePhotoInput,
     year_photos::YearPhotos, year_photos::YearPhotosOutput,
-    selfie_photos::SelfiePhotos,
+    selfie_photos::SelfiePhotos, selfie_photos::SelfiePhotosOutput,
 };
 
 mod background;
@@ -331,7 +331,9 @@ impl SimpleComponent for App {
 
         let selfie_photos = SelfiePhotos::builder()
             .launch(repo.clone())
-            .detach();
+            .forward(sender.input_sender(), |msg| match msg {
+                SelfiePhotosOutput::PhotoSelected(id) => AppMsg::ViewPhoto(id),
+            });
 
         let about_dialog = AboutDialog::builder()
             .transient_for(&root)
