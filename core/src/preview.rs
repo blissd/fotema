@@ -5,6 +5,7 @@
 use crate::repo;
 use crate::Error::*;
 use crate::Result;
+use image::imageops;
 use image::imageops::FilterType;
 use image::io::Reader as ImageReader;
 use image::DynamicImage;

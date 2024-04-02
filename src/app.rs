@@ -168,6 +168,8 @@ impl SimpleComponent for App {
                     #[local_ref]
                     main_navigation -> adw::OverlaySplitView {
 
+                        set_max_sidebar_width: 200.0,
+
                         #[wrap(Some)]
                         set_sidebar = &adw::NavigationPage {
                             adw::ToolbarView {
