@@ -56,11 +56,17 @@ pub(super) struct App {
     // Main navigation. Parent of library stack.
     main_navigation: adw::OverlaySplitView,
 
+    // Stack containing Library, Selfies, etc.
+    main_stack: gtk::Stack,
+
     // Library pages
-    view_stack: adw::ViewStack,
+    library_view_stack: adw::ViewStack,
 
     // Switch between library views and single image view.
     picture_navigation_view: adw::NavigationView,
+
+    // Window header bar
+    header_bar: adw::HeaderBar,
 }
 
 #[derive(Debug)]
@@ -166,10 +172,10 @@ impl SimpleComponent for App {
                         set_sidebar = &adw::NavigationPage {
                             adw::ToolbarView {
                                 add_top_bar = &adw::HeaderBar {
-
                                     #[wrap(Some)]
                                     set_title_widget = &gtk::Label {
                                         set_label: "Photos",
+                                        add_css_class: "title",
                                     },
 
                                     pack_end = &gtk::MenuButton {
@@ -179,7 +185,7 @@ impl SimpleComponent for App {
                                 },
                                 #[wrap(Some)]
                                 set_content = &gtk::StackSidebar {
-                                    set_stack: &stack,
+                                    set_stack: &main_stack,
                                 },
                             }
                         },
@@ -187,35 +193,34 @@ impl SimpleComponent for App {
                         #[wrap(Some)]
                         set_content = &adw::NavigationPage {
                             adw::ToolbarView {
-                                #[name = "header_bar"]
-                                add_top_bar = &adw::HeaderBar {
+                                #[local_ref]
+                                add_top_bar = &header_bar -> adw::HeaderBar {
                                     set_hexpand: true,
                                     pack_start = &gtk::Button {
                                         set_icon_name: "dock-left-symbolic",
                                         connect_clicked => AppMsg::ToggleSidebar,
                                     },
-                                    #[wrap(Some)]
-                                    set_title_widget = &adw::ViewSwitcher {
-                                        set_stack: Some(&view_stack),
-                                        set_policy: adw::ViewSwitcherPolicy::Wide,
-                                    },
+                                    //#[wrap(Some)]
+                                    //set_title_widget = &adw::ViewSwitcher {
+                                    //    set_stack: Some(&library_view_stack),
+                                    //    set_policy: adw::ViewSwitcherPolicy::Wide,
+                                    //},
                                 },
 
-
-                                #[wrap(Some)]
-                                #[name = "stack"]
                                 // NOTE I would like this to be an adw::ViewStack
                                 // so that I could use a adw::ViewSwitcher in the sidebar
                                 // that would show icons.
                                 // However, adw::ViewSwitch can't display vertically.
-                                set_content = &gtk::Stack {
+                                #[wrap(Some)]
+                                #[local_ref]
+                                set_content = &main_stack -> gtk::Stack {
                                     connect_visible_child_notify => AppMsg::SwitchView,
 
                                     add_child = &gtk::Box {
                                         set_orientation: gtk::Orientation::Vertical,
 
                                         #[local_ref]
-                                        view_stack -> adw::ViewStack {
+                                        library_view_stack -> adw::ViewStack {
                                             add_titled_with_icon[Some("all"), "All", "playlist-infinite-symbolic"] = model.all_photos.widget(),
                                             add_titled_with_icon[Some("month"), "Month", "month-symbolic"] = model.month_photos.widget(),
                                             add_titled_with_icon[Some("year"), "Year", "year-symbolic"] = model.year_photos.widget(),
@@ -223,10 +228,11 @@ impl SimpleComponent for App {
 
                                         #[name(switcher_bar)]
                                         adw::ViewSwitcherBar {
-                                            set_stack: Some(&view_stack),
+                                            set_stack: Some(&library_view_stack),
                                         },
                                     } -> {
                                         set_title: "Library",
+                                        set_name: "Library",
 
                                         // NOTE gtk::StackSidebar doesn't show icon :-/
                                         set_icon_name: "image-alt-symbolic",
@@ -237,6 +243,7 @@ impl SimpleComponent for App {
                                         container_add: model.selfie_photos.widget(),
                                     } -> {
                                         set_title: "Selfies",
+                                        set_name: "Selfies",
                                         // NOTE gtk::StackSidebar doesn't show icon :-/
                                         set_icon_name: "sentiment-very-satisfied-symbolic",
                                     },
@@ -332,11 +339,15 @@ impl SimpleComponent for App {
             .detach();
 
 
-        let view_stack = adw::ViewStack::new();
+        let library_view_stack = adw::ViewStack::new();
 
         let picture_navigation_view = adw::NavigationView::builder().build();
 
         let main_navigation = adw::OverlaySplitView::builder().build();
+
+        let main_stack = gtk::Stack::new();
+
+        let header_bar = adw::HeaderBar::new();
 
         let model = Self {
             scan_photos,
@@ -348,8 +359,10 @@ impl SimpleComponent for App {
             one_photo,
             selfie_photos,
             main_navigation: main_navigation.clone(),
-            view_stack: view_stack.clone(),
+            main_stack: main_stack.clone(),
+            library_view_stack: library_view_stack.clone(),
             picture_navigation_view: picture_navigation_view.clone(),
+            header_bar: header_bar.clone(),
         };
 
         let widgets = view_output!();
@@ -388,7 +401,26 @@ impl SimpleComponent for App {
                 let show = self.main_navigation.shows_sidebar();
                 self.main_navigation.set_show_sidebar(!show);
             },
-            AppMsg::SwitchView => {},
+            AppMsg::SwitchView => {
+                let child = self.main_stack.visible_child();
+                let child_name = self.main_stack.visible_child_name();
+
+                if child_name.is_some_and(|x| x.as_str() == "Library") {
+                    let vs = adw::ViewSwitcher::builder()
+                        .stack(&self.library_view_stack)
+                        .policy(adw::ViewSwitcherPolicy::Wide)
+                        .build();
+                    self.header_bar.set_title_widget(Some(&vs));
+                } else if let Some(child) = child {
+                    let page =self.main_stack.page(&child);
+                    let title = page.title().map(|x| x.to_string());
+                    let label = gtk::Label::builder()
+                        .label(title.unwrap_or("-".to_string()))
+                        .css_classes(["title"])
+                        .build();
+                    self.header_bar.set_title_widget(Some(&label));
+                }
+            },
             AppMsg::ViewPhoto(picture_id) => {
                 // Send message to OnePhoto to show image
                 self.one_photo.emit(OnePhotoInput::ViewPhoto(picture_id));
@@ -398,12 +430,12 @@ impl SimpleComponent for App {
             },
             AppMsg::GoToMonth(ym) => {
                 // Display all photos view.
-                self.view_stack.set_visible_child_name("all");
+                self.library_view_stack.set_visible_child_name("all");
                 self.all_photos.emit(AllPhotosInput::GoToMonth(ym));
             },
             AppMsg::GoToYear(year) => {
                 // Display month photos view.
-                self.view_stack.set_visible_child_name("month");
+                self.library_view_stack.set_visible_child_name("month");
                 self.month_photos.emit(MonthPhotosInput::GoToYear(year));
             },
             AppMsg::ScanAllCompleted => {
