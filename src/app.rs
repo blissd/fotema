@@ -19,6 +19,8 @@ use photos_core::repo::PictureId;
 use photos_core::YearMonth;
 use relm4::adw::prelude::NavigationPageExt;
 use std::sync::{Arc, Mutex};
+use relm4::gtk::prelude::ButtonExt;
+
 
 mod components;
 
@@ -51,6 +53,9 @@ pub(super) struct App {
     one_photo: Controller<OnePhoto>,
     selfie_photos: Controller<SelfiePhotos>,
 
+    // Main navigation. Parent of library stack.
+    main_navigation: adw::OverlaySplitView,
+
     // Library pages
     view_stack: adw::ViewStack,
 
@@ -61,6 +66,12 @@ pub(super) struct App {
 #[derive(Debug)]
 pub(super) enum AppMsg {
     Quit,
+
+    // Toggle visibility of sidebar
+    ToggleSidebar,
+
+    // A sidebar item has been clicked
+    SwitchView,
 
     // Show photo for ID.
     ViewPhoto(PictureId),
@@ -137,15 +148,20 @@ impl SimpleComponent for App {
                 add_setter: (&switcher_bar, "reveal", &true.into()),
             },
 
+            // Top-level navigation view containing:
+            // 1. Navigation view containing stack of pages.
+            // 2. Page for displaying a single photo.
             #[local_ref]
             picture_navigation_view -> adw::NavigationView {
                 set_pop_on_escape: true,
 
+                // Page for showing main navigation. Such as "Library", "Selfies", etc.
                 adw::NavigationPage {
-                    adw::NavigationSplitView {
+                    #[local_ref]
+                    main_navigation -> adw::OverlaySplitView {
+
                         #[wrap(Some)]
                         set_sidebar = &adw::NavigationPage {
-
                             adw::ToolbarView {
                                 add_top_bar = &adw::HeaderBar {
 
@@ -168,22 +184,28 @@ impl SimpleComponent for App {
 
                         #[wrap(Some)]
                         set_content = &adw::NavigationPage {
-                            #[name = "stack"]
-                            gtk::Stack {
-                                add_child = &adw::ToolbarView {
-                                    #[name = "header_bar"]
-                                    add_top_bar = &adw::HeaderBar {
-                                        set_hexpand: true,
-
-                                        #[wrap(Some)]
-                                        set_title_widget = &adw::ViewSwitcher {
-                                            set_stack: Some(&view_stack),
-                                            set_policy: adw::ViewSwitcherPolicy::Wide,
-                                        },
+                            adw::ToolbarView {
+                                #[name = "header_bar"]
+                                add_top_bar = &adw::HeaderBar {
+                                    set_hexpand: true,
+                                    pack_start = &gtk::Button {
+                                        set_icon_name: "dock-left-symbolic",
+                                        connect_clicked => AppMsg::ToggleSidebar,
                                     },
-
                                     #[wrap(Some)]
-                                    set_content = &gtk::Box {
+                                    set_title_widget = &adw::ViewSwitcher {
+                                        set_stack: Some(&view_stack),
+                                        set_policy: adw::ViewSwitcherPolicy::Wide,
+                                    },
+                                },
+
+
+                                #[wrap(Some)]
+                                #[name = "stack"]
+                                set_content = &gtk::Stack {
+                                    connect_visible_child_notify => AppMsg::SwitchView,
+
+                                    add_child = &gtk::Box {
                                         set_orientation: gtk::Orientation::Vertical,
 
                                         #[local_ref]
@@ -197,26 +219,25 @@ impl SimpleComponent for App {
                                         adw::ViewSwitcherBar {
                                             set_stack: Some(&view_stack),
                                         },
+                                    } -> {
+                                        set_title: "Library",
                                     },
-                                } -> {
-                                    set_title: "Library",
-                                },
 
-                                 add_child = &gtk::Box {
-                                    set_orientation: gtk::Orientation::Vertical,
-                                    container_add: model.selfie_photos.widget()
-                                } -> {
-                                    set_title: "Selfies",
-                                 },
+                                    add_child = &gtk::Box {
+                                        set_orientation: gtk::Orientation::Vertical,
+                                        container_add: model.selfie_photos.widget(),
+                                    } -> {
+                                        set_title: "Selfies",
+                                    },
+                                },
                             },
                         },
                     },
                 },
 
+                // Page for showing a single photo.
                 adw::NavigationPage {
                     set_tag: Some("picture"),
-
-                    // one_photo is the full-screen display of a given photo
                     model.one_photo.widget(),
                 },
             },
@@ -304,6 +325,8 @@ impl SimpleComponent for App {
 
         let picture_navigation_view = adw::NavigationView::builder().build();
 
+        let main_navigation = adw::OverlaySplitView::builder().build();
+
         let model = Self {
             scan_photos,
             generate_previews,
@@ -313,6 +336,7 @@ impl SimpleComponent for App {
             year_photos,
             one_photo,
             selfie_photos,
+            main_navigation: main_navigation.clone(),
             view_stack: view_stack.clone(),
             picture_navigation_view: picture_navigation_view.clone(),
         };
@@ -349,6 +373,11 @@ impl SimpleComponent for App {
     fn update(&mut self, message: Self::Input, _sender: ComponentSender<Self>) {
         match message {
             AppMsg::Quit => main_application().quit(),
+            AppMsg::ToggleSidebar => {
+                let collapsed = self.main_navigation.is_collapsed();
+                self.main_navigation.set_collapsed(!collapsed);
+            },
+            AppMsg::SwitchView => {},
             AppMsg::ViewPhoto(picture_id) => {
                 // Send message to OnePhoto to show image
                 self.one_photo.emit(OnePhotoInput::ViewPhoto(picture_id));

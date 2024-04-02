@@ -19,5 +19,6 @@ SPDX-License-Identifier: GPL-3.0-or-later
     <file alias="playlist-infinite-symbolic.svg" preprocess="xml-stripblanks">../icons/playlist-infinite-symbolic.svg</file>
     <file alias="image-missing-symbolic.svg" preprocess="xml-stripblanks">../icons/image-missing-symbolic.svg</file>
     <file alias="info-outline-symbolic.svg" preprocess="xml-stripblanks">../icons/info-outline-symbolic.svg</file>
+    <file alias="dock-left-symbolic.svg" preprocess="xml-stripblanks">../icons/dock-left-symbolic.svg</file>
   </gresource>
 </gresources>
