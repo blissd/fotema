@@ -30,13 +30,11 @@ impl GeneratePreviews {
     fn update_previews(&self) -> Result<()> {
         let start = std::time::Instant::now();
 
-        let pics = self.repo.lock().unwrap().all()?;
+        let mut pics = self.repo.lock().unwrap().all()?;
         let pics_count = pics.len();
 
-        //let pics = pics
-        //    .into_iter()
-        //    .filter(|p| p.square_preview_path.is_none())
-        //    .collect::<Vec<photos_core::repo::Picture>>();
+        // Process newer photos first.
+        pics.reverse();
 
         for mut pic in pics {
             let result = self.previewer.set_preview(&mut pic);
