@@ -204,6 +204,10 @@ impl SimpleComponent for App {
 
                                 #[wrap(Some)]
                                 #[name = "stack"]
+                                // NOTE I would like this to be an adw::ViewStack
+                                // so that I could use a adw::ViewSwitcher in the sidebar
+                                // that would show icons.
+                                // However, adw::ViewSwitch can't display vertically.
                                 set_content = &gtk::Stack {
                                     connect_visible_child_notify => AppMsg::SwitchView,
 
@@ -223,6 +227,9 @@ impl SimpleComponent for App {
                                         },
                                     } -> {
                                         set_title: "Library",
+
+                                        // NOTE gtk::StackSidebar doesn't show icon :-/
+                                        set_icon_name: "image-alt-symbolic",
                                     },
 
                                     add_child = &gtk::Box {
@@ -230,6 +237,8 @@ impl SimpleComponent for App {
                                         container_add: model.selfie_photos.widget(),
                                     } -> {
                                         set_title: "Selfies",
+                                        // NOTE gtk::StackSidebar doesn't show icon :-/
+                                        set_icon_name: "sentiment-very-satisfied-symbolic",
                                     },
                                 },
                             },
