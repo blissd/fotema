@@ -146,6 +146,8 @@ impl SimpleComponent for App {
             )) {
                 add_setter: (&header_bar, "show-title", &false.into()),
                 add_setter: (&switcher_bar, "reveal", &true.into()),
+                add_setter: (&main_navigation, "collapsed", &true.into()),
+                add_setter: (&main_navigation, "show-sidebar", &false.into()),
             },
 
             // Top-level navigation view containing:
@@ -374,8 +376,8 @@ impl SimpleComponent for App {
         match message {
             AppMsg::Quit => main_application().quit(),
             AppMsg::ToggleSidebar => {
-                let collapsed = self.main_navigation.is_collapsed();
-                self.main_navigation.set_collapsed(!collapsed);
+                let show = self.main_navigation.shows_sidebar();
+                self.main_navigation.set_show_sidebar(!show);
             },
             AppMsg::SwitchView => {},
             AppMsg::ViewPhoto(picture_id) => {
