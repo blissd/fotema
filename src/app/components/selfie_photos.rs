@@ -8,6 +8,7 @@ use relm4::gtk;
 use relm4::gtk::prelude::WidgetExt;
 use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
 use relm4::*;
+use relm4::prelude::*;
 use std::path;
 use std::sync::{Arc, Mutex};
 
@@ -83,8 +84,8 @@ pub struct SelfiePhotos {
     pictures_grid_view: TypedGridView<PhotoGridItem, gtk::SingleSelection>,
 }
 
-#[relm4::component(pub)]
-impl SimpleComponent for SelfiePhotos {
+#[relm4::component(pub async)]
+impl SimpleAsyncComponent for SelfiePhotos {
     type Init = Arc<Mutex<photos_core::Repository>>;
     type Input = SelfiePhotosInput;
     type Output = SelfiePhotosOutput;
@@ -115,11 +116,11 @@ impl SimpleComponent for SelfiePhotos {
         }
     }
 
-    fn init(
+    async fn init(
         repo: Self::Init,
         _root: Self::Root,
-        sender: ComponentSender<Self>,
-    ) -> ComponentParts<Self> {
+        sender: AsyncComponentSender<Self>,
+    ) -> AsyncComponentParts<Self> {
 
         let grid_view_wrapper: TypedGridView<PhotoGridItem, gtk::SingleSelection> =
             TypedGridView::new();
@@ -132,10 +133,10 @@ impl SimpleComponent for SelfiePhotos {
         let pictures_box = &model.pictures_grid_view.view;
 
         let widgets = view_output!();
-        ComponentParts { model, widgets }
+        AsyncComponentParts { model, widgets }
     }
 
-    fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
+    async fn update(&mut self, msg: Self::Input, sender: AsyncComponentSender<Self>) {
         match msg {
             SelfiePhotosInput::Refresh => {
                 let all_pictures = self.repo

@@ -4,22 +4,42 @@
 
 use relm4::{
     actions::{RelmAction, RelmActionGroup},
-    adw, gtk, main_application, Component, ComponentController, ComponentParts, ComponentSender,
+    adw,
+    adw::prelude::{
+        AdwApplicationWindowExt,
+        NavigationPageExt,
+    },
+    prelude:: {
+        AsyncController,
+    },
+    component::{
+        AsyncComponentController,
+        AsyncComponent,
+    },
+    gtk,
+    gtk::{
+        gio,
+        glib,
+        prelude::{
+            ButtonExt,
+            ApplicationExt,
+            ApplicationWindowExt,
+            GtkWindowExt,
+            OrientableExt,
+            SettingsExt,
+            WidgetExt,
+        },
+    },
+    main_application, Component, ComponentController, ComponentParts, ComponentSender,
     Controller, SimpleComponent, WorkerController,
 };
 
-use gtk::prelude::{
-    ApplicationExt, ApplicationWindowExt, GtkWindowExt, OrientableExt, SettingsExt, WidgetExt,
-};
-use gtk::{gio, glib};
-use relm4::adw::prelude::AdwApplicationWindowExt;
 
 use crate::config::{APP_ID, PROFILE};
 use photos_core::repo::PictureId;
 use photos_core::YearMonth;
-use relm4::adw::prelude::NavigationPageExt;
+
 use std::sync::{Arc, Mutex};
-use relm4::gtk::prelude::ButtonExt;
 use std::path::PathBuf;
 
 
@@ -49,11 +69,11 @@ pub(super) struct App {
     scan_photos: WorkerController<ScanPhotos>,
     generate_previews: WorkerController<GeneratePreviews>,
     about_dialog: Controller<AboutDialog>,
-    all_photos: Controller<AllPhotos>,
-    month_photos: Controller<MonthPhotos>,
-    year_photos: Controller<YearPhotos>,
+    all_photos: AsyncController<AllPhotos>,
+    month_photos: AsyncController<MonthPhotos>,
+    year_photos: AsyncController<YearPhotos>,
     one_photo: Controller<OnePhoto>,
-    selfie_photos: Controller<SelfiePhotos>,
+    selfie_photos: AsyncController<SelfiePhotos>,
 
     // Main navigation. Parent of library stack.
     main_navigation: adw::OverlaySplitView,
