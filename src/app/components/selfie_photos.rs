@@ -149,6 +149,7 @@ impl SimpleComponent for SelfiePhotos {
                         picture,
                     });
 
+                self.pictures_grid_view.clear();
                 self.pictures_grid_view.extend_from_iter(all_pictures.into_iter());
 
                 if !self.pictures_grid_view.is_empty(){

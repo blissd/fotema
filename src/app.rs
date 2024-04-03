@@ -464,6 +464,7 @@ impl SimpleComponent for App {
                 // Refresh messages cause the photos to be loaded into various photo grids
                 self.all_photos.emit(AllPhotosInput::Refresh);
                 self.selfie_photos.emit(SelfiePhotosInput::Refresh);
+                self.month_photos.emit(MonthPhotosInput::Refresh);
 
                 self.generate_previews.emit(GeneratePreviewsInput::Generate);
             },

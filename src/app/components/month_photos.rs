@@ -31,6 +31,9 @@ pub enum MonthPhotosInput {
 
     /// Scroll to first photo of year
     GoToYear(Year),
+
+    // Reload photos from database
+    Refresh,
 }
 
 #[derive(Debug)]
@@ -99,6 +102,7 @@ impl RelmGridItem for PhotoGridItem {
 }
 
 pub struct MonthPhotos {
+    repo: Arc<Mutex<photos_core::Repository>>,
     pictures_grid_view: TypedGridView<PhotoGridItem, gtk::SingleSelection>,
 }
 
@@ -138,29 +142,16 @@ impl SimpleComponent for MonthPhotos {
         _root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        let all_pictures = repo
-            .lock().unwrap()
-            .all()
-            .unwrap()
-            .into_iter()
-            .dedup_by(|x, y| x.year_month() == y.year_month())
-            .map(|picture| PhotoGridItem {
-                picture,
-            });
 
         let mut grid_view_wrapper: TypedGridView<PhotoGridItem, gtk::SingleSelection> =
             TypedGridView::new();
 
-        grid_view_wrapper.extend_from_iter(all_pictures.into_iter());
-
         let model = MonthPhotos {
+            repo,
             pictures_grid_view: grid_view_wrapper,
         };
 
         let pictures_box = &model.pictures_grid_view.view;
-        if !model.pictures_grid_view.is_empty(){
-            pictures_box.scroll_to(model.pictures_grid_view.len() - 1, gtk::ListScrollFlags::SELECT, None);
-        }
 
         let widgets = view_output!();
         ComponentParts { model, widgets }
@@ -168,7 +159,26 @@ impl SimpleComponent for MonthPhotos {
 
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
-           MonthPhotosInput::MonthSelected(index) => {
+            MonthPhotosInput::Refresh => {
+                let all_pictures = self.repo
+                .lock().unwrap()
+                .all()
+                .unwrap()
+                .into_iter()
+                .dedup_by(|x, y| x.year_month() == y.year_month())
+                .map(|picture| PhotoGridItem {
+                    picture,
+                });
+
+                self.pictures_grid_view.clear();
+                self.pictures_grid_view.extend_from_iter(all_pictures.into_iter());
+
+                if !self.pictures_grid_view.is_empty(){
+                    self.pictures_grid_view.view
+                        .scroll_to(self.pictures_grid_view.len() - 1, gtk::ListScrollFlags::SELECT, None);
+                }
+            },
+            MonthPhotosInput::MonthSelected(index) => {
                 if let Some(item) = self.pictures_grid_view.get(index) {
                     let ym = item.borrow().picture.year_month();
                     println!("index {} has year_month {}", index, ym);

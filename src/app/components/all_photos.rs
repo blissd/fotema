@@ -133,9 +133,7 @@ impl SimpleComponent for AllPhotos {
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
 
-
-        let mut grid_view_wrapper: TypedGridView<PhotoGridItem, gtk::SingleSelection> =
-            TypedGridView::new();
+        let grid_view_wrapper = TypedGridView::new();
 
         let model = AllPhotos {
             repo,
@@ -162,6 +160,7 @@ impl SimpleComponent for AllPhotos {
                         picture,
                     });
 
+                self.pictures_grid_view.clear();
                 self.pictures_grid_view.extend_from_iter(all_pictures.into_iter());
 
                 if !self.pictures_grid_view.is_empty(){
