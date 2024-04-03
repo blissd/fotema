@@ -30,7 +30,7 @@ use self::components::{
     all_photos::{AllPhotos, AllPhotosInput, AllPhotosOutput},
     month_photos::{MonthPhotos, MonthPhotosOutput, MonthPhotosInput},
     one_photo::{OnePhoto, OnePhotoInput},
-    year_photos::{YearPhotos, YearPhotosOutput},
+    year_photos::{YearPhotos, YearPhotosInput, YearPhotosOutput},
     selfie_photos::{SelfiePhotos, SelfiePhotosInput, SelfiePhotosOutput,},
 };
 
@@ -465,6 +465,7 @@ impl SimpleComponent for App {
                 self.all_photos.emit(AllPhotosInput::Refresh);
                 self.selfie_photos.emit(SelfiePhotosInput::Refresh);
                 self.month_photos.emit(MonthPhotosInput::Refresh);
+                self.year_photos.emit(YearPhotosInput::Refresh);
 
                 self.generate_previews.emit(GeneratePreviewsInput::Generate);
             },
