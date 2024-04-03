@@ -77,7 +77,8 @@ impl Previewer {
             img.crop_imm(w, 0, img.height(), img.height())
         };
 
-        let img = img.resize(EDGE, EDGE, FilterType::Triangle);
+        let img = img.thumbnail(EDGE, EDGE);
+        //let img = img.resize(EDGE, EDGE, FilterType::Triangle);
         Ok(img)
     }
 }
