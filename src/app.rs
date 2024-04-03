@@ -26,11 +26,12 @@ use std::path::PathBuf;
 mod components;
 
 use self::components::{
-    about::AboutDialog, all_photos::AllPhotos, all_photos::AllPhotosInput,
-    all_photos::AllPhotosOutput, month_photos::MonthPhotos, month_photos::MonthPhotosInput,
-    month_photos::MonthPhotosOutput, one_photo::OnePhoto, one_photo::OnePhotoInput,
-    year_photos::YearPhotos, year_photos::YearPhotosOutput,
-    selfie_photos::SelfiePhotos, selfie_photos::SelfiePhotosOutput,
+    about::AboutDialog,
+    all_photos::{AllPhotos, AllPhotosInput, AllPhotosOutput},
+    month_photos::{MonthPhotos, MonthPhotosOutput, MonthPhotosInput},
+    one_photo::{OnePhoto, OnePhotoInput},
+    year_photos::{YearPhotos, YearPhotosOutput},
+    selfie_photos::{SelfiePhotos, SelfiePhotosInput, SelfiePhotosOutput,},
 };
 
 mod background;
@@ -459,7 +460,11 @@ impl SimpleComponent for App {
             },
             AppMsg::ScanAllCompleted => {
                 println!("Scan all completed msg received.");
+
+                // Refresh messages cause the photos to be loaded into various photo grids
                 self.all_photos.emit(AllPhotosInput::Refresh);
+                self.selfie_photos.emit(SelfiePhotosInput::Refresh);
+
                 self.generate_previews.emit(GeneratePreviewsInput::Generate);
             },
             AppMsg::PreviewsGenerated => {

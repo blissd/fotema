@@ -23,7 +23,10 @@ struct Widgets {
 #[derive(Debug)]
 pub enum SelfiePhotosInput {
     /// User has selected photo in grid view
-    PhotoSelected(u32), // Index into a Vec
+    PhotoSelected(u32), // Index into a Vec,
+
+    // Reload photos from database
+    Refresh,
 }
 
 #[derive(Debug)]
@@ -76,7 +79,7 @@ impl RelmGridItem for PhotoGridItem {
 
 #[derive(Debug)]
 pub struct SelfiePhotos {
-    //    controller: photos_core::Controller,
+    repo: Arc<Mutex<photos_core::Repository>>,
     pictures_grid_view: TypedGridView<PhotoGridItem, gtk::SingleSelection>,
 }
 
@@ -117,31 +120,16 @@ impl SimpleComponent for SelfiePhotos {
         _root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        let all_pictures = repo
-            .lock()
-            .unwrap()
-            .all()
-            .unwrap()
-            .into_iter()
-            .filter(|p| p.is_selfie)
-            .map(|picture| PhotoGridItem {
-                picture,
-            });
 
-        let mut grid_view_wrapper: TypedGridView<PhotoGridItem, gtk::SingleSelection> =
+        let grid_view_wrapper: TypedGridView<PhotoGridItem, gtk::SingleSelection> =
             TypedGridView::new();
 
-        grid_view_wrapper.extend_from_iter(all_pictures.into_iter());
-
         let model = SelfiePhotos {
+            repo,
             pictures_grid_view: grid_view_wrapper,
         };
 
         let pictures_box = &model.pictures_grid_view.view;
-
-        if !model.pictures_grid_view.is_empty(){
-            pictures_box.scroll_to(model.pictures_grid_view.len() - 1, gtk::ListScrollFlags::SELECT, None);
-        }
 
         let widgets = view_output!();
         ComponentParts { model, widgets }
@@ -149,6 +137,25 @@ impl SimpleComponent for SelfiePhotos {
 
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
+            SelfiePhotosInput::Refresh => {
+                let all_pictures = self.repo
+                    .lock()
+                    .unwrap()
+                    .all()
+                    .unwrap()
+                    .into_iter()
+                    .filter(|p| p.is_selfie)
+                    .map(|picture| PhotoGridItem {
+                        picture,
+                    });
+
+                self.pictures_grid_view.extend_from_iter(all_pictures.into_iter());
+
+                if !self.pictures_grid_view.is_empty(){
+                    self.pictures_grid_view.view
+                        .scroll_to(self.pictures_grid_view.len() - 1, gtk::ListScrollFlags::SELECT, None);
+                }
+            },
             SelfiePhotosInput::PhotoSelected(index) => {
                 if let Some(item) = self.pictures_grid_view.get(index) {
                     let picture_id = item.borrow().picture.picture_id;
