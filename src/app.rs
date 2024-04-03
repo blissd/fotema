@@ -459,6 +459,7 @@ impl SimpleComponent for App {
             },
             AppMsg::ScanAllCompleted => {
                 println!("Scan all completed msg received.");
+                self.all_photos.emit(AllPhotosInput::Refresh);
                 self.generate_previews.emit(GeneratePreviewsInput::Generate);
             },
             AppMsg::PreviewsGenerated => {

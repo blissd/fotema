@@ -36,6 +36,9 @@ pub enum AllPhotosInput {
 
     // Preview has been updated
     PreviewUpdated(PictureId, Option<PathBuf>),
+
+    // Reload photos from database
+    Refresh,
 }
 
 #[derive(Debug)]
@@ -89,7 +92,6 @@ impl RelmGridItem for PhotoGridItem {
 #[derive(Debug)]
 pub struct AllPhotos {
     repo: Arc<Mutex<photos_core::Repository>>,
-    //    controller: photos_core::Controller,
     pictures_grid_view: TypedGridView<PhotoGridItem, gtk::SingleSelection>,
 }
 
@@ -130,20 +132,10 @@ impl SimpleComponent for AllPhotos {
         _root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        let all_pictures = repo
-            .lock()
-            .unwrap()
-            .all()
-            .unwrap()
-            .into_iter()
-            .map(|picture| PhotoGridItem {
-                picture,
-            });
+
 
         let mut grid_view_wrapper: TypedGridView<PhotoGridItem, gtk::SingleSelection> =
             TypedGridView::new();
-
-        grid_view_wrapper.extend_from_iter(all_pictures.into_iter());
 
         let model = AllPhotos {
             repo,
@@ -152,9 +144,6 @@ impl SimpleComponent for AllPhotos {
 
         let pictures_box = &model.pictures_grid_view.view;
 
-        if !model.pictures_grid_view.is_empty(){
-            pictures_box.scroll_to(model.pictures_grid_view.len() - 1, gtk::ListScrollFlags::SELECT, None);
-        }
 
         let widgets = view_output!();
         ComponentParts { model, widgets }
@@ -162,6 +151,24 @@ impl SimpleComponent for AllPhotos {
 
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
+            AllPhotosInput::Refresh => {
+                let all_pictures = self.repo
+                    .lock()
+                    .unwrap()
+                    .all()
+                    .unwrap()
+                    .into_iter()
+                    .map(|picture| PhotoGridItem {
+                        picture,
+                    });
+
+                self.pictures_grid_view.extend_from_iter(all_pictures.into_iter());
+
+                if !self.pictures_grid_view.is_empty(){
+                    self.pictures_grid_view.view
+                        .scroll_to(self.pictures_grid_view.len() - 1, gtk::ListScrollFlags::SELECT, None);
+                }
+            },
             AllPhotosInput::PhotoSelected(index) => {
                 if let Some(item) = self.pictures_grid_view.get(index) {
                     let picture_id = item.borrow().picture.picture_id;
