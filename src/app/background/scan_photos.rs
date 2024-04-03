@@ -33,11 +33,26 @@ impl Worker for ScanPhotos {
     fn update(&mut self, msg: ScanPhotosInput, sender: ComponentSender<Self>) {
         match msg {
             ScanPhotosInput::ScanAll => {
-                println!("Scanning file system for pictures...");
-                let result = self.scan.scan_all().unwrap();
-                self.repo.lock().expect("mutex lock").add_all(&result);
-                sender.output(ScanPhotosOutput::ScanAllCompleted);
+                let result = self.scan_and_add(sender);
+                if let Err(e) = result {
+                    println!("Failed scan with: {}", e);
+                }
             }
         };
+    }
+}
+
+impl ScanPhotos {
+    fn scan_and_add(&mut self, sender: ComponentSender<Self>) -> std::result::Result<(), String> {
+        println!("Scanning file system for pictures...");
+        let result = self.scan.scan_all().map_err(|e| e.to_string())?;
+        self.repo.lock()
+            .map_err(|e| e.to_string())?
+            .add_all(&result)
+            .map_err(|e| e.to_string())?;
+
+        sender.output(ScanPhotosOutput::ScanAllCompleted)
+            .map_err(|e| format!("{:?}", e))
+
     }
 }

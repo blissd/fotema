@@ -10,7 +10,6 @@ use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
 use relm4::*;
 use std::path;
 use std::sync::{Arc, Mutex};
-use photos_core::YearMonth;
 
 #[derive(Debug)]
 struct PhotoGridItem {

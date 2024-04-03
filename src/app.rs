@@ -304,7 +304,7 @@ impl SimpleComponent for App {
             });
 
         let generate_previews = GeneratePreviews::builder()
-            .detach_worker((scan.clone(), previewer.clone(), repo.clone()))
+            .detach_worker((previewer.clone(), repo.clone()))
             .forward(sender.input_sender(), |msg| match msg {
                 GeneratePreviewsOutput::PreviewsGenerated => AppMsg::PreviewsGenerated,
             });

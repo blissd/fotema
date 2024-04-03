@@ -18,7 +18,6 @@ pub enum GeneratePreviewsOutput {
 }
 
 pub struct GeneratePreviews {
-    scan: photos_core::Scanner,
     previewer: photos_core::Previewer,
 
     // Danger! Don't hold the repo mutex for too long as it blocks viewing images.
@@ -58,12 +57,12 @@ impl GeneratePreviews {
 }
 
 impl Worker for GeneratePreviews {
-    type Init = (photos_core::Scanner, photos_core::Previewer, Arc<Mutex<photos_core::Repository>>);
+    type Init = (photos_core::Previewer, Arc<Mutex<photos_core::Repository>>);
     type Input = GeneratePreviewsInput;
     type Output = GeneratePreviewsOutput;
 
-    fn init((scan, previewer, repo): Self::Init, _sender: ComponentSender<Self>) -> Self {
-        Self { scan, previewer, repo }
+    fn init((previewer, repo): Self::Init, _sender: ComponentSender<Self>) -> Self {
+        Self { previewer, repo }
     }
 
     fn update(&mut self, msg: GeneratePreviewsInput, sender: ComponentSender<Self>) {
@@ -71,9 +70,11 @@ impl Worker for GeneratePreviews {
             GeneratePreviewsInput::Generate => {
                 println!("Generating previews...");
 
-                self.update_previews();
-
-                sender.output(GeneratePreviewsOutput::PreviewsGenerated);
+                if let Err(e) = self.update_previews() {
+                    println!("Failed to update previews: {}", e);
+                } else if let Err(e) = sender.output(GeneratePreviewsOutput::PreviewsGenerated) {
+                    println!("Failed notifying previews generated: {:?}", e);
+                }
             }
         };
     }

@@ -6,7 +6,6 @@
 /// Deeply inspired by how Loupe displays its property view.
 
 use photos_core::Scanner;
-use photos_core::scanner::Picture;
 use gtk::prelude::OrientableExt;
 use relm4::gtk;
 use relm4::*;
