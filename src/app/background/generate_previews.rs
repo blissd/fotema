@@ -6,6 +6,8 @@ use relm4::prelude::*;
 use relm4::Worker;
 use std::sync::{Arc, Mutex};
 use photos_core::Result;
+use photos_core::repo::PictureId;
+use std::path::PathBuf;
 
 #[derive(Debug)]
 pub enum GeneratePreviewsInput {
@@ -15,6 +17,7 @@ pub enum GeneratePreviewsInput {
 #[derive(Debug)]
 pub enum GeneratePreviewsOutput {
     PreviewsGenerated,
+    PreviewUpdated(PictureId, Option<PathBuf>),
 }
 
 pub struct GeneratePreviews {
@@ -26,7 +29,7 @@ pub struct GeneratePreviews {
 
 impl GeneratePreviews {
 
-    fn update_previews(&self) -> Result<()> {
+    fn update_previews(&self, sender: &ComponentSender<Self>) -> Result<()> {
         let start = std::time::Instant::now();
 
         let mut pics = self.repo.lock().unwrap().all()?;
@@ -48,6 +51,7 @@ impl GeneratePreviews {
                 continue;
             }
 
+            sender.output(GeneratePreviewsOutput::PreviewUpdated(pic.picture_id, pic.square_preview_path));
         }
 
         println!("Generated {} previews in {} seconds.", pics_count, start.elapsed().as_secs());
@@ -70,9 +74,11 @@ impl Worker for GeneratePreviews {
             GeneratePreviewsInput::Generate => {
                 println!("Generating previews...");
 
-                if let Err(e) = self.update_previews() {
+                if let Err(e) = self.update_previews(&sender) {
                     println!("Failed to update previews: {}", e);
-                } else if let Err(e) = sender.output(GeneratePreviewsOutput::PreviewsGenerated) {
+                }
+
+                if let Err(e) = sender.output(GeneratePreviewsOutput::PreviewsGenerated) {
                     println!("Failed notifying previews generated: {:?}", e);
                 }
             }

@@ -4,17 +4,22 @@
 
 use gtk::prelude::{BoxExt, OrientableExt};
 use photos_core;
+use photos_core::repo;
 use relm4::gtk;
 use relm4::gtk::prelude::WidgetExt;
 use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
 use relm4::*;
-use std::path;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use photos_core::YearMonth;
+use photos_core::repo::PictureId;
+use relm4::gtk::gio;
+use std::cell::Ref;
 
 #[derive(Debug)]
 struct PhotoGridItem {
     picture: photos_core::repo::Picture,
+    //square_preview: Option<gio::File>,
 }
 
 struct Widgets {
@@ -28,12 +33,15 @@ pub enum AllPhotosInput {
 
     // Scroll to first photo of year/month.
     GoToMonth(YearMonth),
+
+    // Preview has been updated
+    PreviewUpdated(PictureId, Option<PathBuf>),
 }
 
 #[derive(Debug)]
 pub enum AllPhotosOutput {
     /// User has selected photo in grid view
-    PhotoSelected(photos_core::repo::PictureId),
+    PhotoSelected(PictureId),
 }
 
 impl RelmGridItem for PhotoGridItem {
@@ -74,12 +82,13 @@ impl RelmGridItem for PhotoGridItem {
     }
 
     fn unbind(&mut self, widgets: &mut Self::Widgets, _root: &mut Self::Root) {
-        widgets.picture.set_filename(None::<&path::Path>);
+        widgets.picture.set_filename(None::<&Path>);
     }
 }
 
 #[derive(Debug)]
 pub struct AllPhotos {
+    repo: Arc<Mutex<photos_core::Repository>>,
     //    controller: photos_core::Controller,
     pictures_grid_view: TypedGridView<PhotoGridItem, gtk::SingleSelection>,
 }
@@ -137,6 +146,7 @@ impl SimpleComponent for AllPhotos {
         grid_view_wrapper.extend_from_iter(all_pictures.into_iter());
 
         let model = AllPhotos {
+            repo,
             pictures_grid_view: grid_view_wrapper,
         };
 
@@ -169,7 +179,30 @@ impl SimpleComponent for AllPhotos {
                     println!("Scrolling to {}", index);
                     self.pictures_grid_view.view.scroll_to(index, flags, None);
                 }
-            }
+            },
+            AllPhotosInput::PreviewUpdated(id, path) => {
+                println!("Preview updated ");
+
+                if self.pictures_grid_view.is_empty() {
+                    // WARN calling find() on an empty grid causes a crash without
+                    // a stack trace :-/
+                    return;
+                }
+
+                let Some(index) = self.pictures_grid_view.find(|p| p.picture.picture_id == id) else {
+                    println!("No index for picture id: {}", id);
+                    return;
+                };
+
+                let Some(item) = self.pictures_grid_view.get(index) else {
+                    return;
+                };
+
+                {
+                    let mut item = item.borrow_mut();
+                    item.picture.square_preview_path = path;
+                }
+            },
         }
     }
 }

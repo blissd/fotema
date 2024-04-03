@@ -20,6 +20,7 @@ use photos_core::YearMonth;
 use relm4::adw::prelude::NavigationPageExt;
 use std::sync::{Arc, Mutex};
 use relm4::gtk::prelude::ButtonExt;
+use std::path::PathBuf;
 
 
 mod components;
@@ -67,6 +68,9 @@ pub(super) struct App {
 
     // Window header bar
     header_bar: adw::HeaderBar,
+
+    // Activity indicator
+    spinner: gtk::Spinner,
 }
 
 #[derive(Debug)]
@@ -93,6 +97,9 @@ pub(super) enum AppMsg {
 
     // Preview generation completed
     PreviewsGenerated,
+
+    // Single preview updated
+    PreviewUpdated(PictureId, Option<PathBuf>),
 }
 
 relm4::new_action_group!(pub(super) WindowActionGroup, "win");
@@ -207,6 +214,9 @@ impl SimpleComponent for App {
                                     //    set_stack: Some(&library_view_stack),
                                     //    set_policy: adw::ViewSwitcherPolicy::Wide,
                                     //},
+
+                                    #[local_ref]
+                                    pack_end = &spinner -> gtk::Spinner,
                                 },
 
                                 // NOTE I would like this to be an adw::ViewStack
@@ -307,6 +317,7 @@ impl SimpleComponent for App {
             .detach_worker((previewer.clone(), repo.clone()))
             .forward(sender.input_sender(), |msg| match msg {
                 GeneratePreviewsOutput::PreviewsGenerated => AppMsg::PreviewsGenerated,
+                GeneratePreviewsOutput::PreviewUpdated(id, path) => AppMsg::PreviewUpdated(id, path),
             });
 
         let all_photos = AllPhotos::builder()
@@ -353,6 +364,8 @@ impl SimpleComponent for App {
 
         let header_bar = adw::HeaderBar::new();
 
+        let spinner = gtk::Spinner::new();
+
         let model = Self {
             scan_photos,
             generate_previews,
@@ -367,6 +380,7 @@ impl SimpleComponent for App {
             library_view_stack: library_view_stack.clone(),
             picture_navigation_view: picture_navigation_view.clone(),
             header_bar: header_bar.clone(),
+            spinner: spinner.clone(),
         };
 
         let widgets = view_output!();
@@ -393,6 +407,7 @@ impl SimpleComponent for App {
 
         widgets.load_window_size();
 
+        model.spinner.start();
         model.scan_photos.sender().emit(ScanPhotosInput::ScanAll);
 
         ComponentParts { model, widgets }
@@ -448,6 +463,11 @@ impl SimpleComponent for App {
             },
             AppMsg::PreviewsGenerated => {
                 println!("Previews generated completed.");
+                self.spinner.stop();
+            },
+
+            AppMsg::PreviewUpdated(id, path) => {
+                self.all_photos.emit(AllPhotosInput::PreviewUpdated(id, path));
             },
         }
     }
