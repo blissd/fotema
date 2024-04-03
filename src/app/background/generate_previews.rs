@@ -51,7 +51,9 @@ impl GeneratePreviews {
                 continue;
             }
 
-            sender.output(GeneratePreviewsOutput::PreviewUpdated(pic.picture_id, pic.square_preview_path));
+            if let Err(e) = sender.output(GeneratePreviewsOutput::PreviewUpdated(pic.picture_id, pic.square_preview_path)) {
+                println!("Failed sending PreviewUpdated: {:?}", e);
+            }
         }
 
         println!("Generated {} previews in {} seconds.", pics_count, start.elapsed().as_secs());
