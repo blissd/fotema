@@ -18,7 +18,7 @@ use std::path;
 use std::path::PathBuf;
 
 /// Database ID of picture
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct PictureId(i64);
 
 impl PictureId {
@@ -34,7 +34,7 @@ impl Display for PictureId {
 }
 
 /// A picture in the repository
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Picture {
     /// Full path from picture library root.
     pub path: PathBuf,

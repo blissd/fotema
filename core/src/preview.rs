@@ -37,17 +37,22 @@ impl Previewer {
         let square = self.from_path(&pic.path)?;
 
         let square_path = {
-            let file_name = format!("{}_{}x{}.jpg", pic.picture_id, EDGE, EDGE);
+            let file_name = format!("{}_{}x{}.png", pic.picture_id, EDGE, EDGE);
             self.base_path.join("square").join(file_name)
         };
 
         // println!("preview = {:?}", square_path);
 
-        square
+        let result = square
             .save(&square_path)
-            .map_err(|e| PreviewError(format!("image save: {}", e)))?;
+            .map_err(|e| PreviewError(format!("image save: {}", e)));
 
-        pic.square_preview_path = Some(square_path);
+        if result.is_err() {
+            let _ = std::fs::remove_file(&square_path);
+            return result;
+        } else {
+            pic.square_preview_path = Some(square_path);
+        }
 
         Ok(())
     }
