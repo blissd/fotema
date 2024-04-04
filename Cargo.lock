@@ -1345,6 +1345,7 @@ dependencies = [
  "humansize",
  "itertools",
  "photos_core",
+ "rayon",
  "relm4",
  "tracing",
  "tracing-subscriber",

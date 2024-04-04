@@ -10,7 +10,7 @@ use image::io::Reader as ImageReader;
 use image::DynamicImage;
 use std::path;
 
-const EDGE: u32 = 400;
+const EDGE: u32 = 200;
 
 #[derive(Debug, Clone)]
 pub struct Previewer {

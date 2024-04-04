@@ -8,6 +8,7 @@ use std::sync::{Arc, Mutex};
 use photos_core::Result;
 use photos_core::repo::PictureId;
 use std::path::PathBuf;
+use rayon::prelude::*;
 
 #[derive(Debug)]
 pub enum GeneratePreviewsInput {
@@ -38,23 +39,20 @@ impl GeneratePreviews {
         // Process newer photos first.
         pics.reverse();
 
-        for mut pic in pics {
-            let result = self.previewer.set_preview(&mut pic);
-            if let Err(e) = result {
-                println!("Failed set_preview: {:?}", e);
-                continue;
-            }
-
-            let result = self.repo.lock().unwrap().add_preview(&pic);
-            if let Err(e) = result {
-                println!("Failed add_preview: {:?}", e);
-                continue;
-            }
-
-            if let Err(e) = sender.output(GeneratePreviewsOutput::PreviewUpdated(pic.picture_id, pic.square_preview_path)) {
-                println!("Failed sending PreviewUpdated: {:?}", e);
-            }
-        }
+        pics.clone().par_iter_mut()
+            .filter(|pic| !pic.square_preview_path.as_ref().is_some_and(|p| p.exists()))
+            .map(|mut pic| {
+                self.previewer.set_preview(&mut pic);
+                pic
+            })
+            .for_each(|pic| {
+                let result = self.repo.lock().unwrap().add_preview(&pic);
+                if let Err(e) = result {
+                    println!("Failed add_preview: {:?}", e);
+                } else if let Err(e) = sender.output(GeneratePreviewsOutput::PreviewUpdated(pic.picture_id, pic.square_preview_path.clone())) {
+                    println!("Failed sending PreviewUpdated: {:?}", e);
+                }
+            });
 
         println!("Generated {} previews in {} seconds.", pics_count, start.elapsed().as_secs());
 
