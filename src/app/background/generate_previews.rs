@@ -42,7 +42,9 @@ impl GeneratePreviews {
         pics.clone().par_iter_mut()
             .filter(|pic| !pic.square_preview_path.as_ref().is_some_and(|p| p.exists()))
             .map(|mut pic| {
-                self.previewer.set_preview(&mut pic);
+                if let Err(e) = self.previewer.set_preview(&mut pic) {
+                    println!("Failed setting preview: {:?}", e);
+                }
                 pic
             })
             .for_each(|pic| {

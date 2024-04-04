@@ -144,7 +144,7 @@ impl SimpleAsyncComponent for MonthPhotos {
         sender: AsyncComponentSender<Self>,
     ) -> AsyncComponentParts<Self> {
 
-        let mut grid_view_wrapper: TypedGridView<PhotoGridItem, gtk::SingleSelection> =
+        let grid_view_wrapper: TypedGridView<PhotoGridItem, gtk::SingleSelection> =
             TypedGridView::new();
 
         let model = MonthPhotos {
