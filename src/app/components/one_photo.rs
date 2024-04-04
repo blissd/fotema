@@ -30,6 +30,8 @@ pub struct OnePhoto {
 
     // Photo and photo info views
     split_view: adw::OverlaySplitView,
+
+    title: String,
 }
 
 #[relm4::component(pub)]
@@ -42,6 +44,12 @@ impl SimpleComponent for OnePhoto {
 
         adw::ToolbarView {
             add_top_bar = &adw::HeaderBar {
+                #[wrap(Some)]
+                set_title_widget = &gtk::Label {
+                    #[watch]
+                    set_label: model.title.as_ref(),
+                    add_css_class: "title",
+                },
                 pack_end = &gtk::Button {
                     set_icon_name: "info-outline-symbolic",
                     connect_clicked => OnePhotoInput::ToggleInfo,
@@ -87,6 +95,7 @@ impl SimpleComponent for OnePhoto {
             picture: picture.clone(),
             photo_info,
             split_view: split_view.clone(),
+            title: String::from("-"),
         };
 
         let widgets = view_output!();
@@ -100,6 +109,11 @@ impl SimpleComponent for OnePhoto {
                 println!("Showing photo for {}", picture_id);
                 let result = self.repo.lock().unwrap().get(picture_id);
                 if let Ok(Some(pic)) = result {
+                    self.title = pic.path
+                        .file_name()
+                        .map(|x| x.to_string_lossy().to_string())
+                        .unwrap_or(String::from("-"));
+
                     self.picture.set_filename(Some(pic.path.clone()));
                     self.photo_info.emit(PhotoInfoInput::ShowInfo(pic.path));
                 } else {
