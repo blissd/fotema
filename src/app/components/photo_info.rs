@@ -24,14 +24,18 @@ pub struct PhotoInfo {
 
     folder: adw::ActionRow,
 
-    date_time: adw::PreferencesGroup,
+    date_time_details: adw::PreferencesGroup,
     created_at: adw::ActionRow,
     modified_at: adw::ActionRow,
 
-    image: adw::PreferencesGroup,
+    image_details: adw::PreferencesGroup,
     image_size: adw::ActionRow,
     image_format: adw::ActionRow,
     file_size: adw::ActionRow,
+
+    exif_details: adw::PreferencesGroup,
+    originally_created_at: adw::ActionRow,
+    originally_modified_at: adw::ActionRow,
 }
 
 
@@ -57,7 +61,7 @@ impl SimpleComponent for PhotoInfo {
             },
 
             #[local_ref]
-            date_time -> adw::PreferencesGroup {
+            date_time_details -> adw::PreferencesGroup {
                 #[local_ref]
                 created_at -> adw::ActionRow {
                     set_title: "File Created",
@@ -74,7 +78,7 @@ impl SimpleComponent for PhotoInfo {
             },
 
             #[local_ref]
-            image -> adw::PreferencesGroup {
+            image_details -> adw::PreferencesGroup {
                 #[local_ref]
                 image_size -> adw::ActionRow {
                     set_title: "Image Size",
@@ -95,8 +99,24 @@ impl SimpleComponent for PhotoInfo {
                     add_css_class: "property",
                     set_subtitle_selectable: true,
                 },
-            }
+            },
 
+            #[local_ref]
+            exif_details -> adw::PreferencesGroup {
+                #[local_ref]
+                originally_created_at -> adw::ActionRow {
+                    set_title: "Originally Created",
+                    add_css_class: "property",
+                    set_subtitle_selectable: true,
+                },
+
+                #[local_ref]
+                originally_modified_at -> adw::ActionRow {
+                    set_title: "Originally Modified",
+                    add_css_class: "property",
+                    set_subtitle_selectable: true,
+                },
+            }
         }
     }
 
@@ -108,27 +128,35 @@ impl SimpleComponent for PhotoInfo {
 
         let folder = adw::ActionRow::new();
 
-        let date_time = adw::PreferencesGroup::new();
+        let date_time_details = adw::PreferencesGroup::new();
         let created_at = adw::ActionRow::new();
         let modified_at = adw::ActionRow::new();
 
-        let image = adw::PreferencesGroup::new();
+        let image_details = adw::PreferencesGroup::new();
         let image_size = adw::ActionRow::new();
         let image_format = adw::ActionRow::new();
         let file_size = adw::ActionRow::new();
+
+        let exif_details = adw::PreferencesGroup::new();
+        let originally_created_at = adw::ActionRow::new();
+        let originally_modified_at = adw::ActionRow::new();
 
         let model = PhotoInfo {
             scanner,
             folder: folder.clone(),
 
-            date_time: date_time.clone(),
+            date_time_details: date_time_details.clone(),
             created_at: created_at.clone(),
             modified_at: modified_at.clone(),
 
-             image: image.clone(),
-             image_size: image_size.clone(),
-             image_format: image_format.clone(),
-             file_size: file_size.clone(),
+            image_details: image_details.clone(),
+            image_size: image_size.clone(),
+            image_format: image_format.clone(),
+            file_size: file_size.clone(),
+
+            exif_details: exif_details.clone(),
+            originally_created_at: originally_created_at.clone(),
+            originally_modified_at: originally_modified_at.clone(),
         };
 
         let widgets = view_output!();
@@ -160,16 +188,16 @@ impl PhotoInfo {
 
         Self::update_row(&self.folder, Self::folder_name(path));
 
-        let has_timestamps = [
-            Self::update_row(&self.created_at,  pic.created_at().map(|x| x.to_string())),
-            Self::update_row(&self.modified_at, pic.modified_at().map(|x| x.to_string())),
+        let has_date_time_details = [
+            Self::update_row(&self.created_at, pic.fs.as_ref().and_then(|fs| fs.created_at.map(|x| x.to_string()))),
+            Self::update_row(&self.modified_at, pic.fs.as_ref().and_then(|fs| fs.modified_at.map(|x| x.to_string()))),
         ]
         .into_iter()
         .any(|x| x);
 
-        self.date_time.set_visible(has_timestamps);
+        self.date_time_details.set_visible(has_date_time_details);
 
-        let has_image_info = [
+        let has_image_details = [
             Self::update_row(&self.image_size, pic.image_size.map(|x| x.to_string())),
             Self::update_row(&self.image_format, pic.image_format.map(|x| x.to_string())),
             Self::update_row(&self.file_size, pic.fs.and_then(|fs| fs.file_size_bytes.map(|x| format_size(x, DECIMAL)))),
@@ -177,7 +205,16 @@ impl PhotoInfo {
         .into_iter()
         .any(|x| x);
 
-        self.image.set_visible(has_image_info);
+        self.image_details.set_visible(has_image_details);
+
+        let has_exif_details = [
+            Self::update_row(&self.originally_created_at, pic.exif.as_ref().and_then(|exif| exif.created_at.map(|x| x.to_string()))),
+            Self::update_row(&self.originally_modified_at, pic.exif.as_ref().and_then(|exif| exif.modified_at.map(|x| x.to_string()))),
+        ]
+        .into_iter()
+        .any(|x| x);
+
+        self.exif_details.set_visible(has_exif_details);
     }
 
     /// Borrowed from Loupe.

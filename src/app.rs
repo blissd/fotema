@@ -196,6 +196,8 @@ impl SimpleComponent for App {
 
                 // Page for showing main navigation. Such as "Library", "Selfies", etc.
                 adw::NavigationPage {
+                    set_title: "Main Navigation",
+
                     #[local_ref]
                     main_navigation -> adw::OverlaySplitView {
 
@@ -225,6 +227,7 @@ impl SimpleComponent for App {
 
                         #[wrap(Some)]
                         set_content = &adw::NavigationPage {
+                            set_title: "-",
                             adw::ToolbarView {
                                 #[local_ref]
                                 add_top_bar = &header_bar -> adw::HeaderBar {
@@ -299,6 +302,7 @@ impl SimpleComponent for App {
                 // Page for showing a single photo.
                 adw::NavigationPage {
                     set_tag: Some("picture"),
+                    set_title: "-",
                     model.one_photo.widget(),
                 },
             },
