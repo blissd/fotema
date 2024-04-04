@@ -92,6 +92,9 @@ pub(super) struct App {
 
     // Activity indicator
     spinner: gtk::Spinner,
+
+    // Message banner
+    banner: adw::Banner,
 }
 
 #[derive(Debug)]
@@ -245,8 +248,14 @@ impl SimpleComponent for App {
                                 // that would show icons.
                                 // However, adw::ViewSwitch can't display vertically.
                                 #[wrap(Some)]
-                                #[local_ref]
-                                set_content = &main_stack -> gtk::Stack {
+                                set_content = &gtk::Box {
+                                    set_orientation: gtk::Orientation::Vertical,
+
+                                    #[local_ref]
+                                    banner -> adw::Banner,
+
+                                    #[local_ref]
+                                    main_stack -> gtk::Stack {
                                     connect_visible_child_notify => AppMsg::SwitchView,
 
                                     add_child = &gtk::Box {
@@ -280,6 +289,7 @@ impl SimpleComponent for App {
                                         // NOTE gtk::StackSidebar doesn't show icon :-/
                                         set_icon_name: "sentiment-very-satisfied-symbolic",
                                     },
+                                },
                                 },
                             },
                         },
@@ -387,6 +397,8 @@ impl SimpleComponent for App {
 
         let spinner = gtk::Spinner::new();
 
+        let banner = adw::Banner::new("-");
+
         let model = Self {
             scan_photos,
             generate_previews,
@@ -402,6 +414,7 @@ impl SimpleComponent for App {
             picture_navigation_view: picture_navigation_view.clone(),
             header_bar: header_bar.clone(),
             spinner: spinner.clone(),
+            banner: banner.clone(),
         };
 
         let widgets = view_output!();
@@ -428,8 +441,16 @@ impl SimpleComponent for App {
 
         widgets.load_window_size();
 
+        model.all_photos.emit(AllPhotosInput::Refresh);
+
         model.spinner.start();
+        model.banner.set_title("Scanning file system for photos.");
+        model.banner.set_revealed(true);
+
         model.scan_photos.sender().emit(ScanPhotosInput::ScanAll);
+        //        model.selfie_photos.emit(SelfiePhotosInput::Refresh);
+          //      model.month_photos.emit(MonthPhotosInput::Refresh);
+            //    model.year_photos.emit(YearPhotosInput::Refresh);
 
         ComponentParts { model, widgets }
     }
@@ -487,11 +508,13 @@ impl SimpleComponent for App {
                 self.month_photos.emit(MonthPhotosInput::Refresh);
                 self.year_photos.emit(YearPhotosInput::Refresh);
 
+                self.banner.set_title("Generating thumbnails. This will take a while.");
                 self.generate_previews.emit(GeneratePreviewsInput::Generate);
             },
             AppMsg::PreviewsGenerated => {
                 println!("Previews generated completed.");
                 self.spinner.stop();
+                self.banner.set_revealed(false);
             },
 
             AppMsg::PreviewUpdated(id, path) => {
