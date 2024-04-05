@@ -25,6 +25,21 @@ struct Widgets {
 }
 
 #[derive(Debug)]
+pub enum AlbumFilter {
+    // Show no photos
+    None,
+
+    // Show all photos
+    All,
+
+    // Show only selfies
+    Selfies,
+
+    // Show photos only for folder
+    Folder(PathBuf),
+}
+
+#[derive(Debug)]
 pub enum AlbumInput {
     /// User has selected photo in grid view
     PhotoSelected(u32), // Index into a Vec
@@ -37,6 +52,12 @@ pub enum AlbumInput {
 
     // Reload photos from database
     Refresh,
+
+    // I'd like to pass a closure of Fn(Picture)->bool for the filter... but Rust
+    // is making that too hard.
+
+    // Show no photos
+    Filter(AlbumFilter),
 }
 
 #[derive(Debug)]
@@ -89,15 +110,12 @@ impl RelmGridItem for PhotoGridItem {
 
 pub struct Album {
     repo: Arc<Mutex<photos_core::Repository>>,
-    repo_filter: Box<dyn Fn(&photos_core::repo::Picture) -> bool>,
-
     photo_grid: TypedGridView<PhotoGridItem, gtk::SingleSelection>,
-
 }
 
 #[relm4::component(pub async)]
 impl SimpleAsyncComponent for Album {
-    type Init = (Arc<Mutex<photos_core::Repository>>, Box<dyn Fn(&photos_core::repo::Picture) -> bool>);
+    type Init = (Arc<Mutex<photos_core::Repository>>, AlbumFilter);
     type Input = AlbumInput;
     type Output = AlbumOutput;
 
@@ -128,18 +146,19 @@ impl SimpleAsyncComponent for Album {
     }
 
     async fn init(
-        (repo, repo_filter): Self::Init,
+        (repo, initial_filter): Self::Init,
         _root: Self::Root,
         sender: AsyncComponentSender<Self>,
     ) -> AsyncComponentParts<Self> {
 
         let photo_grid = TypedGridView::new();
 
-        let model = Album {
+        let mut model = Album {
             repo,
-            repo_filter,
             photo_grid,
         };
+
+        model.update_filter(initial_filter);
 
         let grid_view = &model.photo_grid.view;
 
@@ -149,6 +168,9 @@ impl SimpleAsyncComponent for Album {
 
     async fn update(&mut self, msg: Self::Input, sender: AsyncComponentSender<Self>) {
         match msg {
+            AlbumInput::Filter(filter) => {
+                self.update_filter(filter);
+            },
             AlbumInput::Refresh => {
                 let all_pictures = self.repo
                     .lock()
@@ -156,14 +178,11 @@ impl SimpleAsyncComponent for Album {
                     .all()
                     .unwrap()
                     .into_iter()
-                    .filter(|pic| (self.repo_filter)(pic))
                     .map(|picture| PhotoGridItem {
                         picture,
                     });
 
                 self.photo_grid.clear();
-                self.photo_grid.clear_filters();
-
 
                 //self.photo_grid.add_filter(move |item| (self.photo_grid_filter)(&item.picture));
                 self.photo_grid.extend_from_iter(all_pictures.into_iter());
@@ -215,5 +234,45 @@ impl SimpleAsyncComponent for Album {
                 }
             },
         }
+    }
+}
+
+impl Album {
+
+    fn update_filter(&mut self, filter: AlbumFilter) {
+        match filter {
+            AlbumFilter::None => {
+                self.photo_grid.clear_filters();
+                self.photo_grid.add_filter(Album::filter_none);
+            },
+            AlbumFilter::All => {
+                self.photo_grid.clear_filters();
+                //self.photo_grid.add_filter(Album::filter_all);
+            },
+            AlbumFilter::Selfies => {
+                self.photo_grid.clear_filters();
+                self.photo_grid.add_filter(Album::filter_selfie);
+            },
+            AlbumFilter::Folder(path) => {
+                self.photo_grid.clear_filters();
+                self.photo_grid.add_filter(Album::filter_folder(path));
+            },
+        }
+    }
+
+    fn filter_all(item: &PhotoGridItem) -> bool {
+        true
+    }
+
+    fn filter_none(item: &PhotoGridItem) -> bool {
+        false
+    }
+
+    fn filter_selfie(item: &PhotoGridItem) -> bool {
+        item.picture.is_selfie
+    }
+
+    fn filter_folder(path: PathBuf) -> impl Fn(&PhotoGridItem) -> bool {
+        move |item: &PhotoGridItem| item.picture.parent_path().is_some_and(|p| p == path)
     }
 }

@@ -51,7 +51,7 @@ use self::components::{
     one_photo::{OnePhoto, OnePhotoInput},
     year_photos::{YearPhotos, YearPhotosInput, YearPhotosOutput},
     folder_photos::{FolderPhotos, FolderPhotosInput, FolderPhotosOutput,},
-    album::{Album, AlbumInput, AlbumOutput,},
+    album::{Album, AlbumInput, AlbumOutput,AlbumFilter},
 };
 
 mod background;
@@ -74,7 +74,12 @@ pub(super) struct App {
     year_photos: AsyncController<YearPhotos>,
     one_photo: Controller<OnePhoto>,
     selfie_photos: AsyncController<Album>,
+
+    // Grid of folders of photos
     folder_photos: AsyncController<FolderPhotos>,
+
+    // Album view of single folder
+    folder_album: AsyncController<Album>,
 
     // Main navigation. Parent of library stack.
     main_navigation: adw::OverlaySplitView,
@@ -294,9 +299,13 @@ impl SimpleComponent for App {
                                         set_icon_name: "sentiment-very-satisfied-symbolic",
                                     },
 
-                                    add_child = &gtk::Box {
-                                        set_orientation: gtk::Orientation::Vertical,
-                                        container_add: model.folder_photos.widget(),
+                                    add_child = &adw::NavigationView {
+                                        adw::NavigationPage {
+                                            model.folder_photos.widget(),
+                                        },
+                                        adw::NavigationPage {
+                                            model.folder_album.widget(),
+                                        },
                                     } -> {
                                         set_title: "Folders",
                                         set_name: "Folders",
@@ -367,7 +376,7 @@ impl SimpleComponent for App {
             });
 
         let all_photos = Album::builder()
-            .launch((repo.clone(), Box::new(App::filter_all_photos)))
+            .launch((repo.clone(), AlbumFilter::All))
             .forward(sender.input_sender(), |msg| match msg {
                 AlbumOutput::PhotoSelected(id) => AppMsg::ViewPhoto(id),
             });
@@ -389,7 +398,7 @@ impl SimpleComponent for App {
             .detach();
 
         let selfie_photos = Album::builder()
-            .launch((repo.clone(), Box::new(App::filter_is_selfie)))
+            .launch((repo.clone(), AlbumFilter::Selfies))
             .forward(sender.input_sender(), |msg| match msg {
                 AlbumOutput::PhotoSelected(id) => AppMsg::ViewPhoto(id),
             });
@@ -397,6 +406,12 @@ impl SimpleComponent for App {
        let folder_photos = FolderPhotos::builder()
             .launch(repo.clone())
             .detach();
+
+        let folder_album = Album::builder()
+            .launch((repo.clone(), AlbumFilter::None))
+            .forward(sender.input_sender(), |msg| match msg {
+                AlbumOutput::PhotoSelected(id) => AppMsg::ViewPhoto(id),
+            });
 
         let about_dialog = AboutDialog::builder()
             .transient_for(&root)
@@ -428,6 +443,7 @@ impl SimpleComponent for App {
             one_photo,
             selfie_photos,
             folder_photos,
+            folder_album,
             main_navigation: main_navigation.clone(),
             main_stack: main_stack.clone(),
             library_view_stack: library_view_stack.clone(),
@@ -550,8 +566,12 @@ impl SimpleComponent for App {
 }
 
 impl App {
-    fn filter_all_photos(_: &photos_core::repo::Picture) -> bool {
+    fn filter_all(_: &photos_core::repo::Picture) -> bool {
         true
+    }
+
+    fn filter_none(_: &photos_core::repo::Picture) -> bool {
+        false
     }
 
     fn filter_is_selfie(pic: &photos_core::repo::Picture) -> bool {
