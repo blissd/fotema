@@ -52,6 +52,7 @@ use self::components::{
     one_photo::{OnePhoto, OnePhotoInput},
     year_photos::{YearPhotos, YearPhotosInput, YearPhotosOutput},
     selfie_photos::{SelfiePhotos, SelfiePhotosInput, SelfiePhotosOutput,},
+    folder_photos::{FolderPhotos, FolderPhotosInput, FolderPhotosOutput,},
 };
 
 mod background;
@@ -74,11 +75,12 @@ pub(super) struct App {
     year_photos: AsyncController<YearPhotos>,
     one_photo: Controller<OnePhoto>,
     selfie_photos: AsyncController<SelfiePhotos>,
+    folder_photos: AsyncController<FolderPhotos>,
 
     // Main navigation. Parent of library stack.
     main_navigation: adw::OverlaySplitView,
 
-    // Stack containing Library, Selfies, etc.
+    // Stack containing Library, Selfies, Folders, etc.
     main_stack: gtk::Stack,
 
     // Library pages
@@ -292,6 +294,16 @@ impl SimpleComponent for App {
                                         // NOTE gtk::StackSidebar doesn't show icon :-/
                                         set_icon_name: "sentiment-very-satisfied-symbolic",
                                     },
+
+                                    add_child = &gtk::Box {
+                                        set_orientation: gtk::Orientation::Vertical,
+                                        container_add: model.folder_photos.widget(),
+                                    } -> {
+                                        set_title: "Folders",
+                                        set_name: "Folders",
+                                        // NOTE gtk::StackSidebar doesn't show icon :-/
+                                        set_icon_name: "folder-symbolic",
+                                    },
                                 },
                                 },
                             },
@@ -383,6 +395,10 @@ impl SimpleComponent for App {
                 SelfiePhotosOutput::PhotoSelected(id) => AppMsg::ViewPhoto(id),
             });
 
+       let folder_photos = FolderPhotos::builder()
+            .launch(repo.clone())
+            .detach();
+
         let about_dialog = AboutDialog::builder()
             .transient_for(&root)
             .launch(())
@@ -412,6 +428,7 @@ impl SimpleComponent for App {
             year_photos,
             one_photo,
             selfie_photos,
+            folder_photos,
             main_navigation: main_navigation.clone(),
             main_stack: main_stack.clone(),
             library_view_stack: library_view_stack.clone(),
@@ -509,6 +526,7 @@ impl SimpleComponent for App {
                 // Refresh messages cause the photos to be loaded into various photo grids
                 self.all_photos.emit(AllPhotosInput::Refresh);
                 self.selfie_photos.emit(SelfiePhotosInput::Refresh);
+                self.folder_photos.emit(FolderPhotosInput::Refresh);
                 self.month_photos.emit(MonthPhotosInput::Refresh);
                 self.year_photos.emit(YearPhotosInput::Refresh);
 

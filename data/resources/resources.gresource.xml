@@ -22,5 +22,6 @@ SPDX-License-Identifier: GPL-3.0-or-later
     <file alias="dock-left-symbolic.svg" preprocess="xml-stripblanks">../icons/dock-left-symbolic.svg</file>
     <file alias="image-alt-symbolic.svg" preprocess="xml-stripblanks">../icons/image-alt-symbolic.svg</file>
     <file alias="sentiment-very-satisfied-symbolic.svg" preprocess="xml-stripblanks">../icons/sentiment-very-satisfied-symbolic.svg</file>
+    <file alias="folder-symbolic.svg" preprocess="xml-stripblanks">../icons/folder-symbolic.svg</file>
   </gresource>
 </gresources>

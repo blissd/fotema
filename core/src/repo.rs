@@ -53,6 +53,17 @@ pub struct Picture {
 }
 
 impl Picture {
+    pub fn parent_path(&self) -> Option<PathBuf> {
+        self.path.parent().map(|x| PathBuf::from(x))
+    }
+
+    pub fn folder_name(&self) -> Option<String> {
+        self.path
+            .parent()
+            .and_then(|x| x.file_name())
+            .map(|x| x.to_string_lossy().to_string())
+    }
+
     pub fn year(&self) -> u32 {
         self.order_by_ts
             .map(|ts| ts.date_naive().year_ce().1)
