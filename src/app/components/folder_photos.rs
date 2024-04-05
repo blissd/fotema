@@ -173,6 +173,8 @@ impl SimpleAsyncComponent for FolderPhotos {
                     pictures.push(album);
                 }
 
+                pictures.sort_by_key(|pic| pic.folder_name.clone());
+
                 self.pictures_grid_view.clear();
                 self.pictures_grid_view.extend_from_iter(pictures.into_iter());
 
