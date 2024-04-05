@@ -9,12 +9,15 @@ use relm4::gtk::prelude::WidgetExt;
 use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
 use relm4::*;
 use relm4::prelude::*;
-use std::path;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
+use photos_core::YearMonth;
+use photos_core::repo::PictureId;
 
 #[derive(Debug)]
 struct PhotoGridItem {
     picture: photos_core::repo::Picture,
+    //square_preview: Option<gio::File>,
 }
 
 struct Widgets {
@@ -22,18 +25,24 @@ struct Widgets {
 }
 
 #[derive(Debug)]
-pub enum SelfiePhotosInput {
+pub enum AlbumInput {
     /// User has selected photo in grid view
-    PhotoSelected(u32), // Index into a Vec,
+    PhotoSelected(u32), // Index into a Vec
+
+    // Scroll to first photo of year/month.
+    GoToMonth(YearMonth),
+
+    // Preview has been updated
+    PreviewUpdated(PictureId, Option<PathBuf>),
 
     // Reload photos from database
     Refresh,
 }
 
 #[derive(Debug)]
-pub enum SelfiePhotosOutput {
+pub enum AlbumOutput {
     /// User has selected photo in grid view
-    PhotoSelected(photos_core::repo::PictureId),
+    PhotoSelected(PictureId),
 }
 
 impl RelmGridItem for PhotoGridItem {
@@ -74,21 +83,23 @@ impl RelmGridItem for PhotoGridItem {
     }
 
     fn unbind(&mut self, widgets: &mut Self::Widgets, _root: &mut Self::Root) {
-        widgets.picture.set_filename(None::<&path::Path>);
+        widgets.picture.set_filename(None::<&Path>);
     }
 }
 
-#[derive(Debug)]
-pub struct SelfiePhotos {
+pub struct Album {
     repo: Arc<Mutex<photos_core::Repository>>,
-    pictures_grid_view: TypedGridView<PhotoGridItem, gtk::SingleSelection>,
+    repo_filter: Box<dyn Fn(&photos_core::repo::Picture) -> bool>,
+
+    photo_grid: TypedGridView<PhotoGridItem, gtk::SingleSelection>,
+
 }
 
 #[relm4::component(pub async)]
-impl SimpleAsyncComponent for SelfiePhotos {
-    type Init = Arc<Mutex<photos_core::Repository>>;
-    type Input = SelfiePhotosInput;
-    type Output = SelfiePhotosOutput;
+impl SimpleAsyncComponent for Album {
+    type Init = (Arc<Mutex<photos_core::Repository>>, Box<dyn Fn(&photos_core::repo::Picture) -> bool>);
+    type Input = AlbumInput;
+    type Output = AlbumOutput;
 
     view! {
         gtk::Box {
@@ -103,13 +114,13 @@ impl SimpleAsyncComponent for SelfiePhotos {
                 set_vexpand: true,
 
                 #[local_ref]
-                pictures_box -> gtk::GridView {
+                grid_view -> gtk::GridView {
                     set_orientation: gtk::Orientation::Vertical,
                     set_single_click_activate: true,
                     //set_max_columns: 3,
 
                     connect_activate[sender] => move |_, idx| {
-                        sender.input(SelfiePhotosInput::PhotoSelected(idx))
+                        sender.input(AlbumInput::PhotoSelected(idx))
                     },
                 },
             },
@@ -117,20 +128,20 @@ impl SimpleAsyncComponent for SelfiePhotos {
     }
 
     async fn init(
-        repo: Self::Init,
+        (repo, repo_filter): Self::Init,
         _root: Self::Root,
         sender: AsyncComponentSender<Self>,
     ) -> AsyncComponentParts<Self> {
 
-        let grid_view_wrapper: TypedGridView<PhotoGridItem, gtk::SingleSelection> =
-            TypedGridView::new();
+        let photo_grid = TypedGridView::new();
 
-        let model = SelfiePhotos {
+        let model = Album {
             repo,
-            pictures_grid_view: grid_view_wrapper,
+            repo_filter,
+            photo_grid,
         };
 
-        let pictures_box = &model.pictures_grid_view.view;
+        let grid_view = &model.photo_grid.view;
 
         let widgets = view_output!();
         AsyncComponentParts { model, widgets }
@@ -138,35 +149,71 @@ impl SimpleAsyncComponent for SelfiePhotos {
 
     async fn update(&mut self, msg: Self::Input, sender: AsyncComponentSender<Self>) {
         match msg {
-            SelfiePhotosInput::Refresh => {
+            AlbumInput::Refresh => {
                 let all_pictures = self.repo
                     .lock()
                     .unwrap()
                     .all()
                     .unwrap()
                     .into_iter()
-                    .filter(|p| p.is_selfie)
+                    .filter(|pic| (self.repo_filter)(pic))
                     .map(|picture| PhotoGridItem {
                         picture,
                     });
 
-                self.pictures_grid_view.clear();
-                self.pictures_grid_view.extend_from_iter(all_pictures.into_iter());
+                self.photo_grid.clear();
+                self.photo_grid.clear_filters();
 
-                if !self.pictures_grid_view.is_empty(){
-                    self.pictures_grid_view.view
-                        .scroll_to(self.pictures_grid_view.len() - 1, gtk::ListScrollFlags::SELECT, None);
+
+                //self.photo_grid.add_filter(move |item| (self.photo_grid_filter)(&item.picture));
+                self.photo_grid.extend_from_iter(all_pictures.into_iter());
+
+                if !self.photo_grid.is_empty(){
+                    self.photo_grid.view
+                        .scroll_to(self.photo_grid.len() - 1, gtk::ListScrollFlags::SELECT, None);
                 }
             },
-            SelfiePhotosInput::PhotoSelected(index) => {
-                if let Some(item) = self.pictures_grid_view.get(index) {
+            AlbumInput::PhotoSelected(index) => {
+                if let Some(item) = self.photo_grid.get(index) {
                     let picture_id = item.borrow().picture.picture_id;
                     println!("index {} has picture_id {}", index, picture_id);
-                    let result = sender.output(SelfiePhotosOutput::PhotoSelected(picture_id));
+                    let result = sender.output(AlbumOutput::PhotoSelected(picture_id));
                     println!("Result = {:?}", result);
+                }
+            },
+            AlbumInput::GoToMonth(ym) => {
+                println!("Showing for month: {}", ym);
+                let index_opt = self.photo_grid.find(|p| p.picture.year_month() == ym);
+                println!("Found: {:?}", index_opt);
+                if let Some(index) = index_opt {
+                    let flags = gtk::ListScrollFlags::SELECT;
+                    println!("Scrolling to {}", index);
+                    self.photo_grid.view.scroll_to(index, flags, None);
+                }
+            },
+            AlbumInput::PreviewUpdated(id, path) => {
+                println!("Preview updated ");
+
+                if self.photo_grid.is_empty() {
+                    // WARN calling find() on an empty grid causes a crash without
+                    // a stack trace :-/
+                    return;
+                }
+
+                let Some(index) = self.photo_grid.find(|p| p.picture.picture_id == id) else {
+                    println!("No index for picture id: {}", id);
+                    return;
+                };
+
+                let Some(item) = self.photo_grid.get(index) else {
+                    return;
+                };
+
+                {
+                    let mut item = item.borrow_mut();
+                    item.picture.square_preview_path = path;
                 }
             },
         }
     }
 }
-

@@ -47,12 +47,11 @@ mod components;
 
 use self::components::{
     about::AboutDialog,
-    all_photos::{AllPhotos, AllPhotosInput, AllPhotosOutput},
     month_photos::{MonthPhotos, MonthPhotosOutput, MonthPhotosInput},
     one_photo::{OnePhoto, OnePhotoInput},
     year_photos::{YearPhotos, YearPhotosInput, YearPhotosOutput},
-    selfie_photos::{SelfiePhotos, SelfiePhotosInput, SelfiePhotosOutput,},
     folder_photos::{FolderPhotos, FolderPhotosInput, FolderPhotosOutput,},
+    album::{Album, AlbumInput, AlbumOutput,},
 };
 
 mod background;
@@ -70,11 +69,11 @@ pub(super) struct App {
     scan_photos: WorkerController<ScanPhotos>,
     generate_previews: WorkerController<GeneratePreviews>,
     about_dialog: Controller<AboutDialog>,
-    all_photos: AsyncController<AllPhotos>,
+    all_photos: AsyncController<Album>,
     month_photos: AsyncController<MonthPhotos>,
     year_photos: AsyncController<YearPhotos>,
     one_photo: Controller<OnePhoto>,
-    selfie_photos: AsyncController<SelfiePhotos>,
+    selfie_photos: AsyncController<Album>,
     folder_photos: AsyncController<FolderPhotos>,
 
     // Main navigation. Parent of library stack.
@@ -367,10 +366,10 @@ impl SimpleComponent for App {
                 GeneratePreviewsOutput::PreviewUpdated(id, path) => AppMsg::PreviewUpdated(id, path),
             });
 
-        let all_photos = AllPhotos::builder()
-            .launch(repo.clone())
+        let all_photos = Album::builder()
+            .launch((repo.clone(), Box::new(App::filter_all_photos)))
             .forward(sender.input_sender(), |msg| match msg {
-                AllPhotosOutput::PhotoSelected(id) => AppMsg::ViewPhoto(id),
+                AlbumOutput::PhotoSelected(id) => AppMsg::ViewPhoto(id),
             });
 
         let month_photos = MonthPhotos::builder()
@@ -389,10 +388,10 @@ impl SimpleComponent for App {
             .launch((scan.clone(), repo.clone()))
             .detach();
 
-        let selfie_photos = SelfiePhotos::builder()
-            .launch(repo.clone())
+        let selfie_photos = Album::builder()
+            .launch((repo.clone(), Box::new(App::filter_is_selfie)))
             .forward(sender.input_sender(), |msg| match msg {
-                SelfiePhotosOutput::PhotoSelected(id) => AppMsg::ViewPhoto(id),
+                AlbumOutput::PhotoSelected(id) => AppMsg::ViewPhoto(id),
             });
 
        let folder_photos = FolderPhotos::builder()
@@ -462,7 +461,7 @@ impl SimpleComponent for App {
 
         widgets.load_window_size();
 
-        model.all_photos.emit(AllPhotosInput::Refresh);
+        model.all_photos.emit(AlbumInput::Refresh);
 
         model.spinner.start();
         model.banner.set_title("Scanning file system for photos.");
@@ -513,7 +512,7 @@ impl SimpleComponent for App {
             AppMsg::GoToMonth(ym) => {
                 // Display all photos view.
                 self.library_view_stack.set_visible_child_name("all");
-                self.all_photos.emit(AllPhotosInput::GoToMonth(ym));
+                self.all_photos.emit(AlbumInput::GoToMonth(ym));
             },
             AppMsg::GoToYear(year) => {
                 // Display month photos view.
@@ -524,8 +523,8 @@ impl SimpleComponent for App {
                 println!("Scan all completed msg received.");
 
                 // Refresh messages cause the photos to be loaded into various photo grids
-                self.all_photos.emit(AllPhotosInput::Refresh);
-                self.selfie_photos.emit(SelfiePhotosInput::Refresh);
+                self.all_photos.emit(AlbumInput::Refresh);
+                self.selfie_photos.emit(AlbumInput::Refresh);
                 self.folder_photos.emit(FolderPhotosInput::Refresh);
                 self.month_photos.emit(MonthPhotosInput::Refresh);
                 self.year_photos.emit(YearPhotosInput::Refresh);
@@ -540,13 +539,23 @@ impl SimpleComponent for App {
             },
 
             AppMsg::PreviewUpdated(id, path) => {
-                self.all_photos.emit(AllPhotosInput::PreviewUpdated(id, path));
+                self.all_photos.emit(AlbumInput::PreviewUpdated(id, path));
             },
         }
     }
 
     fn shutdown(&mut self, widgets: &mut Self::Widgets, _output: relm4::Sender<Self::Output>) {
         widgets.save_window_size().unwrap();
+    }
+}
+
+impl App {
+    fn filter_all_photos(_: &photos_core::repo::Picture) -> bool {
+        true
+    }
+
+    fn filter_is_selfie(pic: &photos_core::repo::Picture) -> bool {
+        pic.is_selfie
     }
 }
 
