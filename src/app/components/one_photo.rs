@@ -65,14 +65,10 @@ impl SimpleComponent for OnePhoto {
                 set_sidebar_position: gtk::PackType::End,
 
                 #[wrap(Some)]
-                set_content = &gtk::Box {
-                    set_orientation: gtk::Orientation::Vertical,
-
-                    #[local_ref]
-                    picture -> gtk::Picture {
-                        set_can_shrink: true,
-                        set_valign: gtk::Align::Center,
-                    }
+                #[local_ref]
+                set_content = &picture -> gtk::Picture {
+                    set_can_shrink: true,
+                    set_valign: gtk::Align::Center,
                 }
             }
         }
