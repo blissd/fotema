@@ -11,8 +11,14 @@ use relm4::gtk::prelude::WidgetExt;
 use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
 use relm4::*;
 use relm4::prelude::*;
+use relm4::adw::prelude::NavigationPageExt;
+
 use std::path;
 use std::sync::{Arc, Mutex};
+
+use crate::app::components::album::{
+    Album, AlbumInput, AlbumFilter,
+};
 
 #[derive(Debug)]
 struct PhotoGridItem {
@@ -98,7 +104,9 @@ impl RelmGridItem for PhotoGridItem {
 
 pub struct FolderPhotos {
     repo: Arc<Mutex<photos_core::Repository>>,
+    navigation: adw::NavigationView,
     photo_grid: TypedGridView<PhotoGridItem, gtk::SingleSelection>,
+    album: AsyncController<Album>,
 }
 
 #[relm4::component(pub async)]
@@ -113,22 +121,39 @@ impl SimpleAsyncComponent for FolderPhotos {
             set_spacing: 0,
             set_margin_all: 0,
 
-            gtk::ScrolledWindow {
-                //set_propagate_natural_height: true,
-                //set_has_frame: true,
-                set_vexpand: true,
+            #[local_ref]
+            navigation -> adw::NavigationView {
+                set_pop_on_escape: true,
 
-                #[local_ref]
-                pictures_box -> gtk::GridView {
-                    set_orientation: gtk::Orientation::Vertical,
-                    set_single_click_activate: true,
-                    //set_max_columns: 3,
+                adw::NavigationPage {
+                    gtk::ScrolledWindow {
+                        //set_propagate_natural_height: true,
+                        //set_has_frame: true,
+                        set_vexpand: true,
 
-                    connect_activate[sender] => move |_, idx| {
-                        sender.input(FolderPhotosInput::FolderSelected(idx))
-                    },
+                        #[local_ref]
+                        pictures_box -> gtk::GridView {
+                            set_orientation: gtk::Orientation::Vertical,
+                            set_single_click_activate: true,
+                            //set_max_columns: 3,
+
+                            connect_activate[sender] => move |_, idx| {
+                                sender.input(FolderPhotosInput::FolderSelected(idx))
+                            }
+                        }
+                    }
                 },
-            },
+
+                adw::NavigationPage {
+                    set_tag: Some("album"),
+                    set_title: "-",
+
+                    gtk::ScrolledWindow {
+                        set_vexpand: true,
+                        model.album.widget(),
+                    }
+                }
+            }
         }
     }
 
@@ -138,16 +163,27 @@ impl SimpleAsyncComponent for FolderPhotos {
         sender: AsyncComponentSender<Self>,
     ) -> AsyncComponentParts<Self> {
 
+        let navigation = adw::NavigationView::new();
+
         let photo_grid = TypedGridView::new();
+
+        let album = Album::builder()
+            .launch((repo.clone(), AlbumFilter::None))
+            .detach();
 
         let model = FolderPhotos {
             repo,
+            navigation: navigation.clone(),
             photo_grid,
+            album,
         };
 
         let pictures_box = &model.photo_grid.view;
 
         let widgets = view_output!();
+
+        model.album.emit(AlbumInput::Refresh); // trigger load of photos
+
         AsyncComponentParts { model, widgets }
     }
 
@@ -158,6 +194,15 @@ impl SimpleAsyncComponent for FolderPhotos {
                 if let Some(item) = self.photo_grid.get(index) {
                     let item = item.borrow();
                     println!("Folder selected item: {}", item.folder_name);
+
+                    // Configure album view for selected folder.
+                    if let Some(folder_path) = item.picture.parent_path() {
+                        let filter = AlbumFilter::Folder(folder_path);
+                        self.album.emit(AlbumInput::Filter(filter));
+                    }
+
+                    // Switch to album view.
+                    self.navigation.push_by_tag("album");
                 }
             },
             FolderPhotosInput::Refresh => {
