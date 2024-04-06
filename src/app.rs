@@ -78,6 +78,11 @@ pub(super) struct App {
     // Grid of folders of photos
     folder_photos: AsyncController<FolderPhotos>,
 
+    // Folder album currently being viewed
+    folder_album: AsyncController<Album>,
+
+    folder_navigation_view: adw::NavigationView,
+
     // Main navigation. Parent of library stack.
     main_navigation: adw::OverlaySplitView,
 
@@ -112,6 +117,8 @@ pub(super) enum AppMsg {
 
     // Show photo for ID.
     ViewPhoto(PictureId),
+
+    ViewFolder(PathBuf),
 
     // Scroll to first photo in month
     GoToMonth(YearMonth),
@@ -297,7 +304,15 @@ impl SimpleComponent for App {
                                     },
 
                                     #[local_ref]
-                                    add_child = &folder_photos_view -> gtk::Box{} -> {
+                                    add_child = &folder_navigation_view -> adw::NavigationView {
+                                        set_pop_on_escape: true,
+
+                                        adw::NavigationPage {
+                                            //set_tag: Some("folders"),
+                                            //set_title: "Folder",
+                                            model.folder_photos.widget(),
+                                        },
+                                    } -> {
                                         set_title: "Folders",
                                         set_name: "Folders",
                                         // NOTE gtk::StackSidebar doesn't show icon :-/
@@ -308,6 +323,23 @@ impl SimpleComponent for App {
                             },
                         },
                     },
+                },
+
+                adw::NavigationPage {
+                    set_tag: Some("album"),
+                    set_title: "-",
+                    adw::ToolbarView {
+                        add_top_bar = &adw::HeaderBar {
+                            #[wrap(Some)]
+                            set_title_widget = &gtk::Label {
+                                set_label: "Folder", // TODO set title to folder name
+                                add_css_class: "title",
+                            }
+                        },
+
+                        #[wrap(Some)]
+                        set_content = model.folder_album.widget(),
+                    }
                 },
 
                 // Page for showing a single photo.
@@ -331,7 +363,6 @@ impl SimpleComponent for App {
         let cache_dir = glib::user_cache_dir().join("photo-romantic");
         let _ = std::fs::create_dir_all(&cache_dir);
 
-        // TODO use XDG_PICTURES_DIR as the default, but let users override in preferences.
         let pic_base_dir = glib::user_special_dir(glib::enums::UserDirectory::Pictures)
             .expect("Expect XDG_PICTURES_DIR");
 
@@ -397,10 +428,16 @@ impl SimpleComponent for App {
        let folder_photos = FolderPhotos::builder()
             .launch(repo.clone())
             .forward(sender.input_sender(), |msg| match msg {
-                FolderPhotosOutput::PhotoSelected(id) => AppMsg::ViewPhoto(id),
+                FolderPhotosOutput::FolderSelected(path) => AppMsg::ViewFolder(path),
             });
 
-        let folder_photos_view = folder_photos.widget().clone();
+       let folder_album = Album::builder()
+            .launch((repo.clone(), AlbumFilter::None))
+            .forward(sender.input_sender(), |msg| match msg {
+                AlbumOutput::PhotoSelected(id) => AppMsg::ViewPhoto(id),
+            });
+
+        folder_album.emit(AlbumInput::Refresh); // initial photo
 
         let about_dialog = AboutDialog::builder()
             .transient_for(&root)
@@ -411,6 +448,8 @@ impl SimpleComponent for App {
         let library_view_stack = adw::ViewStack::new();
 
         let picture_navigation_view = adw::NavigationView::builder().build();
+
+        let folder_navigation_view = adw::NavigationView::builder().build();
 
         let main_navigation = adw::OverlaySplitView::builder().build();
 
@@ -432,6 +471,8 @@ impl SimpleComponent for App {
             one_photo,
             selfie_photos,
             folder_photos,
+            folder_album,
+            folder_navigation_view: folder_navigation_view.clone(),
             main_navigation: main_navigation.clone(),
             main_stack: main_stack.clone(),
             library_view_stack: library_view_stack.clone(),
@@ -512,6 +553,11 @@ impl SimpleComponent for App {
 
                 // Display navigation page for viewing an individual photo.
                 self.picture_navigation_view.push_by_tag("picture");
+            },
+            AppMsg::ViewFolder(path) => {
+                self.folder_album.emit(AlbumInput::Filter(AlbumFilter::Folder(path)));
+                //self.folder_album
+                self.picture_navigation_view.push_by_tag("album");
             },
             AppMsg::GoToMonth(ym) => {
                 // Display all photos view.
