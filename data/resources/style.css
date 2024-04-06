@@ -8,3 +8,15 @@
   font-size: 36px;
   font-weight: bold;
 }
+
+/* Year photo grid frame around year labels */
+.photo-grid-year-frame{
+  background-color: rgba(0, 0, 0, 0.4);
+}
+
+/* Year photo grid frame label */
+.photo-grid-year-label{
+  color: rgba(255,255,255,0.8);
+  font-weight: bold;
+  font-size: 18px;
+}

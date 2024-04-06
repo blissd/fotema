@@ -8,6 +8,7 @@ use photos_core;
 use itertools::Itertools;
 use relm4::gtk;
 use relm4::gtk::prelude::WidgetExt;
+use relm4::gtk::prelude::FrameExt;
 use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
 use relm4::*;
 use relm4::prelude::*;
@@ -39,22 +40,31 @@ struct Widgets {
 }
 
 impl RelmGridItem for PhotoGridItem {
-    type Root = gtk::Box;
+    type Root = gtk::Overlay;
     type Widgets = Widgets;
 
-    fn setup(_item: &gtk::ListItem) -> (gtk::Box, Widgets) {
+    fn setup(_item: &gtk::ListItem) -> (Self::Root, Self::Widgets) {
         relm4::view! {
-           my_box = gtk::Box {
-                set_orientation: gtk::Orientation::Vertical,
-                set_margin_top: 12,
+           my_box = gtk::Overlay {
+               // set_orientation: gtk::Orientation::Vertical,
+               // set_margin_top: 12,
 
-                #[name(label)]
-                gtk::Label {
-                    add_css_class: "caption-heading",
-                    set_margin_bottom: 4
+                add_overlay =  &gtk::Frame {
+                    set_halign: gtk::Align::Start,
+                    set_valign: gtk::Align::Start,
+                    set_margin_start: 12,
+                    set_margin_top: 8,
+                    add_css_class: "photo-grid-year-frame",
+
+                    #[wrap(Some)]
+                    #[name(label)]
+                    set_child = &gtk::Label{
+                        add_css_class: "photo-grid-year-label",
+                    },
                 },
 
-                adw::Clamp {
+                #[wrap(Some)]
+                set_child = &adw::Clamp {
                     set_maximum_size: 200,
 
                     gtk::Frame {
@@ -79,7 +89,12 @@ impl RelmGridItem for PhotoGridItem {
     fn bind(&mut self, widgets: &mut Self::Widgets, _root: &mut Self::Root) {
         widgets
             .label
-            .set_label(format!("{}", self.picture.year()).as_str());
+            .set_text(format!("{}", self.picture.year()).as_str());
+            //.set_markup(format!("<span foreground='white' alpha='100%' size='large' weight='bold'>{}</span>", self.picture.year()).as_str());
+
+       // widgets
+         //   .under_label
+           // .set_markup(format!("<span foreground='black' alpha='100%' size='large' weight='bold'>{}</span>", self.picture.year()).as_str());
 
         if self.picture.square_preview_path.as_ref().is_some_and(|f|f.exists()) {
             widgets
