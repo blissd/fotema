@@ -168,16 +168,12 @@ impl SimpleAsyncComponent for Album {
                     // last item if filters are enabled. So as a workaround disable filters,
                     // scroll to end, and then enable filters.
 
-                    for i in 0..(self.photo_grid.filters_len()) {
-                        self.photo_grid.set_filter_status(i, false);
-                    }
+                    self.disable_filters();
 
                     self.photo_grid.view
                         .scroll_to(self.photo_grid.len() - 1, gtk::ListScrollFlags::SELECT, None);
 
-                     for i in 0..(self.photo_grid.filters_len()) {
-                        self.photo_grid.set_filter_status(i, true);
-                    }
+                    self.enable_filters();
                 }
             },
             AlbumInput::PhotoSelected(index) => {
@@ -228,6 +224,18 @@ impl SimpleAsyncComponent for Album {
 }
 
 impl Album {
+
+    fn disable_filters(&mut self) {
+        for i in 0..(self.photo_grid.filters_len()) {
+            self.photo_grid.set_filter_status(i, false);
+        }
+    }
+
+    fn enable_filters(&mut self) {
+        for i in 0..(self.photo_grid.filters_len()) {
+            self.photo_grid.set_filter_status(i, true);
+        }
+    }
 
     fn update_filter(&mut self, filter: AlbumFilter) {
         self.photo_grid.clear_filters();
