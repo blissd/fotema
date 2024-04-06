@@ -53,11 +53,12 @@ impl RelmGridItem for PhotoGridItem {
         relm4::view! {
            my_box = gtk::Box {
                 set_orientation: gtk::Orientation::Vertical,
-                set_margin_all: 1,
+                set_margin_top: 12,
 
                 #[name(label)]
                 gtk::Label {
                     add_css_class: "caption-heading",
+                    set_margin_bottom: 4,
                 },
 
                 adw::Clamp {
