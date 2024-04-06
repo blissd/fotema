@@ -122,25 +122,19 @@ impl SimpleAsyncComponent for MonthPhotos {
     type Output = MonthPhotosOutput;
 
     view! {
-        gtk::Box {
-            set_orientation: gtk::Orientation::Vertical,
-            set_spacing: 0,
-            set_margin_all: 0,
+        gtk::ScrolledWindow {
+            //set_propagate_natural_height: true,
+            //set_has_frame: true,
+            set_vexpand: true,
 
-            gtk::ScrolledWindow {
-                //set_propagate_natural_height: true,
-                //set_has_frame: true,
-                set_vexpand: true,
+            #[local_ref]
+            photo_grid_view -> gtk::GridView {
+                set_orientation: gtk::Orientation::Vertical,
+                set_single_click_activate: true,
+                //set_max_columns: 3,
 
-                #[local_ref]
-                photo_grid_view -> gtk::GridView {
-                    set_orientation: gtk::Orientation::Vertical,
-                    set_single_click_activate: true,
-                    //set_max_columns: 3,
-
-                    connect_activate[sender] => move |_, idx| {
-                        sender.input(MonthPhotosInput::MonthSelected(idx))
-                    },
+                connect_activate[sender] => move |_, idx| {
+                    sender.input(MonthPhotosInput::MonthSelected(idx))
                 },
             },
         }
