@@ -8,9 +8,11 @@ use photos_core;
 use itertools::Itertools;
 use relm4::gtk;
 use relm4::gtk::prelude::WidgetExt;
+use relm4::gtk::prelude::FrameExt;
 use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
 use relm4::*;
 use relm4::prelude::*;
+
 use std::path;
 use std::sync::{Arc, Mutex};
 use photos_core::YearMonth;
@@ -43,22 +45,31 @@ pub enum MonthPhotosOutput {
 }
 
 impl RelmGridItem for PhotoGridItem {
-    type Root = gtk::Box;
+    type Root = gtk::Overlay;
     type Widgets = Widgets;
 
-    fn setup(_item: &gtk::ListItem) -> (gtk::Box, Widgets) {
+    fn setup(_item: &gtk::ListItem) -> (Self::Root, Self::Widgets) {
         relm4::view! {
-           my_box = gtk::Box {
-                set_orientation: gtk::Orientation::Vertical,
-                set_margin_top: 12,
+           my_box = gtk::Overlay {
+               // set_orientation: gtk::Orientation::Vertical,
+               // set_margin_top: 12,
 
-                #[name(label)]
-                gtk::Label {
-                    add_css_class: "caption-heading",
-                    set_margin_bottom: 4,
+                add_overlay =  &gtk::Frame {
+                    set_halign: gtk::Align::Start,
+                    set_valign: gtk::Align::Start,
+                    set_margin_start: 12,
+                    set_margin_top: 8,
+                    add_css_class: "photo-grid-month-frame",
+
+                    #[wrap(Some)]
+                    #[name(label)]
+                    set_child = &gtk::Label{
+                        add_css_class: "photo-grid-month-label",
+                    },
                 },
 
-                adw::Clamp {
+                #[wrap(Some)]
+                set_child = &adw::Clamp {
                     set_maximum_size: 200,
 
                     gtk::Frame {

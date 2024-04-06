@@ -90,11 +90,6 @@ impl RelmGridItem for PhotoGridItem {
         widgets
             .label
             .set_text(format!("{}", self.picture.year()).as_str());
-            //.set_markup(format!("<span foreground='white' alpha='100%' size='large' weight='bold'>{}</span>", self.picture.year()).as_str());
-
-       // widgets
-         //   .under_label
-           // .set_markup(format!("<span foreground='black' alpha='100%' size='large' weight='bold'>{}</span>", self.picture.year()).as_str());
 
         if self.picture.square_preview_path.as_ref().is_some_and(|f|f.exists()) {
             widgets

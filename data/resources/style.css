@@ -20,3 +20,15 @@
   font-weight: bold;
   font-size: 18px;
 }
+
+/* Month photo grid frame around year labels */
+.photo-grid-month-frame{
+  background-color: rgba(0, 0, 0, 0.4);
+}
+
+/* Month photo grid frame label */
+.photo-grid-month-label{
+  color: rgba(255,255,255,0.8);
+  font-weight: bold;
+  font-size: 14px;
+}
