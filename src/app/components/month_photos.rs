@@ -104,7 +104,7 @@ impl RelmGridItem for PhotoGridItem {
 
 pub struct MonthPhotos {
     repo: Arc<Mutex<photos_core::Repository>>,
-    pictures_grid_view: TypedGridView<PhotoGridItem, gtk::SingleSelection>,
+    photo_grid: TypedGridView<PhotoGridItem, gtk::SingleSelection>,
 }
 
 #[relm4::component(pub async)]
@@ -125,7 +125,7 @@ impl SimpleAsyncComponent for MonthPhotos {
                 set_vexpand: true,
 
                 #[local_ref]
-                pictures_box -> gtk::GridView {
+                photo_grid_view -> gtk::GridView {
                     set_orientation: gtk::Orientation::Vertical,
                     set_single_click_activate: true,
                     //set_max_columns: 3,
@@ -144,15 +144,14 @@ impl SimpleAsyncComponent for MonthPhotos {
         sender: AsyncComponentSender<Self>,
     ) -> AsyncComponentParts<Self> {
 
-        let grid_view_wrapper: TypedGridView<PhotoGridItem, gtk::SingleSelection> =
-            TypedGridView::new();
+        let photo_grid = TypedGridView::new();
 
         let model = MonthPhotos {
             repo,
-            pictures_grid_view: grid_view_wrapper,
+            photo_grid,
         };
 
-        let pictures_box = &model.pictures_grid_view.view;
+        let photo_grid_view = &model.photo_grid.view;
 
         let widgets = view_output!();
         AsyncComponentParts { model, widgets }
@@ -171,16 +170,16 @@ impl SimpleAsyncComponent for MonthPhotos {
                     picture,
                 });
 
-                self.pictures_grid_view.clear();
-                self.pictures_grid_view.extend_from_iter(all_pictures.into_iter());
+                self.photo_grid.clear();
+                self.photo_grid.extend_from_iter(all_pictures.into_iter());
 
-                if !self.pictures_grid_view.is_empty(){
-                    self.pictures_grid_view.view
-                        .scroll_to(self.pictures_grid_view.len() - 1, gtk::ListScrollFlags::SELECT, None);
+                if !self.photo_grid.is_empty(){
+                    self.photo_grid.view
+                        .scroll_to(self.photo_grid.len() - 1, gtk::ListScrollFlags::SELECT, None);
                 }
             },
             MonthPhotosInput::MonthSelected(index) => {
-                if let Some(item) = self.pictures_grid_view.get(index) {
+                if let Some(item) = self.photo_grid.get(index) {
                     let ym = item.borrow().picture.year_month();
                     println!("index {} has year_month {}", index, ym);
                     let result = sender.output(MonthPhotosOutput::MonthSelected(ym));
@@ -189,12 +188,12 @@ impl SimpleAsyncComponent for MonthPhotos {
             }
            MonthPhotosInput::GoToYear(year) => {
                 println!("Showing for year: {}", year);
-                let index_opt = self.pictures_grid_view.find(|p| p.picture.year_month().year == year);
+                let index_opt = self.photo_grid.find(|p| p.picture.year_month().year == year);
                 println!("Found: {:?}", index_opt);
                 if let Some(index) = index_opt {
                     let flags = gtk::ListScrollFlags::SELECT;
                     println!("Scrolling to {}", index);
-                    self.pictures_grid_view.view.scroll_to(index, flags, None);
+                    self.photo_grid.view.scroll_to(index, flags, None);
                 }
             }
         }
