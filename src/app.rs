@@ -267,55 +267,55 @@ impl SimpleComponent for App {
 
                                     #[local_ref]
                                     main_stack -> gtk::Stack {
-                                    connect_visible_child_notify => AppMsg::SwitchView,
+                                        connect_visible_child_notify => AppMsg::SwitchView,
 
-                                    add_child = &gtk::Box {
-                                        set_orientation: gtk::Orientation::Vertical,
+                                        add_child = &gtk::Box {
+                                            set_orientation: gtk::Orientation::Vertical,
 
-                                        #[local_ref]
-                                        library_view_stack -> adw::ViewStack {
-                                            add_titled_with_icon[Some("all"), "All", "playlist-infinite-symbolic"] = model.all_photos.widget(),
-                                            add_titled_with_icon[Some("month"), "Month", "month-symbolic"] = model.month_photos.widget(),
-                                            add_titled_with_icon[Some("year"), "Year", "year-symbolic"] = model.year_photos.widget(),
+                                            #[local_ref]
+                                            library_view_stack -> adw::ViewStack {
+                                                add_titled_with_icon[Some("all"), "All", "playlist-infinite-symbolic"] = model.all_photos.widget(),
+                                                add_titled_with_icon[Some("month"), "Month", "month-symbolic"] = model.month_photos.widget(),
+                                                add_titled_with_icon[Some("year"), "Year", "year-symbolic"] = model.year_photos.widget(),
+                                            },
+
+                                            #[name(switcher_bar)]
+                                            adw::ViewSwitcherBar {
+                                                set_stack: Some(&library_view_stack),
+                                            },
+                                        } -> {
+                                            set_title: "Library",
+                                            set_name: "Library",
+
+                                            // NOTE gtk::StackSidebar doesn't show icon :-/
+                                            set_icon_name: "image-alt-symbolic",
                                         },
 
-                                        #[name(switcher_bar)]
-                                        adw::ViewSwitcherBar {
-                                            set_stack: Some(&library_view_stack),
+                                        add_child = &gtk::Box {
+                                            set_orientation: gtk::Orientation::Vertical,
+                                            container_add: model.selfie_photos.widget(),
+                                        } -> {
+                                            set_title: "Selfies",
+                                            set_name: "Selfies",
+                                            // NOTE gtk::StackSidebar doesn't show icon :-/
+                                            set_icon_name: "sentiment-very-satisfied-symbolic",
                                         },
-                                    } -> {
-                                        set_title: "Library",
-                                        set_name: "Library",
 
-                                        // NOTE gtk::StackSidebar doesn't show icon :-/
-                                        set_icon_name: "image-alt-symbolic",
-                                    },
+                                        add_child = &adw::NavigationView {
+                                            set_pop_on_escape: true,
 
-                                    add_child = &gtk::Box {
-                                        set_orientation: gtk::Orientation::Vertical,
-                                        container_add: model.selfie_photos.widget(),
-                                    } -> {
-                                        set_title: "Selfies",
-                                        set_name: "Selfies",
-                                        // NOTE gtk::StackSidebar doesn't show icon :-/
-                                        set_icon_name: "sentiment-very-satisfied-symbolic",
-                                    },
-
-                                    add_child = &adw::NavigationView {
-                                        set_pop_on_escape: true,
-
-                                        adw::NavigationPage {
-                                            //set_tag: Some("folders"),
-                                            //set_title: "Folder",
-                                            model.folder_photos.widget(),
+                                            adw::NavigationPage {
+                                                //set_tag: Some("folders"),
+                                                //set_title: "Folder",
+                                                model.folder_photos.widget(),
+                                            },
+                                        } -> {
+                                            set_title: "Folders",
+                                            set_name: "Folders",
+                                            // NOTE gtk::StackSidebar doesn't show icon :-/
+                                            set_icon_name: "folder-symbolic",
                                         },
-                                    } -> {
-                                        set_title: "Folders",
-                                        set_name: "Folders",
-                                        // NOTE gtk::StackSidebar doesn't show icon :-/
-                                        set_icon_name: "folder-symbolic",
                                     },
-                                },
                                 },
                             },
                         },
