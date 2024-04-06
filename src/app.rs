@@ -81,8 +81,6 @@ pub(super) struct App {
     // Folder album currently being viewed
     folder_album: AsyncController<Album>,
 
-    folder_navigation_view: adw::NavigationView,
-
     // Main navigation. Parent of library stack.
     main_navigation: adw::OverlaySplitView,
 
@@ -303,8 +301,7 @@ impl SimpleComponent for App {
                                         set_icon_name: "sentiment-very-satisfied-symbolic",
                                     },
 
-                                    #[local_ref]
-                                    add_child = &folder_navigation_view -> adw::NavigationView {
+                                    add_child = &adw::NavigationView {
                                         set_pop_on_escape: true,
 
                                         adw::NavigationPage {
@@ -449,8 +446,6 @@ impl SimpleComponent for App {
 
         let picture_navigation_view = adw::NavigationView::builder().build();
 
-        let folder_navigation_view = adw::NavigationView::builder().build();
-
         let main_navigation = adw::OverlaySplitView::builder().build();
 
         let main_stack = gtk::Stack::new();
@@ -472,7 +467,6 @@ impl SimpleComponent for App {
             selfie_photos,
             folder_photos,
             folder_album,
-            folder_navigation_view: folder_navigation_view.clone(),
             main_navigation: main_navigation.clone(),
             main_stack: main_stack.clone(),
             library_view_stack: library_view_stack.clone(),
@@ -596,20 +590,6 @@ impl SimpleComponent for App {
 
     fn shutdown(&mut self, widgets: &mut Self::Widgets, _output: relm4::Sender<Self::Output>) {
         widgets.save_window_size().unwrap();
-    }
-}
-
-impl App {
-    fn filter_all(_: &photos_core::repo::Picture) -> bool {
-        true
-    }
-
-    fn filter_none(_: &photos_core::repo::Picture) -> bool {
-        false
-    }
-
-    fn filter_is_selfie(pic: &photos_core::repo::Picture) -> bool {
-        pic.is_selfie
     }
 }
 
