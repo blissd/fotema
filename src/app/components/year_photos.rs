@@ -45,7 +45,7 @@ impl RelmGridItem for PhotoGridItem {
 
     fn setup(_item: &gtk::ListItem) -> (Self::Root, Self::Widgets) {
         relm4::view! {
-            my_box = adw::Clamp {
+            root = adw::Clamp {
                 set_maximum_size: 200,
                 gtk::Overlay {
                     add_overlay =  &gtk::Frame {
@@ -79,7 +79,7 @@ impl RelmGridItem for PhotoGridItem {
 
         let widgets = Widgets { picture, label };
 
-        (my_box, widgets)
+        (root, widgets)
     }
 
     fn bind(&mut self, widgets: &mut Self::Widgets, _root: &mut Self::Root) {

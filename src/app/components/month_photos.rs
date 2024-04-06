@@ -45,41 +45,37 @@ pub enum MonthPhotosOutput {
 }
 
 impl RelmGridItem for PhotoGridItem {
-    type Root = gtk::Overlay;
+    type Root = adw::Clamp;
     type Widgets = Widgets;
 
     fn setup(_item: &gtk::ListItem) -> (Self::Root, Self::Widgets) {
         relm4::view! {
-           my_box = gtk::Overlay {
-               // set_orientation: gtk::Orientation::Vertical,
-               // set_margin_top: 12,
+           root = adw::Clamp {
+                set_maximum_size: 200,
+                gtk::Overlay {
+                    add_overlay =  &gtk::Frame {
+                        set_halign: gtk::Align::Start,
+                        set_valign: gtk::Align::Start,
+                        set_margin_start: 8,
+                        set_margin_top: 8,
+                        add_css_class: "photo-grid-month-frame",
 
-                add_overlay =  &gtk::Frame {
-                    set_halign: gtk::Align::Start,
-                    set_valign: gtk::Align::Start,
-                    set_margin_start: 12,
-                    set_margin_top: 8,
-                    add_css_class: "photo-grid-month-frame",
+                        #[wrap(Some)]
+                        #[name(label)]
+                        set_child = &gtk::Label{
+                            add_css_class: "photo-grid-month-label",
+                        },
+                    },
 
                     #[wrap(Some)]
-                    #[name(label)]
-                    set_child = &gtk::Label{
-                        add_css_class: "photo-grid-month-label",
-                    },
-                },
-
-                #[wrap(Some)]
-                set_child = &adw::Clamp {
-                    set_maximum_size: 200,
-
-                    gtk::Frame {
+                    set_child = &gtk::Frame {
+                            set_width_request: 200,
+                            set_height_request: 200,
 
                         #[name(picture)]
                         gtk::Picture {
                             set_can_shrink: true,
                             set_valign: gtk::Align::Center,
-                            set_width_request: 200,
-                            set_height_request: 200,
                         }
                     }
                 }
@@ -88,7 +84,7 @@ impl RelmGridItem for PhotoGridItem {
 
         let widgets = Widgets { picture, label };
 
-        (my_box, widgets)
+        (root, widgets)
     }
 
     fn bind(&mut self, widgets: &mut Self::Widgets, _root: &mut Self::Root) {
