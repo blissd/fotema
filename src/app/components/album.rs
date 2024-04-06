@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use gtk::prelude::{BoxExt, OrientableExt};
+use gtk::prelude::OrientableExt;
 use photos_core;
 use relm4::gtk;
 use relm4::gtk::prelude::WidgetExt;
@@ -67,44 +67,34 @@ pub enum AlbumOutput {
 }
 
 impl RelmGridItem for PhotoGridItem {
-    type Root = gtk::Box;
-    type Widgets = Widgets;
+    type Root = gtk::Picture;
+    type Widgets = ();
 
-    fn setup(_item: &gtk::ListItem) -> (gtk::Box, Widgets) {
+    fn setup(_item: &gtk::ListItem) -> (Self::Root, Self::Widgets) {
         relm4::view! {
-           my_box = gtk::Box {
-                set_orientation: gtk::Orientation::Vertical,
-                set_margin_all: 1,
-
-                #[name = "picture"]
-                gtk::Picture {
-                    set_can_shrink: true,
-                    set_valign: gtk::Align::Center,
-                    set_width_request: 200,
-                    set_height_request: 200,
-                }
+            picture = gtk::Picture {
+                set_can_shrink: true,
+                set_valign: gtk::Align::Center,
+                set_width_request: 200,
+                set_height_request: 200,
             }
         }
 
-        let widgets = Widgets { picture };
-
-        (my_box, widgets)
+        (picture, ())
     }
 
-    fn bind(&mut self, widgets: &mut Self::Widgets, _root: &mut Self::Root) {
+    fn bind(&mut self, _widgets: &mut Self::Widgets, picture: &mut Self::Root) {
         if self.picture.square_preview_path.as_ref().is_some_and(|f|f.exists()) {
-            widgets
-                .picture
+            picture
                 .set_filename(self.picture.square_preview_path.clone());
         } else {
-            widgets
-                .picture
+            picture
                 .set_resource(Some("/dev/romantics/Photos/icons/image-missing-symbolic.svg"));
         }
     }
 
-    fn unbind(&mut self, widgets: &mut Self::Widgets, _root: &mut Self::Root) {
-        widgets.picture.set_filename(None::<&Path>);
+    fn unbind(&mut self, _widgets: &mut Self::Widgets, picture: &mut Self::Root) {
+        picture.set_filename(None::<&Path>);
     }
 }
 
@@ -120,28 +110,19 @@ impl SimpleAsyncComponent for Album {
     type Output = AlbumOutput;
 
     view! {
-        gtk::Box {
-            set_orientation: gtk::Orientation::Vertical,
-            set_spacing: 0,
-            set_margin_all: 0,
+        gtk::ScrolledWindow {
+            set_vexpand: true,
 
-            gtk::ScrolledWindow {
+            #[local_ref]
+            grid_view -> gtk::GridView {
+                set_orientation: gtk::Orientation::Vertical,
+                set_single_click_activate: true,
+                //set_max_columns: 3,
 
-                //set_propagate_natural_height: true,
-                //set_has_frame: true,
-                set_vexpand: true,
-
-                #[local_ref]
-                grid_view -> gtk::GridView {
-                    set_orientation: gtk::Orientation::Vertical,
-                    set_single_click_activate: true,
-                    //set_max_columns: 3,
-
-                    connect_activate[sender] => move |_, idx| {
-                        sender.input(AlbumInput::PhotoSelected(idx))
-                    },
+                connect_activate[sender] => move |_, idx| {
+                    sender.input(AlbumInput::PhotoSelected(idx))
                 },
-            },
+            }
         }
     }
 
