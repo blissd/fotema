@@ -160,6 +160,7 @@ impl SimpleAsyncComponent for YearPhotos {
                     .all()
                     .unwrap()
                     .into_iter()
+                    .filter(|x| x.square_preview_path.as_ref().is_some_and(|p| p.exists()))
                     .dedup_by(|x, y| x.year() == y.year())
                     .map(|picture| PhotoGridItem {
                         picture,

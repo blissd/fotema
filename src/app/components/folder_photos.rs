@@ -169,6 +169,7 @@ impl SimpleAsyncComponent for FolderPhotos {
                     .all()
                     .unwrap()
                     .into_iter()
+                    .filter(|x| x.square_preview_path.as_ref().is_some_and(|p| p.exists()))
                     .sorted_by_key(|pic| pic.parent_path())
                     .group_by(|pic| pic.parent_path());
 

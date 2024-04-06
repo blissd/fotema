@@ -167,6 +167,7 @@ impl SimpleAsyncComponent for MonthPhotos {
                 .all()
                 .unwrap()
                 .into_iter()
+                .filter(|x| x.square_preview_path.as_ref().is_some_and(|p| p.exists()))
                 .dedup_by(|x, y| x.year_month() == y.year_month())
                 .map(|picture| PhotoGridItem {
                     picture,

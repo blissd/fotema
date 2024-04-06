@@ -163,8 +163,21 @@ impl SimpleAsyncComponent for Album {
                 self.photo_grid.extend_from_iter(all_pictures.into_iter());
 
                 if !self.photo_grid.is_empty(){
+
+                    // We must scroll to a valid index... but we can't get the index of the
+                    // last item if filters are enabled. So as a workaround disable filters,
+                    // scroll to end, and then enable filters.
+
+                    for i in 0..(self.photo_grid.filters_len()) {
+                        self.photo_grid.set_filter_status(i, false);
+                    }
+
                     self.photo_grid.view
                         .scroll_to(self.photo_grid.len() - 1, gtk::ListScrollFlags::SELECT, None);
+
+                     for i in 0..(self.photo_grid.filters_len()) {
+                        self.photo_grid.set_filter_status(i, true);
+                    }
                 }
             },
             AlbumInput::PhotoSelected(index) => {
@@ -217,21 +230,20 @@ impl SimpleAsyncComponent for Album {
 impl Album {
 
     fn update_filter(&mut self, filter: AlbumFilter) {
+        self.photo_grid.clear_filters();
+        self.photo_grid.add_filter(Album::filter_has_thumbnail);
+
         match filter {
+            AlbumFilter::All => {
+                // If there are no filters, then all photos will be displayed.
+            },
             AlbumFilter::None => {
-                self.photo_grid.clear_filters();
                 self.photo_grid.add_filter(Album::filter_none);
             },
-            AlbumFilter::All => {
-                self.photo_grid.clear_filters();
-                //self.photo_grid.add_filter(Album::filter_all);
-            },
             AlbumFilter::Selfies => {
-                self.photo_grid.clear_filters();
                 self.photo_grid.add_filter(Album::filter_selfie);
             },
             AlbumFilter::Folder(path) => {
-                self.photo_grid.clear_filters();
                 self.photo_grid.add_filter(Album::filter_folder(path));
             },
         }
@@ -247,5 +259,9 @@ impl Album {
 
     fn filter_folder(path: PathBuf) -> impl Fn(&PhotoGridItem) -> bool {
         move |item: &PhotoGridItem| item.picture.parent_path().is_some_and(|p| p == path)
+    }
+
+    fn filter_has_thumbnail(item: &PhotoGridItem) -> bool {
+        item.picture.square_preview_path.as_ref().is_some_and(|p| p.exists())
     }
 }
