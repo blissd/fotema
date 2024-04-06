@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use gtk::prelude::{ OrientableExt};
 use photos_core::repo::PictureId;
 use relm4::gtk;
 use relm4::gtk::prelude::*;

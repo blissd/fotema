@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use gtk::prelude::{BoxExt, OrientableExt};
+use gtk::prelude::OrientableExt;
 use photos_core;
 
 use itertools::Itertools;

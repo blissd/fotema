@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use gtk::prelude::OrientableExt;
-use photos_core;
 use relm4::gtk;
 use relm4::gtk::prelude::WidgetExt;
 use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
@@ -17,11 +16,6 @@ use photos_core::repo::PictureId;
 #[derive(Debug)]
 struct PhotoGridItem {
     picture: photos_core::repo::Picture,
-    //square_preview: Option<gio::File>,
-}
-
-struct Widgets {
-    picture: gtk::Picture,
 }
 
 #[derive(Debug)]
@@ -243,11 +237,7 @@ impl Album {
         }
     }
 
-    fn filter_all(item: &PhotoGridItem) -> bool {
-        true
-    }
-
-    fn filter_none(item: &PhotoGridItem) -> bool {
+    fn filter_none(_item: &PhotoGridItem) -> bool {
         false
     }
 

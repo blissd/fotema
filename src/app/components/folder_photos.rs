@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use gtk::prelude::{BoxExt, OrientableExt};
+use gtk::prelude::OrientableExt;
 use photos_core;
 
 use itertools::Itertools;
@@ -11,14 +11,9 @@ use relm4::gtk::prelude::WidgetExt;
 use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
 use relm4::*;
 use relm4::prelude::*;
-use relm4::adw::prelude::NavigationPageExt;
 
 use std::path;
 use std::sync::{Arc, Mutex};
-
-use crate::app::components::album::{
-    Album, AlbumFilter, AlbumInput, AlbumOutput,
-};
 
 #[derive(Debug)]
 struct PhotoGridItem {
@@ -56,9 +51,9 @@ impl RelmGridItem for PhotoGridItem {
 
                 adw::Clamp {
                     set_maximum_size: 200,
+                    set_orientation: gtk::Orientation::Horizontal,
 
                     gtk::Frame {
-
                         #[name(picture)]
                         gtk::Picture {
                             set_can_shrink: true,
@@ -116,25 +111,19 @@ impl SimpleAsyncComponent for FolderPhotos {
     type Output = FolderPhotosOutput;
 
     view! {
-        gtk::Box {
-            set_orientation: gtk::Orientation::Vertical,
-            set_spacing: 0,
-            set_margin_all: 0,
+        gtk::ScrolledWindow {
+            //set_propagate_natural_height: true,
+            //set_has_frame: true,
+            set_vexpand: true,
 
-            gtk::ScrolledWindow {
-                //set_propagate_natural_height: true,
-                //set_has_frame: true,
-                set_vexpand: true,
+            #[local_ref]
+            pictures_box -> gtk::GridView {
+                set_orientation: gtk::Orientation::Vertical,
+                set_single_click_activate: true,
+                //set_max_columns: 3,
 
-                #[local_ref]
-                pictures_box -> gtk::GridView {
-                    set_orientation: gtk::Orientation::Vertical,
-                    set_single_click_activate: true,
-                    //set_max_columns: 3,
-
-                    connect_activate[sender] => move |_, idx| {
-                        sender.input(FolderPhotosInput::FolderSelected(idx))
-                    }
+                connect_activate[sender] => move |_, idx| {
+                    sender.input(FolderPhotosInput::FolderSelected(idx))
                 }
             }
         }
@@ -169,7 +158,7 @@ impl SimpleAsyncComponent for FolderPhotos {
                     println!("Folder selected item: {}", item.folder_name);
 
                     if let Some(folder_path) = item.picture.parent_path() {
-                        sender.output(FolderPhotosOutput::FolderSelected(folder_path));
+                        let _ = sender.output(FolderPhotosOutput::FolderSelected(folder_path));
                     }
                 }
             },
@@ -199,10 +188,7 @@ impl SimpleAsyncComponent for FolderPhotos {
                 self.photo_grid.clear();
                 self.photo_grid.extend_from_iter(pictures.into_iter());
 
-                if !self.photo_grid.is_empty(){
-                    self.photo_grid.view
-                        .scroll_to(self.photo_grid.len() - 1, gtk::ListScrollFlags::SELECT, None);
-                }
+                // NOTE folder view is not sorted by a timestamp, so don't scroll to end.
             },
         }
     }
