@@ -193,7 +193,9 @@ impl SimpleAsyncComponent for Album {
                 }
             },
             AlbumInput::PhotoSelected(index) => {
-                if let Some(item) = self.photo_grid.get(index) {
+                // Photos are filters so must use get_visible(...) over get(...), otherwise
+                // wrong photo is displayed.
+                if let Some(item) = self.photo_grid.get_visible(index) {
                     let picture_id = item.borrow().picture.picture_id;
                     println!("index {} has picture_id {}", index, picture_id);
                     let result = sender.output(AlbumOutput::PhotoSelected(picture_id));
