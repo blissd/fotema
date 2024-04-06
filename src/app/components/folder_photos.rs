@@ -30,6 +30,8 @@ struct Widgets {
 pub enum FolderPhotosInput {
     // Reload photos from database
     Refresh,
+
+    FolderSelected(u32), // Index into photo grid vector
 }
 
 #[derive(Debug)]
@@ -96,7 +98,7 @@ impl RelmGridItem for PhotoGridItem {
 
 pub struct FolderPhotos {
     repo: Arc<Mutex<photos_core::Repository>>,
-    pictures_grid_view: TypedGridView<PhotoGridItem, gtk::SingleSelection>,
+    photo_grid: TypedGridView<PhotoGridItem, gtk::SingleSelection>,
 }
 
 #[relm4::component(pub async)]
@@ -122,9 +124,9 @@ impl SimpleAsyncComponent for FolderPhotos {
                     set_single_click_activate: true,
                     //set_max_columns: 3,
 
-                    //connect_activate[sender] => move |_, idx| {
-                    //    sender.input(MonthPhotosInput::MonthSelected(idx))
-                    //},
+                    connect_activate[sender] => move |_, idx| {
+                        sender.input(FolderPhotosInput::FolderSelected(idx))
+                    },
                 },
             },
         }
@@ -133,18 +135,17 @@ impl SimpleAsyncComponent for FolderPhotos {
     async fn init(
         repo: Self::Init,
         _root: Self::Root,
-        _sender: AsyncComponentSender<Self>,
+        sender: AsyncComponentSender<Self>,
     ) -> AsyncComponentParts<Self> {
 
-        let grid_view_wrapper: TypedGridView<PhotoGridItem, gtk::SingleSelection> =
-            TypedGridView::new();
+        let photo_grid = TypedGridView::new();
 
         let model = FolderPhotos {
             repo,
-            pictures_grid_view: grid_view_wrapper,
+            photo_grid,
         };
 
-        let pictures_box = &model.pictures_grid_view.view;
+        let pictures_box = &model.photo_grid.view;
 
         let widgets = view_output!();
         AsyncComponentParts { model, widgets }
@@ -152,6 +153,13 @@ impl SimpleAsyncComponent for FolderPhotos {
 
     async fn update(&mut self, msg: Self::Input, _sender: AsyncComponentSender<Self>) {
         match msg {
+            FolderPhotosInput::FolderSelected(index) => {
+                println!("Folder selected index: {}", index);
+                if let Some(item) = self.photo_grid.get(index) {
+                    let item = item.borrow();
+                    println!("Folder selected item: {}", item.folder_name);
+                }
+            },
             FolderPhotosInput::Refresh => {
 
                 let all_pictures = self.repo
@@ -175,12 +183,12 @@ impl SimpleAsyncComponent for FolderPhotos {
 
                 pictures.sort_by_key(|pic| pic.folder_name.clone());
 
-                self.pictures_grid_view.clear();
-                self.pictures_grid_view.extend_from_iter(pictures.into_iter());
+                self.photo_grid.clear();
+                self.photo_grid.extend_from_iter(pictures.into_iter());
 
-                if !self.pictures_grid_view.is_empty(){
-                    self.pictures_grid_view.view
-                        .scroll_to(self.pictures_grid_view.len() - 1, gtk::ListScrollFlags::SELECT, None);
+                if !self.photo_grid.is_empty(){
+                    self.photo_grid.view
+                        .scroll_to(self.photo_grid.len() - 1, gtk::ListScrollFlags::SELECT, None);
                 }
             },
         }
