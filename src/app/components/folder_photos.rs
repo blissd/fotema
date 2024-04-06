@@ -17,7 +17,7 @@ use std::path;
 use std::sync::{Arc, Mutex};
 
 use crate::app::components::album::{
-    Album, AlbumInput, AlbumFilter,
+    Album, AlbumFilter, AlbumInput, AlbumOutput,
 };
 
 #[derive(Debug)]
@@ -38,10 +38,15 @@ pub enum FolderPhotosInput {
     Refresh,
 
     FolderSelected(u32), // Index into photo grid vector
+
+    /// User has selected photo in grid view
+    PhotoSelected(photos_core::repo::PictureId),
 }
 
 #[derive(Debug)]
 pub enum FolderPhotosOutput {
+    /// User has selected photo in grid view
+    PhotoSelected(photos_core::repo::PictureId),
 }
 
 impl RelmGridItem for PhotoGridItem {
@@ -169,7 +174,9 @@ impl SimpleAsyncComponent for FolderPhotos {
 
         let album = Album::builder()
             .launch((repo.clone(), AlbumFilter::None))
-            .detach();
+            .forward(sender.input_sender(), |msg| match msg {
+                AlbumOutput::PhotoSelected(picture_id) => FolderPhotosInput::PhotoSelected(picture_id),
+            });
 
         let model = FolderPhotos {
             repo,
@@ -187,22 +194,24 @@ impl SimpleAsyncComponent for FolderPhotos {
         AsyncComponentParts { model, widgets }
     }
 
-    async fn update(&mut self, msg: Self::Input, _sender: AsyncComponentSender<Self>) {
+    async fn update(&mut self, msg: Self::Input, sender: AsyncComponentSender<Self>) {
         match msg {
+            FolderPhotosInput::PhotoSelected(id) => {
+                let _ = sender.output(FolderPhotosOutput::PhotoSelected(id));
+            },
             FolderPhotosInput::FolderSelected(index) => {
                 println!("Folder selected index: {}", index);
                 if let Some(item) = self.photo_grid.get(index) {
                     let item = item.borrow();
                     println!("Folder selected item: {}", item.folder_name);
 
-                    // Configure album view for selected folder.
                     if let Some(folder_path) = item.picture.parent_path() {
+                        // Configure album view for selected folder.
                         let filter = AlbumFilter::Folder(folder_path);
                         self.album.emit(AlbumInput::Filter(filter));
+                        // Switch to album view.
+                        self.navigation.push_by_tag("album");
                     }
-
-                    // Switch to album view.
-                    self.navigation.push_by_tag("album");
                 }
             },
             FolderPhotosInput::Refresh => {
@@ -218,7 +227,7 @@ impl SimpleAsyncComponent for FolderPhotos {
                 let mut pictures = Vec::new();
 
                 for (_key, mut group) in &all_pictures {
-                    let first = group.nth(0).unwrap();
+                    let first = group.nth(0).expect("Groups can't be empty");
                     let album = PhotoGridItem {
                         folder_name: first.folder_name().unwrap_or("-".to_string()),
                         picture: first.clone(),

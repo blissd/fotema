@@ -78,9 +78,6 @@ pub(super) struct App {
     // Grid of folders of photos
     folder_photos: AsyncController<FolderPhotos>,
 
-    // Album view of single folder
-    folder_album: AsyncController<Album>,
-
     // Main navigation. Parent of library stack.
     main_navigation: adw::OverlaySplitView,
 
@@ -299,14 +296,8 @@ impl SimpleComponent for App {
                                         set_icon_name: "sentiment-very-satisfied-symbolic",
                                     },
 
-                                    add_child = &adw::NavigationView {
-                                        adw::NavigationPage {
-                                            model.folder_photos.widget(),
-                                        },
-                                        adw::NavigationPage {
-                                            model.folder_album.widget(),
-                                        },
-                                    } -> {
+                                    #[local_ref]
+                                    add_child = &folder_photos_view -> gtk::Box{} -> {
                                         set_title: "Folders",
                                         set_name: "Folders",
                                         // NOTE gtk::StackSidebar doesn't show icon :-/
@@ -405,13 +396,11 @@ impl SimpleComponent for App {
 
        let folder_photos = FolderPhotos::builder()
             .launch(repo.clone())
-            .detach();
-
-        let folder_album = Album::builder()
-            .launch((repo.clone(), AlbumFilter::None))
             .forward(sender.input_sender(), |msg| match msg {
-                AlbumOutput::PhotoSelected(id) => AppMsg::ViewPhoto(id),
+                FolderPhotosOutput::PhotoSelected(id) => AppMsg::ViewPhoto(id),
             });
+
+        let folder_photos_view = folder_photos.widget().clone();
 
         let about_dialog = AboutDialog::builder()
             .transient_for(&root)
@@ -443,7 +432,6 @@ impl SimpleComponent for App {
             one_photo,
             selfie_photos,
             folder_photos,
-            folder_album,
             main_navigation: main_navigation.clone(),
             main_stack: main_stack.clone(),
             library_view_stack: library_view_stack.clone(),
