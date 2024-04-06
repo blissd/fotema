@@ -53,13 +53,6 @@ impl RelmGridItem for PhotoGridItem {
         relm4::view! {
            my_box = gtk::Box {
                 set_orientation: gtk::Orientation::Vertical,
-                set_margin_top: 12,
-
-                #[name(label)]
-                gtk::Label {
-                    add_css_class: "caption-heading",
-                    set_margin_bottom: 4,
-                },
 
                 adw::Clamp {
                     set_maximum_size: 200,
@@ -74,7 +67,14 @@ impl RelmGridItem for PhotoGridItem {
                             set_height_request: 200,
                         }
                     }
-                }
+                },
+
+                #[name(label)]
+                gtk::Label {
+                    add_css_class: "caption-heading",
+                    set_margin_top: 4,
+                    set_margin_bottom: 12,
+                },
             }
         }
 
@@ -86,7 +86,7 @@ impl RelmGridItem for PhotoGridItem {
     fn bind(&mut self, widgets: &mut Self::Widgets, _root: &mut Self::Root) {
         widgets
             .label
-            .set_label(format!("{}", self.folder_name).as_str());
+            .set_text(format!("{}", self.folder_name).as_str());
 
         if self.picture.square_preview_path.as_ref().is_some_and(|f|f.exists()) {
             widgets
