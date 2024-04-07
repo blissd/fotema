@@ -138,6 +138,9 @@ pub(super) enum AppMsg {
     // Scroll to first photo in year
     GoToYear(i32),
 
+    // Refresh all photo grid views. Manually triggered by button press.
+    Refresh,
+
     // File-system scan events
     ScanStarted,
     ScanCompleted,
@@ -292,7 +295,11 @@ impl SimpleComponent for App {
                                     set_orientation: gtk::Orientation::Vertical,
 
                                     #[local_ref]
-                                    banner -> adw::Banner,
+                                    banner -> adw::Banner {
+                                        // Only show when generating thumbnails
+                                        set_button_label: None,
+                                        connect_button_clicked => AppMsg::Refresh,
+                                    },
 
                                     #[local_ref]
                                     main_stack -> gtk::Stack {
@@ -603,6 +610,17 @@ impl SimpleComponent for App {
                 self.library_view_stack.set_visible_child_name("month");
                 self.month_photos.emit(MonthPhotosInput::GoToYear(year));
             },
+            AppMsg::Refresh => {
+                println!("Refresh photo grids");
+
+                // Refresh messages cause the photos to be loaded into various photo grids
+                // TODO can we just refresh the currently visible photo grid?
+                self.all_photos.emit(AlbumInput::Refresh);
+                self.selfie_photos.emit(AlbumInput::Refresh);
+                self.folder_photos.emit(FolderPhotosInput::Refresh);
+                self.month_photos.emit(MonthPhotosInput::Refresh);
+                self.year_photos.emit(YearPhotosInput::Refresh);
+            },
             AppMsg::ScanStarted => {
                 self.spinner.start();
                 self.banner.set_title("Scanning file system for photos.");
@@ -623,6 +641,8 @@ impl SimpleComponent for App {
             AppMsg::ThumbnailGenerationStarted(count) => {
                 println!("Thumbnail generation started.");
                 self.banner.set_title("Generating thumbnails. This will take a while.");
+                // Show button to refresh all photo grids.
+                self.banner.set_button_label(Some("Refresh"));
                 self.banner.set_revealed(true);
 
                 self.spinner.start();
@@ -657,6 +677,7 @@ impl SimpleComponent for App {
                 println!("Thumbnail generation completed.");
                 self.spinner.stop();
                 self.banner.set_revealed(false);
+                self.banner.set_button_label(None);
                 self.progress_box.set_visible(false);
             },
         }
