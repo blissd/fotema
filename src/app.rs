@@ -641,13 +641,6 @@ impl SimpleComponent for App {
             AppMsg::ScanCompleted => {
                 println!("Scan all completed msg received.");
 
-                // Refresh messages cause the photos to be loaded into various photo grids
-                self.all_photos.emit(AlbumInput::Refresh);
-                self.selfie_photos.emit(AlbumInput::Refresh);
-                self.folder_photos.emit(FolderPhotosInput::Refresh);
-                self.month_photos.emit(MonthPhotosInput::Refresh);
-                self.year_photos.emit(YearPhotosInput::Refresh);
-
                 //self.generate_previews.emit(GeneratePreviewsInput::Start);
                 self.cleanup.emit(CleanupInput::Start);
             },
@@ -685,6 +678,21 @@ impl SimpleComponent for App {
                     let fraction = self.progress_current_count as f64 / self.progress_end_count as f64;
                     self.progress_bar.set_fraction(fraction);
                 }
+            },
+            AppMsg::ThumbnailGenerationCompleted  => {
+                println!("Thumbnail generation completed.");
+                self.spinner.stop();
+                self.banner.set_revealed(false);
+                self.banner.set_button_label(None);
+                self.progress_box.set_visible(false);
+
+                // Refresh messages cause the photos to be loaded into various photo grids
+                self.all_photos.emit(AlbumInput::Refresh);
+                self.selfie_photos.emit(AlbumInput::Refresh);
+                self.folder_photos.emit(FolderPhotosInput::Refresh);
+                self.month_photos.emit(MonthPhotosInput::Refresh);
+                self.year_photos.emit(YearPhotosInput::Refresh);
+
             },
             AppMsg::CleanupCompleted  => {
                 println!("Cleanup completed.");
@@ -730,13 +738,6 @@ impl SimpleComponent for App {
                     let fraction = self.progress_current_count as f64 / self.progress_end_count as f64;
                     self.progress_bar.set_fraction(fraction);
                 }
-            },
-            AppMsg::ThumbnailGenerationCompleted  => {
-                println!("Thumbnail generation completed.");
-                self.spinner.stop();
-                self.banner.set_revealed(false);
-                self.banner.set_button_label(None);
-                self.progress_box.set_visible(false);
             },
         }
     }
