@@ -6,8 +6,6 @@ use relm4::prelude::*;
 use relm4::Worker;
 use std::sync::{Arc, Mutex};
 use photos_core::Result;
-use photos_core::repo::PictureId;
-use std::path::PathBuf;
 use rayon::prelude::*;
 
 #[derive(Debug)]
@@ -17,8 +15,15 @@ pub enum GeneratePreviewsInput {
 
 #[derive(Debug)]
 pub enum GeneratePreviewsOutput {
-    PreviewsGenerated,
-    PreviewUpdated(PictureId, Option<PathBuf>),
+    // Thumbnail generation has started for a given number of images.
+    Started(usize),
+
+    // Thumbnail has been generated for a photo.
+    Generated,
+
+    // Thumbnail generation has completed
+    Completed,
+
 }
 
 pub struct GeneratePreviews {
@@ -33,14 +38,21 @@ impl GeneratePreviews {
     fn update_previews(&self, sender: &ComponentSender<Self>) -> Result<()> {
         let start = std::time::Instant::now();
 
-        let mut pics = self.repo.lock().unwrap().all()?;
+        let mut pics: Vec<photos_core::repo::Picture> = self.repo
+            .lock()
+            .unwrap()
+            .all()?
+            .into_iter()
+            .filter(|pic| !pic.square_preview_path.as_ref().is_some_and(|p| p.exists()))
+            .collect();
+
         let pics_count = pics.len();
+        sender.output(GeneratePreviewsOutput::Started(pics_count));
 
         // Process newer photos first.
         pics.reverse();
 
-        pics.clone().par_iter_mut()
-            .filter(|pic| !pic.square_preview_path.as_ref().is_some_and(|p| p.exists()))
+        pics.par_iter_mut()
             .map(|mut pic| {
                 if let Err(e) = self.previewer.set_preview(&mut pic) {
                     println!("Failed setting preview: {:?}", e);
@@ -51,12 +63,16 @@ impl GeneratePreviews {
                 let result = self.repo.lock().unwrap().add_preview(&pic);
                 if let Err(e) = result {
                     println!("Failed add_preview: {:?}", e);
-                } else if let Err(e) = sender.output(GeneratePreviewsOutput::PreviewUpdated(pic.picture_id, pic.square_preview_path.clone())) {
-                    println!("Failed sending PreviewUpdated: {:?}", e);
+                } else if let Err(e) = sender.output(GeneratePreviewsOutput::Generated) {
+                    println!("Failed sending GeneratePreviewsOutput::Generated: {:?}", e);
                 }
             });
 
         println!("Generated {} previews in {} seconds.", pics_count, start.elapsed().as_secs());
+
+        if let Err(e) = sender.output(GeneratePreviewsOutput::Completed) {
+            println!("Failed sending GeneratePreviewsOutput::Completed: {:?}", e);
+        }
 
         Ok(())
     }
@@ -78,10 +94,6 @@ impl Worker for GeneratePreviews {
 
                 if let Err(e) = self.update_previews(&sender) {
                     println!("Failed to update previews: {}", e);
-                }
-
-                if let Err(e) = sender.output(GeneratePreviewsOutput::PreviewsGenerated) {
-                    println!("Failed notifying previews generated: {:?}", e);
                 }
             }
         };

@@ -31,7 +31,7 @@ use relm4::{
         },
     },
     main_application, Component, ComponentController, ComponentParts, ComponentSender,
-    Controller, SimpleComponent, WorkerController,
+    Controller, SimpleComponent, WorkerController, RelmWidgetExt,
 };
 
 
@@ -96,8 +96,22 @@ pub(super) struct App {
     // Window header bar
     header_bar: adw::HeaderBar,
 
-    // Activity indicator
+    // Activity indicator. Only shown when progress bar is hidden.
     spinner: gtk::Spinner,
+
+    // TODO there are too many progress_* fields. Move to a custom Progress component?
+
+    // Progress indicator.
+    progress_bar: gtk::ProgressBar,
+
+    // Container for related progress bar components
+    progress_box: gtk::Box,
+
+    // Expected number of items we are recording progress for
+    progress_end_count: usize,
+
+    // Number of items processed so far.
+    progress_current_count: usize,
 
     // Message banner
     banner: adw::Banner,
@@ -124,14 +138,14 @@ pub(super) enum AppMsg {
     // Scroll to first photo in year
     GoToYear(i32),
 
-    // Photos have been scanned and repo can be updated
-    ScanAllCompleted,
+    // File-system scan events
+    ScanStarted,
+    ScanCompleted,
 
-    // Preview generation completed
-    PreviewsGenerated,
-
-    // Single preview updated
-    PreviewUpdated(PictureId, Option<PathBuf>),
+    // Thumbnail generation events
+    ThumbnailGenerationStarted(usize),
+    ThumbnailGenerated,
+    ThumbnailGenerationCompleted,
 }
 
 relm4::new_action_group!(pub(super) WindowActionGroup, "win");
@@ -192,7 +206,8 @@ impl SimpleComponent for App {
                 add_setter: (&header_bar, "show-title", &false.into()),
                 add_setter: (&switcher_bar, "reveal", &true.into()),
                 add_setter: (&main_navigation, "collapsed", &true.into()),
-                add_setter: (&main_navigation, "show-sidebar", &false.into()),
+                //add_setter: (&main_navigation, "show-sidebar", &false.into()),
+                add_setter: (&spinner, "visible", &true.into()),
             },
 
             // Top-level navigation view containing:
@@ -227,9 +242,23 @@ impl SimpleComponent for App {
                                     }
                                 },
                                 #[wrap(Some)]
-                                set_content = &gtk::StackSidebar {
-                                    set_stack: &main_stack,
-                                },
+                                set_content = &gtk::Box {
+                                    set_orientation: gtk::Orientation::Vertical,
+                                    gtk::StackSidebar {
+                                        set_stack: &main_stack,
+                                        set_vexpand: true,
+                                    },
+                                    #[local_ref]
+                                    progress_box -> gtk::Box {
+                                        set_orientation: gtk::Orientation::Vertical,
+                                        set_margin_all: 12,
+
+                                        #[local_ref]
+                                        progress_bar -> gtk::ProgressBar {
+                                            set_show_text: true,
+                                        },
+                                    }
+                                }
                             }
                         },
 
@@ -384,14 +413,16 @@ impl SimpleComponent for App {
         let scan_photos = ScanPhotos::builder()
             .detach_worker((scan.clone(), repo.clone()))
             .forward(sender.input_sender(), |msg| match msg {
-                ScanPhotosOutput::ScanAllCompleted => AppMsg::ScanAllCompleted,
+                ScanPhotosOutput::Started => AppMsg::ScanStarted,
+                ScanPhotosOutput::Completed => AppMsg::ScanCompleted,
             });
 
         let generate_previews = GeneratePreviews::builder()
             .detach_worker((previewer.clone(), repo.clone()))
             .forward(sender.input_sender(), |msg| match msg {
-                GeneratePreviewsOutput::PreviewsGenerated => AppMsg::PreviewsGenerated,
-                GeneratePreviewsOutput::PreviewUpdated(id, path) => AppMsg::PreviewUpdated(id, path),
+                GeneratePreviewsOutput::Started(count) => AppMsg::ThumbnailGenerationStarted(count),
+                GeneratePreviewsOutput::Generated => AppMsg::ThumbnailGenerated,
+                GeneratePreviewsOutput::Completed => AppMsg::ThumbnailGenerationCompleted,
             });
 
         let all_photos = Album::builder()
@@ -452,7 +483,15 @@ impl SimpleComponent for App {
 
         let header_bar = adw::HeaderBar::new();
 
-        let spinner = gtk::Spinner::new();
+        let spinner = gtk::Spinner::builder()
+            .visible(false)
+            .build();
+
+        let progress_bar = gtk::ProgressBar::builder()
+            .pulse_step(0.05)
+            .build();
+
+        let progress_box = gtk::Box::builder().build();
 
         let banner = adw::Banner::new("-");
 
@@ -473,6 +512,10 @@ impl SimpleComponent for App {
             picture_navigation_view: picture_navigation_view.clone(),
             header_bar: header_bar.clone(),
             spinner: spinner.clone(),
+            progress_bar: progress_bar.clone(),
+            progress_box: progress_box.clone(),
+            progress_end_count: 0,
+            progress_current_count: 0,
             banner: banner.clone(),
         };
 
@@ -502,10 +545,6 @@ impl SimpleComponent for App {
 
         model.all_photos.emit(AlbumInput::Refresh);
 
-        model.spinner.start();
-        model.banner.set_title("Scanning file system for photos.");
-        model.banner.set_revealed(true);
-
         model.scan_photos.sender().emit(ScanPhotosInput::ScanAll);
         //        model.selfie_photos.emit(SelfiePhotosInput::Refresh);
           //      model.month_photos.emit(MonthPhotosInput::Refresh);
@@ -520,6 +559,7 @@ impl SimpleComponent for App {
             AppMsg::ToggleSidebar => {
                 let show = self.main_navigation.shows_sidebar();
                 self.main_navigation.set_show_sidebar(!show);
+                self.spinner.set_visible(show);
             },
             AppMsg::SwitchView => {
                 let child = self.main_stack.visible_child();
@@ -563,7 +603,12 @@ impl SimpleComponent for App {
                 self.library_view_stack.set_visible_child_name("month");
                 self.month_photos.emit(MonthPhotosInput::GoToYear(year));
             },
-            AppMsg::ScanAllCompleted => {
+            AppMsg::ScanStarted => {
+                self.spinner.start();
+                self.banner.set_title("Scanning file system for photos.");
+                self.banner.set_revealed(true);
+            },
+            AppMsg::ScanCompleted => {
                 println!("Scan all completed msg received.");
 
                 // Refresh messages cause the photos to be loaded into various photo grids
@@ -573,18 +618,46 @@ impl SimpleComponent for App {
                 self.month_photos.emit(MonthPhotosInput::Refresh);
                 self.year_photos.emit(YearPhotosInput::Refresh);
 
-                self.banner.set_title("Generating thumbnails. This will take a while.");
                 self.generate_previews.emit(GeneratePreviewsInput::Generate);
             },
-            AppMsg::PreviewsGenerated => {
-                println!("Previews generated completed.");
+            AppMsg::ThumbnailGenerationStarted(count) => {
+                println!("Thumbnail generation started.");
+                self.banner.set_title("Generating thumbnails. This will take a while.");
+                self.banner.set_revealed(true);
+
+                self.spinner.start();
+
+                let show = self.main_navigation.shows_sidebar();
+                self.spinner.set_visible(!show);
+
+                self.progress_end_count = count;
+                self.progress_current_count = 0;
+
+                self.progress_box.set_visible(true);
+                self.progress_bar.set_fraction(0.0);
+                self.progress_bar.set_text(Some("Generating thumbnails."));
+                self.progress_bar.set_pulse_step(0.25);
+            },
+            AppMsg::ThumbnailGenerated => {
+                println!("Thumbnail generated.");
+                self.progress_current_count += 1;
+                // Show pulsing for first 20 thumbnails so that it catches the eye, then
+                // switch to fractional view
+                if self.progress_current_count < 20 {
+                    self.progress_bar.pulse();
+                } else {
+                    if self.progress_current_count == 20 {
+                        self.progress_bar.set_text(None);
+                    }
+                    let fraction = self.progress_current_count as f64 / self.progress_end_count as f64;
+                    self.progress_bar.set_fraction(fraction);
+                }
+            },
+            AppMsg::ThumbnailGenerationCompleted => {
+                println!("Thumbnail generation completed.");
                 self.spinner.stop();
                 self.banner.set_revealed(false);
-            },
-
-            AppMsg::PreviewUpdated(_id, _path) => {
-                // Doesn't really work in a satisfactory manner.
-                // self.all_photos.emit(AlbumInput::PreviewUpdated(id, path));
+                self.progress_box.set_visible(false);
             },
         }
     }

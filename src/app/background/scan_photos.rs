@@ -13,7 +13,8 @@ pub enum ScanPhotosInput {
 
 #[derive(Debug)]
 pub enum ScanPhotosOutput {
-    ScanAllCompleted,
+    Started,
+    Completed,
 }
 
 pub struct ScanPhotos {
@@ -44,6 +45,10 @@ impl Worker for ScanPhotos {
 
 impl ScanPhotos {
     fn scan_and_add(&mut self, sender: ComponentSender<Self>) -> std::result::Result<(), String> {
+
+        sender.output(ScanPhotosOutput::Started)
+            .map_err(|e| format!("{:?}", e))?;
+
         println!("Scanning file system for pictures...");
         let result = self.scan.scan_all().map_err(|e| e.to_string())?;
         self.repo.lock()
@@ -51,7 +56,7 @@ impl ScanPhotos {
             .add_all(&result)
             .map_err(|e| e.to_string())?;
 
-        sender.output(ScanPhotosOutput::ScanAllCompleted)
+        sender.output(ScanPhotosOutput::Completed)
             .map_err(|e| format!("{:?}", e))
 
     }
