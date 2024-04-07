@@ -57,17 +57,16 @@ use self::components::{
 mod background;
 
 use self::background::{
-    scan_photos::ScanPhotos,
-    scan_photos::ScanPhotosInput,
-    scan_photos::ScanPhotosOutput,
-    generate_previews::GeneratePreviews,
-    generate_previews::GeneratePreviewsInput,
-    generate_previews::GeneratePreviewsOutput,
+    scan_photos::{ScanPhotos, ScanPhotosInput, ScanPhotosOutput},
+    generate_previews::{GeneratePreviews, GeneratePreviewsInput, GeneratePreviewsOutput},
+    cleanup::{Cleanup, CleanupInput, CleanupOutput},
 };
 
 pub(super) struct App {
     scan_photos: WorkerController<ScanPhotos>,
     generate_previews: WorkerController<GeneratePreviews>,
+    cleanup: WorkerController<Cleanup>,
+
     about_dialog: Controller<AboutDialog>,
     all_photos: AsyncController<Album>,
     month_photos: AsyncController<MonthPhotos>,
@@ -149,6 +148,11 @@ pub(super) enum AppMsg {
     ThumbnailGenerationStarted(usize),
     ThumbnailGenerated,
     ThumbnailGenerationCompleted,
+
+    // Cleanup events
+    CleanupStarted(usize),
+    CleanupCleaned,
+    CleanupCompleted,
 }
 
 relm4::new_action_group!(pub(super) WindowActionGroup, "win");
@@ -429,6 +433,15 @@ impl SimpleComponent for App {
                 GeneratePreviewsOutput::Completed => AppMsg::ThumbnailGenerationCompleted,
             });
 
+
+        let cleanup = Cleanup::builder()
+            .detach_worker(repo.clone())
+            .forward(sender.input_sender(), |msg| match msg {
+                CleanupOutput::Started(count) => AppMsg::CleanupStarted(count),
+                CleanupOutput::Cleaned => AppMsg::CleanupCleaned,
+                CleanupOutput::Completed => AppMsg::CleanupCompleted,
+            });
+
         let all_photos = Album::builder()
             .launch((repo.clone(), AlbumFilter::All))
             .forward(sender.input_sender(), |msg| match msg {
@@ -502,6 +515,7 @@ impl SimpleComponent for App {
         let model = Self {
             scan_photos,
             generate_previews,
+            cleanup,
             about_dialog,
             all_photos,
             month_photos,
@@ -550,6 +564,7 @@ impl SimpleComponent for App {
         model.all_photos.emit(AlbumInput::Refresh);
 
         model.scan_photos.sender().emit(ScanPhotosInput::Start);
+
         //        model.selfie_photos.emit(SelfiePhotosInput::Refresh);
           //      model.month_photos.emit(MonthPhotosInput::Refresh);
             //    model.year_photos.emit(YearPhotosInput::Refresh);
@@ -633,7 +648,8 @@ impl SimpleComponent for App {
                 self.month_photos.emit(MonthPhotosInput::Refresh);
                 self.year_photos.emit(YearPhotosInput::Refresh);
 
-                self.generate_previews.emit(GeneratePreviewsInput::Start);
+                //self.generate_previews.emit(GeneratePreviewsInput::Start);
+                self.cleanup.emit(CleanupInput::Start);
             },
             AppMsg::ThumbnailGenerationStarted(count) => {
                 println!("Thumbnail generation started.");
@@ -658,7 +674,7 @@ impl SimpleComponent for App {
             AppMsg::ThumbnailGenerated => {
                 println!("Thumbnail generated.");
                 self.progress_current_count += 1;
-                // Show pulsing for first 20 thumbnails so that it catches the eye, then
+                // Show pulsing for first 20 items so that it catches the eye, then
                 // switch to fractional view
                 if self.progress_current_count < 20 {
                     self.progress_bar.pulse();
@@ -670,7 +686,52 @@ impl SimpleComponent for App {
                     self.progress_bar.set_fraction(fraction);
                 }
             },
-            AppMsg::ThumbnailGenerationCompleted => {
+            AppMsg::CleanupCompleted  => {
+                println!("Cleanup completed.");
+                self.spinner.stop();
+                self.banner.set_revealed(false);
+                self.banner.set_button_label(None);
+                self.progress_box.set_visible(false);
+
+                self.generate_previews.emit(GeneratePreviewsInput::Start);
+            },
+
+            AppMsg::CleanupStarted(count) => {
+                println!("Cleanup started.");
+                self.banner.set_title("Database maintenance.");
+                // Show button to refresh all photo grids.
+                //self.banner.set_button_label(Some("Refresh"));
+                self.banner.set_revealed(true);
+
+                self.spinner.start();
+
+                let show = self.main_navigation.shows_sidebar();
+                self.spinner.set_visible(!show);
+
+                self.progress_end_count = count;
+                self.progress_current_count = 0;
+
+                self.progress_box.set_visible(true);
+                self.progress_bar.set_fraction(0.0);
+                self.progress_bar.set_text(Some("Database maintenance"));
+                self.progress_bar.set_pulse_step(0.25);
+            },
+            AppMsg::CleanupCleaned => {
+                println!("Cleanup cleaned.");
+                self.progress_current_count += 1;
+                // Show pulsing for first 1000 items so that it catches the eye, then
+                // switch to fractional view
+                if self.progress_current_count < 1000 {
+                    self.progress_bar.pulse();
+                } else {
+                    if self.progress_current_count == 1000 {
+                        self.progress_bar.set_text(None);
+                    }
+                    let fraction = self.progress_current_count as f64 / self.progress_end_count as f64;
+                    self.progress_bar.set_fraction(fraction);
+                }
+            },
+            AppMsg::ThumbnailGenerationCompleted  => {
                 println!("Thumbnail generation completed.");
                 self.spinner.stop();
                 self.banner.set_revealed(false);

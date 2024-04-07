@@ -142,7 +142,7 @@ impl Repository {
                 preview_id INTEGER PRIMARY KEY UNIQUE NOT NULL, -- pk for preview
                 picture_id INTEGER UNIQUE NOT NULL ON CONFLICT IGNORE, -- fk to pictures. Only one preview allowed for now.
                 full_path  TEXT UNIQUE NOT NULL ON CONFLICT IGNORE, -- full path to preview image
-                FOREIGN KEY (picture_id) REFERENCES pictures (picture_id)
+                FOREIGN KEY (picture_id) REFERENCES pictures (picture_id) ON DELETE CASCADE
             )",
         ];
 
@@ -323,6 +323,18 @@ impl Repository {
 
         let head = iter.flatten().nth(0);
         Ok(head)
+    }
+
+    pub fn remove(&mut self, picture_id: PictureId) -> Result<()> {
+        let mut stmt = self
+            .con
+            .prepare("DELETE FROM pictures WHERE picture_id = ?1")
+            .map_err(|e| RepositoryError(e.to_string()))?;
+
+        stmt.execute([picture_id.0])
+            .map_err(|e| RepositoryError(e.to_string()))?;
+
+        Ok(())
     }
 }
 

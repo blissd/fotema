@@ -4,3 +4,4 @@
 
 pub mod scan_photos;
 pub mod generate_previews;
+pub mod cleanup;
