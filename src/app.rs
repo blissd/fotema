@@ -414,9 +414,6 @@ impl SimpleComponent for App {
 
         let repo = Arc::new(Mutex::new(repo));
 
-        //let controller = photos_core::Controller::new(scan.clone(), repo, previewer);
-        //let controller = Arc::new(Mutex::new(controller));
-
         let scan_photos = ScanPhotos::builder()
             .detach_worker((scan.clone(), repo.clone()))
             .forward(sender.input_sender(), |msg| match msg {
@@ -552,7 +549,7 @@ impl SimpleComponent for App {
 
         model.all_photos.emit(AlbumInput::Refresh);
 
-        model.scan_photos.sender().emit(ScanPhotosInput::ScanAll);
+        model.scan_photos.sender().emit(ScanPhotosInput::Start);
         //        model.selfie_photos.emit(SelfiePhotosInput::Refresh);
           //      model.month_photos.emit(MonthPhotosInput::Refresh);
             //    model.year_photos.emit(YearPhotosInput::Refresh);
@@ -636,7 +633,7 @@ impl SimpleComponent for App {
                 self.month_photos.emit(MonthPhotosInput::Refresh);
                 self.year_photos.emit(YearPhotosInput::Refresh);
 
-                self.generate_previews.emit(GeneratePreviewsInput::Generate);
+                self.generate_previews.emit(GeneratePreviewsInput::Start);
             },
             AppMsg::ThumbnailGenerationStarted(count) => {
                 println!("Thumbnail generation started.");

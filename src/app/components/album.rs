@@ -41,9 +41,6 @@ pub enum AlbumInput {
     // Scroll to first photo of year/month.
     GoToMonth(YearMonth),
 
-    // Preview has been updated
-    PreviewUpdated(PictureId, Option<PathBuf>),
-
     // Reload photos from database
     Refresh,
 
@@ -195,46 +192,6 @@ impl SimpleAsyncComponent for Album {
                     println!("Scrolling to {}", index);
                     self.photo_grid.view.scroll_to(index, flags, None);
                 }
-            },
-            AlbumInput::PreviewUpdated(id, path) => {
-                // This doesn't really work properly.
-                // The intent was to have updated thumbnails be immediately visible, but I've
-                // never been able to make this work in a was that is fast and delightful.
-                // If the grid item thumbnail path is updated, then the item isn't refreshed
-                // visually so the thumbnail isn't visible until there is a mouseover event, which
-                // makes the app seem like it isn't working correctly.
-                // I've tried triggering a refresh with adding and removing items, and with
-                // disabling and enabling filters, but both have problems. Adding and removing
-                // items is slow and seems to get slower as more previews are generated.
-                // Disabling and enabling filters looked promising, but causing a lot of jumping
-                // around and also resulted in a large slowdown that prompted "Force Quit" dialogs
-                // to pop up.
-                //
-                // So, for now this code is unused and will have to be removed if a decent
-                // working solution can't be found.
-/*
-                println!("Preview updated ");
-
-                if self.photo_grid.is_empty() {
-                    // WARN calling find() on an empty grid causes a crash without
-                    // a stack trace :-/
-                    return;
-                }
-
-                let Some(index) = self.photo_grid.find(|p| p.picture.picture_id == id) else {
-                    println!("No index for picture id: {}", id);
-                    return;
-                };
-
-                let Some(item) = self.photo_grid.get(index) else {
-                    return;
-                };
-
-                {
-                    let mut item = item.borrow_mut();
-                    item.picture.square_preview_path = path;
-                }
-                */
             },
         }
     }

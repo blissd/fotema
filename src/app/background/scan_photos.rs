@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex};
 
 #[derive(Debug)]
 pub enum ScanPhotosInput {
-    ScanAll,
+    Start,
 }
 
 #[derive(Debug)]
@@ -33,7 +33,7 @@ impl Worker for ScanPhotos {
 
     fn update(&mut self, msg: ScanPhotosInput, sender: ComponentSender<Self>) {
         match msg {
-            ScanPhotosInput::ScanAll => {
+            ScanPhotosInput::Start => {
                 let result = self.scan_and_add(sender);
                 if let Err(e) = result {
                     println!("Failed scan with: {}", e);

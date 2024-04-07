@@ -10,7 +10,7 @@ use rayon::prelude::*;
 
 #[derive(Debug)]
 pub enum GeneratePreviewsInput {
-    Generate,
+    Start,
 }
 
 #[derive(Debug)]
@@ -47,7 +47,9 @@ impl GeneratePreviews {
             .collect();
 
         let pics_count = pics.len();
-        sender.output(GeneratePreviewsOutput::Started(pics_count));
+        if let Err(e) = sender.output(GeneratePreviewsOutput::Started(pics_count)){
+            println!("Failed sending gen started: {:?}", e);
+        }
 
         // Process newer photos first.
         pics.reverse();
@@ -89,7 +91,7 @@ impl Worker for GeneratePreviews {
 
     fn update(&mut self, msg: GeneratePreviewsInput, sender: ComponentSender<Self>) {
         match msg {
-            GeneratePreviewsInput::Generate => {
+            GeneratePreviewsInput::Start => {
                 println!("Generating previews...");
 
                 if let Err(e) = self.update_previews(&sender) {
