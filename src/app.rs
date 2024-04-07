@@ -582,8 +582,9 @@ impl SimpleComponent for App {
                 self.banner.set_revealed(false);
             },
 
-            AppMsg::PreviewUpdated(id, path) => {
-                self.all_photos.emit(AlbumInput::PreviewUpdated(id, path));
+            AppMsg::PreviewUpdated(_id, _path) => {
+                // Doesn't really work in a satisfactory manner.
+                // self.all_photos.emit(AlbumInput::PreviewUpdated(id, path));
             },
         }
     }

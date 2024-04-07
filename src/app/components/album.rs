@@ -197,6 +197,22 @@ impl SimpleAsyncComponent for Album {
                 }
             },
             AlbumInput::PreviewUpdated(id, path) => {
+                // This doesn't really work properly.
+                // The intent was to have updated thumbnails be immediately visible, but I've
+                // never been able to make this work in a was that is fast and delightful.
+                // If the grid item thumbnail path is updated, then the item isn't refreshed
+                // visually so the thumbnail isn't visible until there is a mouseover event, which
+                // makes the app seem like it isn't working correctly.
+                // I've tried triggering a refresh with adding and removing items, and with
+                // disabling and enabling filters, but both have problems. Adding and removing
+                // items is slow and seems to get slower as more previews are generated.
+                // Disabling and enabling filters looked promising, but causing a lot of jumping
+                // around and also resulted in a large slowdown that prompted "Force Quit" dialogs
+                // to pop up.
+                //
+                // So, for now this code is unused and will have to be removed if a decent
+                // working solution can't be found.
+/*
                 println!("Preview updated ");
 
                 if self.photo_grid.is_empty() {
@@ -218,6 +234,7 @@ impl SimpleAsyncComponent for Album {
                     let mut item = item.borrow_mut();
                     item.picture.square_preview_path = path;
                 }
+                */
             },
         }
     }
