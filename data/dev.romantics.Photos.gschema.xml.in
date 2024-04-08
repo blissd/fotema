@@ -13,5 +13,10 @@
       <default>false</default>
       <summary>Window maximized state</summary>
     </key>
+    <key name="show-selfies" type="b">
+      <!-- Disabled for now as it only works for iPhone selfies -->
+      <default>false</default>
+      <summary>Show selfies view</summary>
+    </key>
   </schema>
 </schemalist>

@@ -72,6 +72,8 @@ pub(super) struct App {
     month_photos: AsyncController<MonthPhotos>,
     year_photos: AsyncController<YearPhotos>,
     one_photo: Controller<OnePhoto>,
+
+    show_selfies: bool,
     selfie_photos: AsyncController<Album>,
 
     // Grid of folders of photos
@@ -335,6 +337,7 @@ impl SimpleComponent for App {
                                             set_orientation: gtk::Orientation::Vertical,
                                             container_add: model.selfie_photos.widget(),
                                         } -> {
+                                            set_visible: model.show_selfies,
                                             set_title: "Selfies",
                                             set_name: "Selfies",
                                             // NOTE gtk::StackSidebar doesn't show icon :-/
@@ -470,6 +473,8 @@ impl SimpleComponent for App {
                 AlbumOutput::PhotoSelected(id) => AppMsg::ViewPhoto(id),
             });
 
+       let show_selfies = AppWidgets::show_selfies();
+
        let folder_photos = FolderPhotos::builder()
             .launch(repo.clone())
             .forward(sender.input_sender(), |msg| match msg {
@@ -522,6 +527,7 @@ impl SimpleComponent for App {
             year_photos,
             one_photo,
             selfie_photos,
+            show_selfies,
             folder_photos,
             folder_album,
             main_navigation: main_navigation.clone(),
@@ -748,6 +754,13 @@ impl SimpleComponent for App {
 }
 
 impl AppWidgets {
+
+    fn show_selfies() -> bool {
+        let settings = gio::Settings::new(APP_ID);
+        let show_selfies = settings.boolean("show-selfies");
+        show_selfies
+    }
+
     fn save_window_size(&self) -> Result<(), glib::BoolError> {
         let settings = gio::Settings::new(APP_ID);
         let (width, height) = self.main_window.default_size();
