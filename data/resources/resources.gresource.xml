@@ -12,16 +12,16 @@ SPDX-License-Identifier: GPL-3.0-or-later
     <file compressed="true" preprocess="xml-stripblanks" alias="gtk/help-overlay.ui">ui/shortcuts.ui</file>
     <file compressed="true">style.css</file>
   </gresource>
-  <gresource prefix="/dev/romantics/Photos/icons/">
-    <file alias="today-symbolic.svg" preprocess="xml-stripblanks">../icons/today-symbolic.svg</file>
-    <file alias="month-symbolic.svg" preprocess="xml-stripblanks">../icons/month-symbolic.svg</file>
-    <file alias="year-symbolic.svg" preprocess="xml-stripblanks">../icons/year-symbolic.svg</file>
-    <file alias="playlist-infinite-symbolic.svg" preprocess="xml-stripblanks">../icons/playlist-infinite-symbolic.svg</file>
-    <file alias="image-missing-symbolic.svg" preprocess="xml-stripblanks">../icons/image-missing-symbolic.svg</file>
-    <file alias="info-outline-symbolic.svg" preprocess="xml-stripblanks">../icons/info-outline-symbolic.svg</file>
-    <file alias="dock-left-symbolic.svg" preprocess="xml-stripblanks">../icons/dock-left-symbolic.svg</file>
-    <file alias="image-alt-symbolic.svg" preprocess="xml-stripblanks">../icons/image-alt-symbolic.svg</file>
-    <file alias="sentiment-very-satisfied-symbolic.svg" preprocess="xml-stripblanks">../icons/sentiment-very-satisfied-symbolic.svg</file>
-    <file alias="folder-symbolic.svg" preprocess="xml-stripblanks">../icons/folder-symbolic.svg</file>
+  <gresource prefix="/dev/romantics/Photos/icons/scalable/actions">
+    <file alias="today-symbolic.svg" preprocess="xml-stripblanks">icons/today-symbolic.svg</file>
+    <file alias="month-symbolic.svg" preprocess="xml-stripblanks">icons/month-symbolic.svg</file>
+    <file alias="year-symbolic.svg" preprocess="xml-stripblanks">icons/year-symbolic.svg</file>
+    <file alias="playlist-infinite-symbolic.svg" preprocess="xml-stripblanks">icons/playlist-infinite-symbolic.svg</file>
+    <file alias="image-missing-symbolic.svg" preprocess="xml-stripblanks">icons/image-missing-symbolic.svg</file>
+    <file alias="info-outline-symbolic.svg" preprocess="xml-stripblanks">icons/info-outline-symbolic.svg</file>
+    <file alias="dock-left-symbolic.svg" preprocess="xml-stripblanks">icons/dock-left-symbolic.svg</file>
+    <file alias="image-alt-symbolic.svg" preprocess="xml-stripblanks">icons/image-alt-symbolic.svg</file>
+    <file alias="sentiment-very-satisfied-symbolic.svg" preprocess="xml-stripblanks">icons/sentiment-very-satisfied-symbolic.svg</file>
+    <file alias="folder-symbolic.svg" preprocess="xml-stripblanks">icons/folder-symbolic.svg</file>
   </gresource>
 </gresources>
