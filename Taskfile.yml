@@ -13,10 +13,15 @@ vars:
 
 tasks:
 
-  flatpak-build:
-    desc: Build and install with flatpak-builder
+  flatpak-devel:
+    desc: Development build and install with flatpak-builder
     cmds: 
       - flatpak-builder --user --install --force-clean flatpak_app build-aux/dev.romantics.Photos.Devel.json
+
+  flatpak-release:
+    desc: Release build and install with flatpak-builder
+    cmds:
+      - flatpak-builder --user --install --force-clean flatpak_app build-aux/dev.romantics.Photos.json
 
   licence-update:
     desc: "Update licence annotations for project files"
