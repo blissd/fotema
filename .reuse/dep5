@@ -19,6 +19,17 @@ Files: data/icons/*.svg
 Copyright: © 2024 David Bliss <david@romantics.dev>
 License: GPL-3.0-or-later
 
+Files: data/icons/*.svg
+Copyright: © 2024 David Bliss <david@romantics.dev>
+License: CC0-1.0
+
+# NOTE attribution is unclear. Icons are from the GNOME Icon Library
+# app by Bilal Elmoussaoui so I've attributed the copyright to them.
+# If I'm wrong, then please let me know.
+Files: data/resources/icons/*.svg
+Copyright: © 2024 Bilal Elmoussaoui <bilal.elmoussaoui@gnome.org>
+License: CC0-1.0
+
 Files: hooks/*
 Copyright: © 2024 David Bliss <david@romantics.dev>
 License: GPL-3.0-or-later
