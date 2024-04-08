@@ -6,6 +6,7 @@ use photos_core::repo::PictureId;
 use relm4::gtk;
 use relm4::gtk::prelude::*;
 use relm4::*;
+use relm4::prelude::*;
 use std::sync::{Arc, Mutex};
 
 use crate::app::components::photo_info::PhotoInfo;
@@ -33,14 +34,13 @@ pub struct OnePhoto {
     title: String,
 }
 
-#[relm4::component(pub)]
-impl SimpleComponent for OnePhoto {
+#[relm4::component(pub async)]
+impl SimpleAsyncComponent for OnePhoto {
     type Init = (photos_core::Scanner, Arc<Mutex<photos_core::Repository>>);
     type Input = OnePhotoInput;
     type Output = ();
 
     view! {
-
         adw::ToolbarView {
             add_top_bar = &adw::HeaderBar {
                 #[wrap(Some)]
@@ -73,11 +73,11 @@ impl SimpleComponent for OnePhoto {
         }
     }
 
-    fn init(
+    async fn init(
         (scanner, repo): Self::Init,
         root: Self::Root,
-        _sender: ComponentSender<Self>,
-    ) -> ComponentParts<Self> {
+        _sender: AsyncComponentSender<Self>,
+    ) -> AsyncComponentParts<Self>  {
 
         let picture = gtk::Picture::new();
 
@@ -95,11 +95,11 @@ impl SimpleComponent for OnePhoto {
 
         let widgets = view_output!();
 
-        ComponentParts { model, widgets }
+        AsyncComponentParts { model, widgets }
     }
 
-    fn update(&mut self, msg: Self::Input, _sender: ComponentSender<Self>) {
-     match msg {
+    async fn update(&mut self, msg: Self::Input, _sender: AsyncComponentSender<Self>) {
+        match msg {
             OnePhotoInput::ViewPhoto(picture_id) => {
                 println!("Showing photo for {}", picture_id);
                 let result = self.repo.lock().unwrap().get(picture_id);

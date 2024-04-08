@@ -71,7 +71,7 @@ pub(super) struct App {
     all_photos: AsyncController<Album>,
     month_photos: AsyncController<MonthPhotos>,
     year_photos: AsyncController<YearPhotos>,
-    one_photo: Controller<OnePhoto>,
+    one_photo: AsyncController<OnePhoto>,
 
     show_selfies: bool,
     selfie_photos: AsyncController<Album>,
