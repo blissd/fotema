@@ -41,3 +41,18 @@ jobs:
         run-tests: true
         cache-key: flatpak-builder-${{ github.sha }}
         upload-artifact: false
+
+  release:
+    # Disable releases for now
+    if: false
+    name: Semantic Release
+    needs: flatpak
+    runs-on: ubuntu-latest
+    steps:
+      - name: Semantic Release
+        id: semantic
+        uses: cycjimmy/semantic-release-action@v4
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          branch: main
