@@ -11,6 +11,8 @@ use relm4::{
     },
     prelude:: {
         AsyncController,
+        AsyncComponentParts,
+        SimpleAsyncComponent,
     },
     component::{
         AsyncComponentController,
@@ -32,6 +34,7 @@ use relm4::{
     },
     main_application, Component, ComponentController, ComponentParts, ComponentSender,
     Controller, SimpleComponent, WorkerController, RelmWidgetExt,
+    AsyncComponentSender,
 };
 
 
@@ -162,8 +165,8 @@ relm4::new_stateless_action!(PreferencesAction, WindowActionGroup, "preferences"
 relm4::new_stateless_action!(pub(super) ShortcutsAction, WindowActionGroup, "show-help-overlay");
 relm4::new_stateless_action!(AboutAction, WindowActionGroup, "about");
 
-#[relm4::component(pub)]
-impl SimpleComponent for App {
+#[relm4::component(pub async)]
+impl SimpleAsyncComponent for App {
     type Init = ();
     type Input = AppMsg;
     type Output = ();
@@ -392,11 +395,11 @@ impl SimpleComponent for App {
         }
     }
 
-    fn init(
+    async fn init(
         _init: Self::Init,
         root: Self::Root,
-        sender: ComponentSender<Self>,
-    ) -> ComponentParts<Self> {
+        sender: AsyncComponentSender<Self>,
+    ) -> AsyncComponentParts<Self> {
         let data_dir = glib::user_data_dir().join("photo-romantic");
         let _ = std::fs::create_dir_all(&data_dir);
 
@@ -575,10 +578,10 @@ impl SimpleComponent for App {
           //      model.month_photos.emit(MonthPhotosInput::Refresh);
             //    model.year_photos.emit(YearPhotosInput::Refresh);
 
-        ComponentParts { model, widgets }
+        AsyncComponentParts { model, widgets }
     }
 
-    fn update(&mut self, message: Self::Input, _sender: ComponentSender<Self>) {
+    async fn update(&mut self, message: Self::Input, _sender: AsyncComponentSender<Self>) {
         match message {
             AppMsg::Quit => main_application().quit(),
             AppMsg::ToggleSidebar => {
