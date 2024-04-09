@@ -35,7 +35,98 @@
             "--share=network"
         ]
     },
+
+    "add-extensions": {
+        /* Exile HEIC (x265) codec into extension */
+        "org.gnome.Loupe.Devel.HEIC": {
+            /* Relative to app dir */
+            "directory": "lib/libheif-heic",
+            /* Relative to directory above */
+            "add-ld-path": "lib",
+            /* Remove extension data from main flatpak package */
+            "bundle": true,
+            /* Remove this extension when Loupe is deinstalled */
+            "autodelete": true
+        }
+    },
+
     "modules": [
+    {
+      "name": "libde265",
+      "buildsystem": "cmake-ninja",
+      "config-opts": [
+        "-DCMAKE_INSTALL_PREFIX=/app/lib/libheif-heic",
+        "-DENABLE_SDL=Off"
+      ],
+      "sources": [
+        {
+          "type": "git",
+          "url": "https://github.com/strukturag/libde265.git",
+          "commit": "17bb8d9fcea62db8cdeb0fc7ef8d15dbd19a22e4",
+          "tag": "v1.0.15",
+          "x-checker-data": {
+            "type": "git",
+            "tag-pattern": "^v([\\d.]+)$"
+          }
+        }
+      ]
+    },
+    {
+      "name": "libheif",
+      "buildsystem": "cmake-ninja",
+      "config-opts": [
+        "-DWITH_LIBDE265_PLUGIN=On",
+        "-DPLUGIN_DIRECTORY=/app/lib/libheif-heic/lib",
+        "-DLIBDE265_INCLUDE_DIR=/app/lib/libheif-heic/include",
+        "-DLIBDE265_PKGCONF_LIBRARY_DIRS=/app/lib/libheif-heic/lib",
+        "-DWITH_X265=Off",
+        "-DWITH_SvtEnc=Off",
+        "-DWITH_SvtEnc_PLUGIN=Off",
+        "-DWITH_AOM_ENCODER=Off",
+        "-DWITH_RAV1E_PLUGIN=Off",
+        "-DWITH_RAV1E=Off",
+        "-DWITH_EXAMPLES=Off"
+      ],
+      "sources": [
+        {
+          "type": "git",
+          "url": "https://github.com/strukturag/libheif.git",
+          "commit": "59b58566de0d8e2e9fea958abeba1d3346bda9de",
+          "tag": "v1.17.6",
+          "x-checker-data": {
+            "type": "git",
+            "tag-pattern": "^v([\\d.]+)$"
+          }
+        }
+      ]
+    },
+    {
+      "name": "glycin-loaders",
+      "buildsystem": "meson",
+      "sources": [
+        {
+          "type": "archive",
+          "url": "https://download.gnome.org/sources/glycin-loaders/1.0/glycin-loaders-1.0.0.tar.xz",
+          "sha256": "cd2a3979259fee56cbd882a4d890437684bf1926e65afeafcb904ca9d17ae282",
+          "x-checker-data": {
+            "type": "gnome",
+            "name": "glycin-loaders"
+          }
+        }
+      ]
+    },
+        {
+            "name": "glycin",
+            "buildsystem": "meson",
+            "sources": [
+                {
+                    "type": "git",
+                    "url": "https://gitlab.gnome.org/sophie-h/glycin.git",
+                    "commit": "5c57603d9455aa74b802f4fcc7e5121dcaa67b10"
+                }
+            ]
+        },
+
         {
             "name": "photo-romantic",
             "buildsystem": "meson",

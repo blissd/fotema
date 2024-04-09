@@ -4,10 +4,13 @@
 
 use photos_core::repo::PictureId;
 use relm4::gtk;
+use relm4::adw::gdk;
+use relm4::gtk::gio;
 use relm4::gtk::prelude::*;
 use relm4::*;
 use relm4::prelude::*;
 use std::sync::{Arc, Mutex};
+use glycin;
 
 use crate::app::components::photo_info::PhotoInfo;
 use crate::app::components::photo_info::PhotoInfoInput;
@@ -23,7 +26,7 @@ pub struct OnePhoto {
     repo: Arc<Mutex<photos_core::Repository>>,
 
     // Photo to show
-    picture: gtk::Picture,
+    picture: gtk::Image,
 
     // Info for photo
     photo_info: Controller<PhotoInfo>,
@@ -65,9 +68,9 @@ impl SimpleAsyncComponent for OnePhoto {
 
                 #[wrap(Some)]
                 #[local_ref]
-                set_content = &picture -> gtk::Picture {
-                    set_can_shrink: true,
-                    set_valign: gtk::Align::Center,
+                set_content = &picture -> gtk::Image {
+                    //set_can_shrink: true,
+                    //set_valign: gtk::Align::Center,
                 }
             }
         }
@@ -79,7 +82,7 @@ impl SimpleAsyncComponent for OnePhoto {
         _sender: AsyncComponentSender<Self>,
     ) -> AsyncComponentParts<Self>  {
 
-        let picture = gtk::Picture::new();
+        let picture = gtk::Image::new();
 
         let photo_info = PhotoInfo::builder().launch(scanner).detach();
 
@@ -109,8 +112,15 @@ impl SimpleAsyncComponent for OnePhoto {
                         .map(|x| x.to_string_lossy().to_string())
                         .unwrap_or(String::from("-"));
 
-                    self.picture.set_filename(Some(pic.path.clone()));
+                    self.picture.set_from_paintable(None::<&gdk::Paintable>);
+
+                    let file = gio::File::for_path(pic.path.clone());
+                    let image = glycin::Loader::new(file).load().await.unwrap();
+                    let texture = image.next_frame().await.unwrap().texture;
+
+                    self.picture.set_from_paintable(Some(&texture));
                     self.photo_info.emit(PhotoInfoInput::ShowInfo(pic.path));
+
                 } else {
                     println!("Failed loading {}: {:?}", picture_id, result);
                 }

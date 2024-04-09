@@ -23,6 +23,7 @@ relm4 = { version = "0.8.1", features = ["libadwaita", "gnome_45"] }
 itertools = "0.12.1"
 humansize = "2.1.3"
 rayon = "1.10.0"
+glycin = "1.0.1"
 
 
 [dependencies.photos_core]
