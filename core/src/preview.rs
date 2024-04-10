@@ -10,7 +10,7 @@ use glycin;
 use image::io::Reader as ImageReader;
 use image::DynamicImage;
 use std::path;
-use tempfile::NamedTempFile;
+use tempfile;
 
 const EDGE: u32 = 200;
 
@@ -102,8 +102,10 @@ impl Previewer {
             .await
             .map_err(|e| PreviewError(format!("Glycin image frame: {}", e)))?;
 
-        let png_file =
-            NamedTempFile::new().map_err(|e| PreviewError(format!("Temp file: {}", e)))?;
+        let png_file = tempfile::Builder::new()
+            .suffix(".png")
+            .tempfile()
+            .map_err(|e| PreviewError(format!("Temp file: {}", e)))?;
 
         frame
             .texture
