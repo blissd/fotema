@@ -158,7 +158,7 @@ impl SimpleComponent for App {
             section! {
                 "_Preferences" => PreferencesAction,
                 "_Keyboard" => ShortcutsAction,
-                "_About Photo Romantic" => AboutAction,
+                "_About Fotema" => AboutAction,
             }
         }
     }
@@ -176,7 +176,7 @@ impl SimpleComponent for App {
 
             #[wrap(Some)]
             set_help_overlay: shortcuts = &gtk::Builder::from_resource(
-                    "/dev/romantics/Photos/gtk/help-overlay.ui"
+                    "/dev/romantics/Fotema/gtk/help-overlay.ui"
                 )
                 .object::<gtk::ShortcutsWindow>("help_overlay")
                 .unwrap() -> gtk::ShortcutsWindow {
@@ -381,10 +381,10 @@ impl SimpleComponent for App {
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        let data_dir = glib::user_data_dir().join("photo-romantic");
+        let data_dir = glib::user_data_dir().join(APP_ID);
         let _ = std::fs::create_dir_all(&data_dir);
 
-        let cache_dir = glib::user_cache_dir().join("photo-romantic");
+        let cache_dir = glib::user_cache_dir().join(APP_ID);
         let _ = std::fs::create_dir_all(&cache_dir);
 
         let pic_base_dir = glib::user_special_dir(glib::enums::UserDirectory::Pictures)

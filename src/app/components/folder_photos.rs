@@ -82,14 +82,19 @@ impl RelmGridItem for PhotoGridItem {
             .label
             .set_text(format!("{}", self.folder_name).as_str());
 
-        if self.picture.square_preview_path.as_ref().is_some_and(|f|f.exists()) {
+        if self
+            .picture
+            .square_preview_path
+            .as_ref()
+            .is_some_and(|f| f.exists())
+        {
             widgets
                 .picture
                 .set_filename(self.picture.square_preview_path.clone());
         } else {
-            widgets
-                .picture
-                .set_resource(Some("/dev/romantics/Photos/icons/image-missing-symbolic.svg"));
+            widgets.picture.set_resource(Some(
+                "/dev/romantics/Fotema/icons/image-missing-symbolic.svg",
+            ));
         }
     }
 
@@ -133,13 +138,9 @@ impl SimpleComponent for FolderPhotos {
         _root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-
         let photo_grid = TypedGridView::new();
 
-        let model = FolderPhotos {
-            repo,
-            photo_grid,
-        };
+        let model = FolderPhotos { repo, photo_grid };
 
         let pictures_box = &model.photo_grid.view;
 
@@ -160,11 +161,12 @@ impl SimpleComponent for FolderPhotos {
                         let _ = sender.output(FolderPhotosOutput::FolderSelected(folder_path));
                     }
                 }
-            },
+            }
             FolderPhotosInput::Refresh => {
-
-                let all_pictures = self.repo
-                    .lock().unwrap()
+                let all_pictures = self
+                    .repo
+                    .lock()
+                    .unwrap()
                     .all()
                     .unwrap()
                     .into_iter()
@@ -189,7 +191,7 @@ impl SimpleComponent for FolderPhotos {
                 self.photo_grid.extend_from_iter(pictures.into_iter());
 
                 // NOTE folder view is not sorted by a timestamp, so don't scroll to end.
-            },
+            }
         }
     }
 }

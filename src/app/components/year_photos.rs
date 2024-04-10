@@ -6,14 +6,14 @@ use gtk::prelude::OrientableExt;
 use photos_core;
 
 use itertools::Itertools;
+use photos_core::Year;
 use relm4::gtk;
-use relm4::gtk::prelude::WidgetExt;
 use relm4::gtk::prelude::FrameExt;
+use relm4::gtk::prelude::WidgetExt;
 use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
 use relm4::*;
 use std::path;
 use std::sync::{Arc, Mutex};
-use photos_core::Year;
 
 #[derive(Debug)]
 struct PhotoGridItem {
@@ -86,14 +86,19 @@ impl RelmGridItem for PhotoGridItem {
             .label
             .set_text(format!("{}", self.picture.year()).as_str());
 
-        if self.picture.square_preview_path.as_ref().is_some_and(|f|f.exists()) {
+        if self
+            .picture
+            .square_preview_path
+            .as_ref()
+            .is_some_and(|f| f.exists())
+        {
             widgets
                 .picture
                 .set_filename(self.picture.square_preview_path.clone());
         } else {
-            widgets
-                .picture
-                .set_resource(Some("/dev/romantics/Photos/icons/image-missing-symbolic.svg"));
+            widgets.picture.set_resource(Some(
+                "/dev/romantics/Fotema/icons/image-missing-symbolic.svg",
+            ));
         }
     }
 
@@ -137,13 +142,9 @@ impl SimpleComponent for YearPhotos {
         _root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-
         let photo_grid = TypedGridView::new();
 
-        let model = YearPhotos {
-            repo,
-            photo_grid,
-        };
+        let model = YearPhotos { repo, photo_grid };
 
         let photo_grid_view = &model.photo_grid.view;
 
@@ -154,26 +155,29 @@ impl SimpleComponent for YearPhotos {
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
             YearPhotosInput::Refresh => {
-                let all_pictures = self.repo
-                    .lock().unwrap()
+                let all_pictures = self
+                    .repo
+                    .lock()
+                    .unwrap()
                     .all()
                     .unwrap()
                     .into_iter()
                     .filter(|x| x.square_preview_path.as_ref().is_some_and(|p| p.exists()))
                     .dedup_by(|x, y| x.year() == y.year())
-                    .map(|picture| PhotoGridItem {
-                        picture,
-                    });
+                    .map(|picture| PhotoGridItem { picture });
 
                 self.photo_grid.clear();
                 self.photo_grid.extend_from_iter(all_pictures.into_iter());
 
-                if !self.photo_grid.is_empty(){
-                    self.photo_grid.view
-                        .scroll_to(self.photo_grid.len() - 1, gtk::ListScrollFlags::SELECT, None);
+                if !self.photo_grid.is_empty() {
+                    self.photo_grid.view.scroll_to(
+                        self.photo_grid.len() - 1,
+                        gtk::ListScrollFlags::SELECT,
+                        None,
+                    );
                 }
-            },
-           YearPhotosInput::YearSelected(index) => {
+            }
+            YearPhotosInput::YearSelected(index) => {
                 if let Some(item) = self.photo_grid.get(index) {
                     let date = item.borrow().picture.year_month();
                     println!("index {} has year {}", index, date.year);

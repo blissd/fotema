@@ -1,5 +1,5 @@
 {
-  "id": "dev.romantics.Photos",
+  "id": "dev.romantics.Fotema",
   "runtime": "org.gnome.Platform",
   "runtime-version": "45",
   "sdk": "org.gnome.Sdk",
@@ -7,7 +7,7 @@
     "org.freedesktop.Sdk.Extension.rust-stable",
     "org.freedesktop.Sdk.Extension.llvm16"
   ],
-  "command": "photo-romantic",
+  "command": "fotema",
   "finish-args": [
     "--share=ipc",
     "--socket=fallback-x11",
@@ -112,7 +112,7 @@
       ]
     },
     {
-      "name": "photo-romantic",
+      "name": "fotema",
       "buildsystem": "meson",
       "run-tests": true,
       "config-opts": [

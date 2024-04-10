@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 [package]
-name = "photo-romantic"
+name = "fotema"
 version = "0.1.0"
 authors = ["David Bliss <david@romantics.dev>"]
 edition = "2021"

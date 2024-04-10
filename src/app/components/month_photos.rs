@@ -7,15 +7,15 @@ use photos_core;
 
 use itertools::Itertools;
 use relm4::gtk;
-use relm4::gtk::prelude::WidgetExt;
 use relm4::gtk::prelude::FrameExt;
+use relm4::gtk::prelude::WidgetExt;
 use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
 use relm4::*;
 
+use photos_core::Year;
+use photos_core::YearMonth;
 use std::path;
 use std::sync::{Arc, Mutex};
-use photos_core::YearMonth;
-use photos_core::Year;
 
 #[derive(Debug)]
 struct PhotoGridItem {
@@ -93,14 +93,19 @@ impl RelmGridItem for PhotoGridItem {
             .label
             .set_label(format!("{} {}", ym.month.name(), ym.year).as_str());
 
-        if self.picture.square_preview_path.as_ref().is_some_and(|f|f.exists()) {
+        if self
+            .picture
+            .square_preview_path
+            .as_ref()
+            .is_some_and(|f| f.exists())
+        {
             widgets
                 .picture
                 .set_filename(self.picture.square_preview_path.clone());
         } else {
-            widgets
-                .picture
-                .set_resource(Some("/dev/romantics/Photos/icons/image-missing-symbolic.svg"));
+            widgets.picture.set_resource(Some(
+                "/dev/romantics/Fotema/icons/image-missing-symbolic.svg",
+            ));
         }
     }
 
@@ -144,13 +149,9 @@ impl SimpleComponent for MonthPhotos {
         _root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-
         let photo_grid = TypedGridView::new();
 
-        let model = MonthPhotos {
-            repo,
-            photo_grid,
-        };
+        let model = MonthPhotos { repo, photo_grid };
 
         let photo_grid_view = &model.photo_grid.view;
 
@@ -161,25 +162,28 @@ impl SimpleComponent for MonthPhotos {
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
             MonthPhotosInput::Refresh => {
-                let all_pictures = self.repo
-                .lock().unwrap()
-                .all()
-                .unwrap()
-                .into_iter()
-                .filter(|x| x.square_preview_path.as_ref().is_some_and(|p| p.exists()))
-                .dedup_by(|x, y| x.year_month() == y.year_month())
-                .map(|picture| PhotoGridItem {
-                    picture,
-                });
+                let all_pictures = self
+                    .repo
+                    .lock()
+                    .unwrap()
+                    .all()
+                    .unwrap()
+                    .into_iter()
+                    .filter(|x| x.square_preview_path.as_ref().is_some_and(|p| p.exists()))
+                    .dedup_by(|x, y| x.year_month() == y.year_month())
+                    .map(|picture| PhotoGridItem { picture });
 
                 self.photo_grid.clear();
                 self.photo_grid.extend_from_iter(all_pictures.into_iter());
 
-                if !self.photo_grid.is_empty(){
-                    self.photo_grid.view
-                        .scroll_to(self.photo_grid.len() - 1, gtk::ListScrollFlags::SELECT, None);
+                if !self.photo_grid.is_empty() {
+                    self.photo_grid.view.scroll_to(
+                        self.photo_grid.len() - 1,
+                        gtk::ListScrollFlags::SELECT,
+                        None,
+                    );
                 }
-            },
+            }
             MonthPhotosInput::MonthSelected(index) => {
                 if let Some(item) = self.photo_grid.get(index) {
                     let ym = item.borrow().picture.year_month();
@@ -188,9 +192,11 @@ impl SimpleComponent for MonthPhotos {
                     println!("Result = {:?}", result);
                 }
             }
-           MonthPhotosInput::GoToYear(year) => {
+            MonthPhotosInput::GoToYear(year) => {
                 println!("Showing for year: {}", year);
-                let index_opt = self.photo_grid.find(|p| p.picture.year_month().year == year);
+                let index_opt = self
+                    .photo_grid
+                    .find(|p| p.picture.year_month().year == year);
                 println!("Found: {:?}", index_opt);
                 if let Some(index) = index_opt {
                     let flags = gtk::ListScrollFlags::SELECT;

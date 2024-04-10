@@ -16,12 +16,12 @@ tasks:
   flatpak-devel:
     desc: Development build and install with flatpak-builder
     cmds: 
-      - flatpak-builder --user --install --force-clean flatpak_app build-aux/dev.romantics.Photos.Devel.json
+      - flatpak-builder --user --install --force-clean flatpak_app build-aux/dev.romantics.Fotema.Devel.json
 
   flatpak-release:
     desc: Release build and install with flatpak-builder
     cmds:
-      - flatpak-builder --user --install --force-clean flatpak_app build-aux/dev.romantics.Photos.json
+      - flatpak-builder --user --install --force-clean flatpak_app build-aux/dev.romantics.Fotema.json
 
   licence-update:
     desc: "Update licence annotations for project files"

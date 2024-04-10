@@ -3,14 +3,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use gtk::prelude::OrientableExt;
+use photos_core::repo::PictureId;
+use photos_core::YearMonth;
 use relm4::gtk;
 use relm4::gtk::prelude::WidgetExt;
 use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
 use relm4::*;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
-use photos_core::YearMonth;
-use photos_core::repo::PictureId;
 
 #[derive(Debug)]
 struct PhotoGridItem {
@@ -74,12 +74,17 @@ impl RelmGridItem for PhotoGridItem {
     }
 
     fn bind(&mut self, _widgets: &mut Self::Widgets, picture: &mut Self::Root) {
-        if self.picture.square_preview_path.as_ref().is_some_and(|f|f.exists()) {
-            picture
-                .set_filename(self.picture.square_preview_path.clone());
+        if self
+            .picture
+            .square_preview_path
+            .as_ref()
+            .is_some_and(|f| f.exists())
+        {
+            picture.set_filename(self.picture.square_preview_path.clone());
         } else {
-            picture
-                .set_resource(Some("/dev/romantics/Photos/icons/image-missing-symbolic.svg"));
+            picture.set_resource(Some(
+                "/dev/romantics/Fotema/icons/image-missing-symbolic.svg",
+            ));
         }
     }
 
@@ -121,13 +126,9 @@ impl SimpleComponent for Album {
         _root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-
         let photo_grid = TypedGridView::new();
 
-        let mut model = Album {
-            repo,
-            photo_grid,
-        };
+        let mut model = Album { repo, photo_grid };
 
         model.update_filter(initial_filter);
 
@@ -141,37 +142,38 @@ impl SimpleComponent for Album {
         match msg {
             AlbumInput::Filter(filter) => {
                 self.update_filter(filter);
-            },
+            }
             AlbumInput::Refresh => {
-                let all_pictures = self.repo
+                let all_pictures = self
+                    .repo
                     .lock()
                     .unwrap()
                     .all()
                     .unwrap()
                     .into_iter()
-                    .map(|picture| PhotoGridItem {
-                        picture,
-                    });
+                    .map(|picture| PhotoGridItem { picture });
 
                 self.photo_grid.clear();
 
                 //self.photo_grid.add_filter(move |item| (self.photo_grid_filter)(&item.picture));
                 self.photo_grid.extend_from_iter(all_pictures.into_iter());
 
-                if !self.photo_grid.is_empty(){
-
+                if !self.photo_grid.is_empty() {
                     // We must scroll to a valid index... but we can't get the index of the
                     // last item if filters are enabled. So as a workaround disable filters,
                     // scroll to end, and then enable filters.
 
                     self.disable_filters();
 
-                    self.photo_grid.view
-                        .scroll_to(self.photo_grid.len() - 1, gtk::ListScrollFlags::SELECT, None);
+                    self.photo_grid.view.scroll_to(
+                        self.photo_grid.len() - 1,
+                        gtk::ListScrollFlags::SELECT,
+                        None,
+                    );
 
                     self.enable_filters();
                 }
-            },
+            }
             AlbumInput::PhotoSelected(index) => {
                 // Photos are filters so must use get_visible(...) over get(...), otherwise
                 // wrong photo is displayed.
@@ -181,7 +183,7 @@ impl SimpleComponent for Album {
                     let result = sender.output(AlbumOutput::PhotoSelected(picture_id));
                     println!("Result = {:?}", result);
                 }
-            },
+            }
             AlbumInput::GoToMonth(ym) => {
                 println!("Showing for month: {}", ym);
                 let index_opt = self.photo_grid.find(|p| p.picture.year_month() == ym);
@@ -191,13 +193,12 @@ impl SimpleComponent for Album {
                     println!("Scrolling to {}", index);
                     self.photo_grid.view.scroll_to(index, flags, None);
                 }
-            },
+            }
         }
     }
 }
 
 impl Album {
-
     fn disable_filters(&mut self) {
         for i in 0..(self.photo_grid.filters_len()) {
             self.photo_grid.set_filter_status(i, false);
@@ -217,16 +218,16 @@ impl Album {
         match filter {
             AlbumFilter::All => {
                 // If there are no filters, then all photos will be displayed.
-            },
+            }
             AlbumFilter::None => {
                 self.photo_grid.add_filter(Album::filter_none);
-            },
+            }
             AlbumFilter::Selfies => {
                 self.photo_grid.add_filter(Album::filter_selfie);
-            },
+            }
             AlbumFilter::Folder(path) => {
                 self.photo_grid.add_filter(Album::filter_folder(path));
-            },
+            }
         }
     }
 
@@ -243,6 +244,9 @@ impl Album {
     }
 
     fn filter_has_thumbnail(item: &PhotoGridItem) -> bool {
-        item.picture.square_preview_path.as_ref().is_some_and(|p| p.exists())
+        item.picture
+            .square_preview_path
+            .as_ref()
+            .is_some_and(|p| p.exists())
     }
 }

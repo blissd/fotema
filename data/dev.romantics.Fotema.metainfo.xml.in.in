@@ -4,19 +4,19 @@
   <id>@app-id@</id>
   <metadata_license>CC0</metadata_license>
   <project_license>GPL-3.0-or-later</project_license>
-  <name>Photo Romantic</name>
-  <summary>Write a GTK + Rust application</summary>
+  <name>Fotema</name>
+  <summary>Clean and simple photo library</summary>
   <description>
-    <p>A boilerplate template for GTK + Rust. It uses Meson as a build system and has flatpak support by default.</p>
+    <p>A clean and simple photo library.</p>
   </description>
   <screenshots>
     <screenshot type="default">
-      <image>https://gitlab.gnome.org/bilelmoussaoui/photo-romantic/raw/master/data/resources/screenshots/screenshot1.png</image>
+      <image>https://example.org/fotema.png</image>
       <caption>Main window</caption>
     </screenshot>
   </screenshots>
-  <url type="homepage">https://gitlab.gnome.org/bilelmoussaoui/photo-romantic</url>
-  <url type="bugtracker">https://gitlab.gnome.org/bilelmoussaoui/photo-romantic/issues</url>
+  <url type="homepage">https://github.com/blissd/fotema</url>
+  <url type="bugtracker">https://github.com/blissd/fotema/issues</url>
   <content_rating type="oars-1.1" />
   <releases>
     <release version="0.1.0" date="2019-07-11" />
