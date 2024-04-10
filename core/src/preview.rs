@@ -8,6 +8,10 @@ use crate::Result;
 use image::io::Reader as ImageReader;
 use image::DynamicImage;
 use std::path;
+use glycin;
+use gdk4::prelude::TextureExt;
+use tempfile::NamedTempFile;
+
 
 const EDGE: u32 = 200;
 
@@ -26,21 +30,27 @@ impl Previewer {
 
     /// Computes a preview square for an image that has been inserted
     /// into the Repository. Preview image will be written to file system.
-    pub fn set_preview(&self, pic: &mut repo::Picture) -> Result<()> {
+    pub async fn set_preview(&self, pic:  repo::Picture) -> Result<repo::Picture> {
         if pic.square_preview_path.as_ref().is_some_and(|p| p.exists()) {
-            return Ok(());
+            return Ok(pic);
         }
+
+        let mut pic = pic;
 
         pic.square_preview_path = None;
 
-        let square = self.from_path(&pic.path)?;
+        let square = self.standard_thumbnail(&pic.path);
+
+        let square = if square.is_err() {
+            self.fallback_thumbnail(&pic.path).await
+        } else {
+            square
+        }?;
 
         let square_path = {
             let file_name = format!("{}_{}x{}.png", pic.picture_id, EDGE, EDGE);
             self.base_path.join("square").join(file_name)
         };
-
-        // println!("preview = {:?}", square_path);
 
         let result = square
             .save(&square_path)
@@ -48,24 +58,22 @@ impl Previewer {
 
         if result.is_err() {
             let _ = std::fs::remove_file(&square_path);
-            return result;
+            result?;
         } else {
             pic.square_preview_path = Some(square_path);
         }
 
-        Ok(())
+        Ok(pic)
     }
 
-    /// Computes a preview square for an image on the file system.
-    fn from_path(&self, path: &path::Path) -> Result<DynamicImage> {
+    fn standard_thumbnail(&self, path: &path::Path) -> Result<DynamicImage> {
         let img = ImageReader::open(path)
             .map_err(|e| PreviewError(format!("image open: {}", e)))?
             .decode()
             .map_err(|e| PreviewError(format!("image decode: {}", e)))?;
 
         let img = if img.width() == img.height() && img.width() == EDGE {
-            return Ok(img); // the perfect image for previewing :-)
-                            //return Ok(img.resize(EDGE, EDGE, FilterType::Nearest));
+            return Ok(img);
         } else if img.width() == img.height() {
             img
         } else if img.width() < img.height() {
@@ -77,8 +85,28 @@ impl Previewer {
         };
 
         let img = img.thumbnail(EDGE, EDGE);
-        //let img = img.resize(EDGE, EDGE, FilterType::Triangle);
         Ok(img)
+    }
+
+    /// Copy an image to a PNG file using Glycin, and then use image-rs to compute the thumbnail.
+    /// This is the fallback if image-rs can't decode the original image (such as HEIC images).
+    async fn fallback_thumbnail(&self, path: &path::Path) -> Result<DynamicImage> {
+
+        let file = gio::File::for_path(path);
+
+        let image = glycin::Loader::new(file).load().await
+            .map_err(|e| PreviewError(format!("Glycin load image: {}", e)))?;
+
+        let frame = image.next_frame().await
+            .map_err(|e| PreviewError(format!("Glycin image frame: {}", e)))?;
+
+        let png_file = NamedTempFile::new()
+            .map_err(|e| PreviewError(format!("Temp file: {}", e)))?;
+
+        frame.texture.save_to_png(png_file.path())
+            .map_err(|e| PreviewError(format!("image save: {}", e)))?;
+
+        self.standard_thumbnail(png_file.path())
     }
 }
 

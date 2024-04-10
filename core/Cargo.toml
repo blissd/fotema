@@ -11,10 +11,15 @@ edition = "2021"
 
 [dependencies]
 chrono = "0.4.37"
+gdk4 = "0.8.1"
+gio = "0.19.4"
+glycin = "1.0.1"
+gtk = "0.18.1"
 image = "0.25.0"
 kamadak-exif = "0.5.5"
 rayon = "1.10.0"
 rusqlite = { version = "0.31.0", features = ["bundled", "chrono"] }
+tempfile = "3.10.1"
 walkdir = "2.5.0"
 
 [dev-dependencies]

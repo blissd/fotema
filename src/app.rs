@@ -67,7 +67,7 @@ use self::background::{
 
 pub(super) struct App {
     scan_photos: WorkerController<ScanPhotos>,
-    generate_previews: WorkerController<GeneratePreviews>,
+    generate_previews: AsyncController<GeneratePreviews>,
     cleanup: WorkerController<Cleanup>,
 
     about_dialog: Controller<AboutDialog>,
@@ -167,6 +167,7 @@ relm4::new_stateless_action!(AboutAction, WindowActionGroup, "about");
 
 #[relm4::component(pub async)]
 impl SimpleAsyncComponent for App {
+
     type Init = ();
     type Input = AppMsg;
     type Output = ();
@@ -432,7 +433,7 @@ impl SimpleAsyncComponent for App {
             });
 
         let generate_previews = GeneratePreviews::builder()
-            .detach_worker((previewer.clone(), repo.clone()))
+            .launch((previewer.clone(), repo.clone()))
             .forward(sender.input_sender(), |msg| match msg {
                 GeneratePreviewsOutput::Started(count) => AppMsg::ThumbnailGenerationStarted(count),
                 GeneratePreviewsOutput::Generated => AppMsg::ThumbnailGenerated,
