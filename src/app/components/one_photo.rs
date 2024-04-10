@@ -69,6 +69,8 @@ impl SimpleAsyncComponent for OnePhoto {
                 #[wrap(Some)]
                 #[local_ref]
                 set_content = &picture -> gtk::Image {
+                    //set_vexpand: true,
+                    //set_hexpand: true,
                     //set_can_shrink: true,
                     //set_valign: gtk::Align::Center,
                 }
@@ -115,11 +117,27 @@ impl SimpleAsyncComponent for OnePhoto {
                     self.picture.set_from_paintable(None::<&gdk::Paintable>);
 
                     let file = gio::File::for_path(pic.path.clone());
-                    let image = glycin::Loader::new(file).load().await.unwrap();
-                    let texture = image.next_frame().await.unwrap().texture;
+
+                    let image = if let Ok(image) = glycin::Loader::new(file).load().await {
+                        image
+                    } else {
+                        println!("Failed loading image");
+                        return;
+                    };
+
+                    let frame = if let Ok(frame) = image.next_frame().await {
+                        frame
+                    } else {
+                        println!("Failed getting image frame");
+                        return;
+                    };
+
+                    let texture = frame.texture;
 
                     self.picture.set_from_paintable(Some(&texture));
                     self.photo_info.emit(PhotoInfoInput::ShowInfo(pic.path));
+
+                    //if i
 
                 } else {
                     println!("Failed loading {}: {:?}", picture_id, result);
