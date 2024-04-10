@@ -137,8 +137,7 @@ pub(super) enum AppMsg {
     ThumbnailGenerationCompleted,
 
     // Cleanup events
-    CleanupStarted(usize),
-    CleanupCleaned,
+    CleanupStarted,
     CleanupCompleted,
 }
 
@@ -425,8 +424,7 @@ impl SimpleComponent for App {
             Cleanup::builder()
                 .detach_worker(repo.clone())
                 .forward(sender.input_sender(), |msg| match msg {
-                    CleanupOutput::Started(count) => AppMsg::CleanupStarted(count),
-                    CleanupOutput::Cleaned => AppMsg::CleanupCleaned,
+                    CleanupOutput::Started => AppMsg::CleanupStarted,
                     CleanupOutput::Completed => AppMsg::CleanupCompleted,
                 });
 
@@ -630,8 +628,6 @@ impl SimpleComponent for App {
             }
             AppMsg::ScanCompleted => {
                 println!("Scan all completed msg received.");
-
-                //self.generate_previews.emit(GeneratePreviewsInput::Start);
                 self.cleanup.emit(CleanupInput::Start);
             }
             AppMsg::ThumbnailGenerationStarted(count) => {
@@ -687,49 +683,16 @@ impl SimpleComponent for App {
             }
             AppMsg::CleanupCompleted => {
                 println!("Cleanup completed.");
-                self.spinner.stop();
                 self.banner.set_revealed(false);
                 self.banner.set_button_label(None);
-                self.progress_box.set_visible(false);
 
                 self.generate_previews.emit(GeneratePreviewsInput::Start);
             }
 
-            AppMsg::CleanupStarted(count) => {
+            AppMsg::CleanupStarted => {
                 println!("Cleanup started.");
                 self.banner.set_title("Database maintenance.");
-                // Show button to refresh all photo grids.
-                //self.banner.set_button_label(Some("Refresh"));
                 self.banner.set_revealed(true);
-
-                self.spinner.start();
-
-                let show = self.main_navigation.shows_sidebar();
-                self.spinner.set_visible(!show);
-
-                self.progress_end_count = count;
-                self.progress_current_count = 0;
-
-                self.progress_box.set_visible(true);
-                self.progress_bar.set_fraction(0.0);
-                self.progress_bar.set_text(Some("Database maintenance"));
-                self.progress_bar.set_pulse_step(0.25);
-            }
-            AppMsg::CleanupCleaned => {
-                println!("Cleanup cleaned.");
-                self.progress_current_count += 1;
-                // Show pulsing for first 1000 items so that it catches the eye, then
-                // switch to fractional view
-                if self.progress_current_count < 1000 {
-                    self.progress_bar.pulse();
-                } else {
-                    if self.progress_current_count == 1000 {
-                        self.progress_bar.set_text(None);
-                    }
-                    let fraction =
-                        self.progress_current_count as f64 / self.progress_end_count as f64;
-                    self.progress_bar.set_fraction(fraction);
-                }
             }
         }
     }

@@ -16,10 +16,12 @@ pub enum CleanupInput {
 #[derive(Debug)]
 pub enum CleanupOutput {
     // Thumbnail generation has started for a given number of images.
-    Started(usize),
+    Started,
 
     // Thumbnail has been generated for a photo.
-    Cleaned,
+    // NOTE do not send a message for every cleaned file because too many will
+    // be send and will freeze the UI for a while.
+    // Cleaned,
 
     // Thumbnail generation has completed
     Completed,
@@ -45,7 +47,7 @@ impl Cleanup {
 
         let pics_count = pics.len();
 
-        if let Err(e) = sender.output(CleanupOutput::Started(pics_count)){
+        if let Err(e) = sender.output(CleanupOutput::Started){
             println!("Failed sending cleanup started: {:?}", e);
         }
 
@@ -58,10 +60,6 @@ impl Cleanup {
                     } else {
                         println!("Removed {}", pic.picture_id);
                     }
-                }
-
-                if let Err(e) = sender.output(CleanupOutput::Cleaned) {
-                    println!("Failed sending CleanupOutput::Cleaned: {:?}", e);
                 }
             });
 
