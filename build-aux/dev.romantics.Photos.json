@@ -1,5 +1,5 @@
 {
-  "id": "dev.romantics.Photos.Devel",
+  "id": "dev.romantics.Photos",
   "runtime": "org.gnome.Platform",
   "runtime-version": "45",
   "sdk": "org.gnome.Sdk",
@@ -14,8 +14,6 @@
     "--socket=wayland",
     "--device=dri",
     "--filesystem=xdg-pictures:ro",
-    "--env=RUST_LOG=photo_romantic=debug",
-    "--env=G_MESSAGES_DEBUG=none",
     "--env=RUST_BACKTRACE=1"
   ],
   "build-options": {
@@ -37,7 +35,7 @@
   },
   "add-extensions": {
     /* Exile HEIC (x265) codec into extension */
-    "org.gnome.Loupe.Devel.HEIC": {
+    "org.gnome.Loupe.HEIC": {
       /* Relative to app dir */
       "directory": "lib/libheif-heic",
       /* Relative to directory above */
