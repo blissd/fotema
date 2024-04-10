@@ -5,64 +5,46 @@
 use relm4::{
     actions::{RelmAction, RelmActionGroup},
     adw,
-    adw::prelude::{
-        AdwApplicationWindowExt,
-        NavigationPageExt,
-    },
-    prelude:: {
-        AsyncController,
-        AsyncComponentParts,
-        SimpleAsyncComponent,
-    },
-    component::{
-        AsyncComponentController,
-        AsyncComponent,
-    },
+    adw::prelude::{AdwApplicationWindowExt, NavigationPageExt},
+    component::{AsyncComponent, AsyncComponentController},
     gtk,
     gtk::{
-        gio,
-        glib,
+        gio, glib,
         prelude::{
-            ButtonExt,
-            ApplicationExt,
-            ApplicationWindowExt,
-            GtkWindowExt,
-            OrientableExt,
-            SettingsExt,
-            WidgetExt,
+            ApplicationExt, ApplicationWindowExt, ButtonExt, GtkWindowExt, OrientableExt,
+            SettingsExt, WidgetExt,
         },
     },
-    main_application, Component, ComponentController, ComponentParts, ComponentSender,
-    Controller, SimpleComponent, WorkerController, RelmWidgetExt,
-    AsyncComponentSender,
+    main_application,
+    prelude::AsyncController,
+    Component, ComponentController, ComponentParts, ComponentSender, Controller, RelmWidgetExt,
+    SimpleComponent, WorkerController,
 };
-
 
 use crate::config::{APP_ID, PROFILE};
 use photos_core::repo::PictureId;
 use photos_core::YearMonth;
 
-use std::sync::{Arc, Mutex};
 use std::path::PathBuf;
-
+use std::sync::{Arc, Mutex};
 
 mod components;
 
 use self::components::{
     about::AboutDialog,
-    month_photos::{MonthPhotos, MonthPhotosOutput, MonthPhotosInput},
+    album::{Album, AlbumFilter, AlbumInput, AlbumOutput},
+    folder_photos::{FolderPhotos, FolderPhotosInput, FolderPhotosOutput},
+    month_photos::{MonthPhotos, MonthPhotosInput, MonthPhotosOutput},
     one_photo::{OnePhoto, OnePhotoInput},
     year_photos::{YearPhotos, YearPhotosInput, YearPhotosOutput},
-    folder_photos::{FolderPhotos, FolderPhotosInput, FolderPhotosOutput,},
-    album::{Album, AlbumInput, AlbumOutput,AlbumFilter},
 };
 
 mod background;
 
 use self::background::{
-    scan_photos::{ScanPhotos, ScanPhotosInput, ScanPhotosOutput},
-    generate_previews::{GeneratePreviews, GeneratePreviewsInput, GeneratePreviewsOutput},
     cleanup::{Cleanup, CleanupInput, CleanupOutput},
+    generate_previews::{GeneratePreviews, GeneratePreviewsInput, GeneratePreviewsOutput},
+    scan_photos::{ScanPhotos, ScanPhotosInput, ScanPhotosOutput},
 };
 
 pub(super) struct App {
@@ -165,9 +147,8 @@ relm4::new_stateless_action!(PreferencesAction, WindowActionGroup, "preferences"
 relm4::new_stateless_action!(pub(super) ShortcutsAction, WindowActionGroup, "show-help-overlay");
 relm4::new_stateless_action!(AboutAction, WindowActionGroup, "about");
 
-#[relm4::component(pub async)]
-impl SimpleAsyncComponent for App {
-
+#[relm4::component(pub)]
+impl SimpleComponent for App {
     type Init = ();
     type Input = AppMsg;
     type Output = ();
@@ -396,11 +377,11 @@ impl SimpleAsyncComponent for App {
         }
     }
 
-    async fn init(
+    fn init(
         _init: Self::Init,
         root: Self::Root,
-        sender: AsyncComponentSender<Self>,
-    ) -> AsyncComponentParts<Self> {
+        sender: ComponentSender<Self>,
+    ) -> ComponentParts<Self> {
         let data_dir = glib::user_data_dir().join("photo-romantic");
         let _ = std::fs::create_dir_all(&data_dir);
 
@@ -440,14 +421,14 @@ impl SimpleAsyncComponent for App {
                 GeneratePreviewsOutput::Completed => AppMsg::ThumbnailGenerationCompleted,
             });
 
-
-        let cleanup = Cleanup::builder()
-            .detach_worker(repo.clone())
-            .forward(sender.input_sender(), |msg| match msg {
-                CleanupOutput::Started(count) => AppMsg::CleanupStarted(count),
-                CleanupOutput::Cleaned => AppMsg::CleanupCleaned,
-                CleanupOutput::Completed => AppMsg::CleanupCompleted,
-            });
+        let cleanup =
+            Cleanup::builder()
+                .detach_worker(repo.clone())
+                .forward(sender.input_sender(), |msg| match msg {
+                    CleanupOutput::Started(count) => AppMsg::CleanupStarted(count),
+                    CleanupOutput::Cleaned => AppMsg::CleanupCleaned,
+                    CleanupOutput::Completed => AppMsg::CleanupCompleted,
+                });
 
         let all_photos = Album::builder()
             .launch((repo.clone(), AlbumFilter::All))
@@ -455,17 +436,19 @@ impl SimpleAsyncComponent for App {
                 AlbumOutput::PhotoSelected(id) => AppMsg::ViewPhoto(id),
             });
 
-        let month_photos = MonthPhotos::builder()
-            .launch(repo.clone())
-            .forward(sender.input_sender(), |msg| match msg {
-                MonthPhotosOutput::MonthSelected(ym) => AppMsg::GoToMonth(ym),
-            });
+        let month_photos =
+            MonthPhotos::builder()
+                .launch(repo.clone())
+                .forward(sender.input_sender(), |msg| match msg {
+                    MonthPhotosOutput::MonthSelected(ym) => AppMsg::GoToMonth(ym),
+                });
 
-        let year_photos = YearPhotos::builder()
-            .launch(repo.clone())
-            .forward(sender.input_sender(), |msg| match msg {
-                YearPhotosOutput::YearSelected(year) => AppMsg::GoToYear(year),
-            });
+        let year_photos =
+            YearPhotos::builder()
+                .launch(repo.clone())
+                .forward(sender.input_sender(), |msg| match msg {
+                    YearPhotosOutput::YearSelected(year) => AppMsg::GoToYear(year),
+                });
 
         let one_photo = OnePhoto::builder()
             .launch((scan.clone(), repo.clone()))
@@ -477,15 +460,16 @@ impl SimpleAsyncComponent for App {
                 AlbumOutput::PhotoSelected(id) => AppMsg::ViewPhoto(id),
             });
 
-       let show_selfies = AppWidgets::show_selfies();
+        let show_selfies = AppWidgets::show_selfies();
 
-       let folder_photos = FolderPhotos::builder()
-            .launch(repo.clone())
-            .forward(sender.input_sender(), |msg| match msg {
-                FolderPhotosOutput::FolderSelected(path) => AppMsg::ViewFolder(path),
-            });
+        let folder_photos =
+            FolderPhotos::builder()
+                .launch(repo.clone())
+                .forward(sender.input_sender(), |msg| match msg {
+                    FolderPhotosOutput::FolderSelected(path) => AppMsg::ViewFolder(path),
+                });
 
-       let folder_album = Album::builder()
+        let folder_album = Album::builder()
             .launch((repo.clone(), AlbumFilter::None))
             .forward(sender.input_sender(), |msg| match msg {
                 AlbumOutput::PhotoSelected(id) => AppMsg::ViewPhoto(id),
@@ -498,7 +482,6 @@ impl SimpleAsyncComponent for App {
             .launch(())
             .detach();
 
-
         let library_view_stack = adw::ViewStack::new();
 
         let picture_navigation_view = adw::NavigationView::builder().build();
@@ -509,13 +492,9 @@ impl SimpleAsyncComponent for App {
 
         let header_bar = adw::HeaderBar::new();
 
-        let spinner = gtk::Spinner::builder()
-            .visible(false)
-            .build();
+        let spinner = gtk::Spinner::builder().visible(false).build();
 
-        let progress_bar = gtk::ProgressBar::builder()
-            .pulse_step(0.05)
-            .build();
+        let progress_bar = gtk::ProgressBar::builder().pulse_step(0.05).build();
 
         let progress_box = gtk::Box::builder().build();
 
@@ -576,20 +555,20 @@ impl SimpleAsyncComponent for App {
         model.scan_photos.sender().emit(ScanPhotosInput::Start);
 
         //        model.selfie_photos.emit(SelfiePhotosInput::Refresh);
-          //      model.month_photos.emit(MonthPhotosInput::Refresh);
-            //    model.year_photos.emit(YearPhotosInput::Refresh);
+        //      model.month_photos.emit(MonthPhotosInput::Refresh);
+        //    model.year_photos.emit(YearPhotosInput::Refresh);
 
-        AsyncComponentParts { model, widgets }
+        ComponentParts { model, widgets }
     }
 
-    async fn update(&mut self, message: Self::Input, _sender: AsyncComponentSender<Self>) {
+    fn update(&mut self, message: Self::Input, _sender: ComponentSender<Self>) {
         match message {
             AppMsg::Quit => main_application().quit(),
             AppMsg::ToggleSidebar => {
                 let show = self.main_navigation.shows_sidebar();
                 self.main_navigation.set_show_sidebar(!show);
                 self.spinner.set_visible(show);
-            },
+            }
             AppMsg::SwitchView => {
                 let child = self.main_stack.visible_child();
                 let child_name = self.main_stack.visible_child_name();
@@ -601,7 +580,7 @@ impl SimpleAsyncComponent for App {
                         .build();
                     self.header_bar.set_title_widget(Some(&vs));
                 } else if let Some(child) = child {
-                    let page =self.main_stack.page(&child);
+                    let page = self.main_stack.page(&child);
                     let title = page.title().map(|x| x.to_string());
                     let label = gtk::Label::builder()
                         .label(title.unwrap_or("-".to_string()))
@@ -609,29 +588,30 @@ impl SimpleAsyncComponent for App {
                         .build();
                     self.header_bar.set_title_widget(Some(&label));
                 }
-            },
+            }
             AppMsg::ViewPhoto(picture_id) => {
                 // Send message to OnePhoto to show image
                 self.one_photo.emit(OnePhotoInput::ViewPhoto(picture_id));
 
                 // Display navigation page for viewing an individual photo.
                 self.picture_navigation_view.push_by_tag("picture");
-            },
+            }
             AppMsg::ViewFolder(path) => {
-                self.folder_album.emit(AlbumInput::Filter(AlbumFilter::Folder(path)));
+                self.folder_album
+                    .emit(AlbumInput::Filter(AlbumFilter::Folder(path)));
                 //self.folder_album
                 self.picture_navigation_view.push_by_tag("album");
-            },
+            }
             AppMsg::GoToMonth(ym) => {
                 // Display all photos view.
                 self.library_view_stack.set_visible_child_name("all");
                 self.all_photos.emit(AlbumInput::GoToMonth(ym));
-            },
+            }
             AppMsg::GoToYear(year) => {
                 // Display month photos view.
                 self.library_view_stack.set_visible_child_name("month");
                 self.month_photos.emit(MonthPhotosInput::GoToYear(year));
-            },
+            }
             AppMsg::Refresh => {
                 println!("Refresh photo grids");
 
@@ -642,21 +622,22 @@ impl SimpleAsyncComponent for App {
                 self.folder_photos.emit(FolderPhotosInput::Refresh);
                 self.month_photos.emit(MonthPhotosInput::Refresh);
                 self.year_photos.emit(YearPhotosInput::Refresh);
-            },
+            }
             AppMsg::ScanStarted => {
                 self.spinner.start();
                 self.banner.set_title("Scanning file system for photos.");
                 self.banner.set_revealed(true);
-            },
+            }
             AppMsg::ScanCompleted => {
                 println!("Scan all completed msg received.");
 
                 //self.generate_previews.emit(GeneratePreviewsInput::Start);
                 self.cleanup.emit(CleanupInput::Start);
-            },
+            }
             AppMsg::ThumbnailGenerationStarted(count) => {
                 println!("Thumbnail generation started.");
-                self.banner.set_title("Generating thumbnails. This will take a while.");
+                self.banner
+                    .set_title("Generating thumbnails. This will take a while.");
                 // Show button to refresh all photo grids.
                 self.banner.set_button_label(Some("Refresh"));
                 self.banner.set_revealed(true);
@@ -673,7 +654,7 @@ impl SimpleAsyncComponent for App {
                 self.progress_bar.set_fraction(0.0);
                 self.progress_bar.set_text(Some("Generating thumbnails."));
                 self.progress_bar.set_pulse_step(0.25);
-            },
+            }
             AppMsg::ThumbnailGenerated => {
                 println!("Thumbnail generated.");
                 self.progress_current_count += 1;
@@ -685,11 +666,12 @@ impl SimpleAsyncComponent for App {
                     if self.progress_current_count == 20 {
                         self.progress_bar.set_text(None);
                     }
-                    let fraction = self.progress_current_count as f64 / self.progress_end_count as f64;
+                    let fraction =
+                        self.progress_current_count as f64 / self.progress_end_count as f64;
                     self.progress_bar.set_fraction(fraction);
                 }
-            },
-            AppMsg::ThumbnailGenerationCompleted  => {
+            }
+            AppMsg::ThumbnailGenerationCompleted => {
                 println!("Thumbnail generation completed.");
                 self.spinner.stop();
                 self.banner.set_revealed(false);
@@ -702,9 +684,8 @@ impl SimpleAsyncComponent for App {
                 self.folder_photos.emit(FolderPhotosInput::Refresh);
                 self.month_photos.emit(MonthPhotosInput::Refresh);
                 self.year_photos.emit(YearPhotosInput::Refresh);
-
-            },
-            AppMsg::CleanupCompleted  => {
+            }
+            AppMsg::CleanupCompleted => {
                 println!("Cleanup completed.");
                 self.spinner.stop();
                 self.banner.set_revealed(false);
@@ -712,7 +693,7 @@ impl SimpleAsyncComponent for App {
                 self.progress_box.set_visible(false);
 
                 self.generate_previews.emit(GeneratePreviewsInput::Start);
-            },
+            }
 
             AppMsg::CleanupStarted(count) => {
                 println!("Cleanup started.");
@@ -733,7 +714,7 @@ impl SimpleAsyncComponent for App {
                 self.progress_bar.set_fraction(0.0);
                 self.progress_bar.set_text(Some("Database maintenance"));
                 self.progress_bar.set_pulse_step(0.25);
-            },
+            }
             AppMsg::CleanupCleaned => {
                 println!("Cleanup cleaned.");
                 self.progress_current_count += 1;
@@ -745,10 +726,11 @@ impl SimpleAsyncComponent for App {
                     if self.progress_current_count == 1000 {
                         self.progress_bar.set_text(None);
                     }
-                    let fraction = self.progress_current_count as f64 / self.progress_end_count as f64;
+                    let fraction =
+                        self.progress_current_count as f64 / self.progress_end_count as f64;
                     self.progress_bar.set_fraction(fraction);
                 }
-            },
+            }
         }
     }
 
@@ -758,7 +740,6 @@ impl SimpleAsyncComponent for App {
 }
 
 impl AppWidgets {
-
     fn show_selfies() -> bool {
         let settings = gio::Settings::new(APP_ID);
         let show_selfies = settings.boolean("show-selfies");
