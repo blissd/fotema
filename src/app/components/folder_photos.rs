@@ -104,8 +104,8 @@ pub struct FolderPhotos {
     photo_grid: TypedGridView<PhotoGridItem, gtk::SingleSelection>,
 }
 
-#[relm4::component(pub async)]
-impl SimpleAsyncComponent for FolderPhotos {
+#[relm4::component(pub)]
+impl SimpleComponent for FolderPhotos {
     type Init = Arc<Mutex<photos_core::Repository>>;
     type Input = FolderPhotosInput;
     type Output = FolderPhotosOutput;
@@ -129,11 +129,11 @@ impl SimpleAsyncComponent for FolderPhotos {
         }
     }
 
-    async fn init(
+    fn init(
         repo: Self::Init,
         _root: Self::Root,
-        sender: AsyncComponentSender<Self>,
-    ) -> AsyncComponentParts<Self> {
+        sender: ComponentSender<Self>,
+    ) -> ComponentParts<Self> {
 
         let photo_grid = TypedGridView::new();
 
@@ -146,10 +146,10 @@ impl SimpleAsyncComponent for FolderPhotos {
 
         let widgets = view_output!();
 
-        AsyncComponentParts { model, widgets }
+        ComponentParts { model, widgets }
     }
 
-    async fn update(&mut self, msg: Self::Input, sender: AsyncComponentSender<Self>) {
+    fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
             FolderPhotosInput::FolderSelected(index) => {
                 println!("Folder selected index: {}", index);

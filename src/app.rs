@@ -53,19 +53,19 @@ pub(super) struct App {
     cleanup: WorkerController<Cleanup>,
 
     about_dialog: Controller<AboutDialog>,
-    all_photos: AsyncController<Album>,
-    month_photos: AsyncController<MonthPhotos>,
-    year_photos: AsyncController<YearPhotos>,
+    all_photos: Controller<Album>,
+    month_photos: Controller<MonthPhotos>,
+    year_photos: Controller<YearPhotos>,
     one_photo: AsyncController<OnePhoto>,
 
     show_selfies: bool,
-    selfie_photos: AsyncController<Album>,
+    selfie_photos: Controller<Album>,
 
     // Grid of folders of photos
-    folder_photos: AsyncController<FolderPhotos>,
+    folder_photos: Controller<FolderPhotos>,
 
     // Folder album currently being viewed
-    folder_album: AsyncController<Album>,
+    folder_album: Controller<Album>,
 
     // Main navigation. Parent of library stack.
     main_navigation: adw::OverlaySplitView,

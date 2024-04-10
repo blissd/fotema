@@ -94,8 +94,8 @@ pub struct Album {
     photo_grid: TypedGridView<PhotoGridItem, gtk::SingleSelection>,
 }
 
-#[relm4::component(pub async)]
-impl SimpleAsyncComponent for Album {
+#[relm4::component(pub)]
+impl SimpleComponent for Album {
     type Init = (Arc<Mutex<photos_core::Repository>>, AlbumFilter);
     type Input = AlbumInput;
     type Output = AlbumOutput;
@@ -117,11 +117,11 @@ impl SimpleAsyncComponent for Album {
         }
     }
 
-    async fn init(
+    fn init(
         (repo, initial_filter): Self::Init,
         _root: Self::Root,
-        sender: AsyncComponentSender<Self>,
-    ) -> AsyncComponentParts<Self> {
+        sender: ComponentSender<Self>,
+    ) -> ComponentParts<Self> {
 
         let photo_grid = TypedGridView::new();
 
@@ -135,10 +135,10 @@ impl SimpleAsyncComponent for Album {
         let grid_view = &model.photo_grid.view;
 
         let widgets = view_output!();
-        AsyncComponentParts { model, widgets }
+        ComponentParts { model, widgets }
     }
 
-    async fn update(&mut self, msg: Self::Input, sender: AsyncComponentSender<Self>) {
+    fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
             AlbumInput::Filter(filter) => {
                 self.update_filter(filter);

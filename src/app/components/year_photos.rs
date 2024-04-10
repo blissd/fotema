@@ -108,8 +108,8 @@ pub struct YearPhotos {
     photo_grid: TypedGridView<PhotoGridItem, gtk::NoSelection>,
 }
 
-#[relm4::component(pub async)]
-impl SimpleAsyncComponent for YearPhotos {
+#[relm4::component(pub)]
+impl SimpleComponent for YearPhotos {
     type Init = Arc<Mutex<photos_core::Repository>>;
     type Input = YearPhotosInput;
     type Output = YearPhotosOutput;
@@ -133,11 +133,11 @@ impl SimpleAsyncComponent for YearPhotos {
         }
     }
 
-    async fn init(
+    fn init(
         repo: Self::Init,
         _root: Self::Root,
-        sender: AsyncComponentSender<Self>,
-    ) -> AsyncComponentParts<Self> {
+        sender: ComponentSender<Self>,
+    ) -> ComponentParts<Self> {
 
         let photo_grid = TypedGridView::new();
 
@@ -149,10 +149,10 @@ impl SimpleAsyncComponent for YearPhotos {
         let photo_grid_view = &model.photo_grid.view;
 
         let widgets = view_output!();
-        AsyncComponentParts { model, widgets }
+        ComponentParts { model, widgets }
     }
 
-    async fn update(&mut self, msg: Self::Input, sender: AsyncComponentSender<Self>) {
+    fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
             YearPhotosInput::Refresh => {
                 let all_pictures = self.repo
