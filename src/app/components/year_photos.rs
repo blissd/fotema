@@ -11,7 +11,6 @@ use relm4::gtk::prelude::WidgetExt;
 use relm4::gtk::prelude::FrameExt;
 use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
 use relm4::*;
-use relm4::prelude::*;
 use std::path;
 use std::sync::{Arc, Mutex};
 use photos_core::Year;
