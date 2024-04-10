@@ -109,8 +109,8 @@
       "sources": [
         {
           "type": "archive",
-          "url": "https://download.gnome.org/sources/glycin-loaders/1.0/glycin-loaders-1.0.0.tar.xz",
-          "sha256": "cd2a3979259fee56cbd882a4d890437684bf1926e65afeafcb904ca9d17ae282",
+          "url": "https://download.gnome.org/sources/glycin-loaders/1.0/glycin-loaders-1.0.1.tar.xz",
+          "sha256": "d0f022462ff555856e85ea940474470bb36b37c9ffcbcba63a03fe5e954370cf",
           "x-checker-data": {
             "type": "gnome",
             "name": "glycin-loaders"
@@ -118,20 +118,6 @@
         }
       ]
     },
-        {
-            "name": "glycin",
-            "buildsystem": "meson",
-            "config-opts": [
-                "-Dprofile=dev"
-            ],
-            "sources": [
-                {
-                    "type": "git",
-                    "url": "https://gitlab.gnome.org/sophie-h/glycin.git",
-                    "commit": "5c57603d9455aa74b802f4fcc7e5121dcaa67b10"
-                }
-            ]
-        },
 
         {
             "name": "photo-romantic",
