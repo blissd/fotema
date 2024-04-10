@@ -36,8 +36,8 @@ jobs:
     - uses: actions/checkout@v4
     - uses: bilelmoussaoui/flatpak-github-actions/flatpak-builder@v6
       with:
-        bundle: photo-romantic.flatpak
-        manifest-path: build-aux/dev.romantics.Photos.Devel.json
+        bundle: fotema.flatpak
+        manifest-path: build-aux/dev.romantics.Fotema.Devel.json
         run-tests: true
         cache-key: flatpak-builder-${{ github.sha }}
         upload-artifact: false
