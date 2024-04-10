@@ -49,7 +49,7 @@ use self::background::{
 
 pub(super) struct App {
     scan_photos: WorkerController<ScanPhotos>,
-    generate_previews: AsyncController<GeneratePreviews>,
+    generate_previews: WorkerController<GeneratePreviews>,
     cleanup: WorkerController<Cleanup>,
 
     about_dialog: Controller<AboutDialog>,
@@ -414,7 +414,7 @@ impl SimpleComponent for App {
             });
 
         let generate_previews = GeneratePreviews::builder()
-            .launch((previewer.clone(), repo.clone()))
+            .detach_worker((previewer.clone(), repo.clone()))
             .forward(sender.input_sender(), |msg| match msg {
                 GeneratePreviewsOutput::Started(count) => AppMsg::ThumbnailGenerationStarted(count),
                 GeneratePreviewsOutput::Generated => AppMsg::ThumbnailGenerated,

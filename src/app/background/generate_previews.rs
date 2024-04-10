@@ -3,14 +3,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use relm4::prelude::*;
+use relm4::Worker;
 use std::sync::{Arc, Mutex};
 use photos_core::Result;
 use rayon::prelude::*;
-use futures::future;
-use futures::Future;
-use futures::stream::FuturesUnordered;
-use futures::stream::StreamExt;
-use itertools::Itertools;
+use futures::executor::block_on;
 
 
 #[derive(Debug)]
@@ -40,7 +37,7 @@ pub struct GeneratePreviews {
 
 impl GeneratePreviews {
 
-    async fn update_previews(&self, sender: &AsyncComponentSender<Self>) -> Result<()> {
+    fn update_previews(&self, sender: &ComponentSender<Self>) -> Result<()> {
         let start = std::time::Instant::now();
 
         let unprocessed_pics: Vec<photos_core::repo::Picture> = self.repo
@@ -52,69 +49,26 @@ impl GeneratePreviews {
             .collect();
 
         let pics_count = unprocessed_pics.len();
-
         if let Err(e) = sender.output(GeneratePreviewsOutput::Started(pics_count)){
             println!("Failed sending gen started: {:?}", e);
         }
 
-        let futs: Vec<_> = unprocessed_pics.into_iter().map(|pic| {
-                self.previewer.set_preview(pic.clone())
-            }).collect();
-
-        let s: String = FuturesUnordered::from_iter(futs).fuse().for_each_concurrent(2, |item| async move {
-            if let Ok(pic) = item {
+        unprocessed_pics.par_iter()
+            .flat_map(|pic| {
+                let result = block_on(async {self.previewer.set_preview(pic.clone()).await});
+                if let Err(ref e) = result {
+                    println!("Failed setting preview: {:?}", e);
+                }
+                result
+            })
+            .for_each(|pic| {
                 let result = self.repo.lock().unwrap().add_preview(&pic);
                 if let Err(e) = result {
                     println!("Failed add_preview: {:?}", e);
                 } else if let Err(e) = sender.output(GeneratePreviewsOutput::Generated) {
                     println!("Failed sending GeneratePreviewsOutput::Generated: {:?}", e);
                 }
-            }
-        });
-
-
-        /*for chunk in unprocessed_pics.chunks(10) {
-
-            let futs = chunk.into_iter().map(|pic| {
-                self.previewer.set_preview(pic.clone())
             });
-
-*/
-/*
-            println!("Before blocking on stream");
-            loop {
-                let item = futs.next().await;
-                let Some(item) = item else {
-                    break;
-                };
-
-                if let Ok(pic) = item {
-                    let result = self.repo.lock().unwrap().add_preview(&pic);
-                    if let Err(e) = result {
-                        println!("Failed add_preview: {:?}", e);
-                    } else if let Err(e) = sender.output(GeneratePreviewsOutput::Generated) {
-                        println!("Failed sending GeneratePreviewsOutput::Generated: {:?}", e);
-                    }
-                } else {
-                    break;
-                }
-            }
-        }
-*/
-
-        //let pics = future::join_all(pics).await;
-/*
-        for pic in pics {
-            if let Ok(pic) = pic {
-                let result = self.repo.lock().unwrap().add_preview(&pic);
-                if let Err(e) = result {
-                    println!("Failed add_preview: {:?}", e);
-                } else if let Err(e) = sender.output(GeneratePreviewsOutput::Generated) {
-                    println!("Failed sending GeneratePreviewsOutput::Generated: {:?}", e);
-                }
-            }
-        }
-        */
 
         println!("Generated {} previews in {} seconds.", pics_count, start.elapsed().as_secs());
 
@@ -126,37 +80,25 @@ impl GeneratePreviews {
     }
 }
 
-// I would like to implement an async relm4::Worker instead of SimpleAsyncComponent.
-//#[relm4::component(pub async)]
-impl SimpleAsyncComponent for GeneratePreviews {
+impl Worker for GeneratePreviews {
     type Init = (photos_core::Previewer, Arc<Mutex<photos_core::Repository>>);
     type Input = GeneratePreviewsInput;
     type Output = GeneratePreviewsOutput;
-    type Root = ();
-    type Widgets = ();
 
-    fn init_root() -> Self::Root {
-        ()
-    }
-
-    async fn init(
-        (previewer, repo): Self::Init,
-        _root: Self::Root,
-        _sender: AsyncComponentSender<Self>,
-    ) -> AsyncComponentParts<Self>  {
+    fn init((previewer, repo): Self::Init, _sender: ComponentSender<Self>) -> Self  {
         let model = GeneratePreviews {
             previewer,
             repo,
         };
-        AsyncComponentParts { model, widgets: () }
+        model
     }
 
 
-    async fn update(&mut self, msg: Self::Input, sender: AsyncComponentSender<Self>) {
+    fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
             GeneratePreviewsInput::Start => {
                 println!("Generating previews...");
-                if let Err(e) = self.update_previews(&sender).await {
+                if let Err(e) = self.update_previews(&sender) {
                     println!("Failed to update previews: {}", e);
                 }
             }
