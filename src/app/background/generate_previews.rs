@@ -37,10 +37,14 @@ pub struct GeneratePreviews {
 
 impl GeneratePreviews {
 
-    fn update_previews(&self, sender: &ComponentSender<Self>) -> Result<()> {
+    fn update_previews(
+        repo: Arc<Mutex<photos_core::Repository>>,
+        previewer: photos_core::Previewer,
+        sender: &ComponentSender<GeneratePreviews>) -> Result<()>
+     {
         let start = std::time::Instant::now();
 
-        let unprocessed_pics: Vec<photos_core::repo::Picture> = self.repo
+        let unprocessed_pics: Vec<photos_core::repo::Picture> = repo
             .lock()
             .unwrap()
             .all()?
@@ -55,14 +59,14 @@ impl GeneratePreviews {
 
         unprocessed_pics.par_iter()
             .flat_map(|pic| {
-                let result = block_on(async {self.previewer.set_preview(pic.clone()).await});
+                let result = block_on(async {previewer.set_preview(pic.clone()).await});
                 if let Err(ref e) = result {
                     println!("Failed setting preview: {:?}", e);
                 }
                 result
             })
             .for_each(|pic| {
-                let result = self.repo.lock().unwrap().add_preview(&pic);
+                let result = repo.lock().unwrap().add_preview(&pic);
                 if let Err(e) = result {
                     println!("Failed add_preview: {:?}", e);
                 } else if let Err(e) = sender.output(GeneratePreviewsOutput::Generated) {
@@ -98,9 +102,15 @@ impl Worker for GeneratePreviews {
         match msg {
             GeneratePreviewsInput::Start => {
                 println!("Generating previews...");
-                if let Err(e) = self.update_previews(&sender) {
-                    println!("Failed to update previews: {}", e);
-                }
+                let repo = self.repo.clone();
+                let previewer = self.previewer.clone();
+
+                // Avoid runtime panic from calling block_on
+                rayon::spawn(move || {
+                    if let Err(e) = GeneratePreviews::update_previews(repo, previewer, &sender) {
+                        println!("Failed to update previews: {}", e);
+                    }
+                });
             }
         };
     }
