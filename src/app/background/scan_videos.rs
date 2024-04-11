@@ -1,0 +1,63 @@
+// SPDX-FileCopyrightText: © 2024 David Bliss
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+use relm4::prelude::*;
+use relm4::Worker;
+use std::sync::{Arc, Mutex};
+
+#[derive(Debug)]
+pub enum ScanVideosInput {
+    Start,
+}
+
+#[derive(Debug)]
+pub enum ScanVideosOutput {
+    Started,
+    Completed,
+}
+
+pub struct ScanVideos {
+    scan: photos_core::VideoScanner,
+    repo: Arc<Mutex<photos_core::Repository>>,
+}
+
+impl Worker for ScanVideos {
+    type Init = (photos_core::VideoScanner, Arc<Mutex<photos_core::Repository>>);
+    type Input = ScanVideosInput;
+    type Output = ScanVideosOutput;
+
+    fn init((scan, repo): Self::Init, _sender: ComponentSender<Self>) -> Self {
+        Self { scan, repo }
+    }
+
+    fn update(&mut self, msg: ScanVideosInput, sender: ComponentSender<Self>) {
+        match msg {
+            ScanVideosInput::Start => {
+                let result = self.scan_and_add(sender);
+                if let Err(e) = result {
+                    println!("Failed scan with: {}", e);
+                }
+            }
+        };
+    }
+}
+
+impl ScanVideos {
+    fn scan_and_add(&mut self, sender: ComponentSender<Self>) -> std::result::Result<(), String> {
+
+        sender.output(ScanVideosOutput::Started)
+            .map_err(|e| format!("{:?}", e))?;
+
+        println!("Scanning file system for videos...");
+        let result = self.scan.scan_all().map_err(|e| e.to_string())?;
+        self.repo.lock()
+            .map_err(|e| e.to_string())?
+            .add_all_videos(&result)
+            .map_err(|e| e.to_string())?;
+
+        sender.output(ScanVideosOutput::Completed)
+            .map_err(|e| format!("{:?}", e))
+
+    }
+}

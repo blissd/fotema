@@ -46,10 +46,12 @@ use self::background::{
     cleanup::{Cleanup, CleanupInput, CleanupOutput},
     generate_previews::{GeneratePreviews, GeneratePreviewsInput, GeneratePreviewsOutput},
     scan_photos::{ScanPhotos, ScanPhotosInput, ScanPhotosOutput},
+    scan_videos::{ScanVideos, ScanVideosInput, ScanVideosOutput},
 };
 
 pub(super) struct App {
     scan_photos: WorkerController<ScanPhotos>,
+    scan_videos: WorkerController<ScanVideos>,
     generate_previews: WorkerController<GeneratePreviews>,
     cleanup: WorkerController<Cleanup>,
 
@@ -133,6 +135,9 @@ pub(super) enum AppMsg {
     // File-system scan events
     PhotoScanStarted,
     PhotoScanCompleted,
+
+    VideoScanStarted,
+    VideoScanCompleted,
 
     // Thumbnail generation events
     ThumbnailGenerationStarted(usize),
@@ -403,6 +408,7 @@ impl SimpleComponent for App {
         };
 
         let photo_scan = photos_core::PhotoScanner::build(&pic_base_dir).unwrap();
+        let video_scan = photos_core::VideoScanner::build(&pic_base_dir).unwrap();
 
         let previewer = {
             let preview_base_path = cache_dir.join("previews");
@@ -417,6 +423,13 @@ impl SimpleComponent for App {
             .forward(sender.input_sender(), |msg| match msg {
                 ScanPhotosOutput::Started => AppMsg::PhotoScanStarted,
                 ScanPhotosOutput::Completed => AppMsg::PhotoScanCompleted,
+            });
+
+        let scan_videos = ScanVideos::builder()
+            .detach_worker((video_scan.clone(), repo.clone()))
+            .forward(sender.input_sender(), |msg| match msg {
+                ScanVideosOutput::Started => AppMsg::VideoScanStarted,
+                ScanVideosOutput::Completed => AppMsg::VideoScanCompleted,
             });
 
         let generate_previews = GeneratePreviews::builder()
@@ -512,6 +525,7 @@ impl SimpleComponent for App {
 
         let model = Self {
             scan_photos,
+            scan_videos,
             generate_previews,
             cleanup,
             about_dialog,
@@ -649,7 +663,16 @@ impl SimpleComponent for App {
                 self.banner.set_revealed(true);
             }
             AppMsg::PhotoScanCompleted => {
-                println!("Scan all completed msg received.");
+                println!("Scan photos completed msg received.");
+                self.scan_videos.emit(ScanVideosInput::Start);
+            }
+            AppMsg::VideoScanStarted => {
+                self.spinner.start();
+                self.banner.set_title("Scanning file system for videos.");
+                self.banner.set_revealed(true);
+            }
+            AppMsg::VideoScanCompleted => {
+                println!("Scan videos completed msg received.");
                 self.cleanup.emit(CleanupInput::Start);
             }
             AppMsg::ThumbnailGenerationStarted(count) => {

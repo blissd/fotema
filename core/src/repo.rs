@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use crate::photo_scanner;
+use crate::video_scanner;
 ///! Repository of metadata about pictures on the local filesystem.
 use crate::Error::*;
 use crate::Result;
@@ -194,6 +195,10 @@ impl Repository {
         }
 
         tx.commit().map_err(|e| RepositoryError(e.to_string()))
+    }
+
+    pub fn add_all_videos(&mut self, pics: &Vec<video_scanner::Video>) -> Result<()> {
+        Ok(())
     }
 
     /// Add all Pictures received from a vector.
