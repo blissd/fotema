@@ -147,6 +147,14 @@ impl Repository {
                 modified_ts   DATETIME, -- UTC timestamp of file system modification time
                 created_ts    DATETIME -- UTC timestamp of file system creation time
             )",
+            "CREATE TABLE IF NOT EXISTS visual (
+                visual_id     INTEGER PRIMARY KEY UNIQUE NOT NULL, -- unique ID for video
+                picture_id    TEXT UNIQUE ON CONFLICT IGNORE, -- path to video
+                video_id      TEXT UNIQUE ON CONFLICT IGNORE, -- path to preview
+                stem_path     TEXT UNIQUE NOT NULL ON CONFLICT IGNORE, -- visual artefact path minus suffix
+                FOREIGN KEY (picture_id) REFERENCES pictures (picture_id) ON DELETE CASCADE,
+                FOREIGN KEY (video_id)   REFERENCES videos   (video_id)   ON DELETE CASCADE
+            )",
         ];
 
         let sql = sql.join(";\n") + ";";
@@ -207,13 +215,36 @@ impl Repository {
 
         // Create a scope to make borrowing of tx not be an error.
         {
-            let mut stmt = tx
+            let mut vid_lookup_stmt = tx
+                .prepare_cached(
+                    "SELECT video_id
+                FROM videos
+                WHERE video_path = ?1",
+                )
+                .map_err(|e| RepositoryError(format!("Preparing statement: {}", e)))?;
+
+            let mut vid_stmt = tx
                 .prepare_cached(
                     "INSERT INTO videos (
-                    video_path,
-                    modified_ts,
-                    created_ts
-                ) VALUES (?1, ?2, ?3)",
+                        video_path,
+                        modified_ts,
+                        created_ts
+                    ) VALUES (
+                        ?1, ?2, ?3
+                    ) ON CONFLICT (video_path) DO UPDATE SET modified_ts=?2, created_ts=?1
+                    ",
+                )
+                .map_err(|e| RepositoryError(format!("Preparing statement: {}", e)))?;
+
+            let mut vis_stmt = tx
+                .prepare_cached(
+                    "INSERT INTO visual (
+                        stem_path,
+                        video_id
+                    ) VALUES (
+                        ?1,
+                        ?2
+                    ) ON CONFLICT (stem_path) DO UPDATE SET video_id = ?2",
                 )
                 .map_err(|e| RepositoryError(format!("Preparing statement: {}", e)))?;
 
@@ -226,22 +257,30 @@ impl Repository {
                         RepositoryError(format!("Stripping prefix for {:?}: {}", &vid.path, e))
                     })?;
 
+                // Path without suffix so sibling pictures and videos can be related
+                let file_stem = path
+                    .file_stem()
+                    .and_then(|x| x.to_str())
+                    .expect("Must exist");
+                let stem_path = path.with_file_name(file_stem);
+
                 let created_at = vid.fs.as_ref().and_then(|x| x.created_at);
                 let modified_at = vid.fs.as_ref().and_then(|x| x.modified_at);
 
-                let result = stmt.execute(params![path.to_str(), modified_at, created_at]);
+                vid_stmt
+                    .execute(params![path.to_str(), modified_at, created_at])
+                    .map_err(|e| RepositoryError(format!("Inserting: {}", e)))?;
 
-                // The "on conflict ignore" constraints look like errors to rusqlite
-                match result {
-                    Err(e @ SqliteFailure(_, _))
-                        if e.sqlite_error_code() == Some(ConstraintViolation) =>
-                    {
-                        // println!("Skipping {:?} {}", path, e);
-                    }
-                    other => {
-                        other.map_err(|e| RepositoryError(format!("Inserting: {}", e)))?;
-                    }
-                }
+                let video_id = vid_lookup_stmt
+                    .query_row(params![path.to_str()], |row| {
+                        let id: i64 = row.get(0).expect("Must have video_id");
+                        Ok(id)
+                    })
+                    .map_err(|e| RepositoryError(format!("Must have video_id: {}", e)))?;
+
+                vis_stmt
+                    .execute(params![stem_path.to_str(), video_id])
+                    .map_err(|e| RepositoryError(format!("Inserting: {}", e)))?;
             }
         }
 
