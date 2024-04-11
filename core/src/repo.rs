@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use crate::scanner;
+use crate::photo_scanner;
 ///! Repository of metadata about pictures on the local filesystem.
 use crate::Error::*;
 use crate::Result;
@@ -197,7 +197,7 @@ impl Repository {
     }
 
     /// Add all Pictures received from a vector.
-    pub fn add_all(&mut self, pics: &Vec<scanner::Picture>) -> Result<()> {
+    pub fn add_all(&mut self, pics: &Vec<photo_scanner::Picture>) -> Result<()> {
         let tx = self
             .con
             .transaction()

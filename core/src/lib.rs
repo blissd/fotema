@@ -3,15 +3,15 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 pub mod error;
+pub mod photo_scanner;
 pub mod preview;
 pub mod repo;
-pub mod scanner;
 pub mod time;
 
 pub use error::Error;
+pub use photo_scanner::PhotoScanner;
 pub use preview::Previewer;
 pub use repo::Repository;
-pub use scanner::Scanner;
 pub use time::Year;
 pub use time::YearMonth;
 

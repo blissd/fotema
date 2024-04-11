@@ -5,7 +5,7 @@
 /// Properties view for a photo.
 /// Deeply inspired by how Loupe displays its property view.
 
-use photos_core::Scanner;
+use photos_core::PhotoScanner;
 use gtk::prelude::OrientableExt;
 use relm4::gtk;
 use relm4::*;
@@ -20,7 +20,7 @@ pub enum PhotoInfoInput {
 
 #[derive(Debug)]
 pub struct PhotoInfo {
-    scanner: Scanner,
+    scanner: PhotoScanner,
 
     folder: adw::ActionRow,
 
@@ -41,7 +41,7 @@ pub struct PhotoInfo {
 
 #[relm4::component(pub)]
 impl SimpleComponent for PhotoInfo {
-    type Init = Scanner;
+    type Init = PhotoScanner;
     type Input = PhotoInfoInput;
     type Output = ();
 

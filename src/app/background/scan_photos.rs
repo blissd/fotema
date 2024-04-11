@@ -18,12 +18,12 @@ pub enum ScanPhotosOutput {
 }
 
 pub struct ScanPhotos {
-    scan: photos_core::Scanner,
+    scan: photos_core::PhotoScanner,
     repo: Arc<Mutex<photos_core::Repository>>,
 }
 
 impl Worker for ScanPhotos {
-    type Init = (photos_core::Scanner, Arc<Mutex<photos_core::Repository>>);
+    type Init = (photos_core::PhotoScanner, Arc<Mutex<photos_core::Repository>>);
     type Input = ScanPhotosInput;
     type Output = ScanPhotosOutput;
 

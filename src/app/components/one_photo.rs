@@ -39,7 +39,7 @@ pub struct OnePhoto {
 
 #[relm4::component(pub async)]
 impl SimpleAsyncComponent for OnePhoto {
-    type Init = (photos_core::Scanner, Arc<Mutex<photos_core::Repository>>);
+    type Init = (photos_core::PhotoScanner, Arc<Mutex<photos_core::Repository>>);
     type Input = OnePhotoInput;
     type Output = ();
 

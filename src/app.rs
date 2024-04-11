@@ -131,8 +131,8 @@ pub(super) enum AppMsg {
     Refresh,
 
     // File-system scan events
-    ScanStarted,
-    ScanCompleted,
+    PhotoScanStarted,
+    PhotoScanCompleted,
 
     // Thumbnail generation events
     ThumbnailGenerationStarted(usize),
@@ -402,7 +402,7 @@ impl SimpleComponent for App {
             photos_core::Repository::open(&pic_base_dir, &db_path).unwrap()
         };
 
-        let scan = photos_core::Scanner::build(&pic_base_dir).unwrap();
+        let photo_scan = photos_core::PhotoScanner::build(&pic_base_dir).unwrap();
 
         let previewer = {
             let preview_base_path = cache_dir.join("previews");
@@ -413,10 +413,10 @@ impl SimpleComponent for App {
         let repo = Arc::new(Mutex::new(repo));
 
         let scan_photos = ScanPhotos::builder()
-            .detach_worker((scan.clone(), repo.clone()))
+            .detach_worker((photo_scan.clone(), repo.clone()))
             .forward(sender.input_sender(), |msg| match msg {
-                ScanPhotosOutput::Started => AppMsg::ScanStarted,
-                ScanPhotosOutput::Completed => AppMsg::ScanCompleted,
+                ScanPhotosOutput::Started => AppMsg::PhotoScanStarted,
+                ScanPhotosOutput::Completed => AppMsg::PhotoScanCompleted,
             });
 
         let generate_previews = GeneratePreviews::builder()
@@ -456,7 +456,7 @@ impl SimpleComponent for App {
                 });
 
         let one_photo = OnePhoto::builder()
-            .launch((scan.clone(), repo.clone()))
+            .launch((photo_scan.clone(), repo.clone()))
             .detach();
 
         let selfie_photos = Album::builder()
@@ -643,12 +643,12 @@ impl SimpleComponent for App {
                 self.month_photos.emit(MonthPhotosInput::Refresh);
                 self.year_photos.emit(YearPhotosInput::Refresh);
             }
-            AppMsg::ScanStarted => {
+            AppMsg::PhotoScanStarted => {
                 self.spinner.start();
                 self.banner.set_title("Scanning file system for photos.");
                 self.banner.set_revealed(true);
             }
-            AppMsg::ScanCompleted => {
+            AppMsg::PhotoScanCompleted => {
                 println!("Scan all completed msg received.");
                 self.cleanup.emit(CleanupInput::Start);
             }
