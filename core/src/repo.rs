@@ -97,27 +97,38 @@ pub struct Repository {
     /// Base path to picture library on file system
     library_base_path: path::PathBuf,
 
+    photo_thumbnail_base_path: path::PathBuf,
+
     /// Connection to backing Sqlite database.
     con: rusqlite::Connection,
 }
 
 impl Repository {
-    pub fn open_in_memory(library_base_path: &path::Path) -> Result<Repository> {
+    pub fn open_in_memory(
+        library_base_path: &path::Path,
+        photo_thumbnail_base_path: &path::Path,
+    ) -> Result<Repository> {
         let con = Connection::open_in_memory().map_err(|e| RepositoryError(e.to_string()))?;
-        let library_base_path = path::PathBuf::from(library_base_path);
+
         let repo = Repository {
-            library_base_path,
+            library_base_path: path::PathBuf::from(library_base_path),
+            photo_thumbnail_base_path: path::PathBuf::from(photo_thumbnail_base_path),
             con,
         };
         repo.setup().map(|_| repo)
     }
 
     /// Builds a Repository and creates operational tables.
-    pub fn open(library_base_path: &path::Path, db_path: &path::Path) -> Result<Repository> {
+    /// FIXME there are three Path arguments here. That looks pretty error prone.
+    pub fn open(
+        library_base_path: &path::Path,
+        photo_thumbnail_base_path: &path::Path,
+        db_path: &path::Path,
+    ) -> Result<Repository> {
         let con = Connection::open(db_path).map_err(|e| RepositoryError(e.to_string()))?;
-        let library_base_path = path::PathBuf::from(library_base_path);
         let repo = Repository {
-            library_base_path,
+            library_base_path: path::PathBuf::from(library_base_path),
+            photo_thumbnail_base_path: path::PathBuf::from(photo_thumbnail_base_path),
             con,
         };
         repo.setup().map(|_| repo)
@@ -183,8 +194,14 @@ impl Repository {
                 .prepare("UPDATE pictures SET preview_path = ?1 WHERE picture_id = ?2")
                 .map_err(|e| RepositoryError(e.to_string()))?;
 
+            // convert to relative path before saving to database
+            let thumbnail_path = pic
+                .square_preview_path
+                .as_ref()
+                .and_then(|p| p.strip_prefix(&self.photo_thumbnail_base_path).ok());
+
             let result = stmt.execute(params![
-                pic.square_preview_path.as_ref().map(|p| p.to_str()),
+                thumbnail_path.as_ref().map(|p| p.to_str()),
                 pic.picture_id.0,
             ]);
 
@@ -398,7 +415,10 @@ impl Repository {
                 path_result.map(|relative_path| Picture {
                     picture_id: PictureId(row.get(0).unwrap()), // should always have a primary key
                     path: self.library_base_path.join(relative_path), // compute full path
-                    square_preview_path: row.get(2).ok().map(|p: String| path::PathBuf::from(p)),
+                    square_preview_path: row
+                        .get(2)
+                        .ok()
+                        .map(|p: String| self.photo_thumbnail_base_path.join(p)),
                     order_by_ts: row.get(3).ok(),
                     is_selfie: row.get(4).ok().unwrap_or(false),
                 })
@@ -435,7 +455,10 @@ impl Repository {
                 path_result.map(|relative_path| Picture {
                     picture_id: PictureId(row.get(0).unwrap()), // should always have a primary key
                     path: self.library_base_path.join(relative_path), // compute full path
-                    square_preview_path: row.get(2).ok().map(|p: String| path::PathBuf::from(p)),
+                    square_preview_path: row
+                        .get(2)
+                        .ok()
+                        .map(|p: String| self.photo_thumbnail_base_path.join(p)),
                     order_by_ts: row.get(3).ok(),
                     is_selfie: row.get(4).ok().unwrap_or(false),
                 })

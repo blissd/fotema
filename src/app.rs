@@ -399,21 +399,22 @@ impl SimpleComponent for App {
         let cache_dir = glib::user_cache_dir().join(APP_ID);
         let _ = std::fs::create_dir_all(&cache_dir);
 
+        let photo_thumbnail_base_path = cache_dir.join("picture_thumbnails");
+
         let pic_base_dir = glib::user_special_dir(glib::enums::UserDirectory::Pictures)
             .expect("Expect XDG_PICTURES_DIR");
 
         let repo = {
             let db_path = data_dir.join("pictures.sqlite");
-            photos_core::Repository::open(&pic_base_dir, &db_path).unwrap()
+            photos_core::Repository::open(&pic_base_dir, &photo_thumbnail_base_path, &db_path).unwrap()
         };
 
         let photo_scan = photos_core::PhotoScanner::build(&pic_base_dir).unwrap();
         let video_scan = photos_core::VideoScanner::build(&pic_base_dir).unwrap();
 
         let previewer = {
-            let preview_base_path = cache_dir.join("previews");
-            let _ = std::fs::create_dir_all(&preview_base_path);
-            photos_core::Previewer::build(&preview_base_path).unwrap()
+            let _ = std::fs::create_dir_all(&photo_thumbnail_base_path);
+            photos_core::Previewer::build(&photo_thumbnail_base_path).unwrap()
         };
 
         let repo = Arc::new(Mutex::new(repo));
