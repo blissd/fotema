@@ -135,23 +135,18 @@ impl Repository {
         let sql = vec![
             "CREATE TABLE IF NOT EXISTS pictures (
                 picture_id     INTEGER PRIMARY KEY UNIQUE NOT NULL, -- unique ID for picture
-                relative_path  TEXT UNIQUE NOT NULL ON CONFLICT IGNORE,
+                picture_path   TEXT UNIQUE NOT NULL ON CONFLICT IGNORE, -- path to picture
+                preview_path   TEXT UNIQUE ON CONFLICT IGNORE, -- path to picture preview
                 order_by_ts    DATETIME, -- UTC timestamp to order images by
                 is_selfie      BOOLEAN NOT NULL CHECK (is_selfie IN (0, 1)) -- front camera?
             )",
-            "CREATE TABLE IF NOT EXISTS previews (
-                preview_id INTEGER PRIMARY KEY UNIQUE NOT NULL, -- pk for preview
-                picture_id INTEGER UNIQUE NOT NULL ON CONFLICT IGNORE, -- fk to pictures. Only one preview allowed for now.
-                full_path  TEXT UNIQUE NOT NULL ON CONFLICT IGNORE, -- full path to preview image
-                FOREIGN KEY (picture_id) REFERENCES pictures (picture_id) ON DELETE CASCADE
-            )",
             "CREATE TABLE IF NOT EXISTS videos (
                 video_id      INTEGER PRIMARY KEY UNIQUE NOT NULL, -- unique ID for video
-                relative_path TEXT UNIQUE NOT NULL ON CONFLICT IGNORE,
+                video_path    TEXT UNIQUE NOT NULL ON CONFLICT IGNORE, -- path to video
+                preview_path  TEXT UNIQUE ON CONFLICT IGNORE, -- path to preview
                 modified_ts   DATETIME, -- UTC timestamp of file system modification time
                 created_ts    DATETIME -- UTC timestamp of file system creation time
             )",
-
         ];
 
         let sql = sql.join(";\n") + ";";
@@ -176,12 +171,12 @@ impl Repository {
 
         {
             let mut stmt = tx
-                .prepare("INSERT INTO previews (picture_id, full_path) VALUES (?1, ?2)")
+                .prepare("UPDATE pictures SET preview_path = ?1 WHERE picture_id = ?2")
                 .map_err(|e| RepositoryError(e.to_string()))?;
 
             let result = stmt.execute(params![
-                pic.picture_id.0,
                 pic.square_preview_path.as_ref().map(|p| p.to_str()),
+                pic.picture_id.0,
             ]);
 
             //result
@@ -204,7 +199,7 @@ impl Repository {
         tx.commit().map_err(|e| RepositoryError(e.to_string()))
     }
 
-    pub fn add_all_videos(&mut self, pics: &Vec<video_scanner::Video>) -> Result<()> {
+    pub fn add_all_videos(&mut self, vids: &Vec<video_scanner::Video>) -> Result<()> {
         let tx = self
             .con
             .transaction()
@@ -215,24 +210,24 @@ impl Repository {
             let mut stmt = tx
                 .prepare_cached(
                     "INSERT INTO videos (
-                    relative_path,
+                    video_path,
                     modified_ts,
                     created_ts
                 ) VALUES (?1, ?2, ?3)",
                 )
                 .map_err(|e| RepositoryError(format!("Preparing statement: {}", e)))?;
 
-            for pic in pics {
+            for vid in vids {
                 // convert to relative path before saving to database
-                let path = pic
+                let path = vid
                     .path
                     .strip_prefix(&self.library_base_path)
                     .map_err(|e| {
-                        RepositoryError(format!("Stripping prefix for {:?}: {}", &pic.path, e))
+                        RepositoryError(format!("Stripping prefix for {:?}: {}", &vid.path, e))
                     })?;
 
-                let created_at = pic.fs.as_ref().and_then(|x| x.created_at);
-                let modified_at = pic.fs.as_ref().and_then(|x| x.modified_at);
+                let created_at = vid.fs.as_ref().and_then(|x| x.created_at);
+                let modified_at = vid.fs.as_ref().and_then(|x| x.modified_at);
 
                 let result = stmt.execute(params![path.to_str(), modified_at, created_at]);
 
@@ -266,7 +261,7 @@ impl Repository {
             let mut stmt = tx
                 .prepare_cached(
                     "INSERT INTO pictures (
-                    relative_path,
+                    picture_path,
                     order_by_ts,
                     is_selfie
                 ) VALUES (?1, ?2, ?3)",
@@ -318,12 +313,11 @@ impl Repository {
             .prepare(
                 "SELECT
                     pictures.picture_id,
-                    pictures.relative_path,
-                    previews.full_path as square_preview_path,
+                    pictures.picture_path,
+                    pictures.preview_path as square_preview_path,
                     pictures.order_by_ts,
                     pictures.is_selfie
                 FROM pictures
-                LEFT JOIN previews ON pictures.picture_id = previews.picture_id
                 ORDER BY order_by_ts ASC",
             )
             .map_err(|e| RepositoryError(e.to_string()))?;
@@ -356,12 +350,11 @@ impl Repository {
             .prepare(
                 "SELECT
                     pictures.picture_id,
-                    pictures.relative_path,
-                    previews.full_path as square_preview_path,
+                    pictures.picture_path,
+                    pictures.preview_path as square_preview_path,
                     pictures.order_by_ts,
                     pictures.is_selfie
                 FROM pictures
-                LEFT JOIN previews ON pictures.picture_id = previews.picture_id
                 WHERE pictures.picture_id = ?1",
             )
             .map_err(|e| RepositoryError(e.to_string()))?;
