@@ -483,8 +483,7 @@ impl SimpleComponent for App {
         folder_album.emit(AlbumInput::Refresh); // initial photo
 
         let about_dialog = AboutDialog::builder()
-            .transient_for(&root)
-            .launch(())
+            .launch(root.clone())
             .detach();
 
        let preferences_dialog = PreferencesDialog::builder()
