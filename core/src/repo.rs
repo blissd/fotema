@@ -145,6 +145,13 @@ impl Repository {
                 full_path  TEXT UNIQUE NOT NULL ON CONFLICT IGNORE, -- full path to preview image
                 FOREIGN KEY (picture_id) REFERENCES pictures (picture_id) ON DELETE CASCADE
             )",
+            "CREATE TABLE IF NOT EXISTS videos (
+                video_id      INTEGER PRIMARY KEY UNIQUE NOT NULL, -- unique ID for video
+                relative_path TEXT UNIQUE NOT NULL ON CONFLICT IGNORE,
+                modified_ts   DATETIME, -- UTC timestamp of file system modification time
+                created_ts    DATETIME -- UTC timestamp of file system creation time
+            )",
+
         ];
 
         let sql = sql.join(";\n") + ";";
@@ -198,7 +205,53 @@ impl Repository {
     }
 
     pub fn add_all_videos(&mut self, pics: &Vec<video_scanner::Video>) -> Result<()> {
-        Ok(())
+        let tx = self
+            .con
+            .transaction()
+            .map_err(|e| RepositoryError(format!("Starting transaction: {}", e)))?;
+
+        // Create a scope to make borrowing of tx not be an error.
+        {
+            let mut stmt = tx
+                .prepare_cached(
+                    "INSERT INTO videos (
+                    relative_path,
+                    modified_ts,
+                    created_ts
+                ) VALUES (?1, ?2, ?3)",
+                )
+                .map_err(|e| RepositoryError(format!("Preparing statement: {}", e)))?;
+
+            for pic in pics {
+                // convert to relative path before saving to database
+                let path = pic
+                    .path
+                    .strip_prefix(&self.library_base_path)
+                    .map_err(|e| {
+                        RepositoryError(format!("Stripping prefix for {:?}: {}", &pic.path, e))
+                    })?;
+
+                let created_at = pic.fs.as_ref().and_then(|x| x.created_at);
+                let modified_at = pic.fs.as_ref().and_then(|x| x.modified_at);
+
+                let result = stmt.execute(params![path.to_str(), modified_at, created_at]);
+
+                // The "on conflict ignore" constraints look like errors to rusqlite
+                match result {
+                    Err(e @ SqliteFailure(_, _))
+                        if e.sqlite_error_code() == Some(ConstraintViolation) =>
+                    {
+                        // println!("Skipping {:?} {}", path, e);
+                    }
+                    other => {
+                        other.map_err(|e| RepositoryError(format!("Inserting: {}", e)))?;
+                    }
+                }
+            }
+        }
+
+        tx.commit()
+            .map_err(|e| RepositoryError(format!("Committing transaction: {}", e)))
     }
 
     /// Add all Pictures received from a vector.
