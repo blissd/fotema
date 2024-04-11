@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 pub mod about;
+pub mod preferences;
 pub mod album;
 pub mod month_photos;
 pub mod year_photos;

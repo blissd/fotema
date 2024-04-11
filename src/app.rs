@@ -32,6 +32,7 @@ mod components;
 
 use self::components::{
     about::AboutDialog,
+    preferences::PreferencesDialog,
     album::{Album, AlbumFilter, AlbumInput, AlbumOutput},
     folder_photos::{FolderPhotos, FolderPhotosInput, FolderPhotosOutput},
     month_photos::{MonthPhotos, MonthPhotosInput, MonthPhotosOutput},
@@ -53,6 +54,8 @@ pub(super) struct App {
     cleanup: WorkerController<Cleanup>,
 
     about_dialog: Controller<AboutDialog>,
+    preferences_dialog: Controller<PreferencesDialog>,
+
     all_photos: Controller<Album>,
     month_photos: Controller<MonthPhotos>,
     year_photos: Controller<YearPhotos>,
@@ -480,6 +483,10 @@ impl SimpleComponent for App {
             .launch(())
             .detach();
 
+       let preferences_dialog = PreferencesDialog::builder()
+            .launch(root.clone())
+            .detach();
+
         let library_view_stack = adw::ViewStack::new();
 
         let picture_navigation_view = adw::NavigationView::builder().build();
@@ -503,6 +510,7 @@ impl SimpleComponent for App {
             generate_previews,
             cleanup,
             about_dialog,
+            preferences_dialog,
             all_photos,
             month_photos,
             year_photos,
@@ -542,8 +550,17 @@ impl SimpleComponent for App {
             })
         };
 
+        let preferences_action = {
+            let sender = model.preferences_dialog.sender().clone();
+            RelmAction::<PreferencesAction>::new_stateless(move |_| {
+                sender.send(()).unwrap();
+            })
+        };
+
         actions.add_action(shortcuts_action);
         actions.add_action(about_action);
+        actions.add_action(preferences_action);
+
         actions.register_for_widget(&widgets.main_window);
 
         widgets.load_window_size();
