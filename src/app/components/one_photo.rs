@@ -26,7 +26,7 @@ pub struct OnePhoto {
     repo: Arc<Mutex<photos_core::Repository>>,
 
     // Photo to show
-    picture: gtk::Image,
+    picture: gtk::Picture,
 
     // Info for photo
     photo_info: Controller<PhotoInfo>,
@@ -68,7 +68,7 @@ impl SimpleAsyncComponent for OnePhoto {
 
                 #[wrap(Some)]
                 #[local_ref]
-                set_content = &picture -> gtk::Image {
+                set_content = &picture -> gtk::Picture {
                     //set_vexpand: true,
                     //set_hexpand: true,
                     //set_can_shrink: true,
@@ -84,7 +84,7 @@ impl SimpleAsyncComponent for OnePhoto {
         _sender: AsyncComponentSender<Self>,
     ) -> AsyncComponentParts<Self>  {
 
-        let picture = gtk::Image::new();
+        let picture = gtk::Picture::new();
 
         let photo_info = PhotoInfo::builder().launch(scanner).detach();
 
@@ -114,7 +114,7 @@ impl SimpleAsyncComponent for OnePhoto {
                         .map(|x| x.to_string_lossy().to_string())
                         .unwrap_or(String::from("-"));
 
-                    self.picture.set_from_paintable(None::<&gdk::Paintable>);
+                    self.picture.set_paintable(None::<&gdk::Paintable>);
 
                     let file = gio::File::for_path(pic.path.clone());
 
@@ -134,7 +134,7 @@ impl SimpleAsyncComponent for OnePhoto {
 
                     let texture = frame.texture;
 
-                    self.picture.set_from_paintable(Some(&texture));
+                    self.picture.set_paintable(Some(&texture));
                     self.photo_info.emit(PhotoInfoInput::ShowInfo(pic.path));
 
                     //if i
