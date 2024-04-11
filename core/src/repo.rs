@@ -297,13 +297,35 @@ impl Repository {
 
         // Create a scope to make borrowing of tx not be an error.
         {
-            let mut stmt = tx
+            let mut pic_lookup_stmt = tx
+                .prepare_cached(
+                    "SELECT picture_id
+                    FROM pictures
+                    WHERE picture_path = ?1",
+                )
+                .map_err(|e| RepositoryError(format!("Preparing statement: {}", e)))?;
+
+            let mut pic_insert_stmt = tx
                 .prepare_cached(
                     "INSERT INTO pictures (
                     picture_path,
                     order_by_ts,
                     is_selfie
-                ) VALUES (?1, ?2, ?3)",
+                ) VALUES (
+                    ?1, ?2, ?3
+                ) ON CONFLICT (picture_path) DO UPDATE SET order_by_ts=?2, is_selfie=?3",
+                )
+                .map_err(|e| RepositoryError(format!("Preparing statement: {}", e)))?;
+
+            let mut vis_insert_stmt = tx
+                .prepare_cached(
+                    "INSERT INTO visual (
+                        stem_path,
+                        picture_id
+                    ) VALUES (
+                        ?1,
+                        ?2
+                    ) ON CONFLICT (stem_path) DO UPDATE SET picture_id = ?2",
                 )
                 .map_err(|e| RepositoryError(format!("Preparing statement: {}", e)))?;
 
@@ -325,19 +347,27 @@ impl Repository {
                     .and_then(|x| x.lens_model.as_ref())
                     .is_some_and(|x| x.contains("front"));
 
-                let result = stmt.execute(params![path.to_str(), order_by_ts, is_selfie]);
+                // Path without suffix so sibling pictures and videos can be related
+                let file_stem = path
+                    .file_stem()
+                    .and_then(|x| x.to_str())
+                    .expect("Must exist");
+                let stem_path = path.with_file_name(file_stem);
 
-                // The "on conflict ignore" constraints look like errors to rusqlite
-                match result {
-                    Err(e @ SqliteFailure(_, _))
-                        if e.sqlite_error_code() == Some(ConstraintViolation) =>
-                    {
-                        // println!("Skipping {:?} {}", path, e);
-                    }
-                    other => {
-                        other.map_err(|e| RepositoryError(format!("Inserting: {}", e)))?;
-                    }
-                }
+                pic_insert_stmt
+                    .execute(params![path.to_str(), order_by_ts, is_selfie])
+                    .map_err(|e| RepositoryError(format!("Preparing statement: {}", e)))?;
+
+                let picture_id = pic_lookup_stmt
+                    .query_row(params![path.to_str()], |row| {
+                        let id: i64 = row.get(0).expect("Must have picture_id");
+                        Ok(id)
+                    })
+                    .map_err(|e| RepositoryError(format!("Must have picture_id: {}", e)))?;
+
+                vis_insert_stmt
+                    .execute(params![stem_path.to_str(), picture_id])
+                    .map_err(|e| RepositoryError(format!("Inserting: {}", e)))?;
             }
         }
 
