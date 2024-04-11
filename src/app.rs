@@ -32,7 +32,7 @@ mod components;
 
 use self::components::{
     about::AboutDialog,
-    preferences::PreferencesDialog,
+    preferences::{PreferencesDialog, PreferencesInput, PreferencesOutput},
     album::{Album, AlbumFilter, AlbumInput, AlbumOutput},
     folder_photos::{FolderPhotos, FolderPhotosInput, FolderPhotosOutput},
     month_photos::{MonthPhotos, MonthPhotosInput, MonthPhotosOutput},
@@ -142,6 +142,9 @@ pub(super) enum AppMsg {
     // Cleanup events
     CleanupStarted,
     CleanupCompleted,
+
+    // Preferences
+    PreferencesUpdated,
 }
 
 relm4::new_action_group!(pub(super) WindowActionGroup, "win");
@@ -320,6 +323,7 @@ impl SimpleComponent for App {
                                             set_icon_name: "image-alt-symbolic",
                                         },
 
+
                                         add_child = &gtk::Box {
                                             set_orientation: gtk::Orientation::Vertical,
                                             container_add: model.selfie_photos.widget(),
@@ -485,7 +489,9 @@ impl SimpleComponent for App {
 
        let preferences_dialog = PreferencesDialog::builder()
             .launch(root.clone())
-            .detach();
+            .forward(sender.input_sender(), |msg| match msg {
+                PreferencesOutput::Updated => AppMsg::PreferencesUpdated,
+            });
 
         let library_view_stack = adw::ViewStack::new();
 
@@ -553,7 +559,7 @@ impl SimpleComponent for App {
         let preferences_action = {
             let sender = model.preferences_dialog.sender().clone();
             RelmAction::<PreferencesAction>::new_stateless(move |_| {
-                sender.send(()).unwrap();
+                sender.send(PreferencesInput::Present).unwrap();
             })
         };
 
@@ -710,6 +716,12 @@ impl SimpleComponent for App {
                 println!("Cleanup started.");
                 self.banner.set_title("Database maintenance.");
                 self.banner.set_revealed(true);
+            }
+
+            AppMsg::PreferencesUpdated => {
+                println!("Preferences updated.");
+                // TODO create a Preferences struct to hold preferences and send with update message.
+                self.show_selfies = AppWidgets::show_selfies();
             }
         }
     }
