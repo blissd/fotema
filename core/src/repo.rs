@@ -153,7 +153,8 @@ impl Repository {
                 video_id      TEXT UNIQUE ON CONFLICT IGNORE, -- path to preview
                 stem_path     TEXT UNIQUE NOT NULL ON CONFLICT IGNORE, -- visual artefact path minus suffix
                 FOREIGN KEY (picture_id) REFERENCES pictures (picture_id) ON DELETE CASCADE,
-                FOREIGN KEY (video_id)   REFERENCES videos   (video_id)   ON DELETE CASCADE
+                FOREIGN KEY (video_id)   REFERENCES videos   (video_id)   ON DELETE CASCADE,
+                CONSTRAINT one_of_picture_or_video CHECK ((picture_id IS NOT NULL) OR (video_id IS NOT NULL))
             )",
         ];
 
