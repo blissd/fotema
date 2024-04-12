@@ -24,15 +24,16 @@ impl Thumbnailer {
 
     /// Computes a preview square for an image that has been inserted
     /// into the Repository. Preview image will be written to file system.
-    pub fn square_preview(&self, vid: &repo::Video) -> Result<path::PathBuf> {
+    pub fn set_thumbnail(&self, vid: repo::Video) -> Result<repo::Video> {
         if vid.thumbnail_path.as_ref().is_some_and(|p| p.exists()) {
-            return Ok(vid.path.clone());
+            return Ok(vid);
         }
 
         let mut cmd = Command::new("ls -l");
         let status = cmd.status();
         println!("Command status = {:?}", status);
 
-        Err(ScannerError("None".to_string()))
+        // Err(ScannerError("None".to_string()))
+        Ok(vid)
     }
 }
