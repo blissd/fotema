@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use gtk::prelude::OrientableExt;
-use photos_core::repo::PictureId;
+use photos_core::photo::repo::PictureId;
 use photos_core::YearMonth;
 use relm4::gtk;
 use relm4::gtk::prelude::WidgetExt;
@@ -14,7 +14,7 @@ use std::sync::{Arc, Mutex};
 
 #[derive(Debug)]
 struct PhotoGridItem {
-    picture: photos_core::repo::Picture,
+    picture: photos_core::photo::repo::Picture,
 }
 
 #[derive(Debug)]
@@ -94,13 +94,13 @@ impl RelmGridItem for PhotoGridItem {
 }
 
 pub struct Album {
-    repo: Arc<Mutex<photos_core::Repository>>,
+    repo: Arc<Mutex<photos_core::photo::Repository>>,
     photo_grid: TypedGridView<PhotoGridItem, gtk::SingleSelection>,
 }
 
 #[relm4::component(pub)]
 impl SimpleComponent for Album {
-    type Init = (Arc<Mutex<photos_core::Repository>>, AlbumFilter);
+    type Init = (Arc<Mutex<photos_core::photo::Repository>>, AlbumFilter);
     type Input = AlbumInput;
     type Output = AlbumOutput;
 

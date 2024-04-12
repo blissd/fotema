@@ -30,7 +30,7 @@ pub enum CleanupOutput {
 
 pub struct Cleanup {
     // Danger! Don't hold the repo mutex for too long as it blocks viewing images.
-    repo: Arc<Mutex<photos_core::Repository>>,
+    repo: Arc<Mutex<photos_core::photo::Repository>>,
 }
 
 impl Cleanup {
@@ -40,7 +40,7 @@ impl Cleanup {
         let start = std::time::Instant::now();
 
         // Scrub pics from database if they no longer exist on the file system.
-        let pics: Vec<photos_core::repo::Picture> = self.repo
+        let pics: Vec<photos_core::photo::repo::Picture> = self.repo
             .lock()
             .unwrap()
             .all()?;
@@ -74,7 +74,7 @@ impl Cleanup {
 }
 
 impl Worker for Cleanup {
-    type Init = Arc<Mutex<photos_core::Repository>>;
+    type Init = Arc<Mutex<photos_core::photo::Repository>>;
     type Input = CleanupInput;
     type Output = CleanupOutput;
 

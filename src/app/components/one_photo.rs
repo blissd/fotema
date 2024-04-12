@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use photos_core::repo::PictureId;
+use photos_core::photo::repo::PictureId;
 use relm4::gtk;
 use relm4::adw::gdk;
 use relm4::gtk::gio;
@@ -23,7 +23,7 @@ pub enum OnePhotoInput {
 
 #[derive(Debug)]
 pub struct OnePhoto {
-    repo: Arc<Mutex<photos_core::Repository>>,
+    repo: Arc<Mutex<photos_core::photo::Repository>>,
 
     // Photo to show
     picture: gtk::Picture,
@@ -39,7 +39,7 @@ pub struct OnePhoto {
 
 #[relm4::component(pub async)]
 impl SimpleAsyncComponent for OnePhoto {
-    type Init = (photos_core::PhotoScanner, Arc<Mutex<photos_core::Repository>>);
+    type Init = (photos_core::photo::Scanner, Arc<Mutex<photos_core::photo::repo::Repository>>);
     type Input = OnePhotoInput;
     type Output = ();
 

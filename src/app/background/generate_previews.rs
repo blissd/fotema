@@ -29,22 +29,22 @@ pub enum GeneratePreviewsOutput {
 }
 
 pub struct GeneratePreviews {
-    previewer: photos_core::Previewer,
+    previewer: photos_core::photo::Previewer,
 
     // Danger! Don't hold the repo mutex for too long as it blocks viewing images.
-    repo: Arc<Mutex<photos_core::Repository>>,
+    repo: Arc<Mutex<photos_core::photo::Repository>>,
 }
 
 impl GeneratePreviews {
 
     fn update_previews(
-        repo: Arc<Mutex<photos_core::Repository>>,
-        previewer: photos_core::Previewer,
+        repo: Arc<Mutex<photos_core::photo::Repository>>,
+        previewer: photos_core::photo::Previewer,
         sender: &ComponentSender<GeneratePreviews>) -> Result<()>
      {
         let start = std::time::Instant::now();
 
-        let unprocessed_pics: Vec<photos_core::repo::Picture> = repo
+        let unprocessed_pics: Vec<photos_core::photo::repo::Picture> = repo
             .lock()
             .unwrap()
             .all()?
@@ -85,7 +85,7 @@ impl GeneratePreviews {
 }
 
 impl Worker for GeneratePreviews {
-    type Init = (photos_core::Previewer, Arc<Mutex<photos_core::Repository>>);
+    type Init = (photos_core::photo::Previewer, Arc<Mutex<photos_core::photo::Repository>>);
     type Input = GeneratePreviewsInput;
     type Output = GeneratePreviewsOutput;
 

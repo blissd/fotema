@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use crate::repo;
+use crate::photo::repo;
 use crate::Error::*;
 use crate::Result;
 use gdk4::prelude::TextureExt;

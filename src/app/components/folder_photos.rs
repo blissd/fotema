@@ -19,7 +19,7 @@ struct PhotoGridItem {
     folder_name: String,
 
     // Folder album cover
-    picture: photos_core::repo::Picture,
+    picture: photos_core::photo::repo::Picture,
 }
 
 struct Widgets {
@@ -104,13 +104,13 @@ impl RelmGridItem for PhotoGridItem {
 }
 
 pub struct FolderPhotos {
-    repo: Arc<Mutex<photos_core::Repository>>,
+    repo: Arc<Mutex<photos_core::photo::Repository>>,
     photo_grid: TypedGridView<PhotoGridItem, gtk::SingleSelection>,
 }
 
 #[relm4::component(pub)]
 impl SimpleComponent for FolderPhotos {
-    type Init = Arc<Mutex<photos_core::Repository>>;
+    type Init = Arc<Mutex<photos_core::photo::Repository>>;
     type Input = FolderPhotosInput;
     type Output = FolderPhotosOutput;
 

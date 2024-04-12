@@ -22,7 +22,7 @@ use relm4::{
 };
 
 use crate::config::{APP_ID, PROFILE};
-use photos_core::repo::PictureId;
+use photos_core::photo::repo::PictureId;
 use photos_core::YearMonth;
 use photos_core::video;
 
@@ -405,11 +405,11 @@ impl SimpleComponent for App {
 
         let photo_thumbnail_base_path = cache_dir.join("picture_thumbnails");
 
-        let photo_scan = photos_core::PhotoScanner::build(&pic_base_dir).unwrap();
+        let photo_scan = photos_core::photo::Scanner::build(&pic_base_dir).unwrap();
 
         let photo_repo = {
             let db_path = data_dir.join("pictures.sqlite");
-            photos_core::Repository::open(
+            photos_core::photo::Repository::open(
                 &pic_base_dir,
                 &photo_thumbnail_base_path,
                 &db_path).unwrap()
@@ -433,7 +433,7 @@ impl SimpleComponent for App {
 
         let photo_previewer = {
             let _ = std::fs::create_dir_all(&photo_thumbnail_base_path);
-            photos_core::Previewer::build(&photo_thumbnail_base_path).unwrap()
+            photos_core::photo::Previewer::build(&photo_thumbnail_base_path).unwrap()
         };
 
 

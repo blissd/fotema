@@ -17,7 +17,7 @@ use std::sync::{Arc, Mutex};
 
 #[derive(Debug)]
 struct PhotoGridItem {
-    picture: photos_core::repo::Picture,
+    picture: photos_core::photo::repo::Picture,
 }
 #[derive(Debug)]
 pub enum YearPhotosInput {
@@ -108,13 +108,13 @@ impl RelmGridItem for PhotoGridItem {
 }
 
 pub struct YearPhotos {
-    repo: Arc<Mutex<photos_core::Repository>>,
+    repo: Arc<Mutex<photos_core::photo::Repository>>,
     photo_grid: TypedGridView<PhotoGridItem, gtk::NoSelection>,
 }
 
 #[relm4::component(pub)]
 impl SimpleComponent for YearPhotos {
-    type Init = Arc<Mutex<photos_core::Repository>>;
+    type Init = Arc<Mutex<photos_core::photo::Repository>>;
     type Input = YearPhotosInput;
     type Output = YearPhotosOutput;
 
