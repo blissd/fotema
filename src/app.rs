@@ -25,6 +25,7 @@ use crate::config::{APP_ID, PROFILE};
 use photos_core::photo::repo::PictureId;
 use photos_core::YearMonth;
 use photos_core::video;
+use photos_core::database;
 
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -413,6 +414,9 @@ impl SimpleComponent for App {
         let photo_thumbnail_base_path = cache_dir.join("picture_thumbnails");
 
         let photo_scan = photos_core::photo::Scanner::build(&pic_base_dir).unwrap();
+
+        let db_path = data_dir.join("pictures.sqlite");
+        let _ = database::setup(&db_path);
 
         let photo_repo = {
             let db_path = data_dir.join("pictures.sqlite");

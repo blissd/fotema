@@ -88,22 +88,6 @@ pub struct Repository {
 }
 
 impl Repository {
-    pub fn open_in_memory(
-        library_base_path: &path::Path,
-        photo_thumbnail_base_path: &path::Path,
-        video_thumbnail_base_path: &path::Path,
-    ) -> Result<Repository> {
-        let con = Connection::open_in_memory().map_err(|e| RepositoryError(e.to_string()))?;
-
-        let repo = Repository {
-            library_base_path: path::PathBuf::from(library_base_path),
-            video_thumbnail_base_path: path::PathBuf::from(video_thumbnail_base_path),
-            photo_thumbnail_base_path: path::PathBuf::from(photo_thumbnail_base_path),
-            con,
-        };
-        Ok(repo)
-    }
-
     /// Builds a Repository and creates operational tables.
     pub fn open(
         library_base_path: &path::Path,
@@ -111,6 +95,12 @@ impl Repository {
         video_thumbnail_base_path: &path::Path,
         db_path: &path::Path,
     ) -> Result<Repository> {
+        if !library_base_path.is_dir() {
+            return Err(RepositoryError(format!(
+                "{:?} is not a directory",
+                library_base_path
+            )));
+        }
         let con = Connection::open(db_path).map_err(|e| RepositoryError(e.to_string()))?;
         let repo = Repository {
             library_base_path: path::PathBuf::from(library_base_path),

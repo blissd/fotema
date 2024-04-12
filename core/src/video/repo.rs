@@ -69,83 +69,28 @@ pub struct Repository {
 }
 
 impl Repository {
-    pub fn open_in_memory(
-        library_base_path: &path::Path,
-        video_thumbnail_base_path: &path::Path,
-    ) -> Result<Repository> {
-        let con = Connection::open_in_memory().map_err(|e| RepositoryError(e.to_string()))?;
-
-        let repo = Repository {
-            library_base_path: path::PathBuf::from(library_base_path),
-            video_thumbnail_base_path: path::PathBuf::from(video_thumbnail_base_path),
-            con,
-        };
-        repo.setup().map(|_| repo)
-    }
-
     /// Builds a Repository and creates operational tables.
     pub fn open(
         library_base_path: &path::Path,
         video_thumbnail_base_path: &path::Path,
         db_path: &path::Path,
     ) -> Result<Repository> {
+        if !library_base_path.is_dir() {
+            return Err(RepositoryError(format!(
+                "{:?} is not a directory",
+                library_base_path
+            )));
+        }
+
         let con = Connection::open(db_path).map_err(|e| RepositoryError(e.to_string()))?;
+
         let repo = Repository {
             library_base_path: path::PathBuf::from(library_base_path),
             video_thumbnail_base_path: path::PathBuf::from(video_thumbnail_base_path),
             con,
         };
-        repo.setup().map(|_| repo)
-    }
 
-    /// Creates operational tables.
-    fn setup(&self) -> Result<()> {
-        if !self.library_base_path.is_dir() {
-            return Err(RepositoryError(format!(
-                "{:?} is not a directory",
-                self.library_base_path
-            )));
-        }
-
-        // FIXME don't duplicate SQL create statements
-        let sql = vec![
-            "CREATE TABLE IF NOT EXISTS pictures (
-                picture_id     INTEGER PRIMARY KEY UNIQUE NOT NULL, -- unique ID for picture
-                picture_path   TEXT UNIQUE NOT NULL ON CONFLICT IGNORE, -- path to picture
-                preview_path   TEXT UNIQUE ON CONFLICT IGNORE, -- path to picture preview
-                order_by_ts    DATETIME, -- UTC timestamp to order images by
-                is_selfie      BOOLEAN NOT NULL CHECK (is_selfie IN (0, 1)) -- front camera?
-            )",
-            "CREATE TABLE IF NOT EXISTS videos (
-                video_id      INTEGER PRIMARY KEY UNIQUE NOT NULL, -- unique ID for video
-                video_path    TEXT UNIQUE NOT NULL ON CONFLICT IGNORE, -- path to video
-                preview_path  TEXT UNIQUE ON CONFLICT IGNORE, -- path to preview
-                modified_ts   DATETIME, -- UTC timestamp of file system modification time
-                created_ts    DATETIME -- UTC timestamp of file system creation time
-            )",
-            "CREATE TABLE IF NOT EXISTS visual (
-                visual_id     INTEGER PRIMARY KEY UNIQUE NOT NULL, -- unique ID for video
-                picture_id    TEXT UNIQUE ON CONFLICT IGNORE, -- path to video
-                video_id      TEXT UNIQUE ON CONFLICT IGNORE, -- path to preview
-                stem_path     TEXT UNIQUE NOT NULL ON CONFLICT IGNORE, -- visual artefact path minus suffix
-                FOREIGN KEY (picture_id) REFERENCES pictures (picture_id) ON DELETE CASCADE,
-                FOREIGN KEY (video_id)   REFERENCES videos   (video_id)   ON DELETE CASCADE,
-                CONSTRAINT one_of_picture_or_video CHECK ((picture_id IS NOT NULL) OR (video_id IS NOT NULL))
-            )",
-        ];
-
-        let sql = sql.join(";\n") + ";";
-
-        let mut batch = Batch::new(&self.con, &sql);
-        while let Some(mut stmt) = batch.next().map_err(|e| RepositoryError(e.to_string()))? {
-            stmt.execute([])
-                .map_err(|e| RepositoryError(e.to_string()))?;
-        }
-
-        let result = self.con.execute(&sql, ());
-        result
-            .map(|_| ())
-            .map_err(|e| RepositoryError(e.to_string()))
+        Ok(repo)
     }
 
     pub fn update(&mut self, pic: &Video) -> Result<()> {
