@@ -8,6 +8,7 @@ pub mod preview;
 pub mod repo;
 pub mod time;
 pub mod video_scanner;
+pub mod video_thumbnailer;
 
 pub use error::Error;
 pub use photo_scanner::PhotoScanner;

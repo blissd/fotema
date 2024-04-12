@@ -400,13 +400,18 @@ impl SimpleComponent for App {
         let _ = std::fs::create_dir_all(&cache_dir);
 
         let photo_thumbnail_base_path = cache_dir.join("picture_thumbnails");
+        let video_thumbnail_base_path = cache_dir.join("video_thumbnails");
 
         let pic_base_dir = glib::user_special_dir(glib::enums::UserDirectory::Pictures)
             .expect("Expect XDG_PICTURES_DIR");
 
         let repo = {
             let db_path = data_dir.join("pictures.sqlite");
-            photos_core::Repository::open(&pic_base_dir, &photo_thumbnail_base_path, &db_path).unwrap()
+            photos_core::Repository::open(
+                &pic_base_dir,
+                &photo_thumbnail_base_path,
+                &video_thumbnail_base_path,
+                &db_path).unwrap()
         };
 
         let photo_scan = photos_core::PhotoScanner::build(&pic_base_dir).unwrap();

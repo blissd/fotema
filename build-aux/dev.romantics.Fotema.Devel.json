@@ -12,6 +12,7 @@
     "--share=ipc",
     "--socket=fallback-x11",
     "--socket=wayland",
+    "--socket=pulseaudio",
     "--device=dri",
     "--filesystem=xdg-pictures:ro",
     "--env=RUST_LOG=fotema=debug",
@@ -46,7 +47,14 @@
       "bundle": true,
       /* Remove this extension when Loupe is deinstalled */
       "autodelete": true
+    },
+
+  "org.freedesktop.Platform.ffmpeg-full": {
+    "directory": "lib/ffmpeg",
+    "version": "22.08",
+    "add-ld-path": "."
     }
+
   },
   "modules": [
     {

@@ -89,6 +89,40 @@ impl Picture {
         self.order_by_ts.map(|ts| ts.date_naive())
     }
 }
+/// Database ID of video
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct VideoId(i64);
+
+impl VideoId {
+    pub fn id(&self) -> i64 {
+        self.0
+    }
+}
+
+impl Display for VideoId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+/// A video in the repository
+#[derive(Debug, Clone)]
+pub struct Video {
+    /// Full path from library root.
+    pub path: PathBuf,
+
+    /// Database primary key for video
+    pub video_id: VideoId,
+
+    /// Full path to square preview image
+    pub thumbnail_path: Option<PathBuf>,
+
+    /// Created timestamp
+    pub created_at: Option<DateTime<Utc>>,
+
+    /// Modified timestamp
+    pub modified_at: Option<DateTime<Utc>>,
+}
 
 /// Repository of picture metadata.
 /// Repository is backed by a Sqlite database.
@@ -99,6 +133,8 @@ pub struct Repository {
 
     photo_thumbnail_base_path: path::PathBuf,
 
+    video_thumbnail_base_path: path::PathBuf,
+
     /// Connection to backing Sqlite database.
     con: rusqlite::Connection,
 }
@@ -107,12 +143,14 @@ impl Repository {
     pub fn open_in_memory(
         library_base_path: &path::Path,
         photo_thumbnail_base_path: &path::Path,
+        video_thumbnail_base_path: &path::Path,
     ) -> Result<Repository> {
         let con = Connection::open_in_memory().map_err(|e| RepositoryError(e.to_string()))?;
 
         let repo = Repository {
             library_base_path: path::PathBuf::from(library_base_path),
             photo_thumbnail_base_path: path::PathBuf::from(photo_thumbnail_base_path),
+            video_thumbnail_base_path: path::PathBuf::from(video_thumbnail_base_path),
             con,
         };
         repo.setup().map(|_| repo)
@@ -123,12 +161,14 @@ impl Repository {
     pub fn open(
         library_base_path: &path::Path,
         photo_thumbnail_base_path: &path::Path,
+        video_thumbnail_base_path: &path::Path,
         db_path: &path::Path,
     ) -> Result<Repository> {
         let con = Connection::open(db_path).map_err(|e| RepositoryError(e.to_string()))?;
         let repo = Repository {
             library_base_path: path::PathBuf::from(library_base_path),
             photo_thumbnail_base_path: path::PathBuf::from(photo_thumbnail_base_path),
+            video_thumbnail_base_path: path::PathBuf::from(video_thumbnail_base_path),
             con,
         };
         repo.setup().map(|_| repo)
@@ -467,6 +507,47 @@ impl Repository {
 
         let head = iter.flatten().nth(0);
         Ok(head)
+    }
+
+    /// Gets all pictures in the repository, in ascending order of modification timestamp.
+    pub fn all_video(&self) -> Result<Vec<Video>> {
+        let mut stmt = self
+            .con
+            .prepare(
+                "SELECT
+                    video_id,
+                    video_path,
+                    preview_path,
+                    created_at,
+                    modified_at
+                FROM videos
+                ORDER BY created_at ASC",
+            )
+            .map_err(|e| RepositoryError(e.to_string()))?;
+
+        let iter = stmt
+            .query_map([], |row| {
+                let path_result: rusqlite::Result<String> = row.get(1);
+                path_result.map(|relative_path| Video {
+                    video_id: VideoId(row.get(0).unwrap()), // should always have a primary key
+                    path: self.library_base_path.join(relative_path), // compute full path
+                    thumbnail_path: row
+                        .get(2)
+                        .ok()
+                        .map(|p: String| self.video_thumbnail_base_path.join(p)),
+                    created_at: row.get(3).ok(),
+                    modified_at: row.get(4).ok(),
+                })
+            })
+            .map_err(|e| RepositoryError(e.to_string()))?;
+
+        // Would like to return an iterator... but Rust is defeating me.
+        let mut vids = Vec::new();
+        for vid in iter.flatten() {
+            vids.push(vid);
+        }
+
+        Ok(vids)
     }
 
     pub fn remove(&mut self, picture_id: PictureId) -> Result<()> {
