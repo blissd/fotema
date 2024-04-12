@@ -43,6 +43,8 @@ impl Thumbnailer {
             .arg("-y") // temp file will already exist, so allow overwriting
             .arg("-i")
             .arg(vid.path.as_os_str())
+            .arg("-update")
+            .arg("true")
             .arg("-vf")
             .arg(r"select=eq(n\,0)") // select frame zero
             .arg(png_file.path())
