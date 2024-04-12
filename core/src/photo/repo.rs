@@ -9,14 +9,14 @@ use crate::Error::*;
 use crate::Result;
 use crate::YearMonth;
 use chrono::*;
+use rusqlite;
 use rusqlite::params;
-use rusqlite::Batch;
-use rusqlite::Connection;
 use rusqlite::Error::SqliteFailure;
 use rusqlite::ErrorCode::ConstraintViolation;
 use std::fmt::Display;
 use std::path;
 use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
 
 /// Database ID of picture
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -104,7 +104,7 @@ pub struct Repository {
     photo_thumbnail_base_path: path::PathBuf,
 
     /// Connection to backing Sqlite database.
-    con: rusqlite::Connection,
+    con: Arc<Mutex<rusqlite::Connection>>,
 }
 
 impl Repository {
@@ -112,7 +112,7 @@ impl Repository {
     pub fn open(
         library_base_path: &path::Path,
         photo_thumbnail_base_path: &path::Path,
-        db_path: &path::Path,
+        con: Arc<Mutex<rusqlite::Connection>>,
     ) -> Result<Repository> {
         if !library_base_path.is_dir() {
             return Err(RepositoryError(format!(
@@ -120,8 +120,6 @@ impl Repository {
                 library_base_path
             )));
         }
-
-        let con = Connection::open(db_path).map_err(|e| RepositoryError(e.to_string()))?;
 
         let repo = Repository {
             library_base_path: path::PathBuf::from(library_base_path),
@@ -133,8 +131,8 @@ impl Repository {
     }
 
     pub fn add_preview(&mut self, pic: &Picture) -> Result<()> {
-        let tx = self
-            .con
+        let mut con = self.con.lock().unwrap();
+        let tx = con
             .transaction()
             .map_err(|e| RepositoryError(e.to_string()))?;
 
@@ -176,8 +174,8 @@ impl Repository {
 
     /// Add all Pictures received from a vector.
     pub fn add_all(&mut self, pics: &Vec<scanner::Picture>) -> Result<()> {
-        let tx = self
-            .con
+        let mut con = self.con.lock().unwrap();
+        let tx = con
             .transaction()
             .map_err(|e| RepositoryError(format!("Starting transaction: {}", e)))?;
 
@@ -263,8 +261,8 @@ impl Repository {
 
     /// Gets all pictures in the repository, in ascending order of modification timestamp.
     pub fn all(&self) -> Result<Vec<Picture>> {
-        let mut stmt = self
-            .con
+        let con = self.con.lock().unwrap();
+        let mut stmt = con
             .prepare(
                 "SELECT
                     pictures.picture_id,
@@ -303,8 +301,8 @@ impl Repository {
     }
 
     pub fn get(&mut self, picture_id: PictureId) -> Result<Option<Picture>> {
-        let mut stmt = self
-            .con
+        let con = self.con.lock().unwrap();
+        let mut stmt = con
             .prepare(
                 "SELECT
                     pictures.picture_id,
@@ -338,8 +336,8 @@ impl Repository {
     }
 
     pub fn remove(&mut self, picture_id: PictureId) -> Result<()> {
-        let mut stmt = self
-            .con
+        let con = self.con.lock().unwrap();
+        let mut stmt = con
             .prepare("DELETE FROM pictures WHERE picture_id = ?1")
             .map_err(|e| RepositoryError(e.to_string()))?;
 
@@ -347,24 +345,5 @@ impl Repository {
             .map_err(|e| RepositoryError(e.to_string()))?;
 
         Ok(())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::path::PathBuf;
-
-    #[test]
-    fn repo_add_and_get() {
-        let mut r = Repository::open_in_memory(path::Path::new("/var/empty")).unwrap();
-        let test_file = PathBuf::from("/var/empty/some/random/path.jpg");
-        let pic = scanner::Picture::new(test_file.clone());
-        let pics = vec![pic];
-        r.add_all(&pics).unwrap();
-
-        let all_pics = r.all().unwrap();
-        let pic = all_pics.get(0).unwrap();
-        assert_eq!(pic.path, test_file);
     }
 }

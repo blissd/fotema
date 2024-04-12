@@ -7,14 +7,14 @@ use crate::Error::*;
 use crate::Result;
 
 use chrono::*;
+use rusqlite;
 use rusqlite::params;
-use rusqlite::Batch;
-use rusqlite::Connection;
 use rusqlite::Error::SqliteFailure;
 use rusqlite::ErrorCode::ConstraintViolation;
 use std::fmt::Display;
 use std::path;
 use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
 
 /// Database ID of video
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -65,7 +65,7 @@ pub struct Repository {
     video_thumbnail_base_path: path::PathBuf,
 
     /// Connection to backing Sqlite database.
-    con: rusqlite::Connection,
+    con: Arc<Mutex<rusqlite::Connection>>,
 }
 
 impl Repository {
@@ -73,7 +73,7 @@ impl Repository {
     pub fn open(
         library_base_path: &path::Path,
         video_thumbnail_base_path: &path::Path,
-        db_path: &path::Path,
+        con: Arc<Mutex<rusqlite::Connection>>,
     ) -> Result<Repository> {
         if !library_base_path.is_dir() {
             return Err(RepositoryError(format!(
@@ -81,8 +81,6 @@ impl Repository {
                 library_base_path
             )));
         }
-
-        let con = Connection::open(db_path).map_err(|e| RepositoryError(e.to_string()))?;
 
         let repo = Repository {
             library_base_path: path::PathBuf::from(library_base_path),
@@ -94,8 +92,8 @@ impl Repository {
     }
 
     pub fn update(&mut self, pic: &Video) -> Result<()> {
-        let tx = self
-            .con
+        let mut con = self.con.lock().unwrap();
+        let tx = con
             .transaction()
             .map_err(|e| RepositoryError(e.to_string()))?;
 
@@ -136,8 +134,8 @@ impl Repository {
     }
 
     pub fn add_all(&mut self, vids: &Vec<scanner::Video>) -> Result<()> {
-        let tx = self
-            .con
+        let mut con = self.con.lock().unwrap();
+        let tx = con
             .transaction()
             .map_err(|e| RepositoryError(format!("Starting transaction: {}", e)))?;
 
@@ -218,8 +216,8 @@ impl Repository {
 
     /// Gets all videos in the repository, in ascending order of modification timestamp.
     pub fn all(&self) -> Result<Vec<Video>> {
-        let mut stmt = self
-            .con
+        let con = self.con.lock().unwrap();
+        let mut stmt = con
             .prepare(
                 "SELECT
                     video_id,
@@ -258,8 +256,8 @@ impl Repository {
     }
 
     pub fn remove(&mut self, video_id: VideoId) -> Result<()> {
-        let mut stmt = self
-            .con
+        let con = self.con.lock().unwrap();
+        let mut stmt = con
             .prepare("DELETE FROM videos WHERE video_id = ?1")
             .map_err(|e| RepositoryError(e.to_string()))?;
 

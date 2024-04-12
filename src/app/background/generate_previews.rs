@@ -46,7 +46,7 @@ impl GeneratePreviews {
 
         let unprocessed_pics: Vec<photos_core::photo::repo::Picture> = repo
             .lock()
-            .unwrap()
+            .expect("Acquire database lock")
             .all()?
             .into_iter()
             .filter(|pic| !pic.square_preview_path.as_ref().is_some_and(|p| p.exists()))

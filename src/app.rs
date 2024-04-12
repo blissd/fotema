@@ -416,14 +416,16 @@ impl SimpleComponent for App {
         let photo_scan = photos_core::photo::Scanner::build(&pic_base_dir).unwrap();
 
         let db_path = data_dir.join("pictures.sqlite");
-        let _ = database::setup(&db_path);
+
+        let con = database::setup(&db_path).expect("Must be able to open database");
+        let con = Arc::new(Mutex::new(con));
 
         let photo_repo = {
-            let db_path = data_dir.join("pictures.sqlite");
             photos_core::photo::Repository::open(
                 &pic_base_dir,
                 &photo_thumbnail_base_path,
-                &db_path).unwrap()
+                con.clone(),
+                ).unwrap()
         };
 
         let photo_repo = Arc::new(Mutex::new(photo_repo));
@@ -438,11 +440,10 @@ impl SimpleComponent for App {
         let video_scan = photos_core::video::Scanner::build(&pic_base_dir).unwrap();
 
         let video_repo = {
-            let db_path = data_dir.join("pictures.sqlite");
             video::Repository::open(
                 &pic_base_dir,
                 &video_thumbnail_base_path,
-                &db_path).unwrap()
+                con).unwrap()
         };
 
         let video_repo = Arc::new(Mutex::new(video_repo));

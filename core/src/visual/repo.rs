@@ -9,10 +9,11 @@ use crate::Error::*;
 use crate::Result;
 
 use chrono::*;
-use rusqlite::Connection;
+use rusqlite;
 use std::fmt::Display;
 use std::path;
 use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
 
 /// Database ID of a visual item
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -84,7 +85,7 @@ pub struct Repository {
     photo_thumbnail_base_path: path::PathBuf,
 
     /// Connection to backing Sqlite database.
-    con: rusqlite::Connection,
+    con: Arc<Mutex<rusqlite::Connection>>,
 }
 
 impl Repository {
@@ -93,7 +94,7 @@ impl Repository {
         library_base_path: &path::Path,
         photo_thumbnail_base_path: &path::Path,
         video_thumbnail_base_path: &path::Path,
-        db_path: &path::Path,
+        con: Arc<Mutex<rusqlite::Connection>>,
     ) -> Result<Repository> {
         if !library_base_path.is_dir() {
             return Err(RepositoryError(format!(
@@ -101,7 +102,7 @@ impl Repository {
                 library_base_path
             )));
         }
-        let con = Connection::open(db_path).map_err(|e| RepositoryError(e.to_string()))?;
+
         let repo = Repository {
             library_base_path: path::PathBuf::from(library_base_path),
             video_thumbnail_base_path: path::PathBuf::from(video_thumbnail_base_path),
@@ -113,8 +114,8 @@ impl Repository {
 
     /// Gets all visual artefacts.
     pub fn all(&self) -> Result<Vec<Visual>> {
-        let mut stmt = self
-            .con
+        let con = self.con.lock().unwrap();
+        let mut stmt = con
             .prepare(
                 "SELECT
                     visual_id,
