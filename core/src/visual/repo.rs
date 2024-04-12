@@ -153,9 +153,9 @@ impl Repository {
                     videos.preview_path AS video_thumbnail,
                     videos.created_ts AS video_created_ts
                 FROM visual
-                WHERE COALESCE(pictures.preview_path, videos.preview_path) IS NOT NULL,
-                LEFT JOIN pictures USING(picture_id),
-                LEFT JOIN videos USING(video_id)",
+                LEFT JOIN pictures USING(picture_id)
+                LEFT JOIN videos USING(video_id)
+                WHERE COALESCE(pictures.preview_path, videos.preview_path) IS NOT NULL",
             )
             .map_err(|e| RepositoryError(e.to_string()))?;
 
@@ -249,10 +249,10 @@ impl Repository {
                     videos.preview_path AS video_thumbnail,
                     videos.created_ts AS video_created_ts
                 FROM visual
-                WHERE COALESCE(pictures.preview_path, videos.preview_path) IS NOT NULL,
-                LEFT JOIN pictures USING(picture_id),
+                LEFT JOIN pictures USING(picture_id)
                 LEFT JOIN videos USING(video_id)
-                WHERE visual.visual_id = ?1",
+                WHERE COALESCE(pictures.preview_path, videos.preview_path) IS NOT NULL
+                AND visual.visual_id = ?1",
             )
             .map_err(|e| RepositoryError(e.to_string()))?;
 
