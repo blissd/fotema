@@ -50,12 +50,14 @@
     },
 
   "org.freedesktop.Platform.ffmpeg-full": {
-    "directory": "libexec/ffmpeg",
+    "directory": "lib/ffmpeg",
     "version": "22.08",
-    "add-ld-path": ".",
+    "add-ld-path": "."
     }
-
   },
+  "cleanup-commands": [
+    "mkdir -p ${FLATPAK_DEST}/lib/ffmpeg"
+  ],
   "modules": [
     {
       "name": "libde265",
