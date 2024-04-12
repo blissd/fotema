@@ -60,16 +60,16 @@ impl FsMetadata {
 
 /// Scans a file system for pictures.
 #[derive(Debug, Clone)]
-pub struct VideoScanner {
+pub struct Scanner {
     /// File system path to scan.
     scan_base: PathBuf,
 }
 
-impl VideoScanner {
-    pub fn build(scan_base: &Path) -> Result<VideoScanner> {
+impl Scanner {
+    pub fn build(scan_base: &Path) -> Result<Scanner> {
         fs::create_dir_all(scan_base).map_err(|e| ScannerError(e.to_string()))?;
         let scan_base = PathBuf::from(scan_base);
-        Ok(VideoScanner { scan_base })
+        Ok(Scanner { scan_base })
     }
 
     /// Scans all videos in the base directory for function `func` to visit.

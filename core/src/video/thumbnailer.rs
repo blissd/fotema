@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use crate::repo;
+use crate::video::repo;
 use crate::Error::*;
 use crate::Result;
 use std::path;
@@ -10,11 +10,11 @@ use std::process::Command;
 use tempfile;
 
 #[derive(Debug, Clone)]
-pub struct VideoThumbnailer {
+pub struct Thumbnailer {
     base_path: path::PathBuf,
 }
 
-impl VideoThumbnailer {
+impl Thumbnailer {
     pub fn build(base_path: &path::Path) -> Result<Self> {
         let base_path = path::PathBuf::from(base_path);
         std::fs::create_dir_all(base_path.join("square"))

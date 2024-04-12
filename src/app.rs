@@ -24,6 +24,7 @@ use relm4::{
 use crate::config::{APP_ID, PROFILE};
 use photos_core::repo::PictureId;
 use photos_core::YearMonth;
+use photos_core::video;
 
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -399,47 +400,59 @@ impl SimpleComponent for App {
         let cache_dir = glib::user_cache_dir().join(APP_ID);
         let _ = std::fs::create_dir_all(&cache_dir);
 
-        let photo_thumbnail_base_path = cache_dir.join("picture_thumbnails");
-        let video_thumbnail_base_path = cache_dir.join("video_thumbnails");
-
         let pic_base_dir = glib::user_special_dir(glib::enums::UserDirectory::Pictures)
             .expect("Expect XDG_PICTURES_DIR");
 
-        let repo = {
+        let photo_thumbnail_base_path = cache_dir.join("picture_thumbnails");
+
+        let photo_scan = photos_core::PhotoScanner::build(&pic_base_dir).unwrap();
+
+        let photo_repo = {
             let db_path = data_dir.join("pictures.sqlite");
             photos_core::Repository::open(
                 &pic_base_dir,
                 &photo_thumbnail_base_path,
+                &db_path).unwrap()
+        };
+
+        let photo_repo = Arc::new(Mutex::new(photo_repo));
+
+        let video_thumbnail_base_path = cache_dir.join("video_thumbnails");
+
+        let video_scan = photos_core::video::Scanner::build(&pic_base_dir).unwrap();
+
+        let video_repo = {
+            let db_path = data_dir.join("pictures.sqlite");
+            video::Repository::open(
+                &pic_base_dir,
                 &video_thumbnail_base_path,
                 &db_path).unwrap()
         };
 
-        let photo_scan = photos_core::PhotoScanner::build(&pic_base_dir).unwrap();
-        let video_scan = photos_core::VideoScanner::build(&pic_base_dir).unwrap();
+        let video_repo = Arc::new(Mutex::new(video_repo));
 
-        let previewer = {
+        let photo_previewer = {
             let _ = std::fs::create_dir_all(&photo_thumbnail_base_path);
             photos_core::Previewer::build(&photo_thumbnail_base_path).unwrap()
         };
 
-        let repo = Arc::new(Mutex::new(repo));
 
         let scan_photos = ScanPhotos::builder()
-            .detach_worker((photo_scan.clone(), repo.clone()))
+            .detach_worker((photo_scan.clone(), photo_repo.clone()))
             .forward(sender.input_sender(), |msg| match msg {
                 ScanPhotosOutput::Started => AppMsg::PhotoScanStarted,
                 ScanPhotosOutput::Completed => AppMsg::PhotoScanCompleted,
             });
 
         let scan_videos = ScanVideos::builder()
-            .detach_worker((video_scan.clone(), repo.clone()))
+            .detach_worker((video_scan.clone(), video_repo.clone()))
             .forward(sender.input_sender(), |msg| match msg {
                 ScanVideosOutput::Started => AppMsg::VideoScanStarted,
                 ScanVideosOutput::Completed => AppMsg::VideoScanCompleted,
             });
 
         let generate_previews = GeneratePreviews::builder()
-            .detach_worker((previewer.clone(), repo.clone()))
+            .detach_worker((photo_previewer.clone(), photo_repo.clone()))
             .forward(sender.input_sender(), |msg| match msg {
                 GeneratePreviewsOutput::Started(count) => AppMsg::ThumbnailGenerationStarted(count),
                 GeneratePreviewsOutput::Generated => AppMsg::ThumbnailGenerated,
@@ -448,38 +461,38 @@ impl SimpleComponent for App {
 
         let cleanup =
             Cleanup::builder()
-                .detach_worker(repo.clone())
+                .detach_worker(photo_repo.clone())
                 .forward(sender.input_sender(), |msg| match msg {
                     CleanupOutput::Started => AppMsg::CleanupStarted,
                     CleanupOutput::Completed => AppMsg::CleanupCompleted,
                 });
 
         let all_photos = Album::builder()
-            .launch((repo.clone(), AlbumFilter::All))
+            .launch((photo_repo.clone(), AlbumFilter::All))
             .forward(sender.input_sender(), |msg| match msg {
                 AlbumOutput::PhotoSelected(id) => AppMsg::ViewPhoto(id),
             });
 
         let month_photos =
             MonthPhotos::builder()
-                .launch(repo.clone())
+                .launch(photo_repo.clone())
                 .forward(sender.input_sender(), |msg| match msg {
                     MonthPhotosOutput::MonthSelected(ym) => AppMsg::GoToMonth(ym),
                 });
 
         let year_photos =
             YearPhotos::builder()
-                .launch(repo.clone())
+                .launch(photo_repo.clone())
                 .forward(sender.input_sender(), |msg| match msg {
                     YearPhotosOutput::YearSelected(year) => AppMsg::GoToYear(year),
                 });
 
         let one_photo = OnePhoto::builder()
-            .launch((photo_scan.clone(), repo.clone()))
+            .launch((photo_scan.clone(), photo_repo.clone()))
             .detach();
 
         let selfie_photos = Album::builder()
-            .launch((repo.clone(), AlbumFilter::Selfies))
+            .launch((photo_repo.clone(), AlbumFilter::Selfies))
             .forward(sender.input_sender(), |msg| match msg {
                 AlbumOutput::PhotoSelected(id) => AppMsg::ViewPhoto(id),
             });
@@ -488,13 +501,13 @@ impl SimpleComponent for App {
 
         let folder_photos =
             FolderPhotos::builder()
-                .launch(repo.clone())
+                .launch(photo_repo.clone())
                 .forward(sender.input_sender(), |msg| match msg {
                     FolderPhotosOutput::FolderSelected(path) => AppMsg::ViewFolder(path),
                 });
 
         let folder_album = Album::builder()
-            .launch((repo.clone(), AlbumFilter::None))
+            .launch((photo_repo.clone(), AlbumFilter::None))
             .forward(sender.input_sender(), |msg| match msg {
                 AlbumOutput::PhotoSelected(id) => AppMsg::ViewPhoto(id),
             });
