@@ -276,10 +276,10 @@ impl Repository {
                     video_id,
                     video_path,
                     preview_path,
-                    created_at,
-                    modified_at
+                    created_ts,
+                    modified_ts
                 FROM videos
-                ORDER BY created_at ASC",
+                ORDER BY created_ts ASC",
             )
             .map_err(|e| RepositoryError(e.to_string()))?;
 
