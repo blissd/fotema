@@ -10,8 +10,11 @@ pub mod video;
 pub mod visual;
 
 pub use error::Error;
+pub use photo::repo::PictureId;
 pub use time::Year;
 pub use time::YearMonth;
+pub use video::repo::VideoId;
+pub use visual::repo::VisualId;
 
 /// A typedef of the result returned by many methods.
 pub type Result<T, E = Error> = std::result::Result<T, E>;

@@ -7,6 +7,7 @@ use crate::video::VideoId;
 
 use crate::Error::*;
 use crate::Result;
+use crate::YearMonth;
 
 use chrono::*;
 use rusqlite;
@@ -36,6 +37,9 @@ impl Display for VisualId {
 pub struct Visual {
     /// Full path from library root.
     pub visual_id: VisualId,
+
+    // Path to parent directory
+    pub parent_path: PathBuf,
 
     /// Path to thumbnail. If both a picture and a video are present, then this will
     /// be the picture thumbnail path.
@@ -70,6 +74,24 @@ impl Visual {
 
     pub fn is_video_only(&self) -> bool {
         self.picture_id.is_none() && self.video_id.is_some()
+    }
+
+    pub fn year(&self) -> u32 {
+        self.order_by_ts.date_naive().year_ce().1
+    }
+
+    pub fn year_month(&self) -> YearMonth {
+        let date = self.order_by_ts.date_naive();
+        let year = date.year();
+        let month = date.month();
+        let month = chrono::Month::try_from(u8::try_from(month).unwrap()).unwrap();
+        YearMonth { year, month }
+    }
+
+    pub fn folder_name(&self) -> Option<String> {
+        self.parent_path
+            .file_name()
+            .map(|x| x.to_string_lossy().to_string())
     }
 }
 
@@ -118,14 +140,15 @@ impl Repository {
         let mut stmt = con
             .prepare(
                 "SELECT
-                    visual_id,
+                    visual.visual_id,
+                    visual.stem_path,
 
-                    picture_id,
+                    pictures.picture_id,
                     pictures.picture_path AS picture_path,
                     pictures.preview_path AS picture_thumbnail,
                     pictures.order_by_ts AS picture_order_by_ts,
 
-                    video_id,
+                    videos.video_id,
                     videos.video_path AS video_path,
                     videos.preview_path AS video_thumbnail,
                     videos.created_ts AS video_created_ts
@@ -143,20 +166,33 @@ impl Repository {
                     .map(|x| VisualId(x))
                     .expect("Must have visual_id");
 
-                let picture_id: Option<PictureId> = row.get(1).map(|x| PictureId::new(x)).ok();
-                let picture_path: Option<PathBuf> =
-                    row.get(2).map(|x: String| PathBuf::from(x)).ok();
-                let picture_path = picture_path.map(|x| self.library_base_path.join(x));
-                let picture_thumbnail: Option<PathBuf> =
-                    row.get(3).map(|x: String| PathBuf::from(x)).ok();
-                let picture_order_by_ts: Option<DateTime<Utc>> = row.get(4).ok();
+                let stem_path: PathBuf = row
+                    .get(1)
+                    .map(|x: String| PathBuf::from(x))
+                    .expect("Stem path");
 
-                let video_id: Option<VideoId> = row.get(5).map(|x| VideoId::new(x)).ok();
-                let video_path: Option<PathBuf> = row.get(6).map(|x: String| PathBuf::from(x)).ok();
+                let picture_id: Option<PictureId> = row.get(2).map(|x| PictureId::new(x)).ok();
+
+                let picture_path: Option<PathBuf> =
+                    row.get(3).map(|x: String| PathBuf::from(x)).ok();
+
+                let picture_path = picture_path.map(|x| self.library_base_path.join(x));
+
+                let picture_thumbnail: Option<PathBuf> =
+                    row.get(4).map(|x: String| PathBuf::from(x)).ok();
+
+                let picture_order_by_ts: Option<DateTime<Utc>> = row.get(5).ok();
+
+                let video_id: Option<VideoId> = row.get(6).map(|x| VideoId::new(x)).ok();
+
+                let video_path: Option<PathBuf> = row.get(7).map(|x: String| PathBuf::from(x)).ok();
+
                 let video_path = video_path.map(|x| self.library_base_path.join(x));
+
                 let video_thumbnail: Option<PathBuf> =
-                    row.get(7).map(|x: String| PathBuf::from(x)).ok();
-                let video_created_ts: Option<DateTime<Utc>> = row.get(8).ok();
+                    row.get(8).map(|x: String| PathBuf::from(x)).ok();
+
+                let video_created_ts: Option<DateTime<Utc>> = row.get(9).ok();
 
                 let thumbnail_path = picture_thumbnail
                     .map(|x| self.photo_thumbnail_base_path.join(x))
@@ -170,6 +206,10 @@ impl Repository {
 
                 let v = Visual {
                     visual_id,
+                    parent_path: stem_path
+                        .parent()
+                        .map(|x| PathBuf::from(x))
+                        .expect("Parent path"),
                     thumbnail_path,
                     picture_id,
                     picture_path,
@@ -189,5 +229,97 @@ impl Repository {
         }
 
         Ok(visuals)
+    }
+
+    pub fn get(&mut self, visual_id: VisualId) -> Result<Option<Visual>> {
+        let con = self.con.lock().unwrap();
+        let mut stmt = con
+            .prepare(
+                "SELECT
+                    visual.visual_id,
+                    visual.stem_path,
+
+                    pictures.picture_id,
+                    pictures.picture_path AS picture_path,
+                    pictures.preview_path AS picture_thumbnail,
+                    pictures.order_by_ts AS picture_order_by_ts,
+
+                    videos.video_id,
+                    videos.video_path AS video_path,
+                    videos.preview_path AS video_thumbnail,
+                    videos.created_ts AS video_created_ts
+                FROM visual
+                WHERE COALESCE(pictures.preview_path, videos.preview_path) IS NOT NULL,
+                LEFT JOIN pictures USING(picture_id),
+                LEFT JOIN videos USING(video_id)
+                WHERE visual.visual_id = ?1",
+            )
+            .map_err(|e| RepositoryError(e.to_string()))?;
+
+        let iter = stmt
+            .query_map([visual_id.0], |row| {
+                let visual_id = row
+                    .get(0)
+                    .map(|x| VisualId(x))
+                    .expect("Must have visual_id");
+
+                let stem_path: PathBuf = row
+                    .get(1)
+                    .map(|x: String| PathBuf::from(x))
+                    .expect("Stem path");
+
+                let picture_id: Option<PictureId> = row.get(2).map(|x| PictureId::new(x)).ok();
+
+                let picture_path: Option<PathBuf> =
+                    row.get(3).map(|x: String| PathBuf::from(x)).ok();
+
+                let picture_path = picture_path.map(|x| self.library_base_path.join(x));
+
+                let picture_thumbnail: Option<PathBuf> =
+                    row.get(4).map(|x: String| PathBuf::from(x)).ok();
+
+                let picture_order_by_ts: Option<DateTime<Utc>> = row.get(5).ok();
+
+                let video_id: Option<VideoId> = row.get(6).map(|x| VideoId::new(x)).ok();
+
+                let video_path: Option<PathBuf> = row.get(7).map(|x: String| PathBuf::from(x)).ok();
+
+                let video_path = video_path.map(|x| self.library_base_path.join(x));
+
+                let video_thumbnail: Option<PathBuf> =
+                    row.get(8).map(|x: String| PathBuf::from(x)).ok();
+
+                let video_created_ts: Option<DateTime<Utc>> = row.get(9).ok();
+
+                let thumbnail_path = picture_thumbnail
+                    .map(|x| self.photo_thumbnail_base_path.join(x))
+                    .or_else(|| video_thumbnail)
+                    .map(|x| self.video_thumbnail_base_path.join(x))
+                    .expect("Must have a thumbnail");
+
+                let order_by_ts = picture_order_by_ts
+                    .or_else(|| video_created_ts)
+                    .expect("Must have order_by_ts");
+
+                let v = Visual {
+                    visual_id,
+                    parent_path: stem_path
+                        .parent()
+                        .map(|x| PathBuf::from(x))
+                        .expect("Parent path"),
+                    thumbnail_path,
+                    picture_id,
+                    picture_path,
+                    video_id,
+                    video_path,
+                    order_by_ts,
+                    is_selfie: None, // TODO get real value
+                };
+                Ok(v)
+            })
+            .map_err(|e| RepositoryError(e.to_string()))?;
+
+        let head = iter.flatten().nth(0);
+        Ok(head)
     }
 }
