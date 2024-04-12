@@ -40,6 +40,8 @@ impl Thumbnailer {
 
         // ffmpeg is installed as a flatpak extension.
         Command::new("/usr/bin/ffmpeg")
+            .arg("-loglevel")
+            .arg("error")
             .arg("-y") // temp file will already exist, so allow overwriting
             .arg("-i")
             .arg(vid.path.as_os_str())

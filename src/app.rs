@@ -46,6 +46,7 @@ mod background;
 use self::background::{
     cleanup::{Cleanup, CleanupInput, CleanupOutput},
     generate_previews::{GeneratePreviews, GeneratePreviewsInput, GeneratePreviewsOutput},
+    thumbnail_videos::{VideoThumbnails, VideoThumbnailsInput, VideoThumbnailsOutput},
     scan_photos::{ScanPhotos, ScanPhotosInput, ScanPhotosOutput},
     scan_videos::{ScanVideos, ScanVideosInput, ScanVideosOutput},
 };
@@ -54,6 +55,7 @@ pub(super) struct App {
     scan_photos: WorkerController<ScanPhotos>,
     scan_videos: WorkerController<ScanVideos>,
     generate_previews: WorkerController<GeneratePreviews>,
+    video_thumbnails: WorkerController<VideoThumbnails>,
     cleanup: WorkerController<Cleanup>,
 
     about_dialog: Controller<AboutDialog>,
@@ -144,6 +146,11 @@ pub(super) enum AppMsg {
     ThumbnailGenerationStarted(usize),
     ThumbnailGenerated,
     ThumbnailGenerationCompleted,
+
+    // Thumbnail generation events
+    VideoThumbnailsStarted(usize),
+    VideoThumbnailGenerated,
+    VideoThumbnailsCompleted,
 
     // Cleanup events
     CleanupStarted,
@@ -417,6 +424,11 @@ impl SimpleComponent for App {
 
         let photo_repo = Arc::new(Mutex::new(photo_repo));
 
+        let photo_previewer = {
+            let _ = std::fs::create_dir_all(&photo_thumbnail_base_path);
+            photos_core::photo::Previewer::build(&photo_thumbnail_base_path).unwrap()
+        };
+
         let video_thumbnail_base_path = cache_dir.join("video_thumbnails");
 
         let video_scan = photos_core::video::Scanner::build(&pic_base_dir).unwrap();
@@ -431,11 +443,10 @@ impl SimpleComponent for App {
 
         let video_repo = Arc::new(Mutex::new(video_repo));
 
-        let photo_previewer = {
-            let _ = std::fs::create_dir_all(&photo_thumbnail_base_path);
-            photos_core::photo::Previewer::build(&photo_thumbnail_base_path).unwrap()
+        let video_thumbnailer = {
+            let _ = std::fs::create_dir_all(&video_thumbnail_base_path);
+            photos_core::video::Thumbnailer::build(&video_thumbnail_base_path).unwrap()
         };
-
 
         let scan_photos = ScanPhotos::builder()
             .detach_worker((photo_scan.clone(), photo_repo.clone()))
@@ -449,6 +460,15 @@ impl SimpleComponent for App {
             .forward(sender.input_sender(), |msg| match msg {
                 ScanVideosOutput::Started => AppMsg::VideoScanStarted,
                 ScanVideosOutput::Completed => AppMsg::VideoScanCompleted,
+            });
+
+
+        let video_thumbnails = VideoThumbnails::builder()
+            .detach_worker((video_thumbnailer.clone(), video_repo.clone()))
+            .forward(sender.input_sender(), |msg| match msg {
+                VideoThumbnailsOutput::Started(count) => AppMsg::VideoThumbnailsStarted(count),
+                VideoThumbnailsOutput::Generated => AppMsg::VideoThumbnailGenerated,
+                VideoThumbnailsOutput::Completed => AppMsg::VideoThumbnailsCompleted,
             });
 
         let generate_previews = GeneratePreviews::builder()
@@ -546,6 +566,7 @@ impl SimpleComponent for App {
             scan_photos,
             scan_videos,
             generate_previews,
+            video_thumbnails,
             cleanup,
             about_dialog,
             preferences_dialog,
@@ -697,7 +718,7 @@ impl SimpleComponent for App {
             AppMsg::ThumbnailGenerationStarted(count) => {
                 println!("Thumbnail generation started.");
                 self.banner
-                    .set_title("Generating thumbnails. This will take a while.");
+                    .set_title("Generating photo thumbnails. This will take a while.");
                 // Show button to refresh all photo grids.
                 self.banner.set_button_label(Some("Refresh"));
                 self.banner.set_revealed(true);
@@ -712,7 +733,7 @@ impl SimpleComponent for App {
 
                 self.progress_box.set_visible(true);
                 self.progress_bar.set_fraction(0.0);
-                self.progress_bar.set_text(Some("Generating thumbnails."));
+                self.progress_bar.set_text(Some("Generating photo thumbnails."));
                 self.progress_bar.set_pulse_step(0.25);
             }
             AppMsg::ThumbnailGenerated => {
@@ -745,12 +766,64 @@ impl SimpleComponent for App {
                 self.month_photos.emit(MonthPhotosInput::Refresh);
                 self.year_photos.emit(YearPhotosInput::Refresh);
             }
+            AppMsg::VideoThumbnailsStarted(count) => {
+                println!("Video thumbnail generation started.");
+                self.banner
+                    .set_title("Generating video thumbnails. This will take a while.");
+                // Show button to refresh all photo grids.
+                self.banner.set_button_label(Some("Refresh"));
+                self.banner.set_revealed(true);
+
+                self.spinner.start();
+
+                let show = self.main_navigation.shows_sidebar();
+                self.spinner.set_visible(!show);
+
+                self.progress_end_count = count;
+                self.progress_current_count = 0;
+
+                self.progress_box.set_visible(true);
+                self.progress_bar.set_fraction(0.0);
+                self.progress_bar.set_text(Some("Generating video thumbnails."));
+                self.progress_bar.set_pulse_step(0.25);
+            }
+            AppMsg::VideoThumbnailGenerated => {
+                println!("Video thumbnail generated.");
+                self.progress_current_count += 1;
+                // Show pulsing for first 20 items so that it catches the eye, then
+                // switch to fractional view
+                if self.progress_current_count < 20 {
+                    self.progress_bar.pulse();
+                } else {
+                    if self.progress_current_count == 20 {
+                        self.progress_bar.set_text(None);
+                    }
+                    let fraction =
+                        self.progress_current_count as f64 / self.progress_end_count as f64;
+                    self.progress_bar.set_fraction(fraction);
+                }
+            }
+            AppMsg::VideoThumbnailsCompleted => {
+                println!("Video thumbnail generation completed.");
+                self.spinner.stop();
+                self.banner.set_revealed(false);
+                self.banner.set_button_label(None);
+                self.progress_box.set_visible(false);
+
+                // Refresh messages cause the photos to be loaded into various photo grids
+                self.all_photos.emit(AlbumInput::Refresh);
+                self.selfie_photos.emit(AlbumInput::Refresh);
+                self.folder_photos.emit(FolderPhotosInput::Refresh);
+                self.month_photos.emit(MonthPhotosInput::Refresh);
+                self.year_photos.emit(YearPhotosInput::Refresh);
+            }
             AppMsg::CleanupCompleted => {
                 println!("Cleanup completed.");
                 self.banner.set_revealed(false);
                 self.banner.set_button_label(None);
 
-                self.generate_previews.emit(GeneratePreviewsInput::Start);
+                //self.generate_previews.emit(GeneratePreviewsInput::Start);
+                self.video_thumbnails.emit(VideoThumbnailsInput::Start);
             }
 
             AppMsg::CleanupStarted => {
