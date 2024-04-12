@@ -117,11 +117,12 @@ impl SimpleAsyncComponent for OnePhoto {
                     self.picture.set_paintable(None::<&gdk::Paintable>);
 
                     let file = gio::File::for_path(pic.path.clone());
+                    let image_result = glycin::Loader::new(file).load().await;
 
-                    let image = if let Ok(image) = glycin::Loader::new(file).load().await {
+                    let image = if let Ok(image) = image_result {
                         image
                     } else {
-                        println!("Failed loading image");
+                        println!("Failed loading image: {:?}", image_result);
                         return;
                     };
 
