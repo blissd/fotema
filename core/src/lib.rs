@@ -6,6 +6,7 @@ pub mod error;
 pub mod photo;
 pub mod time;
 pub mod video;
+pub mod visual;
 
 pub use error::Error;
 pub use time::Year;

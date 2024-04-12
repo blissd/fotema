@@ -7,5 +7,6 @@ pub mod scanner;
 pub mod thumbnailer;
 
 pub use repo::Repository;
+pub use repo::VideoId;
 pub use scanner::Scanner;
 pub use thumbnailer::Thumbnailer;

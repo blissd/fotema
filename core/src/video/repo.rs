@@ -21,6 +21,10 @@ use std::path::PathBuf;
 pub struct VideoId(i64);
 
 impl VideoId {
+    pub fn new(id: i64) -> Self {
+        Self(id)
+    }
+
     pub fn id(&self) -> i64 {
         self.0
     }

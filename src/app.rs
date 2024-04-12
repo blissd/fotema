@@ -759,6 +759,9 @@ impl SimpleComponent for App {
                 self.banner.set_button_label(None);
                 self.progress_box.set_visible(false);
 
+                // Now generate video thumbnails
+                self.video_thumbnails.emit(VideoThumbnailsInput::Start);
+
                 // Refresh messages cause the photos to be loaded into various photo grids
                 self.all_photos.emit(AlbumInput::Refresh);
                 self.selfie_photos.emit(AlbumInput::Refresh);
@@ -822,8 +825,8 @@ impl SimpleComponent for App {
                 self.banner.set_revealed(false);
                 self.banner.set_button_label(None);
 
-                //self.generate_previews.emit(GeneratePreviewsInput::Start);
-                self.video_thumbnails.emit(VideoThumbnailsInput::Start);
+                self.generate_previews.emit(GeneratePreviewsInput::Start);
+                //self.video_thumbnails.emit(VideoThumbnailsInput::Start);
             }
 
             AppMsg::CleanupStarted => {

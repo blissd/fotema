@@ -38,6 +38,9 @@ impl Thumbnailer {
             .tempfile()
             .map_err(|e| PreviewError(format!("Temp file: {}", e)))?;
 
+        // Get duration with:
+        // fprobe -v quiet -show_entries format=duration -of csv=p=0 -i IMG_7356.mov
+
         // ffmpeg is installed as a flatpak extension.
         Command::new("/usr/bin/ffmpeg")
             .arg("-loglevel")

@@ -23,6 +23,10 @@ use std::path::PathBuf;
 pub struct PictureId(i64);
 
 impl PictureId {
+    pub fn new(id: i64) -> Self {
+        Self(id)
+    }
+
     pub fn id(&self) -> i64 {
         self.0
     }

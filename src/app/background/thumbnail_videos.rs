@@ -7,7 +7,6 @@ use relm4::Worker;
 use std::sync::{Arc, Mutex};
 use photos_core::Result;
 use rayon::prelude::*;
-use futures::executor::block_on;
 
 
 #[derive(Debug)]
