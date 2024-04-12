@@ -50,9 +50,9 @@
     },
 
   "org.freedesktop.Platform.ffmpeg-full": {
-    "directory": "lib/ffmpeg",
+    "directory": "libexec/ffmpeg",
     "version": "22.08",
-    "add-ld-path": "."
+    "add-ld-path": ".",
     }
 
   },

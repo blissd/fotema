@@ -11,12 +11,12 @@ use futures::executor::block_on;
 
 
 #[derive(Debug)]
-pub enum GenerateThumbnailsInput {
+pub enum VideoThumbnailsInput {
     Start,
 }
 
 #[derive(Debug)]
-pub enum GenerateThumbnailsOutput {
+pub enum VideoThumbnailsOutput {
     // Thumbnail generation has started for a given number of videos.
     Started(usize),
 
@@ -28,18 +28,18 @@ pub enum GenerateThumbnailsOutput {
 
 }
 
-pub struct GenerateThumbnails {
+pub struct VideoThumbnails {
     thumbnailer: photos_core::video::Thumbnailer,
 
     repo: Arc<Mutex<photos_core::video::Repository>>,
 }
 
-impl GenerateThumbnails {
+impl VideoThumbnails {
 
     fn update_thumbnails(
         repo: Arc<Mutex<photos_core::video::Repository>>,
         thumbnailer: photos_core::video::Thumbnailer,
-        sender: &ComponentSender<GenerateThumbnails>) -> Result<()>
+        sender: &ComponentSender<VideoThumbnails>) -> Result<()>
      {
         let start = std::time::Instant::now();
 
@@ -52,7 +52,7 @@ impl GenerateThumbnails {
             .collect();
 
         let vids_count = unprocessed_vids.len();
-        if let Err(e) = sender.output(GenerateThumbnailsOutput::Started(vids_count)){
+        if let Err(e) = sender.output(VideoThumbnailsOutput::Started(vids_count)){
             println!("Failed sending gen started: {:?}", e);
         }
 
@@ -68,28 +68,28 @@ impl GenerateThumbnails {
                 let result = repo.lock().unwrap().update(&vid);
                 if let Err(e) = result {
                     println!("Failed video add preview: {:?}", e);
-                } else if let Err(e) = sender.output(GenerateThumbnailsOutput::Generated) {
-                    println!("Failed sending GeneratePreviewsOutput::Generated: {:?}", e);
+                } else if let Err(e) = sender.output(VideoThumbnailsOutput::Generated) {
+                    println!("Failed sending VideoPreviewsOutput::Generated: {:?}", e);
                 }
             });
 
         println!("Generated {} video thumbnails in {} seconds.", vids_count, start.elapsed().as_secs());
 
-        if let Err(e) = sender.output(GenerateThumbnailsOutput::Completed) {
-            println!("Failed sending GenerateThumbnailsOutput::Completed: {:?}", e);
+        if let Err(e) = sender.output(VideoThumbnailsOutput::Completed) {
+            println!("Failed sending VideoThumbnailsOutput::Completed: {:?}", e);
         }
 
         Ok(())
     }
 }
 
-impl Worker for GenerateThumbnails {
+impl Worker for VideoThumbnails {
     type Init = (photos_core::video::Thumbnailer, Arc<Mutex<photos_core::video::Repository>>);
-    type Input = GenerateThumbnailsInput;
-    type Output = GenerateThumbnailsOutput;
+    type Input = VideoThumbnailsInput;
+    type Output = VideoThumbnailsOutput;
 
     fn init((thumbnailer, repo): Self::Init, _sender: ComponentSender<Self>) -> Self  {
-        let model = GenerateThumbnails {
+        let model = VideoThumbnails {
             thumbnailer,
             repo,
         };
@@ -99,14 +99,14 @@ impl Worker for GenerateThumbnails {
 
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
-            GenerateThumbnailsInput::Start => {
-                println!("Generating previews...");
+            VideoThumbnailsInput::Start => {
+                println!("Generating video thumbnails...");
                 let repo = self.repo.clone();
                 let thumbnailer = self.thumbnailer.clone();
 
                 // Avoid runtime panic from calling block_on
                 rayon::spawn(move || {
-                    if let Err(e) = GenerateThumbnails::update_thumbnails(repo, thumbnailer, &sender) {
+                    if let Err(e) = VideoThumbnails::update_thumbnails(repo, thumbnailer, &sender) {
                         println!("Failed to update video thumbnails: {}", e);
                     }
                 });
