@@ -4,7 +4,6 @@
 
 use relm4::prelude::*;
 use relm4::Worker;
-use std::sync::{Arc, Mutex};
 use photos_core::Result;
 use rayon::prelude::*;
 
@@ -30,21 +29,19 @@ pub enum VideoThumbnailsOutput {
 pub struct VideoThumbnails {
     thumbnailer: photos_core::video::Thumbnailer,
 
-    repo: Arc<Mutex<photos_core::video::Repository>>,
+    repo: photos_core::video::Repository,
 }
 
 impl VideoThumbnails {
 
     fn update_thumbnails(
-        repo: Arc<Mutex<photos_core::video::Repository>>,
+        repo: photos_core::video::Repository,
         thumbnailer: photos_core::video::Thumbnailer,
         sender: &ComponentSender<VideoThumbnails>) -> Result<()>
      {
         let start = std::time::Instant::now();
 
         let unprocessed_vids: Vec<photos_core::video::repo::Video> = repo
-            .lock()
-            .unwrap()
             .all()?
             .into_iter()
             .filter(|vid| !vid.thumbnail_path.as_ref().is_some_and(|p| p.exists()))
@@ -64,7 +61,7 @@ impl VideoThumbnails {
                 result
             })
             .for_each(|vid| {
-                let result = repo.lock().unwrap().update(&vid);
+                let result = repo.clone().update(&vid);
                 if let Err(e) = result {
                     println!("Failed video add preview: {:?}", e);
                 } else if let Err(e) = sender.output(VideoThumbnailsOutput::Generated) {
@@ -83,7 +80,7 @@ impl VideoThumbnails {
 }
 
 impl Worker for VideoThumbnails {
-    type Init = (photos_core::video::Thumbnailer, Arc<Mutex<photos_core::video::Repository>>);
+    type Init = (photos_core::video::Thumbnailer, photos_core::video::Repository);
     type Input = VideoThumbnailsInput;
     type Output = VideoThumbnailsOutput;
 

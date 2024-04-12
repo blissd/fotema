@@ -4,7 +4,6 @@
 
 use relm4::prelude::*;
 use relm4::Worker;
-use std::sync::{Arc, Mutex};
 use photos_core::Result;
 use rayon::prelude::*;
 
@@ -30,20 +29,17 @@ pub enum CleanupOutput {
 
 pub struct Cleanup {
     // Danger! Don't hold the repo mutex for too long as it blocks viewing images.
-    repo: Arc<Mutex<photos_core::photo::Repository>>,
+    repo: photos_core::photo::Repository,
 }
 
 impl Cleanup {
 
-    fn cleanup(&self, sender: &ComponentSender<Self>) -> Result<()> {
+    fn cleanup(&mut self, sender: &ComponentSender<Self>) -> Result<()> {
 
         let start = std::time::Instant::now();
 
         // Scrub pics from database if they no longer exist on the file system.
-        let pics: Vec<photos_core::photo::repo::Picture> = self.repo
-            .lock()
-            .unwrap()
-            .all()?;
+        let pics: Vec<photos_core::photo::repo::Picture> = self.repo.all()?;
 
         let pics_count = pics.len();
 
@@ -54,7 +50,7 @@ impl Cleanup {
         pics.par_iter()
             .for_each(|pic| {
                 if !pic.path.exists() {
-                    let result = self.repo.lock().unwrap().remove(pic.picture_id);
+                    let result = self.repo.clone().remove(pic.picture_id);
                     if let Err(e) = result {
                         println!("Failed remove {}: {:?}", pic.picture_id, e);
                     } else {
@@ -74,7 +70,7 @@ impl Cleanup {
 }
 
 impl Worker for Cleanup {
-    type Init = Arc<Mutex<photos_core::photo::Repository>>;
+    type Init = photos_core::photo::Repository;
     type Input = CleanupInput;
     type Output = CleanupOutput;
 

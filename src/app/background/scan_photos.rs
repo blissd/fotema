@@ -4,7 +4,6 @@
 
 use relm4::prelude::*;
 use relm4::Worker;
-use std::sync::{Arc, Mutex};
 
 #[derive(Debug)]
 pub enum ScanPhotosInput {
@@ -19,11 +18,11 @@ pub enum ScanPhotosOutput {
 
 pub struct ScanPhotos {
     scan: photos_core::photo::Scanner,
-    repo: Arc<Mutex<photos_core::photo::Repository>>,
+    repo: photos_core::photo::Repository,
 }
 
 impl Worker for ScanPhotos {
-    type Init = (photos_core::photo::Scanner, Arc<Mutex<photos_core::photo::Repository>>);
+    type Init = (photos_core::photo::Scanner, photos_core::photo::Repository);
     type Input = ScanPhotosInput;
     type Output = ScanPhotosOutput;
 
@@ -51,10 +50,7 @@ impl ScanPhotos {
 
         println!("Scanning file system for pictures...");
         let result = self.scan.scan_all().map_err(|e| e.to_string())?;
-        self.repo.lock()
-            .map_err(|e| e.to_string())?
-            .add_all(&result)
-            .map_err(|e| e.to_string())?;
+        self.repo.add_all(&result).map_err(|e| e.to_string())?;
 
         sender.output(ScanPhotosOutput::Completed)
             .map_err(|e| format!("{:?}", e))

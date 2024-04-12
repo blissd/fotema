@@ -15,7 +15,6 @@ use relm4::*;
 use photos_core::Year;
 use photos_core::YearMonth;
 use std::path;
-use std::sync::{Arc, Mutex};
 
 #[derive(Debug)]
 struct PhotoGridItem {
@@ -115,13 +114,13 @@ impl RelmGridItem for PhotoGridItem {
 }
 
 pub struct MonthPhotos {
-    repo: Arc<Mutex<photos_core::photo::Repository>>,
+    repo: photos_core::photo::Repository,
     photo_grid: TypedGridView<PhotoGridItem, gtk::SingleSelection>,
 }
 
 #[relm4::component(pub)]
 impl SimpleComponent for MonthPhotos {
-    type Init = Arc<Mutex<photos_core::photo::Repository>>;
+    type Init = photos_core::photo::Repository;
     type Input = MonthPhotosInput;
     type Output = MonthPhotosOutput;
 
@@ -164,8 +163,6 @@ impl SimpleComponent for MonthPhotos {
             MonthPhotosInput::Refresh => {
                 let all_pictures = self
                     .repo
-                    .lock()
-                    .unwrap()
                     .all()
                     .unwrap()
                     .into_iter()

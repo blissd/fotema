@@ -4,7 +4,6 @@
 
 use relm4::prelude::*;
 use relm4::Worker;
-use std::sync::{Arc, Mutex};
 use photos_core::video;
 
 #[derive(Debug)]
@@ -20,11 +19,11 @@ pub enum ScanVideosOutput {
 
 pub struct ScanVideos {
     scan: video::Scanner,
-    repo: Arc<Mutex<video::Repository>>,
+    repo: video::Repository,
 }
 
 impl Worker for ScanVideos {
-    type Init = (video::Scanner, Arc<Mutex<video::Repository>>);
+    type Init = (video::Scanner, video::Repository);
     type Input = ScanVideosInput;
     type Output = ScanVideosOutput;
 
@@ -52,10 +51,7 @@ impl ScanVideos {
 
         println!("Scanning file system for videos...");
         let result = self.scan.scan_all().map_err(|e| e.to_string())?;
-        self.repo.lock()
-            .map_err(|e| e.to_string())?
-            .add_all(&result)
-            .map_err(|e| e.to_string())?;
+        self.repo.add_all(&result).map_err(|e| e.to_string())?;
 
         sender.output(ScanVideosOutput::Completed)
             .map_err(|e| format!("{:?}", e))

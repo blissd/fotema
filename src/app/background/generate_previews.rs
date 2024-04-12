@@ -4,7 +4,6 @@
 
 use relm4::prelude::*;
 use relm4::Worker;
-use std::sync::{Arc, Mutex};
 use photos_core::Result;
 use rayon::prelude::*;
 use futures::executor::block_on;
@@ -32,21 +31,19 @@ pub struct GeneratePreviews {
     previewer: photos_core::photo::Previewer,
 
     // Danger! Don't hold the repo mutex for too long as it blocks viewing images.
-    repo: Arc<Mutex<photos_core::photo::Repository>>,
+    repo: photos_core::photo::Repository,
 }
 
 impl GeneratePreviews {
 
     fn update_previews(
-        repo: Arc<Mutex<photos_core::photo::Repository>>,
+        repo: photos_core::photo::Repository,
         previewer: photos_core::photo::Previewer,
         sender: &ComponentSender<GeneratePreviews>) -> Result<()>
      {
         let start = std::time::Instant::now();
 
         let unprocessed_pics: Vec<photos_core::photo::repo::Picture> = repo
-            .lock()
-            .expect("Acquire database lock")
             .all()?
             .into_iter()
             .filter(|pic| !pic.square_preview_path.as_ref().is_some_and(|p| p.exists()))
@@ -66,7 +63,7 @@ impl GeneratePreviews {
                 result
             })
             .for_each(|pic| {
-                let result = repo.lock().unwrap().add_preview(&pic);
+                let result = repo.clone().add_preview(&pic);
                 if let Err(e) = result {
                     println!("Failed add_preview: {:?}", e);
                 } else if let Err(e) = sender.output(GeneratePreviewsOutput::Generated) {
@@ -85,7 +82,7 @@ impl GeneratePreviews {
 }
 
 impl Worker for GeneratePreviews {
-    type Init = (photos_core::photo::Previewer, Arc<Mutex<photos_core::photo::Repository>>);
+    type Init = (photos_core::photo::Previewer, photos_core::photo::Repository);
     type Input = GeneratePreviewsInput;
     type Output = GeneratePreviewsOutput;
 

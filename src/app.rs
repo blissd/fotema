@@ -428,8 +428,6 @@ impl SimpleComponent for App {
                 ).unwrap()
         };
 
-        let photo_repo = Arc::new(Mutex::new(photo_repo));
-
         let photo_previewer = {
             let _ = std::fs::create_dir_all(&photo_thumbnail_base_path);
             photos_core::photo::Previewer::build(&photo_thumbnail_base_path).unwrap()
@@ -445,8 +443,6 @@ impl SimpleComponent for App {
                 &video_thumbnail_base_path,
                 con).unwrap()
         };
-
-        let video_repo = Arc::new(Mutex::new(video_repo));
 
         let video_thumbnailer = {
             let _ = std::fs::create_dir_all(&video_thumbnail_base_path);

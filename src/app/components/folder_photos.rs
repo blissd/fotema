@@ -10,9 +10,7 @@ use relm4::gtk;
 use relm4::gtk::prelude::WidgetExt;
 use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
 use relm4::*;
-
 use std::path;
-use std::sync::{Arc, Mutex};
 
 #[derive(Debug)]
 struct PhotoGridItem {
@@ -104,13 +102,13 @@ impl RelmGridItem for PhotoGridItem {
 }
 
 pub struct FolderPhotos {
-    repo: Arc<Mutex<photos_core::photo::Repository>>,
+    repo: photos_core::photo::Repository,
     photo_grid: TypedGridView<PhotoGridItem, gtk::SingleSelection>,
 }
 
 #[relm4::component(pub)]
 impl SimpleComponent for FolderPhotos {
-    type Init = Arc<Mutex<photos_core::photo::Repository>>;
+    type Init = photos_core::photo::Repository;
     type Input = FolderPhotosInput;
     type Output = FolderPhotosOutput;
 
@@ -165,8 +163,6 @@ impl SimpleComponent for FolderPhotos {
             FolderPhotosInput::Refresh => {
                 let all_pictures = self
                     .repo
-                    .lock()
-                    .unwrap()
                     .all()
                     .unwrap()
                     .into_iter()

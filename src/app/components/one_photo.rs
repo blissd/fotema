@@ -9,7 +9,6 @@ use relm4::gtk::gio;
 use relm4::gtk::prelude::*;
 use relm4::*;
 use relm4::prelude::*;
-use std::sync::{Arc, Mutex};
 use glycin;
 
 use crate::app::components::photo_info::PhotoInfo;
@@ -23,7 +22,7 @@ pub enum OnePhotoInput {
 
 #[derive(Debug)]
 pub struct OnePhoto {
-    repo: Arc<Mutex<photos_core::photo::Repository>>,
+    repo: photos_core::photo::Repository,
 
     // Photo to show
     picture: gtk::Picture,
@@ -39,7 +38,7 @@ pub struct OnePhoto {
 
 #[relm4::component(pub async)]
 impl SimpleAsyncComponent for OnePhoto {
-    type Init = (photos_core::photo::Scanner, Arc<Mutex<photos_core::photo::repo::Repository>>);
+    type Init = (photos_core::photo::Scanner, photos_core::photo::repo::Repository);
     type Input = OnePhotoInput;
     type Output = ();
 
@@ -107,7 +106,7 @@ impl SimpleAsyncComponent for OnePhoto {
         match msg {
             OnePhotoInput::ViewPhoto(picture_id) => {
                 println!("Showing photo for {}", picture_id);
-                let result = self.repo.lock().unwrap().get(picture_id);
+                let result = self.repo.get(picture_id);
                 if let Ok(Some(pic)) = result {
                     self.title = pic.path
                         .file_name()

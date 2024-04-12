@@ -75,7 +75,7 @@ impl Visual {
 
 /// Repository of picture metadata.
 /// Repository is backed by a Sqlite database.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Repository {
     /// Base path to picture library on file system
     library_base_path: path::PathBuf,
