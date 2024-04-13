@@ -357,8 +357,8 @@ impl SimpleComponent for App {
                                             set_orientation: gtk::Orientation::Vertical,
                                             container_add: model.motion_page.widget(),
                                         } -> {
-                                            set_title: "Motion",
-                                            set_name: "Motion",
+                                            set_title: "Animated",
+                                            set_name: "Animated",
                                             // NOTE gtk::StackSidebar doesn't show icon :-/
                                             set_icon_name: "sonar-symbolic",
                                         },

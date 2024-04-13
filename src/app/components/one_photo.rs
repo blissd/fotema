@@ -158,8 +158,11 @@ impl SimpleAsyncComponent for OnePhoto {
                     let media_file = gtk::MediaFile::for_filename(visual.video_path.clone().expect("Must have video"));
                     self.picture.set_paintable(Some(&media_file));
 
-                    media_file.set_muted(visual.is_motion_photo());
-                    media_file.set_loop(visual.is_motion_photo());
+                    if visual.is_motion_photo() {
+                       media_file.set_muted(true);
+                       media_file.set_loop(true);
+                    }
+
                     media_file.play();
                 }
             },
