@@ -7,6 +7,10 @@ Files: build-aux/*.json
 Copyright: © 2024 David Bliss <david@romantics.dev>
 License: GPL-3.0-or-later
 
+Files: core/migrations/*.sql
+Copyright: © 2024 David Bliss <david@romantics.dev>
+License: GPL-3.0-or-later
+
 Files: Cargo.lock
 Copyright: © 2024 David Bliss <david@romantics.dev>
 License: GPL-3.0-or-later
@@ -34,6 +38,6 @@ Files: hooks/*
 Copyright: © 2024 David Bliss <david@romantics.dev>
 License: GPL-3.0-or-later
 
-Files: po/*
+Files: po/*.in
 Copyright: © 2024 David Bliss <david@romantics.dev>
 License: GPL-3.0-or-later
