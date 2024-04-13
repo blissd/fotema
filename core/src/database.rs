@@ -17,3 +17,12 @@ pub fn setup(database_path: &path::Path) -> Result<Connection> {
         .map_err(|e| RepositoryError(e.to_string()))?;
     Ok(con)
 }
+
+// for testing
+pub fn setup_in_memory() -> Result<Connection> {
+    let mut con = Connection::open_in_memory().map_err(|e| RepositoryError(e.to_string()))?;
+    migrations::runner()
+        .run(&mut con)
+        .map_err(|e| RepositoryError(e.to_string()))?;
+    Ok(con)
+}

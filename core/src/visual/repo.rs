@@ -153,8 +153,8 @@ impl Repository {
                     videos.preview_path AS video_thumbnail,
                     videos.created_ts AS video_created_ts
                 FROM visual
-                LEFT JOIN pictures USING(picture_id)
-                LEFT JOIN videos USING(video_id)
+                LEFT JOIN pictures ON visual.picture_id = pictures.picture_id
+                LEFT JOIN videos   ON visual.video_id   = videos.video_id
                 WHERE COALESCE(pictures.preview_path, videos.preview_path) IS NOT NULL",
             )
             .map_err(|e| RepositoryError(e.to_string()))?;
