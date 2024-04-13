@@ -248,7 +248,7 @@ impl Repository {
                     videos.video_id,
                     videos.video_path AS video_path,
                     videos.preview_path AS video_thumbnail,
-                    videos.created_ts AS video_created_ts
+                    videos.fs_created_ts AS video_created_ts
                 FROM visual
                 LEFT JOIN pictures USING(picture_id)
                 LEFT JOIN videos USING(video_id)
