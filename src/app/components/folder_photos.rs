@@ -17,7 +17,7 @@ struct PhotoGridItem {
     folder_name: String,
 
     // Folder album cover
-    picture: photos_core::photo::repo::Picture,
+    picture: photos_core::visual::repo::Visual,
 }
 
 struct Widgets {
@@ -82,13 +82,12 @@ impl RelmGridItem for PhotoGridItem {
 
         if self
             .picture
-            .square_preview_path
-            .as_ref()
-            .is_some_and(|f| f.exists())
+            .thumbnail_path
+            .exists()
         {
             widgets
                 .picture
-                .set_filename(self.picture.square_preview_path.clone());
+                .set_filename(Some(self.picture.thumbnail_path.clone()));
         } else {
             widgets.picture.set_resource(Some(
                 "/dev/romantics/Fotema/icons/image-missing-symbolic.svg",
@@ -102,13 +101,13 @@ impl RelmGridItem for PhotoGridItem {
 }
 
 pub struct FolderPhotos {
-    repo: photos_core::photo::Repository,
+    repo: photos_core::visual::Repository,
     photo_grid: TypedGridView<PhotoGridItem, gtk::SingleSelection>,
 }
 
 #[relm4::component(pub)]
 impl SimpleComponent for FolderPhotos {
-    type Init = photos_core::photo::Repository;
+    type Init = photos_core::visual::Repository;
     type Input = FolderPhotosInput;
     type Output = FolderPhotosOutput;
 
@@ -155,9 +154,8 @@ impl SimpleComponent for FolderPhotos {
                     let item = item.borrow();
                     println!("Folder selected item: {}", item.folder_name);
 
-                    if let Some(folder_path) = item.picture.parent_path() {
-                        let _ = sender.output(FolderPhotosOutput::FolderSelected(folder_path));
-                    }
+                    let _ = sender
+                        .output(FolderPhotosOutput::FolderSelected(item.picture.parent_path.clone()));
                 }
             }
             FolderPhotosInput::Refresh => {
@@ -166,9 +164,9 @@ impl SimpleComponent for FolderPhotos {
                     .all()
                     .unwrap()
                     .into_iter()
-                    .filter(|x| x.square_preview_path.as_ref().is_some_and(|p| p.exists()))
-                    .sorted_by_key(|pic| pic.parent_path())
-                    .group_by(|pic| pic.parent_path());
+                    .filter(|x| x.thumbnail_path.exists())
+                    .sorted_by_key(|pic| pic.parent_path.clone())
+                    .group_by(|pic| pic.parent_path.clone());
 
                 let mut pictures = Vec::new();
 

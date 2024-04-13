@@ -132,7 +132,7 @@ impl SimpleAsyncComponent for OnePhoto {
 
                 self.picture.set_paintable(None::<&gdk::Paintable>);
 
-                if visual.is_photo_only() || visual.is_motion_photo() {
+                if visual.is_photo_only() {
                     let file = gio::File::for_path(visual_path.clone());
                     let image_result = glycin::Loader::new(file).load().await;
 
@@ -154,9 +154,10 @@ impl SimpleAsyncComponent for OnePhoto {
 
                     self.picture.set_paintable(Some(&texture));
                     self.photo_info.emit(PhotoInfoInput::ShowInfo(visual_path));
-                } else if visual.is_video_only() {
-                    let media_file = gtk::MediaFile::for_filename(visual.video_path.expect("Must have video"));
-
+                } else { // video or motion photo
+                    let mut media_file = gtk::MediaFile::for_filename(visual.video_path.clone().expect("Must have video"));
+                    media_file.set_muted(visual.is_motion_photo());
+                    media_file.set_loop(visual.is_motion_photo());
                     self.picture.set_paintable(Some(&media_file));
                     media_file.play();
                 }

@@ -531,7 +531,7 @@ impl SimpleComponent for App {
 
         let folder_photos =
             FolderPhotos::builder()
-                .launch(photo_repo.clone())
+                .launch(visual_repo.clone())
                 .forward(sender.input_sender(), |msg| match msg {
                     FolderPhotosOutput::FolderSelected(path) => AppMsg::ViewFolder(path),
                 });
