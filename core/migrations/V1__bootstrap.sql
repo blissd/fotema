@@ -1,10 +1,11 @@
 -- A photo in the library
 CREATE TABLE pictures (
-        picture_id     INTEGER PRIMARY KEY UNIQUE NOT NULL, -- unique ID for picture
-        picture_path   TEXT UNIQUE NOT NULL, -- path to picture
-        preview_path   TEXT UNIQUE, -- path to picture preview
-        order_by_ts    DATETIME, -- UTC timestamp to order images by
-        is_selfie      BOOLEAN NOT NULL CHECK (is_selfie IN (0, 1)) -- front camera?
+        picture_id      INTEGER PRIMARY KEY UNIQUE NOT NULL, -- unique ID for picture
+        picture_path    TEXT UNIQUE NOT NULL, -- path to picture
+        preview_path    TEXT UNIQUE, -- path to picture preview
+        fs_created_ts   DATETIME NOT NULL, -- UTC timestamp from file system
+        exif_created_ts DATETIME, -- UTC timestamp to order images by
+        is_selfie       BOOLEAN NOT NULL CHECK (is_selfie IN (0, 1)) -- front camera?
 );
 
 -- A video in the library
@@ -12,8 +13,7 @@ CREATE TABLE videos (
         video_id      INTEGER PRIMARY KEY UNIQUE NOT NULL, -- unique ID for video
         video_path    TEXT UNIQUE NOT NULL, -- path to video
         preview_path  TEXT UNIQUE, -- path to preview
-        modified_ts   DATETIME, -- UTC timestamp of file system modification time
-        created_ts    DATETIME -- UTC timestamp of file system creation time
+        fs_created_ts DATETIME NOT NULL -- UTC timestamp of file system creation time
 );
 
 -- Visual artefacts. Either a photo, a video, or both at once.

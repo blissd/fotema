@@ -50,8 +50,11 @@ pub struct Picture {
     /// Full path to square preview image
     pub square_preview_path: Option<PathBuf>,
 
-    /// Ordering timestamp, derived from EXIF metadata or file system timestamps.
-    pub order_by_ts: Option<DateTime<Utc>>,
+    /// Creation timestamp from file system.
+    fs_created_at: DateTime<Utc>,
+
+    /// Creation timestamp from EXIF metadata.
+    exif_created_at: Option<DateTime<Utc>>,
 
     /// Was picture taken with front camera?
     pub is_selfie: bool,
@@ -69,28 +72,24 @@ impl Picture {
             .map(|x| x.to_string_lossy().to_string())
     }
 
+    pub fn created_at(&self) -> DateTime<Utc> {
+        self.exif_created_at.unwrap_or(self.fs_created_at)
+    }
+
     pub fn year(&self) -> u32 {
-        self.order_by_ts
-            .map(|ts| ts.date_naive().year_ce().1)
-            .unwrap_or(0)
+        self.created_at().date_naive().year_ce().1
     }
 
     pub fn year_month(&self) -> YearMonth {
-        self.order_by_ts
-            .map(|ts| {
-                let year = ts.date_naive().year();
-                let month = ts.date_naive().month();
-                let month = chrono::Month::try_from(u8::try_from(month).unwrap()).unwrap();
-                YearMonth { year, month }
-            })
-            .unwrap_or(YearMonth {
-                year: 0,
-                month: chrono::Month::January,
-            })
+        let date = self.created_at().date_naive();
+        let year = date.year();
+        let month = date.month();
+        let month = chrono::Month::try_from(u8::try_from(month).unwrap()).unwrap();
+        YearMonth { year, month }
     }
 
-    pub fn date(&self) -> Option<chrono::NaiveDate> {
-        self.order_by_ts.map(|ts| ts.date_naive())
+    pub fn date(&self) -> chrono::NaiveDate {
+        self.created_at().date_naive()
     }
 }
 
@@ -152,10 +151,6 @@ impl Repository {
                 pic.picture_id.0,
             ]);
 
-            //result
-            //  .map(|_| ())
-            //.map_err(|e| RepositoryError(e.to_string()))?;
-
             // The "on conflict ignore" constraints look like errors to rusqlite
             match result {
                 Err(e @ SqliteFailure(_, _))
@@ -193,11 +188,16 @@ impl Repository {
                 .prepare_cached(
                     "INSERT INTO pictures (
                     picture_path,
-                    order_by_ts,
+                    fs_created_ts,
+                    exif_created_ts,
                     is_selfie
                 ) VALUES (
-                    ?1, ?2, ?3
-                ) ON CONFLICT (picture_path) DO UPDATE SET order_by_ts=?2, is_selfie=?3",
+                    ?1, ?2, ?3, ?4
+                ) ON CONFLICT (picture_path) DO UPDATE SET
+                    fs_created_ts=?2,
+                    exif_created_ts=?3,
+                    is_selfie=?4
+                ",
                 )
                 .map_err(|e| RepositoryError(format!("Preparing statement: {}", e)))?;
 
@@ -222,9 +222,15 @@ impl Repository {
                         RepositoryError(format!("Stripping prefix for {:?}: {}", &pic.path, e))
                     })?;
 
-                let exif_date_time = pic.exif.as_ref().and_then(|x| x.created_at);
-                let fs_date_time = pic.fs.as_ref().and_then(|x| x.created_at);
-                let order_by_ts = exif_date_time.map(|d| d.to_utc()).or(fs_date_time);
+                let exif_created_at = pic.exif.as_ref().and_then(|x| x.created_at);
+                let fs_created_at = pic.fs.as_ref().and_then(|x| x.created_at);
+
+                if fs_created_at.is_none() {
+                    continue; // FIXME change scanner::Picture fs_created_at to not be Option.
+                }
+
+                let fs_created_at = fs_created_at.expect("Must have fs_created_at");
+
                 let is_selfie = pic
                     .exif
                     .as_ref()
@@ -239,7 +245,12 @@ impl Repository {
                 let stem_path = path.with_file_name(file_stem);
 
                 pic_insert_stmt
-                    .execute(params![path.to_str(), order_by_ts, is_selfie])
+                    .execute(params![
+                        path.to_str(),
+                        fs_created_at,
+                        exif_created_at,
+                        is_selfie
+                    ])
                     .map_err(|e| RepositoryError(format!("Preparing statement: {}", e)))?;
 
                 let picture_id = pic_lookup_stmt
@@ -268,10 +279,11 @@ impl Repository {
                     pictures.picture_id,
                     pictures.picture_path,
                     pictures.preview_path as square_preview_path,
-                    pictures.order_by_ts,
+                    pictures.fs_created_ts,
+                    pictures.exif_created_ts,
                     pictures.is_selfie
                 FROM pictures
-                ORDER BY order_by_ts ASC",
+                ORDER BY COALESCE(exif_created_ts, fs_created_ts) ASC",
             )
             .map_err(|e| RepositoryError(e.to_string()))?;
 
@@ -285,8 +297,9 @@ impl Repository {
                         .get(2)
                         .ok()
                         .map(|p: String| self.photo_thumbnail_base_path.join(p)),
-                    order_by_ts: row.get(3).ok(),
-                    is_selfie: row.get(4).ok().unwrap_or(false),
+                    fs_created_at: row.get(3).ok().expect("Must have fs_created_ts"),
+                    exif_created_at: row.get(4).ok(),
+                    is_selfie: row.get(5).ok().unwrap_or(false),
                 })
             })
             .map_err(|e| RepositoryError(e.to_string()))?;
@@ -308,7 +321,8 @@ impl Repository {
                     pictures.picture_id,
                     pictures.picture_path,
                     pictures.preview_path as square_preview_path,
-                    pictures.order_by_ts,
+                    pictures.fs_created_ts,
+                    pictures.exif_created_ts,
                     pictures.is_selfie
                 FROM pictures
                 WHERE pictures.picture_id = ?1",
@@ -325,8 +339,9 @@ impl Repository {
                         .get(2)
                         .ok()
                         .map(|p: String| self.photo_thumbnail_base_path.join(p)),
-                    order_by_ts: row.get(3).ok(),
-                    is_selfie: row.get(4).ok().unwrap_or(false),
+                    fs_created_at: row.get(3).ok().expect("Must have fs_created_ts"),
+                    exif_created_at: row.get(4).ok(),
+                    is_selfie: row.get(5).ok().unwrap_or(false),
                 })
             })
             .map_err(|e| RepositoryError(e.to_string()))?;

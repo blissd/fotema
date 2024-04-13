@@ -16,7 +16,7 @@ use std::path;
 
 #[derive(Debug)]
 struct PhotoGridItem {
-    picture: photos_core::photo::repo::Picture,
+    picture: photos_core::visual::repo::Visual,
 }
 #[derive(Debug)]
 pub enum YearPhotosInput {
@@ -85,15 +85,10 @@ impl RelmGridItem for PhotoGridItem {
             .label
             .set_text(format!("{}", self.picture.year()).as_str());
 
-        if self
-            .picture
-            .square_preview_path
-            .as_ref()
-            .is_some_and(|f| f.exists())
-        {
+        if self.picture.thumbnail_path.exists() {
             widgets
                 .picture
-                .set_filename(self.picture.square_preview_path.clone());
+                .set_filename(Some(self.picture.thumbnail_path.clone()));
         } else {
             widgets.picture.set_resource(Some(
                 "/dev/romantics/Fotema/icons/image-missing-symbolic.svg",
@@ -107,13 +102,13 @@ impl RelmGridItem for PhotoGridItem {
 }
 
 pub struct YearPhotos {
-    repo: photos_core::photo::Repository,
+    repo: photos_core::visual::Repository,
     photo_grid: TypedGridView<PhotoGridItem, gtk::NoSelection>,
 }
 
 #[relm4::component(pub)]
 impl SimpleComponent for YearPhotos {
-    type Init = photos_core::photo::Repository;
+    type Init = photos_core::visual::Repository;
     type Input = YearPhotosInput;
     type Output = YearPhotosOutput;
 
@@ -159,7 +154,7 @@ impl SimpleComponent for YearPhotos {
                     .all()
                     .unwrap()
                     .into_iter()
-                    .filter(|x| x.square_preview_path.as_ref().is_some_and(|p| p.exists()))
+                    .filter(|x| x.thumbnail_path.exists())
                     .dedup_by(|x, y| x.year() == y.year())
                     .map(|picture| PhotoGridItem { picture });
 

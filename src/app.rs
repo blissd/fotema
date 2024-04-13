@@ -533,7 +533,7 @@ impl SimpleComponent for App {
 
         let year_photos =
             YearPhotos::builder()
-                .launch(photo_repo.clone())
+                .launch(visual_repo.clone())
                 .forward(sender.input_sender(), |msg| match msg {
                     YearPhotosOutput::YearSelected(year) => AppMsg::GoToYear(year),
                 });

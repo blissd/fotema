@@ -48,11 +48,8 @@ pub struct Video {
     /// Full path to square preview image
     pub thumbnail_path: Option<PathBuf>,
 
-    /// Created timestamp
-    pub created_at: Option<DateTime<Utc>>,
-
-    /// Modified timestamp
-    pub modified_at: Option<DateTime<Utc>>,
+    /// Filesystem creation timestamp
+    pub fs_created_at: DateTime<Utc>,
 }
 
 /// Repository of picture metadata.
@@ -153,11 +150,10 @@ impl Repository {
                 .prepare_cached(
                     "INSERT INTO videos (
                         video_path,
-                        modified_ts,
-                        created_ts
+                        fs_created_ts
                     ) VALUES (
-                        ?1, ?2, ?3
-                    ) ON CONFLICT (video_path) DO UPDATE SET modified_ts=?2, created_ts=?3
+                        ?1, ?2
+                    ) ON CONFLICT (video_path) DO UPDATE SET fs_created_ts=?2
                     ",
                 )
                 .map_err(|e| RepositoryError(format!("Preparing statement: {}", e)))?;
@@ -190,11 +186,15 @@ impl Repository {
                     .expect("Must exist");
                 let stem_path = path.with_file_name(file_stem);
 
-                let created_at = vid.fs.as_ref().and_then(|x| x.created_at);
-                let modified_at = vid.fs.as_ref().and_then(|x| x.modified_at);
+                let fs_created_at = vid.fs.as_ref().and_then(|x| x.created_at);
+                if fs_created_at.is_none() {
+                    continue; // FIXME scanner::Video should not be an Option
+                }
+
+                let fs_created_at = fs_created_at.expect("Must have fs_created_at");
 
                 vid_stmt
-                    .execute(params![path.to_str(), modified_at, created_at])
+                    .execute(params![path.to_str(), fs_created_at])
                     .map_err(|e| RepositoryError(format!("Inserting: {}", e)))?;
 
                 let video_id = vid_lookup_stmt
@@ -223,8 +223,7 @@ impl Repository {
                     video_id,
                     video_path,
                     preview_path,
-                    created_ts,
-                    modified_ts
+                    fs_created_ts,
                 FROM videos
                 ORDER BY created_ts ASC",
             )
@@ -240,8 +239,7 @@ impl Repository {
                         .get(2)
                         .ok()
                         .map(|p: String| self.video_thumbnail_base_path.join(p)),
-                    created_at: row.get(3).ok(),
-                    modified_at: row.get(4).ok(),
+                    fs_created_at: row.get(3).ok().expect("Must have fs_created_at"),
                 })
             })
             .map_err(|e| RepositoryError(e.to_string()))?;

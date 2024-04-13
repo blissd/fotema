@@ -53,8 +53,8 @@ pub struct Visual {
 
     pub picture_path: Option<PathBuf>,
 
-    /// Temporal ordering
-    pub order_by_ts: DateTime<Utc>,
+    /// EXIF or file system creation timestamp
+    pub created_at: DateTime<Utc>,
 
     is_selfie: Option<bool>,
 }
@@ -77,11 +77,11 @@ impl Visual {
     }
 
     pub fn year(&self) -> u32 {
-        self.order_by_ts.date_naive().year_ce().1
+        self.created_at.date_naive().year_ce().1
     }
 
     pub fn year_month(&self) -> YearMonth {
-        let date = self.order_by_ts.date_naive();
+        let date = self.created_at.date_naive();
         let year = date.year();
         let month = date.month();
         let month = chrono::Month::try_from(u8::try_from(month).unwrap()).unwrap();
@@ -146,16 +146,17 @@ impl Repository {
                     pictures.picture_id,
                     pictures.picture_path AS picture_path,
                     pictures.preview_path AS picture_thumbnail,
-                    pictures.order_by_ts AS picture_order_by_ts,
+                    COALESCE(pictures.exif_created_ts, pictures.fs_created_ts) AS picture_created_ts,
 
                     videos.video_id,
                     videos.video_path AS video_path,
                     videos.preview_path AS video_thumbnail,
-                    videos.created_ts AS video_created_ts
+                    videos.fs_created_ts AS video_created_ts
                 FROM visual
                 LEFT JOIN pictures ON visual.picture_id = pictures.picture_id
                 LEFT JOIN videos   ON visual.video_id   = videos.video_id
-                WHERE COALESCE(pictures.preview_path, videos.preview_path) IS NOT NULL",
+                WHERE COALESCE(pictures.preview_path, videos.preview_path) IS NOT NULL
+                ORDER BY COALESCE(picture_created_ts, video_created_ts) ASC",
             )
             .map_err(|e| RepositoryError(e.to_string()))?;
 
@@ -181,7 +182,7 @@ impl Repository {
                 let picture_thumbnail: Option<PathBuf> =
                     row.get(4).map(|x: String| PathBuf::from(x)).ok();
 
-                let picture_order_by_ts: Option<DateTime<Utc>> = row.get(5).ok();
+                let picture_created_at: Option<DateTime<Utc>> = row.get(5).ok();
 
                 let video_id: Option<VideoId> = row.get(6).map(|x| VideoId::new(x)).ok();
 
@@ -192,7 +193,7 @@ impl Repository {
                 let video_thumbnail: Option<PathBuf> =
                     row.get(8).map(|x: String| PathBuf::from(x)).ok();
 
-                let video_created_ts: Option<DateTime<Utc>> = row.get(9).ok();
+                let video_created_at: Option<DateTime<Utc>> = row.get(9).ok();
 
                 let thumbnail_path = picture_thumbnail
                     .map(|x| self.photo_thumbnail_base_path.join(x))
@@ -200,8 +201,8 @@ impl Repository {
                     .map(|x| self.video_thumbnail_base_path.join(x))
                     .expect("Must have a thumbnail");
 
-                let order_by_ts = picture_order_by_ts
-                    .or_else(|| video_created_ts)
+                let created_at = picture_created_at
+                    .or_else(|| video_created_at)
                     .expect("Must have order_by_ts");
 
                 let v = Visual {
@@ -215,7 +216,7 @@ impl Repository {
                     picture_path,
                     video_id,
                     video_path,
-                    order_by_ts,
+                    created_at,
                     is_selfie: None, // TODO get real value
                 };
                 Ok(v)
@@ -242,7 +243,7 @@ impl Repository {
                     pictures.picture_id,
                     pictures.picture_path AS picture_path,
                     pictures.preview_path AS picture_thumbnail,
-                    pictures.order_by_ts AS picture_order_by_ts,
+                    COALESCE(pictures.exif_created_ts, pictures.fs_created_ts) AS picture_created_ts,
 
                     videos.video_id,
                     videos.video_path AS video_path,
@@ -278,7 +279,7 @@ impl Repository {
                 let picture_thumbnail: Option<PathBuf> =
                     row.get(4).map(|x: String| PathBuf::from(x)).ok();
 
-                let picture_order_by_ts: Option<DateTime<Utc>> = row.get(5).ok();
+                let picture_created_at: Option<DateTime<Utc>> = row.get(5).ok();
 
                 let video_id: Option<VideoId> = row.get(6).map(|x| VideoId::new(x)).ok();
 
@@ -289,7 +290,7 @@ impl Repository {
                 let video_thumbnail: Option<PathBuf> =
                     row.get(8).map(|x: String| PathBuf::from(x)).ok();
 
-                let video_created_ts: Option<DateTime<Utc>> = row.get(9).ok();
+                let video_created_at: Option<DateTime<Utc>> = row.get(9).ok();
 
                 let thumbnail_path = picture_thumbnail
                     .map(|x| self.photo_thumbnail_base_path.join(x))
@@ -297,8 +298,8 @@ impl Repository {
                     .map(|x| self.video_thumbnail_base_path.join(x))
                     .expect("Must have a thumbnail");
 
-                let order_by_ts = picture_order_by_ts
-                    .or_else(|| video_created_ts)
+                let created_at = picture_created_at
+                    .or_else(|| video_created_at)
                     .expect("Must have order_by_ts");
 
                 let v = Visual {
@@ -312,7 +313,7 @@ impl Repository {
                     picture_path,
                     video_id,
                     video_path,
-                    order_by_ts,
+                    created_at,
                     is_selfie: None, // TODO get real value
                 };
                 Ok(v)
