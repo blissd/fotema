@@ -5,7 +5,7 @@
 /// Properties view for a photo.
 /// Deeply inspired by how Loupe displays its property view.
 
-use photos_core::photo;
+use fotema_core::photo;
 use gtk::prelude::OrientableExt;
 use relm4::gtk;
 use relm4::*;

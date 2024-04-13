@@ -4,7 +4,7 @@
 
 use relm4::prelude::*;
 use relm4::Worker;
-use photos_core::Result;
+use fotema_core::Result;
 use rayon::prelude::*;
 
 
@@ -27,21 +27,21 @@ pub enum VideoThumbnailsOutput {
 }
 
 pub struct VideoThumbnails {
-    thumbnailer: photos_core::video::Thumbnailer,
+    thumbnailer: fotema_core::video::Thumbnailer,
 
-    repo: photos_core::video::Repository,
+    repo: fotema_core::video::Repository,
 }
 
 impl VideoThumbnails {
 
     fn update_thumbnails(
-        repo: photos_core::video::Repository,
-        thumbnailer: photos_core::video::Thumbnailer,
+        repo: fotema_core::video::Repository,
+        thumbnailer: fotema_core::video::Thumbnailer,
         sender: &ComponentSender<VideoThumbnails>) -> Result<()>
      {
         let start = std::time::Instant::now();
 
-        let unprocessed_vids: Vec<photos_core::video::repo::Video> = repo
+        let unprocessed_vids: Vec<fotema_core::video::repo::Video> = repo
             .all()?
             .into_iter()
             .filter(|vid| !vid.thumbnail_path.as_ref().is_some_and(|p| p.exists()))
@@ -80,7 +80,7 @@ impl VideoThumbnails {
 }
 
 impl Worker for VideoThumbnails {
-    type Init = (photos_core::video::Thumbnailer, photos_core::video::Repository);
+    type Init = (fotema_core::video::Thumbnailer, fotema_core::video::Repository);
     type Input = VideoThumbnailsInput;
     type Output = VideoThumbnailsOutput;
 

@@ -4,7 +4,7 @@
 
 use relm4::prelude::*;
 use relm4::Worker;
-use photos_core::Result;
+use fotema_core::Result;
 use rayon::prelude::*;
 use futures::executor::block_on;
 
@@ -28,22 +28,22 @@ pub enum GeneratePreviewsOutput {
 }
 
 pub struct GeneratePreviews {
-    previewer: photos_core::photo::Previewer,
+    previewer: fotema_core::photo::Previewer,
 
     // Danger! Don't hold the repo mutex for too long as it blocks viewing images.
-    repo: photos_core::photo::Repository,
+    repo: fotema_core::photo::Repository,
 }
 
 impl GeneratePreviews {
 
     fn update_previews(
-        repo: photos_core::photo::Repository,
-        previewer: photos_core::photo::Previewer,
+        repo: fotema_core::photo::Repository,
+        previewer: fotema_core::photo::Previewer,
         sender: &ComponentSender<GeneratePreviews>) -> Result<()>
      {
         let start = std::time::Instant::now();
 
-        let unprocessed_pics: Vec<photos_core::photo::repo::Picture> = repo
+        let unprocessed_pics: Vec<fotema_core::photo::repo::Picture> = repo
             .all()?
             .into_iter()
             .filter(|pic| !pic.square_preview_path.as_ref().is_some_and(|p| p.exists()))
@@ -82,7 +82,7 @@ impl GeneratePreviews {
 }
 
 impl Worker for GeneratePreviews {
-    type Init = (photos_core::photo::Previewer, photos_core::photo::Repository);
+    type Init = (fotema_core::photo::Previewer, fotema_core::photo::Repository);
     type Input = GeneratePreviewsInput;
     type Output = GeneratePreviewsOutput;
 

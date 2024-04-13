@@ -839,16 +839,34 @@ dependencies = [
 name = "fotema"
 version = "0.1.0"
 dependencies = [
+ "fotema_core",
  "futures",
  "gettext-rs",
  "glycin",
  "humansize",
  "itertools",
- "photos_core",
  "rayon",
  "relm4",
  "tracing",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "fotema_core"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "gdk4",
+ "gio 0.19.4",
+ "glycin",
+ "gtk",
+ "image",
+ "kamadak-exif",
+ "rayon",
+ "refinery",
+ "rusqlite",
+ "tempfile",
+ "walkdir",
 ]
 
 [[package]]
@@ -2208,24 +2226,6 @@ name = "percent-encoding"
 version = "2.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e3148f5046208a5d56bcfc03053e3ca6334e51da8dfb19b6cdc8b306fae3283e"
-
-[[package]]
-name = "photos_core"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "gdk4",
- "gio 0.19.4",
- "glycin",
- "gtk",
- "image",
- "kamadak-exif",
- "rayon",
- "refinery",
- "rusqlite",
- "tempfile",
- "walkdir",
-]
 
 [[package]]
 name = "pin-project-lite"

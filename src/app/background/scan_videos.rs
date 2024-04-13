@@ -4,7 +4,7 @@
 
 use relm4::prelude::*;
 use relm4::Worker;
-use photos_core::video;
+use fotema_core::video;
 
 #[derive(Debug)]
 pub enum ScanVideosInput {

@@ -22,10 +22,10 @@ use relm4::{
 };
 
 use crate::config::{APP_ID, PROFILE};
-use photos_core::VisualId;
-use photos_core::YearMonth;
-use photos_core::video;
-use photos_core::database;
+use fotema_core::VisualId;
+use fotema_core::YearMonth;
+use fotema_core::video;
+use fotema_core::database;
 
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -438,14 +438,14 @@ impl SimpleComponent for App {
 
         let photo_thumbnail_base_path = cache_dir.join("picture_thumbnails");
 
-        let photo_scan = photos_core::photo::Scanner::build(&pic_base_dir).unwrap();
+        let photo_scan = fotema_core::photo::Scanner::build(&pic_base_dir).unwrap();
 
         let db_path = data_dir.join("pictures.sqlite");
 
         let con = database::setup(&db_path).expect("Must be able to open database");
         let con = Arc::new(Mutex::new(con));
 
-        let photo_repo = photos_core::photo::Repository::open(
+        let photo_repo = fotema_core::photo::Repository::open(
             &pic_base_dir,
             &photo_thumbnail_base_path,
             con.clone(),
@@ -453,12 +453,12 @@ impl SimpleComponent for App {
 
         let photo_previewer = {
             let _ = std::fs::create_dir_all(&photo_thumbnail_base_path);
-            photos_core::photo::Previewer::build(&photo_thumbnail_base_path).unwrap()
+            fotema_core::photo::Previewer::build(&photo_thumbnail_base_path).unwrap()
         };
 
         let video_thumbnail_base_path = cache_dir.join("video_thumbnails");
 
-        let video_scan = photos_core::video::Scanner::build(&pic_base_dir).unwrap();
+        let video_scan = fotema_core::video::Scanner::build(&pic_base_dir).unwrap();
 
         let video_repo = {
             video::Repository::open(
@@ -469,10 +469,10 @@ impl SimpleComponent for App {
 
         let video_thumbnailer = {
             let _ = std::fs::create_dir_all(&video_thumbnail_base_path);
-            photos_core::video::Thumbnailer::build(&video_thumbnail_base_path).unwrap()
+            fotema_core::video::Thumbnailer::build(&video_thumbnail_base_path).unwrap()
         };
 
-        let visual_repo = photos_core::visual::Repository::open(
+        let visual_repo = fotema_core::visual::Repository::open(
             &pic_base_dir,
             &photo_thumbnail_base_path,
             &video_thumbnail_base_path,

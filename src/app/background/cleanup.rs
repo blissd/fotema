@@ -4,7 +4,7 @@
 
 use relm4::prelude::*;
 use relm4::Worker;
-use photos_core::Result;
+use fotema_core::Result;
 use rayon::prelude::*;
 
 #[derive(Debug)]
@@ -29,7 +29,7 @@ pub enum CleanupOutput {
 
 pub struct Cleanup {
     // Danger! Don't hold the repo mutex for too long as it blocks viewing images.
-    repo: photos_core::photo::Repository,
+    repo: fotema_core::photo::Repository,
 }
 
 impl Cleanup {
@@ -39,7 +39,7 @@ impl Cleanup {
         let start = std::time::Instant::now();
 
         // Scrub pics from database if they no longer exist on the file system.
-        let pics: Vec<photos_core::photo::repo::Picture> = self.repo.all()?;
+        let pics: Vec<fotema_core::photo::repo::Picture> = self.repo.all()?;
 
         let pics_count = pics.len();
 
@@ -70,7 +70,7 @@ impl Cleanup {
 }
 
 impl Worker for Cleanup {
-    type Init = photos_core::photo::Repository;
+    type Init = fotema_core::photo::Repository;
     type Input = CleanupInput;
     type Output = CleanupOutput;
 

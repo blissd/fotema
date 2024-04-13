@@ -17,12 +17,12 @@ pub enum ScanPhotosOutput {
 }
 
 pub struct ScanPhotos {
-    scan: photos_core::photo::Scanner,
-    repo: photos_core::photo::Repository,
+    scan: fotema_core::photo::Scanner,
+    repo: fotema_core::photo::Repository,
 }
 
 impl Worker for ScanPhotos {
-    type Init = (photos_core::photo::Scanner, photos_core::photo::Repository);
+    type Init = (fotema_core::photo::Scanner, fotema_core::photo::Repository);
     type Input = ScanPhotosInput;
     type Output = ScanPhotosOutput;
 

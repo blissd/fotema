@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use gtk::prelude::OrientableExt;
-use photos_core;
+use fotema_core;
 
 use itertools::Itertools;
 use relm4::gtk;
@@ -12,13 +12,13 @@ use relm4::gtk::prelude::WidgetExt;
 use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
 use relm4::*;
 
-use photos_core::Year;
-use photos_core::YearMonth;
+use fotema_core::Year;
+use fotema_core::YearMonth;
 use std::path;
 
 #[derive(Debug)]
 struct PhotoGridItem {
-    picture: photos_core::visual::repo::Visual,
+    picture: fotema_core::visual::repo::Visual,
 }
 
 struct Widgets {
@@ -109,13 +109,13 @@ impl RelmGridItem for PhotoGridItem {
 }
 
 pub struct MonthPhotos {
-    repo: photos_core::visual::Repository,
+    repo: fotema_core::visual::Repository,
     photo_grid: TypedGridView<PhotoGridItem, gtk::SingleSelection>,
 }
 
 #[relm4::component(pub)]
 impl SimpleComponent for MonthPhotos {
-    type Init = photos_core::visual::Repository;
+    type Init = fotema_core::visual::Repository;
     type Input = MonthPhotosInput;
     type Output = MonthPhotosOutput;
 

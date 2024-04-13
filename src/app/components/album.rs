@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use gtk::prelude::OrientableExt;
-use photos_core::VisualId;
-use photos_core::YearMonth;
+use fotema_core::VisualId;
+use fotema_core::YearMonth;
 use relm4::gtk;
 use relm4::gtk::prelude::*;
 use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
@@ -58,7 +58,7 @@ pub enum AlbumOutput {
 
 #[derive(Debug)]
 struct PhotoGridItem {
-    visual: photos_core::visual::repo::Visual,
+    visual: fotema_core::visual::repo::Visual,
 }
 
 struct PhotoGridItemWidgets {
@@ -142,13 +142,13 @@ impl RelmGridItem for PhotoGridItem {
 }
 
 pub struct Album {
-    repo: photos_core::visual::Repository,
+    repo: fotema_core::visual::Repository,
     photo_grid: TypedGridView<PhotoGridItem, gtk::SingleSelection>,
 }
 
 #[relm4::component(pub)]
 impl SimpleComponent for Album {
-    type Init = (photos_core::visual::Repository, AlbumFilter);
+    type Init = (fotema_core::visual::Repository, AlbumFilter);
     type Input = AlbumInput;
     type Output = AlbumOutput;
 

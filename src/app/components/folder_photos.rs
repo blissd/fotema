@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use gtk::prelude::OrientableExt;
-use photos_core;
+use fotema_core;
 
 use itertools::Itertools;
 use relm4::gtk;
@@ -17,7 +17,7 @@ struct PhotoGridItem {
     folder_name: String,
 
     // Folder album cover
-    picture: photos_core::visual::repo::Visual,
+    picture: fotema_core::visual::repo::Visual,
 }
 
 struct Widgets {
@@ -101,13 +101,13 @@ impl RelmGridItem for PhotoGridItem {
 }
 
 pub struct FolderPhotos {
-    repo: photos_core::visual::Repository,
+    repo: fotema_core::visual::Repository,
     photo_grid: TypedGridView<PhotoGridItem, gtk::SingleSelection>,
 }
 
 #[relm4::component(pub)]
 impl SimpleComponent for FolderPhotos {
-    type Init = photos_core::visual::Repository;
+    type Init = fotema_core::visual::Repository;
     type Input = FolderPhotosInput;
     type Output = FolderPhotosOutput;
 

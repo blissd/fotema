@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 [package]
-name = "photos_core"
+name = "fotema_core"
 version = "0.1.0"
 edition = "2021"
 
