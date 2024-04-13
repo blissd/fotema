@@ -68,7 +68,9 @@ pub(super) struct App {
     one_photo: AsyncController<OnePhoto>,
 
     show_selfies: bool,
-    selfie_photos: Controller<Album>,
+    selfies_page: Controller<Album>,
+    videos_page: Controller<Album>,
+    motion_page: Controller<Album>,
 
     // Grid of folders of photos
     folder_photos: Controller<FolderPhotos>,
@@ -341,10 +343,29 @@ impl SimpleComponent for App {
                                             set_icon_name: "image-alt-symbolic",
                                         },
 
+                                        add_child = &gtk::Box {
+                                            set_orientation: gtk::Orientation::Vertical,
+                                            container_add: model.videos_page.widget(),
+                                        } -> {
+                                            set_title: "Videos",
+                                            set_name: "Videos",
+                                            // NOTE gtk::StackSidebar doesn't show icon :-/
+                                            set_icon_name: "video-reel-symbolic",
+                                        },
 
                                         add_child = &gtk::Box {
                                             set_orientation: gtk::Orientation::Vertical,
-                                            container_add: model.selfie_photos.widget(),
+                                            container_add: model.motion_page.widget(),
+                                        } -> {
+                                            set_title: "Motion",
+                                            set_name: "Motion",
+                                            // NOTE gtk::StackSidebar doesn't show icon :-/
+                                            set_icon_name: "sonar-symbolic",
+                                        },
+
+                                        add_child = &gtk::Box {
+                                            set_orientation: gtk::Orientation::Vertical,
+                                            container_add: model.selfies_page.widget(),
                                         } -> {
                                             set_visible: model.show_selfies,
                                             set_title: "Selfies",
@@ -521,13 +542,25 @@ impl SimpleComponent for App {
             .launch((photo_scan.clone(), visual_repo.clone()))
             .detach();
 
-        let selfie_photos = Album::builder()
+        let selfies_page = Album::builder()
             .launch((visual_repo.clone(), AlbumFilter::Selfies))
             .forward(sender.input_sender(), |msg| match msg {
                 AlbumOutput::Selected(id) => AppMsg::ViewPhoto(id),
             });
 
         let show_selfies = AppWidgets::show_selfies();
+
+        let motion_page = Album::builder()
+            .launch((visual_repo.clone(), AlbumFilter::Motion))
+            .forward(sender.input_sender(), |msg| match msg {
+                AlbumOutput::Selected(id) => AppMsg::ViewPhoto(id),
+            });
+
+        let videos_page = Album::builder()
+            .launch((visual_repo.clone(), AlbumFilter::Videos))
+            .forward(sender.input_sender(), |msg| match msg {
+                AlbumOutput::Selected(id) => AppMsg::ViewPhoto(id),
+            });
 
         let folder_photos =
             FolderPhotos::builder()
@@ -584,7 +617,9 @@ impl SimpleComponent for App {
             month_photos,
             year_photos,
             one_photo,
-            selfie_photos,
+            motion_page,
+            videos_page,
+            selfies_page,
             show_selfies,
             folder_photos,
             folder_album,
@@ -646,7 +681,7 @@ impl SimpleComponent for App {
         ComponentParts { model, widgets }
     }
 
-    fn update(&mut self, message: Self::Input, _sender: ComponentSender<Self>) {
+    fn update(&mut self, message: Self::Input, sender: ComponentSender<Self>) {
         match message {
             AppMsg::Quit => main_application().quit(),
             AppMsg::ToggleSidebar => {
@@ -706,7 +741,9 @@ impl SimpleComponent for App {
                 // Refresh messages cause the photos to be loaded into various photo grids
                 // TODO can we just refresh the currently visible photo grid?
                 self.all_photos.emit(AlbumInput::Refresh);
-                self.selfie_photos.emit(AlbumInput::Refresh);
+                self.selfies_page.emit(AlbumInput::Refresh);
+                self.videos_page.emit(AlbumInput::Refresh);
+                self.motion_page.emit(AlbumInput::Refresh);
                 self.folder_photos.emit(FolderPhotosInput::Refresh);
                 self.month_photos.emit(MonthPhotosInput::Refresh);
                 self.year_photos.emit(YearPhotosInput::Refresh);
@@ -776,12 +813,7 @@ impl SimpleComponent for App {
                 // Now generate video thumbnails
                 self.video_thumbnails.emit(VideoThumbnailsInput::Start);
 
-                // Refresh messages cause the photos to be loaded into various photo grids
-                self.all_photos.emit(AlbumInput::Refresh);
-                self.selfie_photos.emit(AlbumInput::Refresh);
-                self.folder_photos.emit(FolderPhotosInput::Refresh);
-                self.month_photos.emit(MonthPhotosInput::Refresh);
-                self.year_photos.emit(YearPhotosInput::Refresh);
+                sender.input(AppMsg::Refresh);
             }
             AppMsg::VideoThumbnailsStarted(count) => {
                 println!("Video thumbnail generation started.");
@@ -827,12 +859,7 @@ impl SimpleComponent for App {
                 self.banner.set_button_label(None);
                 self.progress_box.set_visible(false);
 
-                // Refresh messages cause the photos to be loaded into various photo grids
-                self.all_photos.emit(AlbumInput::Refresh);
-                self.selfie_photos.emit(AlbumInput::Refresh);
-                self.folder_photos.emit(FolderPhotosInput::Refresh);
-                self.month_photos.emit(MonthPhotosInput::Refresh);
-                self.year_photos.emit(YearPhotosInput::Refresh);
+                sender.input(AppMsg::Refresh);
             }
             AppMsg::CleanupCompleted => {
                 println!("Cleanup completed.");

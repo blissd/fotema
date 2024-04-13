@@ -27,6 +27,12 @@ pub enum AlbumFilter {
     // Show only selfies
     Selfies,
 
+    // Show only videos
+    Videos,
+
+    // Show only motion photos (live photos)
+    Motion,
+
     // Show photos only for folder
     Folder(PathBuf),
 }
@@ -212,6 +218,12 @@ impl Album {
             AlbumFilter::None => {
                 self.photo_grid.add_filter(Album::filter_none);
             }
+            AlbumFilter::Videos => {
+                self.photo_grid.add_filter(Album::filter_videos);
+            }
+            AlbumFilter::Motion => {
+                self.photo_grid.add_filter(Album::filter_motion_photos);
+            }
             AlbumFilter::Selfies => {
                 self.photo_grid.add_filter(Album::filter_selfie);
             }
@@ -227,6 +239,14 @@ impl Album {
 
     fn filter_selfie(item: &PhotoGridItem) -> bool {
         item.visual.is_selfie()
+    }
+
+    fn filter_videos(item: &PhotoGridItem) -> bool {
+        item.visual.is_video_only()
+    }
+
+    fn filter_motion_photos(item: &PhotoGridItem) -> bool {
+        item.visual.is_motion_photo()
     }
 
     fn filter_folder(path: PathBuf) -> impl Fn(&PhotoGridItem) -> bool {

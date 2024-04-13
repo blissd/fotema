@@ -155,13 +155,13 @@ impl SimpleAsyncComponent for OnePhoto {
                     self.picture.set_paintable(Some(&texture));
                     self.photo_info.emit(PhotoInfoInput::ShowInfo(visual_path));
                 } else { // video or motion photo
-                    let mut media_file = gtk::MediaFile::for_filename(visual.video_path.clone().expect("Must have video"));
+                    let media_file = gtk::MediaFile::for_filename(visual.video_path.clone().expect("Must have video"));
+                    self.picture.set_paintable(Some(&media_file));
+
                     media_file.set_muted(visual.is_motion_photo());
                     media_file.set_loop(visual.is_motion_photo());
-                    self.picture.set_paintable(Some(&media_file));
                     media_file.play();
                 }
-
             },
             OnePhotoInput::ToggleInfo => {
                 let show = self.split_view.shows_sidebar();
