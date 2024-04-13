@@ -18,6 +18,9 @@ use crate::app::components::photo_info::PhotoInfoInput;
 pub enum OnePhotoInput {
     ViewPhoto(VisualId),
     ToggleInfo,
+
+    // The photo/video page has been hidden so any playing media should stop.
+    Hidden,
 }
 
 #[derive(Debug)]
@@ -104,6 +107,10 @@ impl SimpleAsyncComponent for OnePhoto {
 
     async fn update(&mut self, msg: Self::Input, _sender: AsyncComponentSender<Self>) {
         match msg {
+            OnePhotoInput::Hidden => {
+                self.picture.set_paintable(None::<&gdk::Paintable>);
+                self.title = String::from("-");
+            },
             OnePhotoInput::ViewPhoto(visual_id) => {
                 println!("Showing item for {}", visual_id);
                 let result = self.repo.get(visual_id);

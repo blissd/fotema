@@ -125,6 +125,9 @@ pub(super) enum AppMsg {
     // Show item.
     ViewPhoto(VisualId),
 
+    // Shown item is dismissed.
+    ViewHidden,
+
     ViewFolder(PathBuf),
 
     // Scroll to first photo in month
@@ -229,6 +232,7 @@ impl SimpleComponent for App {
             #[local_ref]
             picture_navigation_view -> adw::NavigationView {
                 set_pop_on_escape: true,
+                connect_popped[sender] => move |_,_| sender.input(AppMsg::ViewHidden),
 
                 // Page for showing main navigation. Such as "Library", "Selfies", etc.
                 adw::NavigationPage {
@@ -677,6 +681,9 @@ impl SimpleComponent for App {
                 // Display navigation page for viewing an individual photo.
                 self.picture_navigation_view.push_by_tag("picture");
             }
+            AppMsg::ViewHidden => {
+                self.one_photo.emit(OnePhotoInput::Hidden);
+            },
             AppMsg::ViewFolder(path) => {
                 self.folder_album
                     .emit(AlbumInput::Filter(AlbumFilter::Folder(path)));
