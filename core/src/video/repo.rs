@@ -223,9 +223,9 @@ impl Repository {
                     video_id,
                     video_path,
                     preview_path,
-                    fs_created_ts,
+                    fs_created_ts
                 FROM videos
-                ORDER BY created_ts ASC",
+                ORDER BY fs_created_ts ASC",
             )
             .map_err(|e| RepositoryError(e.to_string()))?;
 
