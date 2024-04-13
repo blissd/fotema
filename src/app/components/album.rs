@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use gtk::prelude::OrientableExt;
-use photos_core::photo::repo::PictureId;
+use photos_core::VisualId;
 use photos_core::YearMonth;
 use relm4::gtk;
 use relm4::gtk::prelude::WidgetExt;
@@ -13,7 +13,7 @@ use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
 struct PhotoGridItem {
-    picture: photos_core::photo::repo::Picture,
+    visual: photos_core::visual::repo::Visual,
 }
 
 #[derive(Debug)]
@@ -34,7 +34,7 @@ pub enum AlbumFilter {
 #[derive(Debug)]
 pub enum AlbumInput {
     /// User has selected photo in grid view
-    PhotoSelected(u32), // Index into a Vec
+    Selected(u32), // Index into a Vec
 
     // Scroll to first photo of year/month.
     GoToMonth(YearMonth),
@@ -51,8 +51,8 @@ pub enum AlbumInput {
 
 #[derive(Debug)]
 pub enum AlbumOutput {
-    /// User has selected photo in grid view
-    PhotoSelected(PictureId),
+    /// User has selected photo or video in grid view
+    Selected(VisualId),
 }
 
 impl RelmGridItem for PhotoGridItem {
@@ -73,17 +73,10 @@ impl RelmGridItem for PhotoGridItem {
     }
 
     fn bind(&mut self, _widgets: &mut Self::Widgets, picture: &mut Self::Root) {
-        if self
-            .picture
-            .square_preview_path
-            .as_ref()
-            .is_some_and(|f| f.exists())
-        {
-            picture.set_filename(self.picture.square_preview_path.clone());
+        if self.visual.thumbnail_path.exists() {
+            picture.set_filename(Some(self.visual.thumbnail_path.clone()));
         } else {
-            picture.set_resource(Some(
-                "/dev/romantics/Fotema/icons/image-missing-symbolic.svg",
-            ));
+            picture.set_resource(Some("/dev/romantics/Fotema/icons/image-missing-symbolic.svg"));
         }
     }
 
@@ -93,13 +86,13 @@ impl RelmGridItem for PhotoGridItem {
 }
 
 pub struct Album {
-    repo: photos_core::photo::Repository,
+    repo: photos_core::visual::Repository,
     photo_grid: TypedGridView<PhotoGridItem, gtk::SingleSelection>,
 }
 
 #[relm4::component(pub)]
 impl SimpleComponent for Album {
-    type Init = (photos_core::photo::Repository, AlbumFilter);
+    type Init = (photos_core::visual::Repository, AlbumFilter);
     type Input = AlbumInput;
     type Output = AlbumOutput;
 
@@ -114,7 +107,7 @@ impl SimpleComponent for Album {
                 //set_max_columns: 3,
 
                 connect_activate[sender] => move |_, idx| {
-                    sender.input(AlbumInput::PhotoSelected(idx))
+                    sender.input(AlbumInput::Selected(idx))
                 },
             }
         }
@@ -143,17 +136,17 @@ impl SimpleComponent for Album {
                 self.update_filter(filter);
             }
             AlbumInput::Refresh => {
-                let all_pictures = self
+                let all = self
                     .repo
                     .all()
-                    .unwrap()
+                    .expect("Load all items")
                     .into_iter()
-                    .map(|picture| PhotoGridItem { picture });
+                    .map(|visual| PhotoGridItem { visual });
 
                 self.photo_grid.clear();
 
                 //self.photo_grid.add_filter(move |item| (self.photo_grid_filter)(&item.picture));
-                self.photo_grid.extend_from_iter(all_pictures.into_iter());
+                self.photo_grid.extend_from_iter(all.into_iter());
 
                 if !self.photo_grid.is_empty() {
                     // We must scroll to a valid index... but we can't get the index of the
@@ -171,19 +164,19 @@ impl SimpleComponent for Album {
                     self.enable_filters();
                 }
             }
-            AlbumInput::PhotoSelected(index) => {
+            AlbumInput::Selected(index) => {
                 // Photos are filters so must use get_visible(...) over get(...), otherwise
                 // wrong photo is displayed.
                 if let Some(item) = self.photo_grid.get_visible(index) {
-                    let picture_id = item.borrow().picture.picture_id;
-                    println!("index {} has picture_id {}", index, picture_id);
-                    let result = sender.output(AlbumOutput::PhotoSelected(picture_id));
+                    let visual_id = item.borrow().visual.visual_id;
+                    println!("index {} has visual_id {}", index, visual_id);
+                    let result = sender.output(AlbumOutput::Selected(visual_id));
                     println!("Result = {:?}", result);
                 }
             }
             AlbumInput::GoToMonth(ym) => {
                 println!("Showing for month: {}", ym);
-                let index_opt = self.photo_grid.find(|p| p.picture.year_month() == ym);
+                let index_opt = self.photo_grid.find(|p| p.visual.year_month() == ym);
                 println!("Found: {:?}", index_opt);
                 if let Some(index) = index_opt {
                     let flags = gtk::ListScrollFlags::SELECT;
@@ -233,17 +226,14 @@ impl Album {
     }
 
     fn filter_selfie(item: &PhotoGridItem) -> bool {
-        item.picture.is_selfie
+        item.visual.is_selfie()
     }
 
     fn filter_folder(path: PathBuf) -> impl Fn(&PhotoGridItem) -> bool {
-        move |item: &PhotoGridItem| item.picture.parent_path().is_some_and(|p| p == path)
+        move |item: &PhotoGridItem| item.visual.parent_path  == path
     }
 
     fn filter_has_thumbnail(item: &PhotoGridItem) -> bool {
-        item.picture
-            .square_preview_path
-            .as_ref()
-            .is_some_and(|p| p.exists())
+        item.visual.thumbnail_path.exists()
     }
 }

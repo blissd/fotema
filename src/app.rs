@@ -22,7 +22,7 @@ use relm4::{
 };
 
 use crate::config::{APP_ID, PROFILE};
-use photos_core::photo::repo::PictureId;
+use photos_core::VisualId;
 use photos_core::YearMonth;
 use photos_core::video;
 use photos_core::database;
@@ -122,8 +122,8 @@ pub(super) enum AppMsg {
     // A sidebar item has been clicked
     SwitchView,
 
-    // Show photo for ID.
-    ViewPhoto(PictureId),
+    // Show item.
+    ViewPhoto(VisualId),
 
     ViewFolder(PathBuf),
 
@@ -420,13 +420,11 @@ impl SimpleComponent for App {
         let con = database::setup(&db_path).expect("Must be able to open database");
         let con = Arc::new(Mutex::new(con));
 
-        let photo_repo = {
-            photos_core::photo::Repository::open(
-                &pic_base_dir,
-                &photo_thumbnail_base_path,
-                con.clone(),
-                ).unwrap()
-        };
+        let photo_repo = photos_core::photo::Repository::open(
+            &pic_base_dir,
+            &photo_thumbnail_base_path,
+            con.clone(),
+        ).unwrap();
 
         let photo_previewer = {
             let _ = std::fs::create_dir_all(&photo_thumbnail_base_path);
@@ -441,13 +439,20 @@ impl SimpleComponent for App {
             video::Repository::open(
                 &pic_base_dir,
                 &video_thumbnail_base_path,
-                con).unwrap()
+                con.clone()).unwrap()
         };
 
         let video_thumbnailer = {
             let _ = std::fs::create_dir_all(&video_thumbnail_base_path);
             photos_core::video::Thumbnailer::build(&video_thumbnail_base_path).unwrap()
         };
+
+        let visual_repo = photos_core::visual::Repository::open(
+            &pic_base_dir,
+            &photo_thumbnail_base_path,
+            &video_thumbnail_base_path,
+            con.clone(),
+        ).unwrap();
 
         let scan_photos = ScanPhotos::builder()
             .detach_worker((photo_scan.clone(), photo_repo.clone()))
@@ -489,9 +494,9 @@ impl SimpleComponent for App {
                 });
 
         let all_photos = Album::builder()
-            .launch((photo_repo.clone(), AlbumFilter::All))
+            .launch((visual_repo.clone(), AlbumFilter::All))
             .forward(sender.input_sender(), |msg| match msg {
-                AlbumOutput::PhotoSelected(id) => AppMsg::ViewPhoto(id),
+                AlbumOutput::Selected(id) => AppMsg::ViewPhoto(id),
             });
 
         let month_photos =
@@ -509,13 +514,13 @@ impl SimpleComponent for App {
                 });
 
         let one_photo = OnePhoto::builder()
-            .launch((photo_scan.clone(), photo_repo.clone()))
+            .launch((photo_scan.clone(), visual_repo.clone()))
             .detach();
 
         let selfie_photos = Album::builder()
-            .launch((photo_repo.clone(), AlbumFilter::Selfies))
+            .launch((visual_repo.clone(), AlbumFilter::Selfies))
             .forward(sender.input_sender(), |msg| match msg {
-                AlbumOutput::PhotoSelected(id) => AppMsg::ViewPhoto(id),
+                AlbumOutput::Selected(id) => AppMsg::ViewPhoto(id),
             });
 
         let show_selfies = AppWidgets::show_selfies();
@@ -528,9 +533,9 @@ impl SimpleComponent for App {
                 });
 
         let folder_album = Album::builder()
-            .launch((photo_repo.clone(), AlbumFilter::None))
+            .launch((visual_repo.clone(), AlbumFilter::None))
             .forward(sender.input_sender(), |msg| match msg {
-                AlbumOutput::PhotoSelected(id) => AppMsg::ViewPhoto(id),
+                AlbumOutput::Selected(id) => AppMsg::ViewPhoto(id),
             });
 
         folder_album.emit(AlbumInput::Refresh); // initial photo
@@ -627,7 +632,8 @@ impl SimpleComponent for App {
 
         model.all_photos.emit(AlbumInput::Refresh);
 
-        model.scan_photos.sender().emit(ScanPhotosInput::Start);
+        //model.scan_photos.sender().emit(ScanPhotosInput::Start);
+        model.video_thumbnails.emit(VideoThumbnailsInput::Start);
 
         //        model.selfie_photos.emit(SelfiePhotosInput::Refresh);
         //      model.month_photos.emit(MonthPhotosInput::Refresh);
@@ -664,9 +670,9 @@ impl SimpleComponent for App {
                     self.header_bar.set_title_widget(Some(&label));
                 }
             }
-            AppMsg::ViewPhoto(picture_id) => {
+            AppMsg::ViewPhoto(visual_id) => {
                 // Send message to OnePhoto to show image
-                self.one_photo.emit(OnePhotoInput::ViewPhoto(picture_id));
+                self.one_photo.emit(OnePhotoInput::ViewPhoto(visual_id));
 
                 // Display navigation page for viewing an individual photo.
                 self.picture_navigation_view.push_by_tag("picture");
