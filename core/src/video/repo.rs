@@ -157,7 +157,7 @@ impl Repository {
                         created_ts
                     ) VALUES (
                         ?1, ?2, ?3
-                    ) ON CONFLICT (video_path) DO UPDATE SET modified_ts=?2, created_ts=?1
+                    ) ON CONFLICT (video_path) DO UPDATE SET modified_ts=?2, created_ts=?3
                     ",
                 )
                 .map_err(|e| RepositoryError(format!("Preparing statement: {}", e)))?;
