@@ -23,7 +23,9 @@ SPDX-License-Identifier: GPL-3.0-or-later
     <file alias="image-alt-symbolic.svg" preprocess="xml-stripblanks">icons/image-alt-symbolic.svg</file>
     <file alias="sentiment-very-satisfied-symbolic.svg" preprocess="xml-stripblanks">icons/sentiment-very-satisfied-symbolic.svg</file>
     <file alias="folder-symbolic.svg" preprocess="xml-stripblanks">icons/folder-symbolic.svg</file>
-    <file preprocess="xml-stripblanks">icons/sonar-symbolic.svg</file>
-    <file preprocess="xml-stripblanks">icons/video-reel-symbolic.svg</file>
+    <file alias="sonar-symbolic.svg" preprocess="xml-stripblanks">icons/sonar-symbolic.svg</file>
+    <file alias="cd-symbolic.svg" preprocess="xml-stripblanks">icons/cd-symbolic.svg</file>
+    <file alias="video-reel-symbolic.svg" preprocess="xml-stripblanks">icons/video-reel-symbolic.svg</file>
+    <file alias="play-symbolic.svg" preprocess="xml-stripblanks">icons/play-symbolic.svg</file>
   </gresource>
 </gresources>

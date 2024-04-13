@@ -32,3 +32,15 @@
   font-weight: bold;
   font-size: 14px;
 }
+
+/* Month photo grid frame around photo status labels */
+.photo-grid-photo-status-frame {
+  background-color: rgba(0, 0, 0, 0.4);
+}
+
+/* Month photo grid frame status label */
+.photo-grid-photo-status-label {
+  color: rgba(255,255,255,0.8);
+  font-weight: bold;
+  font-size: 14px;
+}

@@ -67,8 +67,8 @@ impl RelmGridItem for PhotoGridItem {
 
                     #[wrap(Some)]
                     set_child = &gtk::Frame {
-                            set_width_request: 200,
-                            set_height_request: 200,
+                        set_width_request: 200,
+                        set_height_request: 200,
 
                         #[name(picture)]
                         gtk::Picture {

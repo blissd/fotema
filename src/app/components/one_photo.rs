@@ -161,6 +161,9 @@ impl SimpleAsyncComponent for OnePhoto {
                     if visual.is_motion_photo() {
                        media_file.set_muted(true);
                        media_file.set_loop(true);
+                    } else {
+                       media_file.set_muted(false);
+                       media_file.set_loop(false);
                     }
 
                     media_file.play();

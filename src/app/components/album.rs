@@ -6,15 +6,10 @@ use gtk::prelude::OrientableExt;
 use photos_core::VisualId;
 use photos_core::YearMonth;
 use relm4::gtk;
-use relm4::gtk::prelude::WidgetExt;
+use relm4::gtk::prelude::*;
 use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
 use relm4::*;
 use std::path::{Path, PathBuf};
-
-#[derive(Debug)]
-struct PhotoGridItem {
-    visual: photos_core::visual::repo::Visual,
-}
 
 #[derive(Debug)]
 pub enum AlbumFilter {
@@ -61,33 +56,88 @@ pub enum AlbumOutput {
     Selected(VisualId),
 }
 
+#[derive(Debug)]
+struct PhotoGridItem {
+    visual: photos_core::visual::repo::Visual,
+}
+
+struct PhotoGridItemWidgets {
+    picture: gtk::Picture,
+    status_overlay: gtk::Frame,
+    motion_type_icon: gtk::Image,
+}
+
 impl RelmGridItem for PhotoGridItem {
-    type Root = gtk::Picture;
-    type Widgets = ();
+    type Root = adw::Clamp;
+    type Widgets = PhotoGridItemWidgets;
 
     fn setup(_item: &gtk::ListItem) -> (Self::Root, Self::Widgets) {
         relm4::view! {
-            picture = gtk::Picture {
-                set_can_shrink: true,
-                set_valign: gtk::Align::Center,
-                set_width_request: 200,
-                set_height_request: 200,
+            root = adw::Clamp {
+                set_maximum_size: 200,
+                gtk::Overlay {
+                    #[name(status_overlay)]
+                    add_overlay =  &gtk::Frame {
+                        set_halign: gtk::Align::End,
+                        set_valign: gtk::Align::End,
+                        set_margin_all: 8,
+                        add_css_class: "photo-grid-photo-status-frame",
+
+                        #[wrap(Some)]
+                        #[name(motion_type_icon)]
+                        set_child = &gtk::Image {
+                            set_width_request: 16,
+                            set_height_request: 16,
+                            add_css_class: "photo-grid-photo-status-label",
+                        },
+                    },
+
+                    #[wrap(Some)]
+                    set_child = &gtk::Frame {
+                        set_width_request: 200,
+                        set_height_request: 200,
+
+                        #[name(picture)]
+                        gtk::Picture {
+                            set_can_shrink: true,
+                            set_valign: gtk::Align::Center,
+                        }
+                    }
+                }
             }
         }
 
-        (picture, ())
+        let widgets = PhotoGridItemWidgets {
+            picture,
+            status_overlay,
+            motion_type_icon,
+        };
+
+        (root, widgets)
     }
 
-    fn bind(&mut self, _widgets: &mut Self::Widgets, picture: &mut Self::Root) {
+    fn bind(&mut self, widgets: &mut Self::Widgets, _root: &mut Self::Root) {
         if self.visual.thumbnail_path.exists() {
-            picture.set_filename(Some(self.visual.thumbnail_path.clone()));
+            widgets.picture.set_filename(Some(self.visual.thumbnail_path.clone()));
+            if self.visual.is_motion_photo() || self.visual.is_video_only() {
+                widgets.status_overlay.set_visible(true);
+                if self.visual.is_video_only() {
+                    widgets.motion_type_icon.set_icon_name(Some("play-symbolic"));
+                } else if self.visual.is_motion_photo() {
+                    widgets.motion_type_icon.set_icon_name(Some("cd-symbolic"));
+                }
+            } else {
+                widgets.status_overlay.set_visible(false);
+            }
         } else {
-            picture.set_resource(Some("/dev/romantics/Fotema/icons/image-missing-symbolic.svg"));
+            widgets.picture.set_resource(Some("/dev/romantics/Fotema/icons/image-missing-symbolic.svg"));
         }
     }
 
-    fn unbind(&mut self, _widgets: &mut Self::Widgets, picture: &mut Self::Root) {
-        picture.set_filename(None::<&Path>);
+    fn unbind(&mut self, widgets: &mut Self::Widgets, _root: &mut Self::Root) {
+        widgets.picture.set_filename(None::<&Path>);
+        widgets.motion_type_icon.set_icon_name(None);
+        widgets.status_overlay.set_visible(false);
     }
 }
 

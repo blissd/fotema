@@ -671,8 +671,8 @@ impl SimpleComponent for App {
 
         model.all_photos.emit(AlbumInput::Refresh);
 
-        //model.scan_photos.sender().emit(ScanPhotosInput::Start);
-        model.video_thumbnails.emit(VideoThumbnailsInput::Start);
+        model.scan_photos.sender().emit(ScanPhotosInput::Start);
+        //model.video_thumbnails.emit(VideoThumbnailsInput::Start);
 
         //        model.selfie_photos.emit(SelfiePhotosInput::Refresh);
         //      model.month_photos.emit(MonthPhotosInput::Refresh);
