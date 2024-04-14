@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: © 2024 David Bliss
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 use chrono::{DateTime, TimeDelta, Utc};
 use std::fmt::Display;
 use std::path::PathBuf;
