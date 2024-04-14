@@ -46,7 +46,7 @@ mod background;
 
 use self::background::{
     cleanup::{Cleanup, CleanupInput, CleanupOutput},
-    generate_previews::{GeneratePreviews, GeneratePreviewsInput, GeneratePreviewsOutput},
+    enrich_photos::{EnrichPhotos, EnrichPhotosInput, EnrichPhotosOutput},
     thumbnail_videos::{VideoThumbnails, VideoThumbnailsInput, VideoThumbnailsOutput},
     scan_photos::{ScanPhotos, ScanPhotosInput, ScanPhotosOutput},
     scan_videos::{ScanVideos, ScanVideosInput, ScanVideosOutput},
@@ -55,7 +55,7 @@ use self::background::{
 pub(super) struct App {
     scan_photos: WorkerController<ScanPhotos>,
     scan_videos: WorkerController<ScanVideos>,
-    generate_previews: WorkerController<GeneratePreviews>,
+    enrich_photos: WorkerController<EnrichPhotos>,
     video_thumbnails: WorkerController<VideoThumbnails>,
     cleanup: WorkerController<Cleanup>,
 
@@ -149,9 +149,9 @@ pub(super) enum AppMsg {
     VideoScanCompleted,
 
     // Thumbnail generation events
-    ThumbnailGenerationStarted(usize),
-    ThumbnailGenerated,
-    ThumbnailGenerationCompleted,
+    PhotoEnrichmentStarted(usize),
+    PhotoEnriched,
+    PhotoEnrichmentCompleted,
 
     // Thumbnail generation events
     VideoThumbnailsStarted(usize),
@@ -451,9 +451,9 @@ impl SimpleComponent for App {
             con.clone(),
         ).unwrap();
 
-        let photo_previewer = {
+        let photo_enricher = {
             let _ = std::fs::create_dir_all(&photo_thumbnail_base_path);
-            fotema_core::photo::Previewer::build(&photo_thumbnail_base_path).unwrap()
+            fotema_core::photo::Enricher::build(&photo_thumbnail_base_path).unwrap()
         };
 
         let video_thumbnail_base_path = cache_dir.join("video_thumbnails");
@@ -502,12 +502,12 @@ impl SimpleComponent for App {
                 VideoThumbnailsOutput::Completed => AppMsg::VideoThumbnailsCompleted,
             });
 
-        let generate_previews = GeneratePreviews::builder()
-            .detach_worker((photo_previewer.clone(), photo_repo.clone()))
+        let enrich_photos = EnrichPhotos::builder()
+            .detach_worker((photo_enricher.clone(), photo_repo.clone()))
             .forward(sender.input_sender(), |msg| match msg {
-                GeneratePreviewsOutput::Started(count) => AppMsg::ThumbnailGenerationStarted(count),
-                GeneratePreviewsOutput::Generated => AppMsg::ThumbnailGenerated,
-                GeneratePreviewsOutput::Completed => AppMsg::ThumbnailGenerationCompleted,
+                EnrichPhotosOutput::Started(count) => AppMsg::PhotoEnrichmentStarted(count),
+                EnrichPhotosOutput::Generated => AppMsg::PhotoEnriched,
+                EnrichPhotosOutput::Completed => AppMsg::PhotoEnrichmentCompleted,
             });
 
         let cleanup =
@@ -608,7 +608,7 @@ impl SimpleComponent for App {
         let model = Self {
             scan_photos,
             scan_videos,
-            generate_previews,
+            enrich_photos,
             video_thumbnails,
             cleanup,
             about_dialog,
@@ -767,8 +767,8 @@ impl SimpleComponent for App {
                 println!("Scan videos completed msg received.");
                 self.cleanup.emit(CleanupInput::Start);
             }
-            AppMsg::ThumbnailGenerationStarted(count) => {
-                println!("Thumbnail generation started.");
+            AppMsg::PhotoEnrichmentStarted(count) => {
+                println!("Photo enrichment started.");
                 self.banner
                     .set_title("Generating photo thumbnails. This will take a while.");
                 // Show button to refresh all photo grids.
@@ -788,8 +788,8 @@ impl SimpleComponent for App {
                 self.progress_bar.set_text(Some("Generating photo thumbnails."));
                 self.progress_bar.set_pulse_step(0.25);
             }
-            AppMsg::ThumbnailGenerated => {
-                println!("Thumbnail generated.");
+            AppMsg::PhotoEnriched => {
+                println!("Photo enriched.");
                 self.progress_current_count += 1;
                 // Show pulsing for first 20 items so that it catches the eye, then
                 // switch to fractional view
@@ -804,8 +804,8 @@ impl SimpleComponent for App {
                     self.progress_bar.set_fraction(fraction);
                 }
             }
-            AppMsg::ThumbnailGenerationCompleted => {
-                println!("Thumbnail generation completed.");
+            AppMsg::PhotoEnrichmentCompleted => {
+                println!("Photo enrichment completed.");
                 self.spinner.stop();
                 self.banner.set_revealed(false);
                 self.banner.set_button_label(None);
@@ -867,7 +867,7 @@ impl SimpleComponent for App {
                 self.banner.set_revealed(false);
                 self.banner.set_button_label(None);
 
-                self.generate_previews.emit(GeneratePreviewsInput::Start);
+                self.enrich_photos.emit(EnrichPhotosInput::Start);
                 //self.video_thumbnails.emit(VideoThumbnailsInput::Start);
             }
 

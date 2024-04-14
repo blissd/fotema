@@ -4,6 +4,6 @@
 
 pub mod scan_photos;
 pub mod scan_videos;
-pub mod generate_previews;
+pub mod enrich_photos;
 pub mod cleanup;
 pub mod thumbnail_videos;
