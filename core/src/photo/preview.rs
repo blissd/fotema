@@ -48,7 +48,7 @@ impl Previewer {
 
         let square_path = {
             let file_name = format!("{}_{}x{}.png", pic.picture_id, EDGE, EDGE);
-            self.base_path.join("square").join(file_name)
+            self.base_path.join(file_name)
         };
 
         let result = square

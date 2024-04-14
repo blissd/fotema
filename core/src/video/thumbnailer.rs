@@ -5,8 +5,10 @@
 use crate::video::repo;
 use crate::Error::*;
 use crate::Result;
+use chrono::{DateTime, TimeDelta, Utc};
 use image::io::Reader as ImageReader;
 use image::DynamicImage;
+use serde_json::Value;
 use std::path;
 use std::process::Command;
 use tempfile;
@@ -26,6 +28,43 @@ impl Thumbnailer {
         Ok(Self { base_path })
     }
 
+    /// Use ffprobe to extract creation timestamp and video duration.
+    fn get_stream_metadata(
+        path: &path::Path,
+    ) -> Result<(Option<DateTime<Utc>>, Option<TimeDelta>)> {
+        let output = Command::new("/usr/bin/ffprobe")
+            .arg("-v")
+            .arg("quiet")
+            .arg("-i")
+            .arg(path.as_os_str())
+            .arg("-print_format")
+            .arg("json")
+            .arg("-select_streams")
+            .arg("v:0")
+            .arg("-show_entries")
+            .arg("format=duration:stream_tags=creation_time")
+            .output()
+            .map_err(|e| PreviewError(format!("ffprobe result: {}", e)))?;
+
+        let v: Value = serde_json::from_slice(output.stdout.as_slice())
+            .map_err(|e| PreviewError(format!("parse ffprobe json: {}", e)))?;
+
+        let creation_time = v["streams"][0]["tags"]["creation_time"].as_str();
+        let creation_time = creation_time.and_then(|x| {
+            let dt = DateTime::parse_from_rfc3339(x).ok();
+            dt.map(|y| y.to_utc())
+        });
+
+        let time_delta = v["format"]["duration"].as_str(); // seconds with decimal
+        let time_delta = time_delta.and_then(|x| {
+            let fractional_secs = x.parse::<f64>();
+            let millis = fractional_secs.map(|s| s * 1000.0).ok();
+            millis.and_then(|m| TimeDelta::try_milliseconds(m as i64))
+        });
+
+        Ok((creation_time, time_delta))
+    }
+
     /// Computes a preview square for an image that has been inserted
     /// into the Repository. Preview image will be written to file system.
     pub fn set_thumbnail(&self, vid: repo::Video) -> Result<repo::Video> {
@@ -38,10 +77,8 @@ impl Thumbnailer {
             .tempfile()
             .map_err(|e| PreviewError(format!("Temp file: {}", e)))?;
 
-        // Get duration with:
-        // fprobe -v quiet -show_entries format=duration -of csv=p=0 -i IMG_7356.mov
-
         // ffmpeg is installed as a flatpak extension.
+        // ffmpeg command will extract the first frame and save it as a PNG file.
         Command::new("/usr/bin/ffmpeg")
             .arg("-loglevel")
             .arg("error")
@@ -60,7 +97,7 @@ impl Thumbnailer {
 
         let square_path = {
             let file_name = format!("{}_{}x{}.png", vid.video_id, EDGE, EDGE);
-            self.base_path.join("square").join(file_name)
+            self.base_path.join(file_name)
         };
 
         let result = square
@@ -74,6 +111,11 @@ impl Thumbnailer {
             result?;
         } else {
             vid.thumbnail_path = Some(square_path);
+        }
+
+        if let Ok((created_at, duration)) = Thumbnailer::get_stream_metadata(&vid.path) {
+            vid.stream_created_at = created_at;
+            vid.duration = duration;
         }
 
         Ok(vid)

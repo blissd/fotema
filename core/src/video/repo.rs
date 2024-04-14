@@ -50,6 +50,12 @@ pub struct Video {
 
     /// Filesystem creation timestamp
     pub fs_created_at: DateTime<Utc>,
+
+    /// Video stream metadata creation timestamp
+    pub stream_created_at: Option<DateTime<Utc>>,
+
+    // Video stream metadata duration
+    pub duration: Option<TimeDelta>,
 }
 
 /// Repository of picture metadata.
@@ -96,7 +102,14 @@ impl Repository {
 
         {
             let mut stmt = tx
-                .prepare("UPDATE videos SET preview_path = ?1 WHERE video_id = ?2")
+                .prepare(
+                    "UPDATE videos
+                SET
+                    preview_path = ?1,
+                    stream_created_ts = ?2,
+                    duration_millis = ?3
+                WHERE video_id = ?4",
+                )
                 .map_err(|e| RepositoryError(e.to_string()))?;
 
             // convert to relative path before saving to database
@@ -107,6 +120,8 @@ impl Repository {
 
             let result = stmt.execute(params![
                 thumbnail_path.as_ref().map(|p| p.to_str()),
+                pic.stream_created_at,
+                pic.duration.map(|x| x.num_milliseconds()),
                 pic.video_id.0,
             ]);
 
@@ -150,10 +165,15 @@ impl Repository {
                 .prepare_cached(
                     "INSERT INTO videos (
                         video_path,
-                        fs_created_ts
+                        fs_created_ts,
+                        stream_created_ts,
+                        duration_millis
                     ) VALUES (
-                        ?1, ?2
-                    ) ON CONFLICT (video_path) DO UPDATE SET fs_created_ts=?2
+                        ?1, ?2, ?3, ?4
+                    ) ON CONFLICT (video_path) DO UPDATE SET
+                        fs_created_ts=?2,
+                        stream_created_ts = ?3,
+                        duration_millis = ?4
                     ",
                 )
                 .map_err(|e| RepositoryError(format!("Preparing statement: {}", e)))?;
@@ -194,7 +214,12 @@ impl Repository {
                 let fs_created_at = fs_created_at.expect("Must have fs_created_at");
 
                 vid_stmt
-                    .execute(params![path.to_str(), fs_created_at])
+                    .execute(params![
+                        path.to_str(),
+                        fs_created_at,
+                        vid.stream_created_at,
+                        vid.duration.map(|x| x.num_milliseconds()),
+                    ])
                     .map_err(|e| RepositoryError(format!("Inserting: {}", e)))?;
 
                 let video_id = vid_lookup_stmt
@@ -223,7 +248,9 @@ impl Repository {
                     video_id,
                     video_path,
                     preview_path,
-                    fs_created_ts
+                    fs_created_ts,
+                    stream_created_ts,
+                    duration_millis
                 FROM videos
                 ORDER BY fs_created_ts ASC",
             )
@@ -240,6 +267,11 @@ impl Repository {
                         .ok()
                         .map(|p: String| self.video_thumbnail_base_path.join(p)),
                     fs_created_at: row.get(3).ok().expect("Must have fs_created_at"),
+                    stream_created_at: row.get(4).ok(),
+                    duration: row
+                        .get(5)
+                        .ok()
+                        .and_then(|x: i64| TimeDelta::try_milliseconds(x)),
                 })
             })
             .map_err(|e| RepositoryError(e.to_string()))?;

@@ -10,10 +10,12 @@ CREATE TABLE pictures (
 
 -- A video in the library
 CREATE TABLE videos (
-        video_id      INTEGER PRIMARY KEY UNIQUE NOT NULL, -- unique ID for video
-        video_path    TEXT UNIQUE NOT NULL, -- path to video
-        preview_path  TEXT UNIQUE, -- path to preview
-        fs_created_ts DATETIME NOT NULL -- UTC timestamp of file system creation time
+        video_id          INTEGER PRIMARY KEY UNIQUE NOT NULL, -- unique ID for video
+        video_path        TEXT UNIQUE NOT NULL, -- path to video
+        preview_path      TEXT UNIQUE, -- path to preview
+        fs_created_ts     DATETIME NOT NULL, -- UTC timestamp of file system creation time
+        stream_created_ts DATETIME, -- UTC creation timestamp from video stream metadata
+        duration_millis   INTEGER -- Duration in milliseconds of video
 );
 
 -- Visual artefacts. Either a photo, a video, or both at once.

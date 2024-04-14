@@ -4,8 +4,8 @@
 
 use crate::Error::*;
 use crate::Result;
-use chrono;
 use chrono::prelude::*;
+use chrono::TimeDelta;
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
@@ -19,12 +19,23 @@ pub struct Video {
 
     /// Metadata from the file system.
     pub fs: Option<FsMetadata>,
+
+    // Creation timestamp from stream metadata
+    pub stream_created_at: Option<DateTime<Utc>>,
+
+    // Video duration in stream metadata
+    pub duration: Option<TimeDelta>,
 }
 
 impl Video {
     /// Creates a new Picture for a given full path.
     pub fn new(path: PathBuf) -> Video {
-        Video { path, fs: None }
+        Video {
+            path,
+            fs: None,
+            stream_created_at: None,
+            duration: None,
+        }
     }
 
     pub fn created_at(&self) -> Option<chrono::DateTime<Utc>> {
