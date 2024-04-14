@@ -151,12 +151,14 @@ impl Repository {
                     videos.video_id,
                     videos.video_path AS video_path,
                     videos.preview_path AS video_thumbnail,
-                    videos.fs_created_ts AS video_created_ts
+                    videos.fs_created_ts AS video_created_ts,
+
+                    COALESCE(pictures.exif_created_ts, videos.stream_created_ts, pictures.fs_created_ts, videos.fs_created_ts) AS created_ts
                 FROM visual
                 LEFT JOIN pictures ON visual.picture_id = pictures.picture_id
                 LEFT JOIN videos   ON visual.video_id   = videos.video_id
                 WHERE COALESCE(pictures.preview_path, videos.preview_path) IS NOT NULL
-                ORDER BY COALESCE(picture_created_ts, video_created_ts) ASC",
+                ORDER BY created_ts ASC",
             )
             .map_err(|e| RepositoryError(e.to_string()))?;
 
@@ -201,9 +203,11 @@ impl Repository {
                     .map(|x| self.video_thumbnail_base_path.join(x))
                     .expect("Must have a thumbnail");
 
-                let created_at = picture_created_at
-                    .or_else(|| video_created_at)
-                    .expect("Must have order_by_ts");
+                //let created_at = picture_created_at
+                //    .or_else(|| video_created_at)
+                //    .expect("Must have order_by_ts");
+
+                let created_at: DateTime<Utc> = row.get(10).ok().expect("Must have created_ts");
 
                 let v = Visual {
                     visual_id,
@@ -248,7 +252,9 @@ impl Repository {
                     videos.video_id,
                     videos.video_path AS video_path,
                     videos.preview_path AS video_thumbnail,
-                    videos.fs_created_ts AS video_created_ts
+                    COALESCE(videos.stream_created_ts, videos.fs_created_ts) AS video_created_ts,
+
+                    COALESCE(pictures.exif_created_ts, videos.stream_created_ts, pictures.fs_created_ts, videos.fs_created_ts) AS created_ts
                 FROM visual
                 LEFT JOIN pictures USING(picture_id)
                 LEFT JOIN videos USING(video_id)
@@ -298,9 +304,11 @@ impl Repository {
                     .map(|x| self.video_thumbnail_base_path.join(x))
                     .expect("Must have a thumbnail");
 
-                let created_at = picture_created_at
-                    .or_else(|| video_created_at)
-                    .expect("Must have order_by_ts");
+                //let created_at = picture_created_at
+                //    .or_else(|| video_created_at)
+                //    .expect("Must have order_by_ts");
+
+                let created_at: DateTime<Utc> = row.get(10).ok().expect("Must have created_ts");
 
                 let v = Visual {
                     visual_id,

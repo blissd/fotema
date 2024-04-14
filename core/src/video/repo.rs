@@ -165,15 +165,11 @@ impl Repository {
                 .prepare_cached(
                     "INSERT INTO videos (
                         video_path,
-                        fs_created_ts,
-                        stream_created_ts,
-                        duration_millis
+                        fs_created_ts
                     ) VALUES (
-                        ?1, ?2, ?3, ?4
+                        ?1, ?2
                     ) ON CONFLICT (video_path) DO UPDATE SET
-                        fs_created_ts=?2,
-                        stream_created_ts = ?3,
-                        duration_millis = ?4
+                        fs_created_ts=?2
                     ",
                 )
                 .map_err(|e| RepositoryError(format!("Preparing statement: {}", e)))?;
@@ -214,12 +210,7 @@ impl Repository {
                 let fs_created_at = fs_created_at.expect("Must have fs_created_at");
 
                 vid_stmt
-                    .execute(params![
-                        path.to_str(),
-                        fs_created_at,
-                        vid.stream_created_at,
-                        vid.duration.map(|x| x.num_milliseconds()),
-                    ])
+                    .execute(params![path.to_str(), fs_created_at,])
                     .map_err(|e| RepositoryError(format!("Inserting: {}", e)))?;
 
                 let video_id = vid_lookup_stmt
@@ -252,7 +243,7 @@ impl Repository {
                     stream_created_ts,
                     duration_millis
                 FROM videos
-                ORDER BY fs_created_ts ASC",
+                ORDER BY COALESCE(stream_created_ts, fs_created_ts) ASC",
             )
             .map_err(|e| RepositoryError(e.to_string()))?;
 
