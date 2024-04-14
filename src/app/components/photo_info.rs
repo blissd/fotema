@@ -187,26 +187,28 @@ impl PhotoInfo {
         };
 
         Self::update_row(&self.folder, Self::folder_name(path));
-
+/*
         let has_date_time_details = [
             Self::update_row(&self.created_at, pic.fs.as_ref().and_then(|fs| fs.created_at.map(|x| x.to_string()))),
             Self::update_row(&self.modified_at, pic.fs.as_ref().and_then(|fs| fs.modified_at.map(|x| x.to_string()))),
         ]
         .into_iter()
         .any(|x| x);
+        */
 
-        self.date_time_details.set_visible(has_date_time_details);
-
+        //self.date_time_details.set_visible(has_date_time_details);
+/*
         let has_image_details = [
-            Self::update_row(&self.image_size, pic.image_size.map(|x| x.to_string())),
-            Self::update_row(&self.image_format, pic.image_format.map(|x| x.to_string())),
+            //Self::update_row(&self.image_size, pic.image_size.map(|x| x.to_string())),
+            //Self::update_row(&self.image_format, pic.image_format.map(|x| x.to_string())),
             Self::update_row(&self.file_size, pic.fs.and_then(|fs| fs.file_size_bytes.map(|x| format_size(x, DECIMAL)))),
         ]
         .into_iter()
         .any(|x| x);
 
         self.image_details.set_visible(has_image_details);
-
+*/
+/*
         let has_exif_details = [
             Self::update_row(&self.originally_created_at, pic.exif.as_ref().and_then(|exif| exif.created_at.map(|x| x.to_string()))),
             Self::update_row(&self.originally_modified_at, pic.exif.as_ref().and_then(|exif| exif.modified_at.map(|x| x.to_string()))),
@@ -215,6 +217,7 @@ impl PhotoInfo {
         .any(|x| x);
 
         self.exif_details.set_visible(has_exif_details);
+        */
     }
 
     /// Borrowed from Loupe.

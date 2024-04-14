@@ -10,7 +10,7 @@ pub mod video;
 pub mod visual;
 
 pub use error::Error;
-pub use photo::repo::PictureId;
+pub use photo::model::PictureId;
 pub use time::Year;
 pub use time::YearMonth;
 pub use video::VideoId;

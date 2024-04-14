@@ -6,7 +6,6 @@ use crate::video::model::ScannedFile;
 use crate::Error::*;
 use crate::Result;
 use chrono::prelude::*;
-use chrono::TimeDelta;
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;

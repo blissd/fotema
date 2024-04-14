@@ -39,7 +39,7 @@ impl Cleanup {
         let start = std::time::Instant::now();
 
         // Scrub pics from database if they no longer exist on the file system.
-        let pics: Vec<fotema_core::photo::repo::Picture> = self.repo.all()?;
+        let pics: Vec<fotema_core::photo::model::Picture> = self.repo.all()?;
 
         let pics_count = pics.len();
 

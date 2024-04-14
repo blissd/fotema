@@ -2,26 +2,30 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use crate::photo::repo;
+use crate::photo::model::{PhotoExtra, PictureId};
 use crate::Error::*;
 use crate::Result;
+use chrono::prelude::*;
+use chrono::{DateTime, FixedOffset, NaiveDate, NaiveTime};
 use gdk4::prelude::TextureExt;
 use glycin;
 use image::io::Reader as ImageReader;
 use image::DynamicImage;
-use std::path;
+use std::fs;
+use std::io::BufReader;
+use std::path::{Path, PathBuf};
 use tempfile;
 
 const EDGE: u32 = 200;
 
 #[derive(Debug, Clone)]
 pub struct Previewer {
-    base_path: path::PathBuf,
+    base_path: PathBuf,
 }
 
 impl Previewer {
-    pub fn build(base_path: &path::Path) -> Result<Previewer> {
-        let base_path = path::PathBuf::from(base_path);
+    pub fn build(base_path: &Path) -> Result<Previewer> {
+        let base_path = PathBuf::from(base_path);
         std::fs::create_dir_all(base_path.join("square"))
             .map_err(|e| RepositoryError(e.to_string()))?;
         Ok(Previewer { base_path })
@@ -29,43 +33,49 @@ impl Previewer {
 
     /// Computes a preview square for an image that has been inserted
     /// into the Repository. Preview image will be written to file system.
-    pub async fn set_preview(&self, pic: repo::Picture) -> Result<repo::Picture> {
-        if pic.square_preview_path.as_ref().is_some_and(|p| p.exists()) {
-            return Ok(pic);
-        }
+    pub async fn get_extra(
+        &self,
+        picture_id: &PictureId,
+        picture_path: &Path,
+    ) -> Result<PhotoExtra> {
+        let mut extra = PhotoExtra::default();
 
-        let mut pic = pic;
-
-        pic.square_preview_path = None;
-
-        let square = self.standard_thumbnail(&pic.path);
-
-        let square = if square.is_err() {
-            self.fallback_thumbnail(&pic.path).await
-        } else {
-            square
-        }?;
-
-        let square_path = {
-            let file_name = format!("{}_{}x{}.png", pic.picture_id, EDGE, EDGE);
+        let thumbnail_path = {
+            let file_name = format!("{}_{}x{}.png", picture_id, EDGE, EDGE);
             self.base_path.join(file_name)
         };
 
-        let result = square
-            .save(&square_path)
-            .map_err(|e| PreviewError(format!("image save: {}", e)));
+        extra.thumbnail_path = Some(thumbnail_path.clone());
 
-        if result.is_err() {
-            let _ = std::fs::remove_file(&square_path);
-            result?;
-        } else {
-            pic.square_preview_path = Some(square_path);
+        if !&thumbnail_path.exists() {
+            let result = self.compute_thumbnail(picture_path, &thumbnail_path).await;
+            if result.is_err() {
+                let _ = std::fs::remove_file(&thumbnail_path);
+                extra.thumbnail_path = None;
+            }
         }
 
-        Ok(pic)
+        Previewer::extract_exif(picture_path, &mut extra)?;
+
+        Ok(extra)
+    }
+    async fn compute_thumbnail(&self, picture_path: &Path, thumbnail_path: &Path) -> Result<()> {
+        let thumbnail = self.standard_thumbnail(picture_path);
+
+        let thumbnail = if thumbnail.is_err() {
+            self.fallback_thumbnail(picture_path).await
+        } else {
+            thumbnail
+        }?;
+
+        thumbnail
+            .save(thumbnail_path)
+            .map_err(|e| PreviewError(format!("image save: {}", e)))?;
+
+        Ok(())
     }
 
-    fn standard_thumbnail(&self, path: &path::Path) -> Result<DynamicImage> {
+    fn standard_thumbnail(&self, path: &Path) -> Result<DynamicImage> {
         let img = ImageReader::open(path)
             .map_err(|e| PreviewError(format!("image open: {}", e)))?
             .decode()
@@ -89,7 +99,7 @@ impl Previewer {
 
     /// Copy an image to a PNG file using Glycin, and then use image-rs to compute the thumbnail.
     /// This is the fallback if image-rs can't decode the original image (such as HEIC images).
-    async fn fallback_thumbnail(&self, path: &path::Path) -> Result<DynamicImage> {
+    async fn fallback_thumbnail(&self, path: &Path) -> Result<DynamicImage> {
         let file = gio::File::for_path(path);
 
         let image = glycin::Loader::new(file)
@@ -113,6 +123,72 @@ impl Previewer {
             .map_err(|e| PreviewError(format!("image save: {}", e)))?;
 
         self.standard_thumbnail(png_file.path())
+    }
+
+    fn extract_exif(path: &Path, extra: &mut PhotoExtra) -> Result<()> {
+        let file = fs::File::open(path).map_err(|e| ScannerError(e.to_string()))?;
+
+        let exif_data = {
+            let f = &mut BufReader::new(file);
+            match exif::Reader::new().read_from_container(f) {
+                Ok(file) => file,
+                Err(_) => {
+                    // Assume this error is when there is no EXIF data.
+                    return Ok(());
+                }
+            }
+        };
+
+        fn parse_date_time(
+            date_time_field: Option<&exif::Field>,
+            time_offset_field: Option<&exif::Field>,
+        ) -> Option<DateTime<FixedOffset>> {
+            let date_time_field = date_time_field?;
+
+            let mut date_time = match date_time_field.value {
+                exif::Value::Ascii(ref vec) => exif::DateTime::from_ascii(&vec[0]).ok(),
+                _ => None,
+            }?;
+
+            if let Some(field) = time_offset_field {
+                if let exif::Value::Ascii(ref vec) = field.value {
+                    let _ = date_time.parse_offset(&vec[0]);
+                }
+            }
+
+            let offset = date_time.offset.unwrap_or(0); // offset in minutes
+            let offset = FixedOffset::east_opt((offset as i32) * 60)?;
+
+            let date = NaiveDate::from_ymd_opt(
+                date_time.year.into(),
+                date_time.month.into(),
+                date_time.day.into(),
+            )?;
+
+            let time = NaiveTime::from_hms_opt(
+                date_time.hour.into(),
+                date_time.minute.into(),
+                date_time.second.into(),
+            )?;
+
+            let naive_date_time = date.and_time(time);
+            Some(offset.from_utc_datetime(&naive_date_time))
+        }
+
+        extra.exif_created_at = parse_date_time(
+            exif_data.get_field(exif::Tag::DateTimeOriginal, exif::In::PRIMARY),
+            exif_data.get_field(exif::Tag::OffsetTimeOriginal, exif::In::PRIMARY),
+        );
+        extra.exif_modified_at = parse_date_time(
+            exif_data.get_field(exif::Tag::DateTime, exif::In::PRIMARY),
+            exif_data.get_field(exif::Tag::OffsetTime, exif::In::PRIMARY),
+        );
+
+        extra.exif_lens_model = exif_data
+            .get_field(exif::Tag::LensModel, exif::In::PRIMARY)
+            .map(|e| e.display_value().to_string());
+
+        Ok(())
     }
 }
 

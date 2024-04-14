@@ -2,105 +2,26 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use crate::photo::scanner;
+use crate::photo::model::{PhotoExtra, Picture, PictureId, ScannedFile};
 
 ///! Repository of metadata about pictures on the local filesystem.
 use crate::Error::*;
 use crate::Result;
-use crate::YearMonth;
-use chrono::*;
 use rusqlite;
 use rusqlite::params;
 use rusqlite::Error::SqliteFailure;
 use rusqlite::ErrorCode::ConstraintViolation;
-use std::fmt::Display;
-use std::path;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
-
-/// Database ID of picture
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct PictureId(i64);
-
-impl PictureId {
-    pub fn new(id: i64) -> Self {
-        Self(id)
-    }
-
-    pub fn id(&self) -> i64 {
-        self.0
-    }
-}
-
-impl Display for PictureId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
-/// A picture in the repository
-#[derive(Debug, Clone)]
-pub struct Picture {
-    /// Full path from picture library root.
-    pub path: PathBuf,
-
-    /// Database primary key for picture
-    pub picture_id: PictureId,
-
-    /// Full path to square preview image
-    pub square_preview_path: Option<PathBuf>,
-
-    /// Creation timestamp from file system.
-    fs_created_at: DateTime<Utc>,
-
-    /// Creation timestamp from EXIF metadata.
-    exif_created_at: Option<DateTime<Utc>>,
-
-    /// Was picture taken with front camera?
-    pub is_selfie: bool,
-}
-
-impl Picture {
-    pub fn parent_path(&self) -> Option<PathBuf> {
-        self.path.parent().map(|x| PathBuf::from(x))
-    }
-
-    pub fn folder_name(&self) -> Option<String> {
-        self.path
-            .parent()
-            .and_then(|x| x.file_name())
-            .map(|x| x.to_string_lossy().to_string())
-    }
-
-    pub fn created_at(&self) -> DateTime<Utc> {
-        self.exif_created_at.unwrap_or(self.fs_created_at)
-    }
-
-    pub fn year(&self) -> u32 {
-        self.created_at().date_naive().year_ce().1
-    }
-
-    pub fn year_month(&self) -> YearMonth {
-        let date = self.created_at().date_naive();
-        let year = date.year();
-        let month = date.month();
-        let month = chrono::Month::try_from(u8::try_from(month).unwrap()).unwrap();
-        YearMonth { year, month }
-    }
-
-    pub fn date(&self) -> chrono::NaiveDate {
-        self.created_at().date_naive()
-    }
-}
 
 /// Repository of picture metadata.
 /// Repository is backed by a Sqlite database.
 #[derive(Debug, Clone)]
 pub struct Repository {
     /// Base path to picture library on file system
-    library_base_path: path::PathBuf,
+    library_base_path: PathBuf,
 
-    photo_thumbnail_base_path: path::PathBuf,
+    photo_thumbnail_base_path: PathBuf,
 
     /// Connection to backing Sqlite database.
     con: Arc<Mutex<rusqlite::Connection>>,
@@ -109,8 +30,8 @@ pub struct Repository {
 impl Repository {
     /// Builds a Repository and creates operational tables.
     pub fn open(
-        library_base_path: &path::Path,
-        photo_thumbnail_base_path: &path::Path,
+        library_base_path: &Path,
+        photo_thumbnail_base_path: &Path,
         con: Arc<Mutex<rusqlite::Connection>>,
     ) -> Result<Repository> {
         if !library_base_path.is_dir() {
@@ -121,15 +42,15 @@ impl Repository {
         }
 
         let repo = Repository {
-            library_base_path: path::PathBuf::from(library_base_path),
-            photo_thumbnail_base_path: path::PathBuf::from(photo_thumbnail_base_path),
+            library_base_path: PathBuf::from(library_base_path),
+            photo_thumbnail_base_path: PathBuf::from(photo_thumbnail_base_path),
             con,
         };
 
         Ok(repo)
     }
 
-    pub fn add_preview(&mut self, pic: &Picture) -> Result<()> {
+    pub fn update(&mut self, picture_id: &PictureId, extra: &PhotoExtra) -> Result<()> {
         let mut con = self.con.lock().unwrap();
         let tx = con
             .transaction()
@@ -137,21 +58,31 @@ impl Repository {
 
         {
             let mut stmt = tx
-                .prepare("UPDATE pictures SET preview_path = ?1 WHERE picture_id = ?2")
+                .prepare(
+                    "UPDATE pictures
+                SET
+                    preview_path = ?2,
+                    exif_created_ts = ?3,
+                    is_selfie = ?4
+                WHERE picture_id = ?1",
+                )
                 .map_err(|e| RepositoryError(e.to_string()))?;
 
             // convert to relative path before saving to database
-            let thumbnail_path = pic
-                .square_preview_path
+            let thumbnail_path = extra
+                .thumbnail_path
                 .as_ref()
                 .and_then(|p| p.strip_prefix(&self.photo_thumbnail_base_path).ok());
 
             let result = stmt.execute(params![
+                picture_id.id(),
                 thumbnail_path.as_ref().map(|p| p.to_str()),
-                pic.picture_id.0,
+                extra.exif_created_at,
+                extra.is_selfie(),
             ]);
 
             // The "on conflict ignore" constraints look like errors to rusqlite
+            // FIXME get rid of this
             match result {
                 Err(e @ SqliteFailure(_, _))
                     if e.sqlite_error_code() == Some(ConstraintViolation) =>
@@ -168,7 +99,7 @@ impl Repository {
     }
 
     /// Add all Pictures received from a vector.
-    pub fn add_all(&mut self, pics: &Vec<scanner::Picture>) -> Result<()> {
+    pub fn add_all(&mut self, pics: &Vec<ScannedFile>) -> Result<()> {
         let mut con = self.con.lock().unwrap();
         let tx = con
             .transaction()
@@ -188,15 +119,11 @@ impl Repository {
                 .prepare_cached(
                     "INSERT INTO pictures (
                     picture_path,
-                    fs_created_ts,
-                    exif_created_ts,
-                    is_selfie
+                    fs_created_ts
                 ) VALUES (
-                    ?1, ?2, ?3, ?4
+                    ?1, ?2
                 ) ON CONFLICT (picture_path) DO UPDATE SET
-                    fs_created_ts=?2,
-                    exif_created_ts=?3,
-                    is_selfie=?4
+                    fs_created_ts=?2
                 ",
                 )
                 .map_err(|e| RepositoryError(format!("Preparing statement: {}", e)))?;
@@ -222,20 +149,7 @@ impl Repository {
                         RepositoryError(format!("Stripping prefix for {:?}: {}", &pic.path, e))
                     })?;
 
-                let exif_created_at = pic.exif.as_ref().and_then(|x| x.created_at);
-                let fs_created_at = pic.fs.as_ref().and_then(|x| x.created_at);
-
-                if fs_created_at.is_none() {
-                    continue; // FIXME change scanner::Picture fs_created_at to not be Option.
-                }
-
-                let fs_created_at = fs_created_at.expect("Must have fs_created_at");
-
-                let is_selfie = pic
-                    .exif
-                    .as_ref()
-                    .and_then(|x| x.lens_model.as_ref())
-                    .is_some_and(|x| x.contains("front"));
+                let fs_created_at = pic.fs_created_at;
 
                 // Path without suffix so sibling pictures and videos can be related
                 let file_stem = path
@@ -245,12 +159,7 @@ impl Repository {
                 let stem_path = path.with_file_name(file_stem);
 
                 pic_insert_stmt
-                    .execute(params![
-                        path.to_str(),
-                        fs_created_at,
-                        exif_created_at,
-                        is_selfie
-                    ])
+                    .execute(params![path.to_str(), pic.fs_created_at,])
                     .map_err(|e| RepositoryError(format!("Preparing statement: {}", e)))?;
 
                 let picture_id = pic_lookup_stmt
@@ -278,7 +187,7 @@ impl Repository {
                 "SELECT
                     pictures.picture_id,
                     pictures.picture_path,
-                    pictures.preview_path as square_preview_path,
+                    pictures.preview_path as thumbnail_path,
                     pictures.fs_created_ts,
                     pictures.exif_created_ts,
                     pictures.is_selfie
@@ -291,15 +200,15 @@ impl Repository {
             .query_map([], |row| {
                 let path_result: rusqlite::Result<String> = row.get(1);
                 path_result.map(|relative_path| Picture {
-                    picture_id: PictureId(row.get(0).unwrap()), // should always have a primary key
+                    picture_id: PictureId::new(row.get(0).unwrap()), // should always have a primary key
                     path: self.library_base_path.join(relative_path), // compute full path
-                    square_preview_path: row
+                    thumbnail_path: row
                         .get(2)
                         .ok()
                         .map(|p: String| self.photo_thumbnail_base_path.join(p)),
                     fs_created_at: row.get(3).ok().expect("Must have fs_created_ts"),
                     exif_created_at: row.get(4).ok(),
-                    is_selfie: row.get(5).ok().unwrap_or(false),
+                    is_selfie: row.get(5).ok(),
                 })
             })
             .map_err(|e| RepositoryError(e.to_string()))?;
@@ -320,7 +229,7 @@ impl Repository {
                 "SELECT
                     pictures.picture_id,
                     pictures.picture_path,
-                    pictures.preview_path as square_preview_path,
+                    pictures.preview_path as thumbnail_path,
                     pictures.fs_created_ts,
                     pictures.exif_created_ts,
                     pictures.is_selfie
@@ -330,18 +239,18 @@ impl Repository {
             .map_err(|e| RepositoryError(e.to_string()))?;
 
         let iter = stmt
-            .query_map([picture_id.0], |row| {
+            .query_map([picture_id.id()], |row| {
                 let path_result: rusqlite::Result<String> = row.get(1);
                 path_result.map(|relative_path| Picture {
-                    picture_id: PictureId(row.get(0).unwrap()), // should always have a primary key
+                    picture_id: PictureId::new(row.get(0).unwrap()), // should always have a primary key
                     path: self.library_base_path.join(relative_path), // compute full path
-                    square_preview_path: row
+                    thumbnail_path: row
                         .get(2)
                         .ok()
                         .map(|p: String| self.photo_thumbnail_base_path.join(p)),
                     fs_created_at: row.get(3).ok().expect("Must have fs_created_ts"),
                     exif_created_at: row.get(4).ok(),
-                    is_selfie: row.get(5).ok().unwrap_or(false),
+                    is_selfie: row.get(5).ok(),
                 })
             })
             .map_err(|e| RepositoryError(e.to_string()))?;
@@ -356,7 +265,7 @@ impl Repository {
             .prepare("DELETE FROM pictures WHERE picture_id = ?1")
             .map_err(|e| RepositoryError(e.to_string()))?;
 
-        stmt.execute([picture_id.0])
+        stmt.execute([picture_id.id()])
             .map_err(|e| RepositoryError(e.to_string()))?;
 
         Ok(())

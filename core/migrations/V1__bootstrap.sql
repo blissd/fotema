@@ -5,7 +5,7 @@ CREATE TABLE pictures (
         preview_path    TEXT UNIQUE, -- path to picture preview
         fs_created_ts   DATETIME NOT NULL, -- UTC timestamp from file system
         exif_created_ts DATETIME, -- UTC timestamp to order images by
-        is_selfie       BOOLEAN NOT NULL CHECK (is_selfie IN (0, 1)) -- front camera?
+        is_selfie       BOOLEAN CHECK (is_selfie IN (0, 1)) -- front camera?
 );
 
 -- A video in the library

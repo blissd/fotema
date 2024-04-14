@@ -43,10 +43,10 @@ impl GeneratePreviews {
      {
         let start = std::time::Instant::now();
 
-        let unprocessed_pics: Vec<fotema_core::photo::repo::Picture> = repo
+        let unprocessed_pics: Vec<fotema_core::photo::model::Picture> = repo
             .all()?
             .into_iter()
-            .filter(|pic| !pic.square_preview_path.as_ref().is_some_and(|p| p.exists()))
+            .filter(|pic| !pic.thumbnail_path.as_ref().is_some_and(|p| p.exists()))
             .collect();
 
         let pics_count = unprocessed_pics.len();
@@ -54,16 +54,12 @@ impl GeneratePreviews {
             println!("Failed sending gen started: {:?}", e);
         }
 
-        unprocessed_pics.par_iter()
-            .flat_map(|pic| {
-                let result = block_on(async {previewer.set_preview(pic.clone()).await});
-                if let Err(ref e) = result {
-                    println!("Failed setting preview: {:?}", e);
-                }
-                result
-            })
+        unprocessed_pics
+            .par_iter()
             .for_each(|pic| {
-                let result = repo.clone().add_preview(&pic);
+                let result = block_on(async {previewer.get_extra(&pic.picture_id, &pic.path).await});
+                let result = result.and_then(|extra| repo.clone().update(&pic.picture_id, &extra));
+
                 if let Err(e) = result {
                     println!("Failed add_preview: {:?}", e);
                 } else if let Err(e) = sender.output(GeneratePreviewsOutput::Generated) {
