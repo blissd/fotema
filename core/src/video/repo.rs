@@ -2,70 +2,26 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use crate::video::scanner;
 use crate::Error::*;
 use crate::Result;
 
+use crate::video::model::{ScannedFile, Video, VideoExtra, VideoId};
 use chrono::*;
 use rusqlite;
 use rusqlite::params;
 use rusqlite::Error::SqliteFailure;
 use rusqlite::ErrorCode::ConstraintViolation;
-use std::fmt::Display;
-use std::path;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
-
-/// Database ID of video
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct VideoId(i64);
-
-impl VideoId {
-    pub fn new(id: i64) -> Self {
-        Self(id)
-    }
-
-    pub fn id(&self) -> i64 {
-        self.0
-    }
-}
-
-impl Display for VideoId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
-/// A video in the repository
-#[derive(Debug, Clone)]
-pub struct Video {
-    /// Full path from library root.
-    pub path: PathBuf,
-
-    /// Database primary key for video
-    pub video_id: VideoId,
-
-    /// Full path to square preview image
-    pub thumbnail_path: Option<PathBuf>,
-
-    /// Filesystem creation timestamp
-    pub fs_created_at: DateTime<Utc>,
-
-    /// Video stream metadata creation timestamp
-    pub stream_created_at: Option<DateTime<Utc>>,
-
-    // Video stream metadata duration
-    pub duration: Option<TimeDelta>,
-}
 
 /// Repository of picture metadata.
 /// Repository is backed by a Sqlite database.
 #[derive(Debug, Clone)]
 pub struct Repository {
     /// Base path to picture library on file system
-    library_base_path: path::PathBuf,
+    library_base_path: PathBuf,
 
-    video_thumbnail_base_path: path::PathBuf,
+    video_thumbnail_base_path: PathBuf,
 
     /// Connection to backing Sqlite database.
     con: Arc<Mutex<rusqlite::Connection>>,
@@ -74,8 +30,8 @@ pub struct Repository {
 impl Repository {
     /// Builds a Repository and creates operational tables.
     pub fn open(
-        library_base_path: &path::Path,
-        video_thumbnail_base_path: &path::Path,
+        library_base_path: &Path,
+        video_thumbnail_base_path: &Path,
         con: Arc<Mutex<rusqlite::Connection>>,
     ) -> Result<Repository> {
         if !library_base_path.is_dir() {
@@ -86,15 +42,15 @@ impl Repository {
         }
 
         let repo = Repository {
-            library_base_path: path::PathBuf::from(library_base_path),
-            video_thumbnail_base_path: path::PathBuf::from(video_thumbnail_base_path),
+            library_base_path: PathBuf::from(library_base_path),
+            video_thumbnail_base_path: PathBuf::from(video_thumbnail_base_path),
             con,
         };
 
         Ok(repo)
     }
 
-    pub fn update(&mut self, pic: &Video) -> Result<()> {
+    pub fn update(&mut self, video_id: &VideoId, extra: &VideoExtra) -> Result<()> {
         let mut con = self.con.lock().unwrap();
         let tx = con
             .transaction()
@@ -113,23 +69,20 @@ impl Repository {
                 .map_err(|e| RepositoryError(e.to_string()))?;
 
             // convert to relative path before saving to database
-            let thumbnail_path = pic
+            let thumbnail_path = extra
                 .thumbnail_path
                 .as_ref()
                 .and_then(|p| p.strip_prefix(&self.video_thumbnail_base_path).ok());
 
             let result = stmt.execute(params![
                 thumbnail_path.as_ref().map(|p| p.to_str()),
-                pic.stream_created_at,
-                pic.duration.map(|x| x.num_milliseconds()),
-                pic.video_id.0,
+                extra.stream_created_at,
+                extra.stream_duration.map(|x| x.num_milliseconds()),
+                video_id.id(),
             ]);
 
-            //result
-            //  .map(|_| ())
-            //.map_err(|e| RepositoryError(e.to_string()))?;
-
             // The "on conflict ignore" constraints look like errors to rusqlite
+            // FIXME get rid of this
             match result {
                 Err(e @ SqliteFailure(_, _))
                     if e.sqlite_error_code() == Some(ConstraintViolation) =>
@@ -145,7 +98,7 @@ impl Repository {
         tx.commit().map_err(|e| RepositoryError(e.to_string()))
     }
 
-    pub fn add_all(&mut self, vids: &Vec<scanner::Video>) -> Result<()> {
+    pub fn add_all(&mut self, vids: &Vec<ScannedFile>) -> Result<()> {
         let mut con = self.con.lock().unwrap();
         let tx = con
             .transaction()
@@ -196,21 +149,16 @@ impl Repository {
                     })?;
 
                 // Path without suffix so sibling pictures and videos can be related
-                let file_stem = path
-                    .file_stem()
-                    .and_then(|x| x.to_str())
-                    .expect("Must exist");
-                let stem_path = path.with_file_name(file_stem);
-
-                let fs_created_at = vid.fs.as_ref().and_then(|x| x.created_at);
-                if fs_created_at.is_none() {
-                    continue; // FIXME scanner::Video should not be an Option
-                }
-
-                let fs_created_at = fs_created_at.expect("Must have fs_created_at");
+                let stem_path = {
+                    let file_stem = path
+                        .file_stem()
+                        .and_then(|x| x.to_str())
+                        .expect("Must exist");
+                    path.with_file_name(file_stem)
+                };
 
                 vid_stmt
-                    .execute(params![path.to_str(), fs_created_at,])
+                    .execute(params![path.to_str(), vid.fs_created_at,])
                     .map_err(|e| RepositoryError(format!("Inserting: {}", e)))?;
 
                 let video_id = vid_lookup_stmt
@@ -251,7 +199,7 @@ impl Repository {
             .query_map([], |row| {
                 let path_result: rusqlite::Result<String> = row.get(1);
                 path_result.map(|relative_path| Video {
-                    video_id: VideoId(row.get(0).unwrap()), // should always have a primary key
+                    video_id: VideoId::new(row.get(0).unwrap()), // should always have a primary key
                     path: self.library_base_path.join(relative_path), // compute full path
                     thumbnail_path: row
                         .get(2)
@@ -259,7 +207,7 @@ impl Repository {
                         .map(|p: String| self.video_thumbnail_base_path.join(p)),
                     fs_created_at: row.get(3).ok().expect("Must have fs_created_at"),
                     stream_created_at: row.get(4).ok(),
-                    duration: row
+                    stream_duration: row
                         .get(5)
                         .ok()
                         .and_then(|x: i64| TimeDelta::try_milliseconds(x)),
@@ -282,7 +230,7 @@ impl Repository {
             .prepare("DELETE FROM videos WHERE video_id = ?1")
             .map_err(|e| RepositoryError(e.to_string()))?;
 
-        stmt.execute([video_id.0])
+        stmt.execute([video_id.id()])
             .map_err(|e| RepositoryError(e.to_string()))?;
 
         Ok(())

@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+use crate::video::model::ScannedFile;
 use crate::Error::*;
 use crate::Result;
 use chrono::prelude::*;
@@ -11,65 +12,7 @@ use std::path::Path;
 use std::path::PathBuf;
 use walkdir::WalkDir;
 
-/// A video on the local file system that has been scanned.
-#[derive(Debug, Clone)]
-pub struct Video {
-    /// Full path to picture file.
-    pub path: PathBuf,
-
-    /// Metadata from the file system.
-    pub fs: Option<FsMetadata>,
-
-    // Creation timestamp from stream metadata
-    pub stream_created_at: Option<DateTime<Utc>>,
-
-    // Video duration in stream metadata
-    pub duration: Option<TimeDelta>,
-}
-
-impl Video {
-    /// Creates a new Picture for a given full path.
-    pub fn new(path: PathBuf) -> Video {
-        Video {
-            path,
-            fs: None,
-            stream_created_at: None,
-            duration: None,
-        }
-    }
-
-    pub fn created_at(&self) -> Option<chrono::DateTime<Utc>> {
-        let fs_ts = self.fs.as_ref().and_then(|x| x.created_at);
-        fs_ts
-    }
-
-    pub fn modified_at(&self) -> Option<chrono::DateTime<Utc>> {
-        let fs_ts = self.fs.as_ref().and_then(|x| x.modified_at);
-        fs_ts
-    }
-}
-
-/// Metadata from the file system.
-#[derive(Debug, Default, Clone)]
-pub struct FsMetadata {
-    pub created_at: Option<DateTime<Utc>>,
-    pub modified_at: Option<DateTime<Utc>>,
-    pub file_size_bytes: Option<u64>,
-}
-
-impl FsMetadata {
-    /// If any fields are present, then wrap self in an Option::Some. Otherwise, return None.
-    pub fn to_option(self) -> Option<FsMetadata> {
-        if self.created_at.is_some() || self.modified_at.is_some() || self.file_size_bytes.is_some()
-        {
-            Some(self)
-        } else {
-            None
-        }
-    }
-}
-
-/// Scans a file system for pictures.
+/// Scans a file system for videos.
 #[derive(Debug, Clone)]
 pub struct Scanner {
     /// File system path to scan.
@@ -86,7 +29,7 @@ impl Scanner {
     /// Scans all videos in the base directory for function `func` to visit.
     pub fn scan_all_visit<F>(&self, func: F)
     where
-        F: FnMut(Video),
+        F: FnMut(ScannedFile),
     {
         let suffixes = vec![String::from("mov"), String::from("mp4")];
 
@@ -108,7 +51,7 @@ impl Scanner {
             .for_each(func); // visit
     }
 
-    pub fn scan_all(&self) -> Result<Vec<Video>> {
+    pub fn scan_all(&self) -> Result<Vec<ScannedFile>> {
         // Count of files in scan_base.
         // Note: no filtering here, so count could be greater than number of pictures.
         // Might want to use the same WalkDir logic in visit_all(...) to get exact count.
@@ -118,27 +61,30 @@ impl Scanner {
         Ok(vids)
     }
 
-    pub fn scan_one(&self, path: &Path) -> Result<Video> {
+    pub fn scan_one(&self, path: &Path) -> Result<ScannedFile> {
         let file = fs::File::open(path).map_err(|e| ScannerError(e.to_string()))?;
-        let mut fs = FsMetadata::default();
 
-        fs.created_at = file
-            .metadata()
-            .ok()
-            .and_then(|x| x.created().ok())
-            .map(|x| Into::<DateTime<Utc>>::into(x));
+        let metadata = file.metadata().map_err(|e| ScannerError(e.to_string()))?;
 
-        fs.modified_at = file
-            .metadata()
-            .ok()
-            .and_then(|x| x.modified().ok())
-            .map(|x| Into::<DateTime<Utc>>::into(x));
+        let fs_created_at = metadata
+            .created()
+            .map(|x| Into::<DateTime<Utc>>::into(x))
+            .map_err(|e| ScannerError(e.to_string()))?;
 
-        fs.file_size_bytes = file.metadata().ok().map(|x| x.len());
+        let fs_modified_at = metadata
+            .modified()
+            .map(|x| Into::<DateTime<Utc>>::into(x))
+            .map_err(|e| ScannerError(e.to_string()))?;
 
-        let mut vid = Video::new(PathBuf::from(path));
-        vid.fs = fs.to_option();
+        let fs_file_size_bytes = metadata.len();
 
-        Ok(vid)
+        let scanned = ScannedFile {
+            path: PathBuf::from(path),
+            fs_created_at,
+            fs_modified_at,
+            fs_file_size_bytes,
+        };
+
+        Ok(scanned)
     }
 }

@@ -41,7 +41,7 @@ impl VideoThumbnails {
      {
         let start = std::time::Instant::now();
 
-        let unprocessed_vids: Vec<fotema_core::video::repo::Video> = repo
+        let unprocessed_vids: Vec<fotema_core::video::model::Video> = repo
             .all()?
             .into_iter()
             .filter(|vid| !vid.thumbnail_path.as_ref().is_some_and(|p| p.exists()))
@@ -52,18 +52,14 @@ impl VideoThumbnails {
             println!("Failed sending gen started: {:?}", e);
         }
 
-        unprocessed_vids.par_iter()
-            .flat_map(|vid| {
-                let result = thumbnailer.set_thumbnail(vid.clone());
-                if let Err(ref e) = result {
-                    println!("Failed setting video preview: {:?}", e);
-                }
-                result
-            })
+        unprocessed_vids
+            .par_iter()
             .for_each(|vid| {
-                let result = repo.clone().update(&vid);
-                if let Err(e) = result {
-                    println!("Failed video add preview: {:?}", e);
+                let result = thumbnailer.get_extra(&vid.video_id, &vid.path);
+                let result = result.and_then(|extra| repo.clone().update(&vid.video_id, &extra));
+
+                if result.is_err() {
+                    println!("Failed video add preview: {:?}", result);
                 } else if let Err(e) = sender.output(VideoThumbnailsOutput::Generated) {
                     println!("Failed sending VideoPreviewsOutput::Generated: {:?}", e);
                 }

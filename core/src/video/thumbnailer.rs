@@ -2,14 +2,14 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use crate::video::repo;
+use crate::video::model::{VideoExtra, VideoId};
 use crate::Error::*;
 use crate::Result;
 use chrono::{DateTime, TimeDelta, Utc};
 use image::io::Reader as ImageReader;
 use image::DynamicImage;
 use serde_json::Value;
-use std::path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use tempfile;
 
@@ -17,26 +17,54 @@ const EDGE: u32 = 200;
 
 #[derive(Debug, Clone)]
 pub struct Thumbnailer {
-    base_path: path::PathBuf,
+    base_path: PathBuf,
 }
 
 impl Thumbnailer {
-    pub fn build(base_path: &path::Path) -> Result<Self> {
-        let base_path = path::PathBuf::from(base_path);
+    pub fn build(base_path: &Path) -> Result<Self> {
+        let base_path = PathBuf::from(base_path);
         std::fs::create_dir_all(base_path.join("square"))
             .map_err(|e| RepositoryError(e.to_string()))?;
         Ok(Self { base_path })
     }
 
+    /// Computes a preview square for an image that has been inserted
+    /// into the Repository. Preview image will be written to file system.
+    pub fn get_extra(&self, video_id: &VideoId, video_path: &Path) -> Result<VideoExtra> {
+        let mut extra = VideoExtra::default();
+
+        let thumbnail_path = {
+            let file_name = format!("{}_{}x{}.png", video_id, EDGE, EDGE);
+            self.base_path.join(file_name)
+        };
+
+        extra.thumbnail_path = Some(thumbnail_path.clone());
+
+        if !&thumbnail_path.exists() {
+            let result = self.compute_thumbnail(video_path, &thumbnail_path);
+            if result.is_err() {
+                let _ = std::fs::remove_file(&thumbnail_path);
+                extra.thumbnail_path = None;
+            }
+        }
+
+        if let Ok((created_at, duration)) = Thumbnailer::get_stream_metadata(video_path) {
+            extra.stream_created_at = created_at;
+            extra.stream_duration = duration;
+        }
+
+        Ok(extra)
+    }
+
     /// Use ffprobe to extract creation timestamp and video duration.
     fn get_stream_metadata(
-        path: &path::Path,
+        video_path: &Path,
     ) -> Result<(Option<DateTime<Utc>>, Option<TimeDelta>)> {
         let output = Command::new("/usr/bin/ffprobe")
             .arg("-v")
             .arg("quiet")
             .arg("-i")
-            .arg(path.as_os_str())
+            .arg(video_path.as_os_str())
             .arg("-print_format")
             .arg("json")
             .arg("-select_streams")
@@ -65,14 +93,8 @@ impl Thumbnailer {
         Ok((creation_time, time_delta))
     }
 
-    /// Computes a preview square for an image that has been inserted
-    /// into the Repository. Preview image will be written to file system.
-    pub fn set_thumbnail(&self, vid: repo::Video) -> Result<repo::Video> {
-        if vid.thumbnail_path.as_ref().is_some_and(|p| p.exists()) {
-            return Ok(vid);
-        }
-
-        let png_file = tempfile::Builder::new()
+    fn compute_thumbnail(&self, video_path: &Path, thumbnail_path: &Path) -> Result<()> {
+        let temporary_png_file = tempfile::Builder::new()
             .suffix(".png")
             .tempfile()
             .map_err(|e| PreviewError(format!("Temp file: {}", e)))?;
@@ -84,45 +106,26 @@ impl Thumbnailer {
             .arg("error")
             .arg("-y") // temp file will already exist, so allow overwriting
             .arg("-i")
-            .arg(vid.path.as_os_str())
+            .arg(video_path.as_os_str())
             .arg("-update")
             .arg("true")
             .arg("-vf")
             .arg(r"select=eq(n\,0)") // select frame zero
-            .arg(png_file.path())
+            .arg(temporary_png_file.path())
             .status()
             .map_err(|e| PreviewError(format!("ffmpeg result: {}", e)))?;
 
-        let square = self.standard_thumbnail(png_file.path())?;
+        let square = self.standard_thumbnail(temporary_png_file.path())?;
 
-        let square_path = {
-            let file_name = format!("{}_{}x{}.png", vid.video_id, EDGE, EDGE);
-            self.base_path.join(file_name)
-        };
+        square
+            .save(thumbnail_path)
+            .map_err(|e| PreviewError(format!("image save: {}", e)))?;
 
-        let result = square
-            .save(&square_path)
-            .map_err(|e| PreviewError(format!("image save: {}", e)));
-
-        let mut vid = vid;
-
-        if result.is_err() {
-            let _ = std::fs::remove_file(&square_path);
-            result?;
-        } else {
-            vid.thumbnail_path = Some(square_path);
-        }
-
-        if let Ok((created_at, duration)) = Thumbnailer::get_stream_metadata(&vid.path) {
-            vid.stream_created_at = created_at;
-            vid.duration = duration;
-        }
-
-        Ok(vid)
+        Ok(())
     }
 
     // FIXME copy-and-paste from photo thumbnailer
-    fn standard_thumbnail(&self, path: &path::Path) -> Result<DynamicImage> {
+    fn standard_thumbnail(&self, path: &Path) -> Result<DynamicImage> {
         let img = ImageReader::open(path)
             .map_err(|e| PreviewError(format!("image open: {}", e)))?
             .decode()

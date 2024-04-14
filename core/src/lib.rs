@@ -13,7 +13,7 @@ pub use error::Error;
 pub use photo::repo::PictureId;
 pub use time::Year;
 pub use time::YearMonth;
-pub use video::repo::VideoId;
+pub use video::VideoId;
 pub use visual::repo::VisualId;
 
 /// A typedef of the result returned by many methods.
