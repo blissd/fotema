@@ -16,11 +16,11 @@ use tempfile;
 const EDGE: u32 = 200;
 
 #[derive(Debug, Clone)]
-pub struct Thumbnailer {
+pub struct Enricher {
     base_path: PathBuf,
 }
 
-impl Thumbnailer {
+impl Enricher {
     pub fn build(base_path: &Path) -> Result<Self> {
         let base_path = PathBuf::from(base_path);
         std::fs::create_dir_all(base_path.join("square"))
@@ -30,7 +30,7 @@ impl Thumbnailer {
 
     /// Computes a preview square for an image that has been inserted
     /// into the Repository. Preview image will be written to file system.
-    pub fn get_extra(&self, video_id: &VideoId, video_path: &Path) -> Result<VideoExtra> {
+    pub fn enrich(&self, video_id: &VideoId, video_path: &Path) -> Result<VideoExtra> {
         let mut extra = VideoExtra::default();
 
         let thumbnail_path = {
@@ -43,7 +43,7 @@ impl Thumbnailer {
 
         extra.thumbnail_path = Some(thumbnail_path.clone());
 
-        if let Ok((created_at, duration)) = Thumbnailer::get_stream_metadata(video_path) {
+        if let Ok((created_at, duration)) = Enricher::get_stream_metadata(video_path) {
             extra.stream_created_at = created_at;
             extra.stream_duration = duration;
         }

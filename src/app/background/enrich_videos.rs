@@ -9,12 +9,12 @@ use rayon::prelude::*;
 
 
 #[derive(Debug)]
-pub enum VideoThumbnailsInput {
+pub enum EnrichVideosInput {
     Start,
 }
 
 #[derive(Debug)]
-pub enum VideoThumbnailsOutput {
+pub enum EnrichVideosOutput {
     // Thumbnail generation has started for a given number of videos.
     Started(usize),
 
@@ -26,18 +26,18 @@ pub enum VideoThumbnailsOutput {
 
 }
 
-pub struct VideoThumbnails {
-    thumbnailer: fotema_core::video::Thumbnailer,
+pub struct EnrichVideos {
+    enricher: fotema_core::video::Enricher,
 
     repo: fotema_core::video::Repository,
 }
 
-impl VideoThumbnails {
+impl EnrichVideos {
 
-    fn update_thumbnails(
+    fn enrich(
         repo: fotema_core::video::Repository,
-        thumbnailer: fotema_core::video::Thumbnailer,
-        sender: &ComponentSender<VideoThumbnails>) -> Result<()>
+        enricher: fotema_core::video::Enricher,
+        sender: &ComponentSender<EnrichVideos>) -> Result<()>
      {
         let start = std::time::Instant::now();
 
@@ -48,41 +48,41 @@ impl VideoThumbnails {
             .collect();
 
         let vids_count = unprocessed_vids.len();
-        if let Err(e) = sender.output(VideoThumbnailsOutput::Started(vids_count)){
+        if let Err(e) = sender.output(EnrichVideosOutput::Started(vids_count)){
             println!("Failed sending gen started: {:?}", e);
         }
 
         unprocessed_vids
             .par_iter()
             .for_each(|vid| {
-                let result = thumbnailer.get_extra(&vid.video_id, &vid.path);
+                let result = enricher.enrich(&vid.video_id, &vid.path);
                 let result = result.and_then(|extra| repo.clone().update(&vid.video_id, &extra));
 
                 if result.is_err() {
                     println!("Failed video add preview: {:?}", result);
-                } else if let Err(e) = sender.output(VideoThumbnailsOutput::Generated) {
-                    println!("Failed sending VideoPreviewsOutput::Generated: {:?}", e);
+                } else if let Err(e) = sender.output(EnrichVideosOutput::Generated) {
+                    println!("Failed sending EnrichVideosOutput::Generated: {:?}", e);
                 }
             });
 
         println!("Generated {} video thumbnails in {} seconds.", vids_count, start.elapsed().as_secs());
 
-        if let Err(e) = sender.output(VideoThumbnailsOutput::Completed) {
-            println!("Failed sending VideoThumbnailsOutput::Completed: {:?}", e);
+        if let Err(e) = sender.output(EnrichVideosOutput::Completed) {
+            println!("Failed sending EnrichVideosOutput::Completed: {:?}", e);
         }
 
         Ok(())
     }
 }
 
-impl Worker for VideoThumbnails {
-    type Init = (fotema_core::video::Thumbnailer, fotema_core::video::Repository);
-    type Input = VideoThumbnailsInput;
-    type Output = VideoThumbnailsOutput;
+impl Worker for EnrichVideos {
+    type Init = (fotema_core::video::Enricher, fotema_core::video::Repository);
+    type Input = EnrichVideosInput;
+    type Output = EnrichVideosOutput;
 
-    fn init((thumbnailer, repo): Self::Init, _sender: ComponentSender<Self>) -> Self  {
-        let model = VideoThumbnails {
-            thumbnailer,
+    fn init((enricher, repo): Self::Init, _sender: ComponentSender<Self>) -> Self  {
+        let model = EnrichVideos {
+            enricher,
             repo,
         };
         model
@@ -91,15 +91,15 @@ impl Worker for VideoThumbnails {
 
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
-            VideoThumbnailsInput::Start => {
-                println!("Generating video thumbnails...");
+            EnrichVideosInput::Start => {
+                println!("Enriching videos...");
                 let repo = self.repo.clone();
-                let thumbnailer = self.thumbnailer.clone();
+                let enricher = self.enricher.clone();
 
                 // Avoid runtime panic from calling block_on
                 rayon::spawn(move || {
-                    if let Err(e) = VideoThumbnails::update_thumbnails(repo, thumbnailer, &sender) {
-                        println!("Failed to update video thumbnails: {}", e);
+                    if let Err(e) = EnrichVideos::enrich(repo, enricher, &sender) {
+                        println!("Failed to enrich videos: {}", e);
                     }
                 });
             }
