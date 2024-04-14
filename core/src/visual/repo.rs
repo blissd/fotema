@@ -146,12 +146,10 @@ impl Repository {
                     pictures.picture_id,
                     pictures.picture_path AS picture_path,
                     pictures.preview_path AS picture_thumbnail,
-                    COALESCE(pictures.exif_created_ts, pictures.fs_created_ts) AS picture_created_ts,
 
                     videos.video_id,
                     videos.video_path AS video_path,
                     videos.preview_path AS video_thumbnail,
-                    videos.fs_created_ts AS video_created_ts,
 
                     COALESCE(pictures.exif_created_ts, videos.stream_created_ts, pictures.fs_created_ts, videos.fs_created_ts) AS created_ts
                 FROM visual
@@ -184,18 +182,14 @@ impl Repository {
                 let picture_thumbnail: Option<PathBuf> =
                     row.get(4).map(|x: String| PathBuf::from(x)).ok();
 
-                let picture_created_at: Option<DateTime<Utc>> = row.get(5).ok();
+                let video_id: Option<VideoId> = row.get(5).map(|x| VideoId::new(x)).ok();
 
-                let video_id: Option<VideoId> = row.get(6).map(|x| VideoId::new(x)).ok();
-
-                let video_path: Option<PathBuf> = row.get(7).map(|x: String| PathBuf::from(x)).ok();
+                let video_path: Option<PathBuf> = row.get(6).map(|x: String| PathBuf::from(x)).ok();
 
                 let video_path = video_path.map(|x| self.library_base_path.join(x));
 
                 let video_thumbnail: Option<PathBuf> =
-                    row.get(8).map(|x: String| PathBuf::from(x)).ok();
-
-                let video_created_at: Option<DateTime<Utc>> = row.get(9).ok();
+                    row.get(7).map(|x: String| PathBuf::from(x)).ok();
 
                 let thumbnail_path = picture_thumbnail
                     .map(|x| self.photo_thumbnail_base_path.join(x))
@@ -203,11 +197,7 @@ impl Repository {
                     .map(|x| self.video_thumbnail_base_path.join(x))
                     .expect("Must have a thumbnail");
 
-                //let created_at = picture_created_at
-                //    .or_else(|| video_created_at)
-                //    .expect("Must have order_by_ts");
-
-                let created_at: DateTime<Utc> = row.get(10).ok().expect("Must have created_ts");
+                let created_at: DateTime<Utc> = row.get(8).ok().expect("Must have created_ts");
 
                 let v = Visual {
                     visual_id,
@@ -247,12 +237,10 @@ impl Repository {
                     pictures.picture_id,
                     pictures.picture_path AS picture_path,
                     pictures.preview_path AS picture_thumbnail,
-                    COALESCE(pictures.exif_created_ts, pictures.fs_created_ts) AS picture_created_ts,
 
                     videos.video_id,
                     videos.video_path AS video_path,
                     videos.preview_path AS video_thumbnail,
-                    COALESCE(videos.stream_created_ts, videos.fs_created_ts) AS video_created_ts,
 
                     COALESCE(pictures.exif_created_ts, videos.stream_created_ts, pictures.fs_created_ts, videos.fs_created_ts) AS created_ts
                 FROM visual
@@ -285,18 +273,14 @@ impl Repository {
                 let picture_thumbnail: Option<PathBuf> =
                     row.get(4).map(|x: String| PathBuf::from(x)).ok();
 
-                let picture_created_at: Option<DateTime<Utc>> = row.get(5).ok();
+                let video_id: Option<VideoId> = row.get(5).map(|x| VideoId::new(x)).ok();
 
-                let video_id: Option<VideoId> = row.get(6).map(|x| VideoId::new(x)).ok();
-
-                let video_path: Option<PathBuf> = row.get(7).map(|x: String| PathBuf::from(x)).ok();
+                let video_path: Option<PathBuf> = row.get(6).map(|x: String| PathBuf::from(x)).ok();
 
                 let video_path = video_path.map(|x| self.library_base_path.join(x));
 
                 let video_thumbnail: Option<PathBuf> =
-                    row.get(8).map(|x: String| PathBuf::from(x)).ok();
-
-                let video_created_at: Option<DateTime<Utc>> = row.get(9).ok();
+                    row.get(7).map(|x: String| PathBuf::from(x)).ok();
 
                 let thumbnail_path = picture_thumbnail
                     .map(|x| self.photo_thumbnail_base_path.join(x))
@@ -304,11 +288,7 @@ impl Repository {
                     .map(|x| self.video_thumbnail_base_path.join(x))
                     .expect("Must have a thumbnail");
 
-                //let created_at = picture_created_at
-                //    .or_else(|| video_created_at)
-                //    .expect("Must have order_by_ts");
-
-                let created_at: DateTime<Utc> = row.get(10).ok().expect("Must have created_ts");
+                let created_at: DateTime<Utc> = row.get(8).ok().expect("Must have created_ts");
 
                 let v = Visual {
                     visual_id,

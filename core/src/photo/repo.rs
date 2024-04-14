@@ -149,8 +149,6 @@ impl Repository {
                         RepositoryError(format!("Stripping prefix for {:?}: {}", &pic.path, e))
                     })?;
 
-                let fs_created_at = pic.fs_created_at;
-
                 // Path without suffix so sibling pictures and videos can be related
                 let file_stem = path
                     .file_stem()
