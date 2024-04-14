@@ -38,15 +38,10 @@ impl Thumbnailer {
             self.base_path.join(file_name)
         };
 
-        extra.thumbnail_path = Some(thumbnail_path.clone());
+        self.compute_thumbnail(video_path, &thumbnail_path)
+            .map_err(|e| PreviewError(format!("save video thumbnail: {}", e)))?;
 
-        if !&thumbnail_path.exists() {
-            let result = self.compute_thumbnail(video_path, &thumbnail_path);
-            if result.is_err() {
-                let _ = std::fs::remove_file(&thumbnail_path);
-                extra.thumbnail_path = None;
-            }
-        }
+        extra.thumbnail_path = Some(thumbnail_path.clone());
 
         if let Ok((created_at, duration)) = Thumbnailer::get_stream_metadata(video_path) {
             extra.stream_created_at = created_at;
@@ -60,6 +55,7 @@ impl Thumbnailer {
     fn get_stream_metadata(
         video_path: &Path,
     ) -> Result<(Option<DateTime<Utc>>, Option<TimeDelta>)> {
+        // ffprobe is part of the ffmpeg-full flatpak extension
         let output = Command::new("/usr/bin/ffprobe")
             .arg("-v")
             .arg("quiet")
@@ -94,6 +90,10 @@ impl Thumbnailer {
     }
 
     fn compute_thumbnail(&self, video_path: &Path, thumbnail_path: &Path) -> Result<()> {
+        if thumbnail_path.exists() {
+            return Ok(());
+        }
+
         let temporary_png_file = tempfile::Builder::new()
             .suffix(".png")
             .tempfile()
@@ -115,11 +115,15 @@ impl Thumbnailer {
             .status()
             .map_err(|e| PreviewError(format!("ffmpeg result: {}", e)))?;
 
-        let square = self.standard_thumbnail(temporary_png_file.path())?;
+        let thumbnail = self.standard_thumbnail(temporary_png_file.path())?;
 
-        square
+        thumbnail
             .save(thumbnail_path)
-            .map_err(|e| PreviewError(format!("image save: {}", e)))?;
+            .or_else(|e| {
+                let _ = std::fs::remove_file(&thumbnail_path);
+                Err(e) // don't lose original error
+            })
+            .map_err(|e| PreviewError(format!("save video thumbnail: {}", e)))?;
 
         Ok(())
     }

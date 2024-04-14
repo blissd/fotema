@@ -45,21 +45,21 @@ impl Previewer {
             self.base_path.join(file_name)
         };
 
-        extra.thumbnail_path = Some(thumbnail_path.clone());
+        self.compute_thumbnail(picture_path, &thumbnail_path)
+            .await
+            .map_err(|e| PreviewError(format!("save photo thumbnail: {}", e)))?;
 
-        if !&thumbnail_path.exists() {
-            let result = self.compute_thumbnail(picture_path, &thumbnail_path).await;
-            if result.is_err() {
-                let _ = std::fs::remove_file(&thumbnail_path);
-                extra.thumbnail_path = None;
-            }
-        }
+        extra.thumbnail_path = Some(thumbnail_path.clone());
 
         Previewer::extract_exif(picture_path, &mut extra)?;
 
         Ok(extra)
     }
     async fn compute_thumbnail(&self, picture_path: &Path, thumbnail_path: &Path) -> Result<()> {
+        if thumbnail_path.exists() {
+            return Ok(());
+        }
+
         let thumbnail = self.standard_thumbnail(picture_path);
 
         let thumbnail = if thumbnail.is_err() {
@@ -70,6 +70,10 @@ impl Previewer {
 
         thumbnail
             .save(thumbnail_path)
+            .or_else(|e| {
+                let _ = std::fs::remove_file(&thumbnail_path);
+                Err(e) // don't lose original error
+            })
             .map_err(|e| PreviewError(format!("image save: {}", e)))?;
 
         Ok(())
