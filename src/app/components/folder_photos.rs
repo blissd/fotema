@@ -11,13 +11,14 @@ use relm4::gtk::prelude::WidgetExt;
 use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
 use relm4::*;
 use std::path;
+use std::sync::Arc;
 
 #[derive(Debug)]
 struct PhotoGridItem {
     folder_name: String,
 
     // Folder album cover
-    picture: fotema_core::visual::repo::Visual,
+    picture: Arc<fotema_core::visual::repo::Visual>,
 }
 
 struct Widgets {
@@ -101,13 +102,13 @@ impl RelmGridItem for PhotoGridItem {
 }
 
 pub struct FolderPhotos {
-    repo: fotema_core::visual::Repository,
+    repo: fotema_core::visual::Library,
     photo_grid: TypedGridView<PhotoGridItem, gtk::SingleSelection>,
 }
 
 #[relm4::component(pub)]
 impl SimpleComponent for FolderPhotos {
-    type Init = fotema_core::visual::Repository;
+    type Init = fotema_core::visual::Library;
     type Input = FolderPhotosInput;
     type Output = FolderPhotosOutput;
 
@@ -162,7 +163,6 @@ impl SimpleComponent for FolderPhotos {
                 let all_pictures = self
                     .repo
                     .all()
-                    .unwrap()
                     .into_iter()
                     .filter(|x| x.thumbnail_path.exists())
                     .sorted_by_key(|pic| pic.parent_path.clone())

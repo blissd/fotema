@@ -9,8 +9,7 @@
   ],
   "command": "fotema",
   "finish-args": [
-    "--share=ipc",
-    "--socket=fallback-x11",
+    "--device=dri",
     "--socket=wayland",
     "--socket=pulseaudio",
     "--filesystem=xdg-pictures:ro",

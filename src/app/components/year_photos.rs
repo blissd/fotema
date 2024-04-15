@@ -13,10 +13,11 @@ use relm4::gtk::prelude::WidgetExt;
 use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
 use relm4::*;
 use std::path;
+use std::sync::Arc;
 
 #[derive(Debug)]
 struct PhotoGridItem {
-    picture: fotema_core::visual::repo::Visual,
+    picture: Arc<fotema_core::visual::repo::Visual>,
 }
 #[derive(Debug)]
 pub enum YearPhotosInput {
@@ -102,13 +103,13 @@ impl RelmGridItem for PhotoGridItem {
 }
 
 pub struct YearPhotos {
-    repo: fotema_core::visual::Repository,
+    repo: fotema_core::visual::Library,
     photo_grid: TypedGridView<PhotoGridItem, gtk::NoSelection>,
 }
 
 #[relm4::component(pub)]
 impl SimpleComponent for YearPhotos {
-    type Init = fotema_core::visual::Repository;
+    type Init = fotema_core::visual::Library;
     type Input = YearPhotosInput;
     type Output = YearPhotosOutput;
 
@@ -152,7 +153,6 @@ impl SimpleComponent for YearPhotos {
                 let all_pictures = self
                     .repo
                     .all()
-                    .unwrap()
                     .into_iter()
                     .filter(|x| x.thumbnail_path.exists())
                     .dedup_by(|x, y| x.year() == y.year())

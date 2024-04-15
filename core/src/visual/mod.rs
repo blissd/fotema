@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+pub mod library;
 pub mod repo;
 
+pub use library::Library;
 pub use repo::Repository;

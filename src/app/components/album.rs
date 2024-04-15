@@ -10,6 +10,7 @@ use relm4::gtk::prelude::*;
 use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
 use relm4::*;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub enum AlbumFilter {
@@ -58,7 +59,7 @@ pub enum AlbumOutput {
 
 #[derive(Debug)]
 struct PhotoGridItem {
-    visual: fotema_core::visual::repo::Visual,
+    visual: Arc<fotema_core::visual::repo::Visual>,
 }
 
 struct PhotoGridItemWidgets {
@@ -142,13 +143,13 @@ impl RelmGridItem for PhotoGridItem {
 }
 
 pub struct Album {
-    repo: fotema_core::visual::Repository,
+    repo: fotema_core::visual::Library,
     photo_grid: TypedGridView<PhotoGridItem, gtk::SingleSelection>,
 }
 
 #[relm4::component(pub)]
 impl SimpleComponent for Album {
-    type Init = (fotema_core::visual::Repository, AlbumFilter);
+    type Init = (fotema_core::visual::Library, AlbumFilter);
     type Input = AlbumInput;
     type Output = AlbumOutput;
 
@@ -195,7 +196,6 @@ impl SimpleComponent for Album {
                 let all = self
                     .repo
                     .all()
-                    .expect("Load all items")
                     .into_iter()
                     .map(|visual| PhotoGridItem { visual });
 

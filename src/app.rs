@@ -22,10 +22,10 @@ use relm4::{
 };
 
 use crate::config::{APP_ID, PROFILE};
+use fotema_core::database;
+use fotema_core::video;
 use fotema_core::VisualId;
 use fotema_core::YearMonth;
-use fotema_core::video;
-use fotema_core::database;
 
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -34,11 +34,11 @@ mod components;
 
 use self::components::{
     about::AboutDialog,
-    preferences::{PreferencesDialog, PreferencesInput, PreferencesOutput},
     album::{Album, AlbumFilter, AlbumInput, AlbumOutput},
     folder_photos::{FolderPhotos, FolderPhotosInput, FolderPhotosOutput},
     month_photos::{MonthPhotos, MonthPhotosInput, MonthPhotosOutput},
     one_photo::{OnePhoto, OnePhotoInput},
+    preferences::{PreferencesDialog, PreferencesInput, PreferencesOutput},
     year_photos::{YearPhotos, YearPhotosInput, YearPhotosOutput},
 };
 
@@ -47,12 +47,16 @@ mod background;
 use self::background::{
     cleanup::{Cleanup, CleanupInput, CleanupOutput},
     enrich_photos::{EnrichPhotos, EnrichPhotosInput, EnrichPhotosOutput},
-    enrich_videos::{EnrichVideos, EnrichVideosInput,EnrichVideosOutput},
+    enrich_videos::{EnrichVideos, EnrichVideosInput, EnrichVideosOutput},
+    load_library::{LoadLibrary, LoadLibraryInput, LoadLibraryOutput},
     scan_photos::{ScanPhotos, ScanPhotosInput, ScanPhotosOutput},
     scan_videos::{ScanVideos, ScanVideosInput, ScanVideosOutput},
 };
 
 pub(super) struct App {
+    /// Loads library image index on background thread and then notifies app.
+    load_library: WorkerController<LoadLibrary>,
+
     scan_photos: WorkerController<ScanPhotos>,
     scan_videos: WorkerController<ScanVideos>,
     enrich_photos: WorkerController<EnrichPhotos>,
@@ -139,7 +143,8 @@ pub(super) enum AppMsg {
     GoToYear(i32),
 
     // Refresh all photo grid views. Manually triggered by button press.
-    Refresh,
+    LibraryRefresh,
+    LibraryRefreshed,
 
     // File-system scan events
     PhotoScanStarted,
@@ -314,7 +319,7 @@ impl SimpleComponent for App {
                                     banner -> adw::Banner {
                                         // Only show when generating thumbnails
                                         set_button_label: None,
-                                        connect_button_clicked => AppMsg::Refresh,
+                                        connect_button_clicked => AppMsg::LibraryRefresh,
                                     },
 
                                     #[local_ref]
@@ -449,7 +454,8 @@ impl SimpleComponent for App {
             &pic_base_dir,
             &photo_thumbnail_base_path,
             con.clone(),
-        ).unwrap();
+        )
+        .unwrap();
 
         let photo_enricher = {
             let _ = std::fs::create_dir_all(&photo_thumbnail_base_path);
@@ -461,10 +467,7 @@ impl SimpleComponent for App {
         let video_scan = fotema_core::video::Scanner::build(&pic_base_dir).unwrap();
 
         let video_repo = {
-            video::Repository::open(
-                &pic_base_dir,
-                &video_thumbnail_base_path,
-                con.clone()).unwrap()
+            video::Repository::open(&pic_base_dir, &video_thumbnail_base_path, con.clone()).unwrap()
         };
 
         let video_enricher = {
@@ -477,7 +480,16 @@ impl SimpleComponent for App {
             &photo_thumbnail_base_path,
             &video_thumbnail_base_path,
             con.clone(),
-        ).unwrap();
+        )
+        .unwrap();
+
+        let library = fotema_core::visual::Library::new(visual_repo.clone());
+
+        let load_library = LoadLibrary::builder()
+            .detach_worker(library.clone())
+            .forward(sender.input_sender(), |msg| match msg {
+                LoadLibraryOutput::Refreshed => AppMsg::LibraryRefreshed,
+            });
 
         let scan_photos = ScanPhotos::builder()
             .detach_worker((photo_scan.clone(), photo_repo.clone()))
@@ -492,7 +504,6 @@ impl SimpleComponent for App {
                 ScanVideosOutput::Started => AppMsg::VideoScanStarted,
                 ScanVideosOutput::Completed => AppMsg::VideoScanCompleted,
             });
-
 
         let enrich_videos = EnrichVideos::builder()
             .detach_worker((video_enricher.clone(), video_repo.clone()))
@@ -510,40 +521,41 @@ impl SimpleComponent for App {
                 EnrichPhotosOutput::Completed => AppMsg::PhotoEnrichmentCompleted,
             });
 
-        let cleanup =
-            Cleanup::builder()
-                .detach_worker(photo_repo.clone())
-                .forward(sender.input_sender(), |msg| match msg {
-                    CleanupOutput::Started => AppMsg::CleanupStarted,
-                    CleanupOutput::Completed => AppMsg::CleanupCompleted,
-                });
+        let cleanup = Cleanup::builder()
+            .detach_worker(photo_repo.clone())
+            .forward(sender.input_sender(), |msg| match msg {
+                CleanupOutput::Started => AppMsg::CleanupStarted,
+                CleanupOutput::Completed => AppMsg::CleanupCompleted,
+            });
 
         let all_photos = Album::builder()
-            .launch((visual_repo.clone(), AlbumFilter::All))
+            .launch((library.clone(), AlbumFilter::All))
             .forward(sender.input_sender(), |msg| match msg {
                 AlbumOutput::Selected(id) => AppMsg::ViewPhoto(id),
             });
 
-        let month_photos =
-            MonthPhotos::builder()
-                .launch(visual_repo.clone())
-                .forward(sender.input_sender(), |msg| match msg {
-                    MonthPhotosOutput::MonthSelected(ym) => AppMsg::GoToMonth(ym),
-                });
+        let month_photos = MonthPhotos::builder()
+            .launch(library.clone()).forward(
+            sender.input_sender(),
+            |msg| match msg {
+                MonthPhotosOutput::MonthSelected(ym) => AppMsg::GoToMonth(ym),
+            },
+        );
 
-        let year_photos =
-            YearPhotos::builder()
-                .launch(visual_repo.clone())
-                .forward(sender.input_sender(), |msg| match msg {
-                    YearPhotosOutput::YearSelected(year) => AppMsg::GoToYear(year),
-                });
+        let year_photos = YearPhotos::builder()
+            .launch(library.clone()).forward(
+            sender.input_sender(),
+            |msg| match msg {
+                YearPhotosOutput::YearSelected(year) => AppMsg::GoToYear(year),
+            },
+        );
 
         let one_photo = OnePhoto::builder()
             .launch((photo_scan.clone(), visual_repo.clone()))
             .detach();
 
         let selfies_page = Album::builder()
-            .launch((visual_repo.clone(), AlbumFilter::Selfies))
+            .launch((library.clone(), AlbumFilter::Selfies))
             .forward(sender.input_sender(), |msg| match msg {
                 AlbumOutput::Selected(id) => AppMsg::ViewPhoto(id),
             });
@@ -551,41 +563,42 @@ impl SimpleComponent for App {
         let show_selfies = AppWidgets::show_selfies();
 
         let motion_page = Album::builder()
-            .launch((visual_repo.clone(), AlbumFilter::Motion))
+            .launch((library.clone(), AlbumFilter::Motion))
             .forward(sender.input_sender(), |msg| match msg {
                 AlbumOutput::Selected(id) => AppMsg::ViewPhoto(id),
             });
 
         let videos_page = Album::builder()
-            .launch((visual_repo.clone(), AlbumFilter::Videos))
+            .launch((library.clone(), AlbumFilter::Videos))
             .forward(sender.input_sender(), |msg| match msg {
                 AlbumOutput::Selected(id) => AppMsg::ViewPhoto(id),
             });
 
-        let folder_photos =
-            FolderPhotos::builder()
-                .launch(visual_repo.clone())
-                .forward(sender.input_sender(), |msg| match msg {
-                    FolderPhotosOutput::FolderSelected(path) => AppMsg::ViewFolder(path),
-                });
+        let folder_photos = FolderPhotos::builder()
+            .launch(library.clone())
+            .forward(
+            sender.input_sender(),
+            |msg| match msg {
+                FolderPhotosOutput::FolderSelected(path) => AppMsg::ViewFolder(path),
+            },
+        );
 
         let folder_album = Album::builder()
-            .launch((visual_repo.clone(), AlbumFilter::None))
+            .launch((library.clone(), AlbumFilter::None))
             .forward(sender.input_sender(), |msg| match msg {
                 AlbumOutput::Selected(id) => AppMsg::ViewPhoto(id),
             });
 
         folder_album.emit(AlbumInput::Refresh); // initial photo
 
-        let about_dialog = AboutDialog::builder()
-            .launch(root.clone())
-            .detach();
+        let about_dialog = AboutDialog::builder().launch(root.clone()).detach();
 
-       let preferences_dialog = PreferencesDialog::builder()
-            .launch(root.clone())
-            .forward(sender.input_sender(), |msg| match msg {
+        let preferences_dialog = PreferencesDialog::builder().launch(root.clone()).forward(
+            sender.input_sender(),
+            |msg| match msg {
                 PreferencesOutput::Updated => AppMsg::PreferencesUpdated,
-            });
+            },
+        );
 
         let library_view_stack = adw::ViewStack::new();
 
@@ -606,6 +619,7 @@ impl SimpleComponent for App {
         let banner = adw::Banner::new("-");
 
         let model = Self {
+            load_library,
             scan_photos,
             scan_videos,
             enrich_photos,
@@ -669,9 +683,12 @@ impl SimpleComponent for App {
 
         widgets.load_window_size();
 
-        model.all_photos.emit(AlbumInput::Refresh);
+        //model.load_library.emit(LoadLibraryInput::Refresh);
+
+        //model.all_photos.emit(AlbumInput::Refresh);
 
         model.scan_photos.sender().emit(ScanPhotosInput::Start);
+
         //model.scan_videos.sender().emit(ScanVideosInput::Start);
         //model.video_thumbnails.emit(VideoThumbnailsInput::Start);
 
@@ -719,7 +736,7 @@ impl SimpleComponent for App {
             }
             AppMsg::ViewHidden => {
                 self.one_photo.emit(OnePhotoInput::Hidden);
-            },
+            }
             AppMsg::ViewFolder(path) => {
                 self.folder_album
                     .emit(AlbumInput::Filter(AlbumFilter::Folder(path)));
@@ -736,7 +753,11 @@ impl SimpleComponent for App {
                 self.library_view_stack.set_visible_child_name("month");
                 self.month_photos.emit(MonthPhotosInput::GoToYear(year));
             }
-            AppMsg::Refresh => {
+            AppMsg::LibraryRefresh => {
+                println!("Refreshing library");
+                self.load_library.emit(LoadLibraryInput::Refresh);
+            }
+            AppMsg::LibraryRefreshed => {
                 println!("Refresh photo grids");
 
                 // Refresh messages cause the photos to be loaded into various photo grids
@@ -745,6 +766,7 @@ impl SimpleComponent for App {
                 self.selfies_page.emit(AlbumInput::Refresh);
                 self.videos_page.emit(AlbumInput::Refresh);
                 self.motion_page.emit(AlbumInput::Refresh);
+                self.folder_album.emit(AlbumInput::Refresh);
                 self.folder_photos.emit(FolderPhotosInput::Refresh);
                 self.month_photos.emit(MonthPhotosInput::Refresh);
                 self.year_photos.emit(YearPhotosInput::Refresh);
@@ -785,7 +807,8 @@ impl SimpleComponent for App {
 
                 self.progress_box.set_visible(true);
                 self.progress_bar.set_fraction(0.0);
-                self.progress_bar.set_text(Some("Generating photo thumbnails."));
+                self.progress_bar
+                    .set_text(Some("Generating photo thumbnails."));
                 self.progress_bar.set_pulse_step(0.25);
             }
             AppMsg::PhotoEnriched => {
@@ -814,7 +837,7 @@ impl SimpleComponent for App {
                 // Now generate video thumbnails
                 self.enrich_videos.emit(EnrichVideosInput::Start);
 
-                sender.input(AppMsg::Refresh);
+                //sender.input(AppMsg::LibraryRefresh);
             }
             AppMsg::VideoEnrichmentStarted(count) => {
                 println!("Video thumbnail generation started.");
@@ -834,7 +857,8 @@ impl SimpleComponent for App {
 
                 self.progress_box.set_visible(true);
                 self.progress_bar.set_fraction(0.0);
-                self.progress_bar.set_text(Some("Generating video thumbnails."));
+                self.progress_bar
+                    .set_text(Some("Generating video thumbnails."));
                 self.progress_bar.set_pulse_step(0.25);
             }
             AppMsg::VideoEnriched => {
@@ -860,7 +884,7 @@ impl SimpleComponent for App {
                 self.banner.set_button_label(None);
                 self.progress_box.set_visible(false);
 
-                sender.input(AppMsg::Refresh);
+                sender.input(AppMsg::LibraryRefresh);
             }
             AppMsg::CleanupCompleted => {
                 println!("Cleanup completed.");

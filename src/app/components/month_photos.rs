@@ -15,10 +15,11 @@ use relm4::*;
 use fotema_core::Year;
 use fotema_core::YearMonth;
 use std::path;
+use std::sync::Arc;
 
 #[derive(Debug)]
 struct PhotoGridItem {
-    picture: fotema_core::visual::repo::Visual,
+    picture: Arc<fotema_core::visual::repo::Visual>,
 }
 
 struct Widgets {
@@ -109,13 +110,13 @@ impl RelmGridItem for PhotoGridItem {
 }
 
 pub struct MonthPhotos {
-    repo: fotema_core::visual::Repository,
+    repo: fotema_core::visual::Library,
     photo_grid: TypedGridView<PhotoGridItem, gtk::SingleSelection>,
 }
 
 #[relm4::component(pub)]
 impl SimpleComponent for MonthPhotos {
-    type Init = fotema_core::visual::Repository;
+    type Init = fotema_core::visual::Library;
     type Input = MonthPhotosInput;
     type Output = MonthPhotosOutput;
 
@@ -159,7 +160,6 @@ impl SimpleComponent for MonthPhotos {
                 let all_pictures = self
                     .repo
                     .all()
-                    .unwrap()
                     .into_iter()
                     .filter(|x| x.thumbnail_path.exists())
                     .dedup_by(|x, y| x.year_month() == y.year_month())
