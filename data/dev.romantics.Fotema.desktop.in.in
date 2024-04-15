@@ -1,6 +1,6 @@
 [Desktop Entry]
 Name=Fotema
-Comment=Clean and simple photo gallery
+Comment=Photo gallery
 Type=Application
 Exec=fotema
 Terminal=false
