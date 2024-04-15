@@ -53,7 +53,8 @@ impl EnrichVideos {
         }
 
         unprocessed_vids
-            .par_iter()
+            //.par_iter() // don't multiprocess until memory usage is better understood.
+            .iter()
             .for_each(|vid| {
                 let result = enricher.enrich(&vid.video_id, &vid.path);
                 let result = result.and_then(|extra| repo.clone().update(&vid.video_id, &extra));
