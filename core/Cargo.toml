@@ -10,7 +10,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-chrono = "0.4.37"
+chrono = "0.4.38"
 gdk4 = "0.8.1"
 gio = "0.19.4"
 glycin = "1.0.2"
