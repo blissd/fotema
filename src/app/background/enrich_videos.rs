@@ -61,7 +61,9 @@ impl EnrichVideos {
 
                 if result.is_err() {
                     println!("Failed video add preview: {:?}", result);
-                } else if let Err(e) = sender.output(EnrichVideosOutput::Generated) {
+                }
+
+                if let Err(e) = sender.output(EnrichVideosOutput::Generated) {
                     println!("Failed sending EnrichVideosOutput::Generated: {:?}", e);
                 }
             });
