@@ -55,8 +55,8 @@ impl EnrichPhotos {
         }
 
         unprocessed_pics
-            //.par_iter() // don't multiprocess until memory usage is better understood.
-            .iter()
+            .par_iter() // don't multiprocess until memory usage is better understood.
+            //.iter()
             .for_each(|pic| {
                 let result = block_on(async {enricher.enrich(&pic.picture_id, &pic.path).await});
                 let result = result.and_then(|extra| repo.clone().update(&pic.picture_id, &extra));

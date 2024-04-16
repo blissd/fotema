@@ -56,6 +56,7 @@ use self::background::{
 pub(super) struct App {
     /// Loads library image index on background thread and then notifies app.
     load_library: WorkerController<LoadLibrary>,
+    last_load_at: Option<std::time::SystemTime>,
 
     scan_photos: WorkerController<ScanPhotos>,
     scan_videos: WorkerController<ScanVideos>,
@@ -276,6 +277,7 @@ impl SimpleComponent for App {
                                     progress_box -> gtk::Box {
                                         set_orientation: gtk::Orientation::Vertical,
                                         set_margin_all: 12,
+                                        set_visible: false,
 
                                         #[local_ref]
                                         progress_bar -> gtk::ProgressBar {
@@ -620,6 +622,7 @@ impl SimpleComponent for App {
 
         let model = Self {
             load_library,
+            last_load_at: None,
             scan_photos,
             scan_videos,
             enrich_photos,
@@ -683,11 +686,14 @@ impl SimpleComponent for App {
 
         widgets.load_window_size();
 
-        //model.load_library.emit(LoadLibraryInput::Refresh);
+        model.spinner.set_visible(true);
+        model.spinner.start();
 
-        //model.all_photos.emit(AlbumInput::Refresh);
+        model.load_library.emit(LoadLibraryInput::Refresh);
 
-        model.scan_photos.sender().emit(ScanPhotosInput::Start);
+       // model.all_photos.emit(AlbumInput::Refresh);
+
+        //model.scan_photos.sender().emit(ScanPhotosInput::Start);
 
         //model.scan_videos.sender().emit(ScanVideosInput::Start);
         //model.video_thumbnails.emit(VideoThumbnailsInput::Start);
@@ -770,6 +776,17 @@ impl SimpleComponent for App {
                 self.folder_photos.emit(FolderPhotosInput::Refresh);
                 self.month_photos.emit(MonthPhotosInput::Refresh);
                 self.year_photos.emit(YearPhotosInput::Refresh);
+
+                // Is this the completion of the first library scan after start up.
+                // We only want to trigger a photo/video scan once.
+                if self.last_load_at.is_none() {
+                    self.scan_photos.emit(ScanPhotosInput::Start);
+                } else {
+                    self.spinner.set_visible(false);
+                    self.spinner.stop();
+                }
+
+                self.last_load_at = Some(std::time::SystemTime::now());
             }
             AppMsg::PhotoScanStarted => {
                 self.spinner.start();
