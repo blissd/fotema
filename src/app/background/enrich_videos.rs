@@ -60,7 +60,7 @@ impl EnrichVideos {
                 let result = result.and_then(|extra| repo.clone().update(&vid.video_id, &extra));
 
                 if result.is_err() {
-                    println!("Failed video add preview: {:?}", result);
+                    println!("Failed video add preview for {:?}: {:?}", &vid.path, result);
                 }
 
                 if let Err(e) = sender.output(EnrichVideosOutput::Generated) {
