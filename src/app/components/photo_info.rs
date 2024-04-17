@@ -263,7 +263,7 @@ impl PhotoInfo {
         let fs_created_at: Option<String> = metadata
             .created()
             .map(|x| Into::<DateTime<Utc>>::into(x))
-            .map(|x| x.to_string())
+            .map(|x| x.format("%Y-%m-%d %H:%M:%S %:z").to_string())
             .map_err(|e| e.to_string())
             .ok();
 
@@ -271,7 +271,7 @@ impl PhotoInfo {
         let fs_modified_at: Option<String> = metadata
             .modified()
             .map(|x| Into::<DateTime<Utc>>::into(x))
-            .map(|x| x.to_string())
+            .map(|x| x.format("%Y-%m-%d %H:%M:%S %:z").to_string())
             .map_err(|e| e.to_string())
             .ok();
 
