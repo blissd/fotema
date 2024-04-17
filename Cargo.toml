@@ -25,6 +25,7 @@ humansize = "2.1.3"
 rayon = "1.10.0"
 glycin = "1.0.2"
 futures = "0.3.30"
+chrono = "0.4.38"
 
 
 [dependencies.fotema_core]

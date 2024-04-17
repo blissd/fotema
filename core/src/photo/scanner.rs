@@ -12,6 +12,8 @@ use std::path::Path;
 use std::path::PathBuf;
 use walkdir::WalkDir;
 
+// FIXME photos::Scanner and videos::Scanner are now broadly the same. Can they be consolidated?
+
 /// Scans a file system for pictures.
 #[derive(Debug, Clone)]
 pub struct Scanner {

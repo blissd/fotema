@@ -150,7 +150,7 @@ impl SimpleAsyncComponent for OnePhoto {
                     let texture = frame.texture;
 
                     self.picture.set_paintable(Some(&texture));
-                    self.photo_info.emit(PhotoInfoInput::ShowInfo(visual_id));
+                    self.photo_info.emit(PhotoInfoInput::ShowInfo(visual_id, image.info().clone()));
                 } else { // video or motion photo
                     let media_file = gtk::MediaFile::for_filename(visual.video_path.clone().expect("Must have video"));
                     self.picture.set_paintable(Some(&media_file));

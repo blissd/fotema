@@ -9,16 +9,21 @@ use fotema_core::photo;
 use fotema_core::Library;
 use fotema_core::VisualId;
 use gtk::prelude::OrientableExt;
+
 use relm4::gtk;
 use relm4::*;
 use relm4::adw::prelude::*;
 use std::path::PathBuf;
 use humansize::{format_size, DECIMAL};
+use glycin::{ImageInfo, ImageInfoDetails};
+use std::fs;
+use chrono::prelude::*;
+use chrono::{DateTime, FixedOffset, NaiveDate, NaiveTime, Utc};
 
 
 #[derive(Debug)]
 pub enum PhotoInfoInput {
-    ShowInfo(VisualId),
+    ShowInfo(VisualId, ImageInfo),
 }
 
 pub struct PhotoInfo {
@@ -225,9 +230,9 @@ impl SimpleComponent for PhotoInfo {
 
     fn update(&mut self, msg: Self::Input, _sender: ComponentSender<Self>) {
         match msg {
-            PhotoInfoInput::ShowInfo(visual_id) => {
+            PhotoInfoInput::ShowInfo(visual_id, ref image_info) => {
                 println!("Received {:?}", msg);
-                self.update_pic_info(visual_id);
+                self.update_pic_info(visual_id, image_info);
             }
         }
     }
@@ -238,34 +243,61 @@ const FALLBACK: &str = "–";
 
 impl PhotoInfo {
 
-    fn update_pic_info(&mut self, visual_id: VisualId) {
+    fn update_pic_info(&mut self, visual_id: VisualId, image_info: &ImageInfo) -> Result<(), String> {
         let result = self.library.get(visual_id);
         let Some(vis) = result else {
-            return;
+            return Err("No visual item".to_string());
+        };
+
+        let Some(ref picture_path) = vis.picture_path else {
+            return Err("No picture path".to_string());
         };
 
         Self::update_row(&self.folder, Self::folder_name(&vis.parent_path));
-/*
+
+        // FIXME duplicated from Scanner
+        let file = fs::File::open(picture_path).map_err(|e| e.to_string())?;
+
+        let metadata = file.metadata().map_err(|e| e.to_string())?;
+
+        let fs_created_at: Option<String> = metadata
+            .created()
+            .map(|x| Into::<DateTime<Utc>>::into(x))
+            .map(|x| x.to_string())
+            .map_err(|e| e.to_string())
+            .ok();
+
+
+        let fs_modified_at: Option<String> = metadata
+            .modified()
+            .map(|x| Into::<DateTime<Utc>>::into(x))
+            .map(|x| x.to_string())
+            .map_err(|e| e.to_string())
+            .ok();
+
+        let fs_file_size_bytes = metadata.len();
+
         let has_date_time_details = [
-            Self::update_row(&self.created_at, pic.fs.as_ref().and_then(|fs| fs.created_at.map(|x| x.to_string()))),
-            Self::update_row(&self.modified_at, pic.fs.as_ref().and_then(|fs| fs.modified_at.map(|x| x.to_string()))),
+            Self::update_row(&self.created_at, fs_created_at),
+            Self::update_row(&self.modified_at, fs_modified_at),
         ]
         .into_iter()
         .any(|x| x);
-        */
 
-        //self.date_time_details.set_visible(has_date_time_details);
-/*
+        self.date_time_details.set_visible(has_date_time_details);
+
+        let image_size = format!("{} x {}", image_info.width, image_info.height);
+
         let has_image_details = [
-            //Self::update_row(&self.image_size, pic.image_size.map(|x| x.to_string())),
-            //Self::update_row(&self.image_format, pic.image_format.map(|x| x.to_string())),
-            Self::update_row(&self.file_size, pic.fs.and_then(|fs| fs.file_size_bytes.map(|x| format_size(x, DECIMAL)))),
+            Self::update_row(&self.image_size, Some(image_size)),
+            Self::update_row(&self.image_format, image_info.details.format_name.as_ref()),
+            Self::update_row(&self.image_file_size, Some(format_size(fs_file_size_bytes, DECIMAL))),
         ]
         .into_iter()
         .any(|x| x);
 
         self.image_details.set_visible(has_image_details);
-*/
+
 /*
         let has_exif_details = [
             Self::update_row(&self.originally_created_at, pic.exif.as_ref().and_then(|exif| exif.created_at.map(|x| x.to_string()))),
@@ -276,6 +308,8 @@ impl PhotoInfo {
 
         self.exif_details.set_visible(has_exif_details);
         */
+
+        Ok(())
     }
 
     /// Borrowed from Loupe.
@@ -299,5 +333,4 @@ impl PhotoInfo {
             .map(|n| n.to_string_lossy())
             .map(|n| n.to_string())
     }
-
 }
