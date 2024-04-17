@@ -20,7 +20,7 @@ kamadak-exif = "0.5.5"
 rayon = "1.10.0"
 refinery = { version = "0.8.14", features = ["rusqlite"] }
 rusqlite = { version = "0.31.0", features = ["bundled", "chrono"] }
-serde_json = "1.0.115"
+serde_json = "1.0.116"
 tempfile = "3.10.1"
 walkdir = "2.5.0"
 
