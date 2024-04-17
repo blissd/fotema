@@ -38,6 +38,7 @@ use self::components::{
     folder_photos::{FolderPhotos, FolderPhotosInput, FolderPhotosOutput},
     month_photos::{MonthPhotos, MonthPhotosInput, MonthPhotosOutput},
     one_photo::{OnePhoto, OnePhotoInput},
+    photo_info::PhotoInfo,
     preferences::{PreferencesDialog, PreferencesInput, PreferencesOutput},
     year_photos::{YearPhotos, YearPhotosInput, YearPhotosOutput},
 };
@@ -552,8 +553,13 @@ impl SimpleComponent for App {
             },
         );
 
+
+        let photo_info = PhotoInfo::builder()
+            .launch((library.clone(), photo_scan.clone()))
+            .detach();
+
         let one_photo = OnePhoto::builder()
-            .launch((photo_scan.clone(), visual_repo.clone()))
+            .launch((library.clone(), photo_info))
             .detach();
 
         let selfies_page = Album::builder()

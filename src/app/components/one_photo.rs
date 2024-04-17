@@ -23,9 +23,8 @@ pub enum OnePhotoInput {
     Hidden,
 }
 
-#[derive(Debug)]
 pub struct OnePhoto {
-    repo: fotema_core::visual::Repository,
+    library: fotema_core::Library,
 
     // Photo to show
     picture: gtk::Picture,
@@ -41,7 +40,7 @@ pub struct OnePhoto {
 
 #[relm4::component(pub async)]
 impl SimpleAsyncComponent for OnePhoto {
-    type Init = (fotema_core::photo::Scanner, fotema_core::visual::Repository);
+    type Init = (fotema_core::Library, Controller<PhotoInfo>);
     type Input = OnePhotoInput;
     type Output = ();
 
@@ -81,19 +80,17 @@ impl SimpleAsyncComponent for OnePhoto {
     }
 
     async fn init(
-        (scanner, repo): Self::Init,
+        (library, photo_info): Self::Init,
         root: Self::Root,
         _sender: AsyncComponentSender<Self>,
     ) -> AsyncComponentParts<Self>  {
 
         let picture = gtk::Picture::new();
 
-        let photo_info = PhotoInfo::builder().launch(scanner).detach();
-
         let split_view = adw::OverlaySplitView::new();
 
         let model = OnePhoto {
-            repo,
+            library,
             picture: picture.clone(),
             photo_info,
             split_view: split_view.clone(),
@@ -113,9 +110,9 @@ impl SimpleAsyncComponent for OnePhoto {
             },
             OnePhotoInput::ViewPhoto(visual_id) => {
                 println!("Showing item for {}", visual_id);
-                let result = self.repo.get(visual_id);
+                let result = self.library.get(visual_id);
 
-                let visual = if let Ok(Some(v)) = result {
+                let visual = if let Some(v) = result {
                     v
                 } else {
                     println!("Failed loading visual item: {:?}", result);
@@ -123,7 +120,7 @@ impl SimpleAsyncComponent for OnePhoto {
                 };
 
                 let visual_path = visual.picture_path.clone()
-                    .or_else(|| visual.clone().video_path)
+                    .or_else(|| visual.video_path.clone())
                     .expect("Must have path");
 
                 self.title = visual_path.file_name()
@@ -153,7 +150,7 @@ impl SimpleAsyncComponent for OnePhoto {
                     let texture = frame.texture;
 
                     self.picture.set_paintable(Some(&texture));
-                    self.photo_info.emit(PhotoInfoInput::ShowInfo(visual_path));
+                    self.photo_info.emit(PhotoInfoInput::ShowInfo(visual_id));
                 } else { // video or motion photo
                     let media_file = gtk::MediaFile::for_filename(visual.video_path.clone().expect("Must have video"));
                     self.picture.set_paintable(Some(&media_file));

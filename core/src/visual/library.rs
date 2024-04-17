@@ -4,6 +4,7 @@
 
 use super::repo::{Repository, Visual};
 use crate::Result;
+use crate::VisualId;
 use std::sync::{Arc, Mutex, RwLock};
 
 /// Index of all images and photos in the library
@@ -39,5 +40,11 @@ impl Library {
     pub fn all(&self) -> Vec<Arc<Visual>> {
         let index = self.index.read().unwrap();
         index.clone()
+    }
+
+    /// Find an item by id.
+    pub fn get(&self, visual_id: VisualId) -> Option<Arc<Visual>> {
+        let index = self.index.read().unwrap();
+        index.iter().find(|&x| x.visual_id == visual_id).cloned()
     }
 }

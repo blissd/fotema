@@ -6,6 +6,8 @@
 /// Deeply inspired by how Loupe displays its property view.
 
 use fotema_core::photo;
+use fotema_core::Library;
+use fotema_core::VisualId;
 use gtk::prelude::OrientableExt;
 use relm4::gtk;
 use relm4::*;
@@ -13,17 +15,19 @@ use relm4::adw::prelude::*;
 use std::path::PathBuf;
 use humansize::{format_size, DECIMAL};
 
-#[derive(Debug)]
-pub enum PhotoInfoInput {
-    ShowInfo(PathBuf),
-}
 
 #[derive(Debug)]
+pub enum PhotoInfoInput {
+    ShowInfo(VisualId),
+}
+
 pub struct PhotoInfo {
-    scanner: photo::Scanner,
+    photo_scan: photo::Scanner,
+    library: Library,
 
     folder: adw::ActionRow,
 
+    // FIXME what timestamps to show for live photos that have an image an a video?
     date_time_details: adw::PreferencesGroup,
     created_at: adw::ActionRow,
     modified_at: adw::ActionRow,
@@ -31,97 +35,141 @@ pub struct PhotoInfo {
     image_details: adw::PreferencesGroup,
     image_size: adw::ActionRow,
     image_format: adw::ActionRow,
-    file_size: adw::ActionRow,
+    image_file_size: adw::ActionRow,
+    image_originally_created_at: adw::ActionRow,
+    image_originally_modified_at: adw::ActionRow,
 
-    exif_details: adw::PreferencesGroup,
-    originally_created_at: adw::ActionRow,
-    originally_modified_at: adw::ActionRow,
+    video_details: adw::PreferencesGroup,
+    video_format: adw::ActionRow,
+    video_file_size: adw::ActionRow,
+    video_originally_created_at: adw::ActionRow,
+    video_originally_modified_at: adw::ActionRow,
+    video_duration: adw::ActionRow,
 }
 
 
 #[relm4::component(pub)]
 impl SimpleComponent for PhotoInfo {
-    type Init = photo::Scanner;
+    type Init = (Library, photo::Scanner);
     type Input = PhotoInfoInput;
     type Output = ();
 
     view! {
-       gtk::Box {
-            set_orientation: gtk::Orientation::Vertical,
-            set_margin_all: 12,
-            set_spacing: 12,
+        gtk::ScrolledWindow {
+            set_hscrollbar_policy: gtk::PolicyType::Never,
+            gtk::Box {
+                set_orientation: gtk::Orientation::Vertical,
+                set_margin_all: 12,
+                set_spacing: 12,
 
-            adw::PreferencesGroup {
-                #[local_ref]
-                folder -> adw::ActionRow {
-                    set_title: "Folder",
-                    add_css_class: "property",
-                    set_subtitle_selectable: true,
-                },
-            },
-
-            #[local_ref]
-            date_time_details -> adw::PreferencesGroup {
-                #[local_ref]
-                created_at -> adw::ActionRow {
-                    set_title: "File Created",
-                    add_css_class: "property",
-                    set_subtitle_selectable: true,
+                adw::PreferencesGroup {
+                    #[local_ref]
+                    folder -> adw::ActionRow {
+                        set_title: "Folder",
+                        add_css_class: "property",
+                        set_subtitle_selectable: true,
+                    },
                 },
 
                 #[local_ref]
-                modified_at -> adw::ActionRow {
-                    set_title: "File Modified",
-                    add_css_class: "property",
-                    set_subtitle_selectable: true,
-                },
-            },
+                date_time_details -> adw::PreferencesGroup {
+                    #[local_ref]
+                    created_at -> adw::ActionRow {
+                        set_title: "File Created",
+                        add_css_class: "property",
+                        set_subtitle_selectable: true,
+                    },
 
-            #[local_ref]
-            image_details -> adw::PreferencesGroup {
-                #[local_ref]
-                image_size -> adw::ActionRow {
-                    set_title: "Image Size",
-                    add_css_class: "property",
-                    set_subtitle_selectable: true,
-                },
-
-                #[local_ref]
-                image_format -> adw::ActionRow {
-                    set_title: "Image Format",
-                    add_css_class: "property",
-                    set_subtitle_selectable: true,
+                    #[local_ref]
+                    modified_at -> adw::ActionRow {
+                        set_title: "File Modified",
+                        add_css_class: "property",
+                        set_subtitle_selectable: true,
+                    },
                 },
 
                 #[local_ref]
-                file_size -> adw::ActionRow {
-                    set_title: "File Size",
-                    add_css_class: "property",
-                    set_subtitle_selectable: true,
-                },
-            },
+                image_details -> adw::PreferencesGroup {
+                    #[local_ref]
+                    image_size -> adw::ActionRow {
+                        set_title: "Image Size",
+                        add_css_class: "property",
+                        set_subtitle_selectable: true,
+                    },
 
-            #[local_ref]
-            exif_details -> adw::PreferencesGroup {
-                #[local_ref]
-                originally_created_at -> adw::ActionRow {
-                    set_title: "Originally Created",
-                    add_css_class: "property",
-                    set_subtitle_selectable: true,
+                    #[local_ref]
+                    image_format -> adw::ActionRow {
+                        set_title: "Image Format",
+                        add_css_class: "property",
+                        set_subtitle_selectable: true,
+                    },
+
+                    #[local_ref]
+                    image_file_size -> adw::ActionRow {
+                        set_title: "File Size",
+                        add_css_class: "property",
+                        set_subtitle_selectable: true,
+                    },
+
+                    #[local_ref]
+                    image_originally_created_at -> adw::ActionRow {
+                        set_title: "Originally Created",
+                        add_css_class: "property",
+                        set_subtitle_selectable: true,
+                    },
+
+                    #[local_ref]
+                    image_originally_modified_at -> adw::ActionRow {
+                        set_title: "Originally Modified",
+                        add_css_class: "property",
+                        set_subtitle_selectable: true,
+                    },
                 },
 
+
                 #[local_ref]
-                originally_modified_at -> adw::ActionRow {
-                    set_title: "Originally Modified",
-                    add_css_class: "property",
-                    set_subtitle_selectable: true,
+                video_details -> adw::PreferencesGroup {
+                    #[local_ref]
+                    video_duration -> adw::ActionRow {
+                        set_title: "Duration",
+                        add_css_class: "property",
+                        set_subtitle_selectable: true,
+                    },
+
+                    #[local_ref]
+                    video_format -> adw::ActionRow {
+                        set_title: "Video Format",
+                        add_css_class: "property",
+                        set_subtitle_selectable: true,
+                    },
+
+                    #[local_ref]
+                    video_file_size -> adw::ActionRow {
+                        set_title: "File Size",
+                        add_css_class: "property",
+                        set_subtitle_selectable: true,
+                    },
+
+                    #[local_ref]
+                    video_originally_created_at -> adw::ActionRow {
+                        set_title: "Originally Created",
+                        add_css_class: "property",
+                        set_subtitle_selectable: true,
+                    },
+
+                    #[local_ref]
+                    video_originally_modified_at -> adw::ActionRow {
+                        set_title: "Originally Modified",
+                        add_css_class: "property",
+                        set_subtitle_selectable: true,
+                    },
                 },
             }
         }
     }
 
     fn init(
-        scanner: Self::Init,
+        (library, photo_scan): Self::Init,
         _root: Self::Root,
         _sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
@@ -135,14 +183,20 @@ impl SimpleComponent for PhotoInfo {
         let image_details = adw::PreferencesGroup::new();
         let image_size = adw::ActionRow::new();
         let image_format = adw::ActionRow::new();
-        let file_size = adw::ActionRow::new();
+        let image_file_size = adw::ActionRow::new();
+        let image_originally_created_at = adw::ActionRow::new();
+        let image_originally_modified_at = adw::ActionRow::new();
 
-        let exif_details = adw::PreferencesGroup::new();
-        let originally_created_at = adw::ActionRow::new();
-        let originally_modified_at = adw::ActionRow::new();
+        let video_details = adw::PreferencesGroup::new();
+        let video_duration = adw::ActionRow::new();
+        let video_format = adw::ActionRow::new();
+        let video_file_size = adw::ActionRow::new();
+        let video_originally_created_at = adw::ActionRow::new();
+        let video_originally_modified_at = adw::ActionRow::new();
 
         let model = PhotoInfo {
-            scanner,
+            library,
+            photo_scan,
             folder: folder.clone(),
 
             date_time_details: date_time_details.clone(),
@@ -152,11 +206,16 @@ impl SimpleComponent for PhotoInfo {
             image_details: image_details.clone(),
             image_size: image_size.clone(),
             image_format: image_format.clone(),
-            file_size: file_size.clone(),
+            image_file_size: image_file_size.clone(),
+            image_originally_created_at: image_originally_created_at.clone(),
+            image_originally_modified_at: image_originally_modified_at.clone(),
 
-            exif_details: exif_details.clone(),
-            originally_created_at: originally_created_at.clone(),
-            originally_modified_at: originally_modified_at.clone(),
+            video_details: video_details.clone(),
+            video_duration: video_duration.clone(),
+            video_format: video_format.clone(),
+            video_file_size: video_file_size.clone(),
+            video_originally_created_at: video_originally_created_at.clone(),
+            video_originally_modified_at: video_originally_modified_at.clone(),
         };
 
         let widgets = view_output!();
@@ -166,9 +225,9 @@ impl SimpleComponent for PhotoInfo {
 
     fn update(&mut self, msg: Self::Input, _sender: ComponentSender<Self>) {
         match msg {
-            PhotoInfoInput::ShowInfo(ref path) => {
+            PhotoInfoInput::ShowInfo(visual_id) => {
                 println!("Received {:?}", msg);
-                self.update_pic_info(path);
+                self.update_pic_info(visual_id);
             }
         }
     }
@@ -179,14 +238,13 @@ const FALLBACK: &str = "–";
 
 impl PhotoInfo {
 
-    fn update_pic_info(&mut self, path: &PathBuf) {
-        let result = self.scanner.scan_one(path);
-        let Ok(pic) = result else {
-            println!("Failed scanning picture: {:?}", result);
+    fn update_pic_info(&mut self, visual_id: VisualId) {
+        let result = self.library.get(visual_id);
+        let Some(vis) = result else {
             return;
         };
 
-        Self::update_row(&self.folder, Self::folder_name(path));
+        Self::update_row(&self.folder, Self::folder_name(&vis.parent_path));
 /*
         let has_date_time_details = [
             Self::update_row(&self.created_at, pic.fs.as_ref().and_then(|fs| fs.created_at.map(|x| x.to_string()))),
