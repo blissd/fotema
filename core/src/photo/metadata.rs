@@ -6,7 +6,9 @@ use exif;
 use chrono::prelude::*;
 use chrono::{DateTime, FixedOffset, Utc};
 
-#[derive(Debug)]
+// TODO photo::Enricher should use this class for exif parsing
+
+#[derive(Debug, Default, Clone)]
 pub struct Metadata {
 
     pub created_at: Option<DateTime<FixedOffset>>,
@@ -17,17 +19,18 @@ pub struct Metadata {
     pub lens_model: Option<String>,
 }
 
-impl Metadata {
-    fn build(path: &Path) -> Result<Metadata> {
-        let file = fs::File::open(path).map_err(|e| ScannerError(e.to_string()))?;
+pub enum Error {
+    Invalid,
+}
 
+impl Metadata {
+    pub fn from(data: Vec<u8>) -> Result<Metadata, Error> {
         let exif_data = {
-            let f = &mut BufReader::new(file);
-            match exif::Reader::new().read_from_container(f) {
-                Ok(file) => file,
+            match exif::Reader::new().read_raw(data) {
+                Ok(exif) => exif,
                 Err(_) => {
                     // Assume this error is when there is no EXIF data.
-                    return Ok(());
+                    return Ok(Metadata::default());
                 }
             }
         };
@@ -68,19 +71,21 @@ impl Metadata {
             Some(offset.from_utc_datetime(&naive_date_time))
         }
 
-        extra.exif_created_at = parse_date_time(
+        let mut metadata = Metadata::default();
+
+        metadata.created_at = parse_date_time(
             exif_data.get_field(exif::Tag::DateTimeOriginal, exif::In::PRIMARY),
             exif_data.get_field(exif::Tag::OffsetTimeOriginal, exif::In::PRIMARY),
         );
-        extra.exif_modified_at = parse_date_time(
+        metadata.modified_at = parse_date_time(
             exif_data.get_field(exif::Tag::DateTime, exif::In::PRIMARY),
             exif_data.get_field(exif::Tag::OffsetTime, exif::In::PRIMARY),
         );
 
-        extra.exif_lens_model = exif_data
+        metadata.lens_model = exif_data
             .get_field(exif::Tag::LensModel, exif::In::PRIMARY)
             .map(|e| e.display_value().to_string());
 
-        Ok(())
+        Ok(metadata)
     }
 }

@@ -41,8 +41,10 @@ pub struct PhotoInfo {
     image_size: adw::ActionRow,
     image_format: adw::ActionRow,
     image_file_size: adw::ActionRow,
-    image_originally_created_at: adw::ActionRow,
-    image_originally_modified_at: adw::ActionRow,
+
+    exif_details: adw::PreferencesGroup,
+    exif_originally_created_at: adw::ActionRow,
+    exif_originally_modified_at: adw::ActionRow,
 
     video_details: adw::PreferencesGroup,
     video_format: adw::ActionRow,
@@ -115,16 +117,19 @@ impl SimpleComponent for PhotoInfo {
                         add_css_class: "property",
                         set_subtitle_selectable: true,
                     },
+                },
 
+                #[local_ref]
+                exif_details -> adw::PreferencesGroup {
                     #[local_ref]
-                    image_originally_created_at -> adw::ActionRow {
+                    exif_originally_created_at -> adw::ActionRow {
                         set_title: "Originally Created",
                         add_css_class: "property",
                         set_subtitle_selectable: true,
                     },
 
                     #[local_ref]
-                    image_originally_modified_at -> adw::ActionRow {
+                    exif_originally_modified_at -> adw::ActionRow {
                         set_title: "Originally Modified",
                         add_css_class: "property",
                         set_subtitle_selectable: true,
@@ -189,8 +194,10 @@ impl SimpleComponent for PhotoInfo {
         let image_size = adw::ActionRow::new();
         let image_format = adw::ActionRow::new();
         let image_file_size = adw::ActionRow::new();
-        let image_originally_created_at = adw::ActionRow::new();
-        let image_originally_modified_at = adw::ActionRow::new();
+
+        let exif_details = adw::PreferencesGroup::new();
+        let exif_originally_created_at = adw::ActionRow::new();
+        let exif_originally_modified_at = adw::ActionRow::new();
 
         let video_details = adw::PreferencesGroup::new();
         let video_duration = adw::ActionRow::new();
@@ -212,8 +219,10 @@ impl SimpleComponent for PhotoInfo {
             image_size: image_size.clone(),
             image_format: image_format.clone(),
             image_file_size: image_file_size.clone(),
-            image_originally_created_at: image_originally_created_at.clone(),
-            image_originally_modified_at: image_originally_modified_at.clone(),
+
+            exif_details: exif_details.clone(),
+            exif_originally_created_at: exif_originally_created_at.clone(),
+            exif_originally_modified_at: exif_originally_modified_at.clone(),
 
             video_details: video_details.clone(),
             video_duration: video_duration.clone(),
@@ -298,16 +307,30 @@ impl PhotoInfo {
 
         self.image_details.set_visible(has_image_details);
 
-/*
-        let has_exif_details = [
-            Self::update_row(&self.originally_created_at, pic.exif.as_ref().and_then(|exif| exif.created_at.map(|x| x.to_string()))),
-            Self::update_row(&self.originally_modified_at, pic.exif.as_ref().and_then(|exif| exif.modified_at.map(|x| x.to_string()))),
-        ]
-        .into_iter()
-        .any(|x| x);
+        if let Some(Ok(exif)) = image_info.details.exif.as_ref().map(|x| x.get_full()) {
+            let metadata = fotema_core::photo::Metadata::from(exif).ok();
 
-        self.exif_details.set_visible(has_exif_details);
-        */
+            let created_at: Option<String> = metadata
+                .clone()
+                .and_then(|x| x.created_at)
+                .map(|x| x.format("%Y-%m-%d %H:%M:%S %:z").to_string());
+
+            let modified_at: Option<String> = metadata
+                .clone()
+                .and_then(|x| x.modified_at)
+                .map(|x| x.format("%Y-%m-%d %H:%M:%S %:z").to_string());
+
+            let has_exif_details = [
+                Self::update_row(&self.exif_originally_created_at, created_at),
+                Self::update_row(&self.exif_originally_modified_at, modified_at),
+            ]
+            .into_iter()
+            .any(|x| x);
+
+            self.exif_details.set_visible(has_exif_details);
+        } else {
+            self.exif_details.set_visible(false);
+        }
 
         Ok(())
     }
