@@ -17,13 +17,16 @@ use std::path::PathBuf;
 use humansize::{format_size, DECIMAL};
 use glycin::{ImageInfo, ImageInfoDetails};
 use std::fs;
+use std::sync::Arc;
 use chrono::prelude::*;
+use chrono::format::*;
 use chrono::{DateTime, FixedOffset, NaiveDate, NaiveTime, Utc};
 
 
 #[derive(Debug)]
 pub enum PhotoInfoInput {
-    ShowInfo(VisualId, ImageInfo),
+    Photo(VisualId, ImageInfo),
+    Video(VisualId),
 }
 
 pub struct PhotoInfo {
@@ -50,7 +53,6 @@ pub struct PhotoInfo {
     video_format: adw::ActionRow,
     video_file_size: adw::ActionRow,
     video_originally_created_at: adw::ActionRow,
-    video_originally_modified_at: adw::ActionRow,
     video_duration: adw::ActionRow,
 }
 
@@ -166,13 +168,6 @@ impl SimpleComponent for PhotoInfo {
                         add_css_class: "property",
                         set_subtitle_selectable: true,
                     },
-
-                    #[local_ref]
-                    video_originally_modified_at -> adw::ActionRow {
-                        set_title: "Originally Modified",
-                        add_css_class: "property",
-                        set_subtitle_selectable: true,
-                    },
                 },
             }
         }
@@ -204,7 +199,6 @@ impl SimpleComponent for PhotoInfo {
         let video_format = adw::ActionRow::new();
         let video_file_size = adw::ActionRow::new();
         let video_originally_created_at = adw::ActionRow::new();
-        let video_originally_modified_at = adw::ActionRow::new();
 
         let model = PhotoInfo {
             library,
@@ -225,11 +219,10 @@ impl SimpleComponent for PhotoInfo {
             exif_originally_modified_at: exif_originally_modified_at.clone(),
 
             video_details: video_details.clone(),
-            video_duration: video_duration.clone(),
-            video_format: video_format.clone(),
             video_file_size: video_file_size.clone(),
             video_originally_created_at: video_originally_created_at.clone(),
-            video_originally_modified_at: video_originally_modified_at.clone(),
+            video_duration: video_duration.clone(),
+            video_format: video_format.clone(),
         };
 
         let widgets = view_output!();
@@ -239,9 +232,40 @@ impl SimpleComponent for PhotoInfo {
 
     fn update(&mut self, msg: Self::Input, _sender: ComponentSender<Self>) {
         match msg {
-            PhotoInfoInput::ShowInfo(visual_id, ref image_info) => {
+            PhotoInfoInput::Photo(visual_id, ref image_info) => {
                 println!("Received {:?}", msg);
-                self.update_pic_info(visual_id, image_info);
+                let result = self.library.get(visual_id);
+                let Some(ref vis) = result else {
+                    println!("No visual item");
+                    return;
+                };
+
+                self.update_file_details(vis.clone());
+
+                if vis.picture_id.is_some() {
+                    self.update_photo_details(vis.clone(), image_info);
+                }
+
+                if vis.video_id.is_some() {
+                    self.update_video_details(vis.clone());
+                }
+            }
+            PhotoInfoInput::Video(visual_id) => {
+                println!("Received {:?}", msg);
+                let result = self.library.get(visual_id);
+                let Some(ref vis) = result else {
+                    println!("No visual item");
+                    return;
+                };
+
+                self.image_details.set_visible(false);
+                self.exif_details.set_visible(false);
+
+                self.update_file_details(vis.clone());
+
+                if vis.video_id.is_some() {
+                    self.update_video_details(vis.clone());
+                }
             }
         }
     }
@@ -252,20 +276,15 @@ const FALLBACK: &str = "–";
 
 impl PhotoInfo {
 
-    fn update_pic_info(&mut self, visual_id: VisualId, image_info: &ImageInfo) -> Result<(), String> {
-        let result = self.library.get(visual_id);
-        let Some(vis) = result else {
-            return Err("No visual item".to_string());
-        };
-
-        let Some(ref picture_path) = vis.picture_path else {
-            return Err("No picture path".to_string());
+    fn update_file_details(&mut self, vis: Arc<fotema_core::visual::Visual>) -> Result<(), String> {
+        let Some(ref path) = vis.path() else {
+            return Err("No picture or video path".to_string());
         };
 
         Self::update_row(&self.folder, Self::folder_name(&vis.parent_path));
 
         // FIXME duplicated from Scanner
-        let file = fs::File::open(picture_path).map_err(|e| e.to_string())?;
+        let file = fs::File::open(path).map_err(|e| e.to_string())?;
 
         let metadata = file.metadata().map_err(|e| e.to_string())?;
 
@@ -294,6 +313,20 @@ impl PhotoInfo {
         .any(|x| x);
 
         self.date_time_details.set_visible(has_date_time_details);
+
+        Ok(())
+    }
+
+    fn update_photo_details(&mut self, vis: Arc<fotema_core::visual::Visual>, image_info: &ImageInfo) -> Result<(), String> {
+        let Some(ref picture_path) = vis.picture_path else {
+            return Err("No picture path".to_string());
+        };
+
+        // FIXME duplicated from Scanner
+        let file = fs::File::open(picture_path).map_err(|e| e.to_string())?;
+        let metadata = file.metadata().map_err(|e| e.to_string())?;
+
+        let fs_file_size_bytes = metadata.len();
 
         let image_size = format!("{} x {}", image_info.width, image_info.height);
 
@@ -331,6 +364,44 @@ impl PhotoInfo {
         } else {
             self.exif_details.set_visible(false);
         }
+
+        Ok(())
+    }
+
+    fn update_video_details(&mut self, vis: Arc<fotema_core::visual::Visual>) -> Result<(), String> {
+        let Some(ref video_path) = vis.video_path else {
+            return Err("No video path".to_string());
+        };
+
+        // FIXME duplicated from Scanner
+        //let file = fs::File::open(video_path).map_err(|e| e.to_string())?;
+
+        //let video_size = format!("{} x {}", image_info.width, image_info.height);
+
+        let metadata = fotema_core::video::Metadata::from(video_path).ok();
+        println!("video meta = {:?}", metadata);
+
+        let created_at: Option<String> = metadata
+            .as_ref()
+            .and_then(|x| x.created_at)
+            .map(|x| x.format("%Y-%m-%d %H:%M:%S %:z").to_string());
+
+        let duration = metadata
+            .as_ref()
+            .and_then(|x| x.duration)
+            .map(|x| x.to_string());
+
+        let has_video_details = [
+            Self::update_row(&self.video_originally_created_at, created_at),
+            Self::update_row(&self.video_duration, duration),
+            //Self::update_row(&self.image_size, Some(image_size)),
+            //Self::update_row(&self.image_format, image_info.details.format_name.as_ref()),
+            //Self::update_row(&self.image_file_size, Some(format_size(fs_file_size_bytes, DECIMAL))),
+        ]
+        .into_iter()
+        .any(|x| x);
+
+        self.video_details.set_visible(has_video_details);
 
         Ok(())
     }

@@ -2,15 +2,14 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use exif;
 use chrono::prelude::*;
 use chrono::{DateTime, FixedOffset, Utc};
+use exif;
 
 // TODO photo::Enricher should use this class for exif parsing
 
 #[derive(Debug, Default, Clone)]
 pub struct Metadata {
-
     pub created_at: Option<DateTime<FixedOffset>>,
 
     pub modified_at: Option<DateTime<FixedOffset>>,

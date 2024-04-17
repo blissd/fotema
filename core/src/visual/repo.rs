@@ -60,6 +60,12 @@ pub struct Visual {
 }
 
 impl Visual {
+    pub fn path(&self) -> Option<&PathBuf> {
+        self.picture_path
+            .as_ref()
+            .or_else(|| self.video_path.as_ref())
+    }
+
     pub fn is_selfie(&self) -> bool {
         self.is_selfie.is_some_and(|x| x)
     }

@@ -16,6 +16,7 @@ gio = "0.19.4"
 glycin = "1.0.2"
 gtk = "0.18.1"
 image = "0.25.0"
+jsonpath-rust = "0.5.0"
 kamadak-exif = "0.5.5"
 rayon = "1.10.0"
 refinery = { version = "0.8.14", features = ["rusqlite"] }

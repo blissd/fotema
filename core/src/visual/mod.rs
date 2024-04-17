@@ -7,3 +7,4 @@ pub mod repo;
 
 pub use library::Library;
 pub use repo::Repository;
+pub use repo::Visual;
