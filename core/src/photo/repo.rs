@@ -63,7 +63,8 @@ impl Repository {
                 SET
                     preview_path = ?2,
                     exif_created_ts = ?3,
-                    is_selfie = ?4
+                    exif_modified_ts = ?4,
+                    is_selfie = ?5
                 WHERE picture_id = ?1",
                 )
                 .map_err(|e| RepositoryError(e.to_string()))?;
@@ -78,6 +79,7 @@ impl Repository {
                 picture_id.id(),
                 thumbnail_path.as_ref().map(|p| p.to_str()),
                 extra.exif_created_at,
+                extra.exif_modified_at,
                 extra.is_selfie(),
             ]);
 
@@ -188,6 +190,7 @@ impl Repository {
                     pictures.preview_path as thumbnail_path,
                     pictures.fs_created_ts,
                     pictures.exif_created_ts,
+                    pictures.exif_modified_ts,
                     pictures.is_selfie
                 FROM pictures
                 ORDER BY COALESCE(exif_created_ts, fs_created_ts) ASC",
@@ -206,7 +209,8 @@ impl Repository {
                         .map(|p: String| self.photo_thumbnail_base_path.join(p)),
                     fs_created_at: row.get(3).ok().expect("Must have fs_created_ts"),
                     exif_created_at: row.get(4).ok(),
-                    is_selfie: row.get(5).ok(),
+                    exif_modified_at: row.get(5).ok(),
+                    is_selfie: row.get(6).ok(),
                 })
             })
             .map_err(|e| RepositoryError(e.to_string()))?;
@@ -230,6 +234,7 @@ impl Repository {
                     pictures.preview_path as thumbnail_path,
                     pictures.fs_created_ts,
                     pictures.exif_created_ts,
+                    pictures.exif_modified_ts,
                     pictures.is_selfie
                 FROM pictures
                 WHERE pictures.picture_id = ?1",
@@ -248,7 +253,8 @@ impl Repository {
                         .map(|p: String| self.photo_thumbnail_base_path.join(p)),
                     fs_created_at: row.get(3).ok().expect("Must have fs_created_ts"),
                     exif_created_at: row.get(4).ok(),
-                    is_selfie: row.get(5).ok(),
+                    exif_modified_at: row.get(5).ok(),
+                    is_selfie: row.get(6).ok(),
                 })
             })
             .map_err(|e| RepositoryError(e.to_string()))?;

@@ -47,6 +47,9 @@ pub struct Picture {
     /// Creation timestamp from EXIF metadata.
     pub exif_created_at: Option<DateTime<Utc>>,
 
+    /// Creation timestamp from EXIF metadata.
+    pub exif_modified_at: Option<DateTime<Utc>>,
+
     /// Was picture taken with front camera?
     pub is_selfie: Option<bool>,
 }

@@ -157,7 +157,7 @@ impl Repository {
                     videos.video_path AS video_path,
                     videos.preview_path AS video_thumbnail,
 
-                    COALESCE(pictures.exif_created_ts, videos.stream_created_ts, pictures.fs_created_ts, videos.fs_created_ts) AS created_ts
+                    COALESCE(pictures.exif_created_ts, pictures.exif_modified_ts, videos.stream_created_ts, pictures.fs_created_ts, videos.fs_created_ts) AS created_ts
                 FROM visual
                 LEFT JOIN pictures ON visual.picture_id = pictures.picture_id
                 LEFT JOIN videos   ON visual.video_id   = videos.video_id
@@ -248,7 +248,7 @@ impl Repository {
                     videos.video_path AS video_path,
                     videos.preview_path AS video_thumbnail,
 
-                    COALESCE(pictures.exif_created_ts, videos.stream_created_ts, pictures.fs_created_ts, videos.fs_created_ts) AS created_ts
+                    COALESCE(pictures.exif_created_ts, pictures.exif_modified_ts, videos.stream_created_ts, pictures.fs_created_ts, videos.fs_created_ts) AS created_ts
                 FROM visual
                 LEFT JOIN pictures USING(picture_id)
                 LEFT JOIN videos USING(video_id)
