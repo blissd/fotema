@@ -3,9 +3,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 /// Properties view for a photo.
-/// Deeply inspired by how Loupe displays its property view.
+///Inspired by how Loupe displays its property view.
 
-use fotema_core::photo;
 use fotema_core::Library;
 use fotema_core::VisualId;
 use gtk::prelude::OrientableExt;
@@ -15,12 +14,10 @@ use relm4::*;
 use relm4::adw::prelude::*;
 use std::path::PathBuf;
 use humansize::{format_size, DECIMAL};
-use glycin::{ImageInfo, ImageInfoDetails};
+use glycin::ImageInfo;
 use std::fs;
 use std::sync::Arc;
-use chrono::prelude::*;
-use chrono::format::*;
-use chrono::{DateTime, FixedOffset, NaiveDate, NaiveTime, Utc};
+use chrono::{DateTime, Utc};
 
 
 #[derive(Debug)]
@@ -30,7 +27,6 @@ pub enum PhotoInfoInput {
 }
 
 pub struct PhotoInfo {
-    photo_scan: photo::Scanner,
     library: Library,
 
     folder: adw::ActionRow,
@@ -62,7 +58,7 @@ pub struct PhotoInfo {
 
 #[relm4::component(pub)]
 impl SimpleComponent for PhotoInfo {
-    type Init = (Library, photo::Scanner);
+    type Init = Library;
     type Input = PhotoInfoInput;
     type Output = ();
 
@@ -198,7 +194,7 @@ impl SimpleComponent for PhotoInfo {
     }
 
     fn init(
-        (library, photo_scan): Self::Init,
+        library: Self::Init,
         _root: Self::Root,
         _sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
@@ -229,7 +225,6 @@ impl SimpleComponent for PhotoInfo {
 
         let model = PhotoInfo {
             library,
-            photo_scan,
             folder: folder.clone(),
 
             date_time_details: date_time_details.clone(),
@@ -272,10 +267,10 @@ impl SimpleComponent for PhotoInfo {
 
                 self.video_details.set_visible(false);
 
-                self.update_file_details(vis.clone());
+                let _ = self.update_file_details(vis.clone());
 
                 if vis.picture_id.is_some() {
-                    self.update_photo_details(vis.clone(), image_info);
+                    let _ = self.update_photo_details(vis.clone(), image_info);
                 }
             }
             PhotoInfoInput::Video(visual_id) => {
@@ -289,10 +284,10 @@ impl SimpleComponent for PhotoInfo {
                 self.image_details.set_visible(false);
                 self.exif_details.set_visible(false);
 
-                self.update_file_details(vis.clone());
+                let _ = self.update_file_details(vis.clone());
 
                 if vis.video_id.is_some() {
-                    self.update_video_details(vis.clone());
+                    let _ = self.update_video_details(vis.clone());
                 }
             }
         }
@@ -331,8 +326,6 @@ impl PhotoInfo {
             .map_err(|e| e.to_string())
             .ok();
 
-        let fs_file_size_bytes = metadata.len();
-
         let has_date_time_details = [
             Self::update_row(&self.created_at, fs_created_at),
             Self::update_row(&self.modified_at, fs_modified_at),
@@ -369,7 +362,7 @@ impl PhotoInfo {
         self.image_details.set_visible(has_image_details);
 
         if let Some(Ok(exif)) = image_info.details.exif.as_ref().map(|x| x.get_full()) {
-            let metadata = fotema_core::photo::Metadata::from(exif).ok();
+            let metadata = fotema_core::photo::Metadata::from_raw(exif).ok();
 
             let created_at: Option<String> = metadata
                 .clone()

@@ -555,7 +555,7 @@ impl SimpleComponent for App {
 
 
         let photo_info = PhotoInfo::builder()
-            .launch((library.clone(), photo_scan.clone()))
+            .launch(library.clone())
             .detach();
 
         let one_photo = OnePhoto::builder()

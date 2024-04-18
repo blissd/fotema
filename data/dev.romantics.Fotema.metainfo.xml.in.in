@@ -49,13 +49,16 @@
   <update_contact>david@fotema.app</update_contact>
   <translation type="gettext">@gettext-package@</translation>
   <launchable type="desktop-id">@app-id@.desktop</launchable>
+
   <recommends>
     <control>keyboard</control>
     <control>pointing</control>
     <control>touch</control>
     <memory>2048</memory>
-
+  </recommends>
+  <requires>
     <!-- Minimum width defined in src/app.rs -->
     <display_length compare="ge">360</display_length>
-  </recommends>
+  </requires>
+
 </component>

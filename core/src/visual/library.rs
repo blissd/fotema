@@ -5,7 +5,7 @@
 use super::repo::{Repository, Visual};
 use crate::Result;
 use crate::VisualId;
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, RwLock};
 
 /// Index of all images and photos in the library
 #[derive(Clone)]

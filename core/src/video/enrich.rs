@@ -2,13 +2,12 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+use super::Metadata;
 use crate::video::model::{VideoExtra, VideoId};
 use crate::Error::*;
 use crate::Result;
-use chrono::{DateTime, TimeDelta, Utc};
 use image::io::Reader as ImageReader;
 use image::DynamicImage;
-use serde_json::Value;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use tempfile;
@@ -43,50 +42,12 @@ impl Enricher {
 
         extra.thumbnail_path = Some(thumbnail_path.clone());
 
-        if let Ok((created_at, duration)) = Enricher::get_stream_metadata(video_path) {
-            extra.stream_created_at = created_at;
-            extra.stream_duration = duration;
+        if let Ok(metadata) = Metadata::from(video_path) {
+            extra.stream_created_at = metadata.created_at;
+            extra.stream_duration = metadata.duration;
         }
 
         Ok(extra)
-    }
-
-    /// Use ffprobe to extract creation timestamp and video duration.
-    fn get_stream_metadata(
-        video_path: &Path,
-    ) -> Result<(Option<DateTime<Utc>>, Option<TimeDelta>)> {
-        // ffprobe is part of the ffmpeg-full flatpak extension
-        let output = Command::new("/usr/bin/ffprobe")
-            .arg("-v")
-            .arg("quiet")
-            .arg("-i")
-            .arg(video_path.as_os_str())
-            .arg("-print_format")
-            .arg("json")
-            .arg("-select_streams")
-            .arg("v:0")
-            .arg("-show_entries")
-            .arg("format=duration:stream_tags=creation_time")
-            .output()
-            .map_err(|e| PreviewError(format!("ffprobe result: {}", e)))?;
-
-        let v: Value = serde_json::from_slice(output.stdout.as_slice())
-            .map_err(|e| PreviewError(format!("parse ffprobe json: {}", e)))?;
-
-        let creation_time = v["streams"][0]["tags"]["creation_time"].as_str();
-        let creation_time = creation_time.and_then(|x| {
-            let dt = DateTime::parse_from_rfc3339(x).ok();
-            dt.map(|y| y.to_utc())
-        });
-
-        let time_delta = v["format"]["duration"].as_str(); // seconds with decimal
-        let time_delta = time_delta.and_then(|x| {
-            let fractional_secs = x.parse::<f64>();
-            let millis = fractional_secs.map(|s| s * 1000.0).ok();
-            millis.and_then(|m| TimeDelta::try_milliseconds(m as i64))
-        });
-
-        Ok((creation_time, time_delta))
     }
 
     fn compute_thumbnail(&self, video_path: &Path, thumbnail_path: &Path) -> Result<()> {

@@ -3,10 +3,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use chrono::prelude::*;
-use chrono::{DateTime, FixedOffset, Utc};
+use chrono::{DateTime, FixedOffset};
 use exif;
-
-// TODO photo::Enricher should use this class for exif parsing
+use exif::Exif;
+use std::fs;
+use std::io::BufReader;
+use std::path::Path;
 
 #[derive(Debug, Default, Clone)]
 pub struct Metadata {
@@ -23,7 +25,24 @@ pub enum Error {
 }
 
 impl Metadata {
-    pub fn from(data: Vec<u8>) -> Result<Metadata, Error> {
+    pub fn from_path(path: &Path) -> Result<Metadata, Error> {
+        let exif_data = {
+            let file = fs::File::open(path).map_err(|_| Error::Invalid)?;
+
+            let f = &mut BufReader::new(file);
+            match exif::Reader::new().read_from_container(f) {
+                Ok(file) => file,
+                Err(_) => {
+                    // Assume this error is when there is no EXIF data.
+                    return Ok(Metadata::default());
+                }
+            }
+        };
+
+        Metadata::from(exif_data)
+    }
+
+    pub fn from_raw(data: Vec<u8>) -> Result<Metadata, Error> {
         let exif_data = {
             match exif::Reader::new().read_raw(data) {
                 Ok(exif) => exif,
@@ -34,6 +53,10 @@ impl Metadata {
             }
         };
 
+        Metadata::from(exif_data)
+    }
+
+    fn from(exif_data: Exif) -> Result<Metadata, Error> {
         fn parse_date_time(
             date_time_field: Option<&exif::Field>,
             time_offset_field: Option<&exif::Field>,
