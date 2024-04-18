@@ -50,7 +50,7 @@ pub struct PhotoInfo {
     exif_originally_modified_at: adw::ActionRow,
 
     video_details: adw::PreferencesGroup,
-    video_format: adw::ActionRow,
+    video_container_format: adw::ActionRow,
     video_file_size: adw::ActionRow,
     video_originally_created_at: adw::ActionRow,
     video_duration: adw::ActionRow,
@@ -149,13 +149,6 @@ impl SimpleComponent for PhotoInfo {
                     },
 
                     #[local_ref]
-                    video_format -> adw::ActionRow {
-                        set_title: "Video Format",
-                        add_css_class: "property",
-                        set_subtitle_selectable: true,
-                    },
-
-                    #[local_ref]
                     video_file_size -> adw::ActionRow {
                         set_title: "File Size",
                         add_css_class: "property",
@@ -165,6 +158,13 @@ impl SimpleComponent for PhotoInfo {
                     #[local_ref]
                     video_originally_created_at -> adw::ActionRow {
                         set_title: "Originally Created",
+                        add_css_class: "property",
+                        set_subtitle_selectable: true,
+                    },
+
+                    #[local_ref]
+                    video_container_format -> adw::ActionRow {
+                        set_title: "Container Format",
                         add_css_class: "property",
                         set_subtitle_selectable: true,
                     },
@@ -196,7 +196,7 @@ impl SimpleComponent for PhotoInfo {
 
         let video_details = adw::PreferencesGroup::new();
         let video_duration = adw::ActionRow::new();
-        let video_format = adw::ActionRow::new();
+        let video_container_format = adw::ActionRow::new();
         let video_file_size = adw::ActionRow::new();
         let video_originally_created_at = adw::ActionRow::new();
 
@@ -222,7 +222,7 @@ impl SimpleComponent for PhotoInfo {
             video_file_size: video_file_size.clone(),
             video_originally_created_at: video_originally_created_at.clone(),
             video_duration: video_duration.clone(),
-            video_format: video_format.clone(),
+            video_container_format: video_container_format.clone(),
         };
 
         let widgets = view_output!();
@@ -391,11 +391,13 @@ impl PhotoInfo {
             .and_then(|x| x.duration)
             .map(|x| x.to_string());
 
+        let container_format = metadata.and_then(|x| x.container_format);
+
         let has_video_details = [
             Self::update_row(&self.video_originally_created_at, created_at),
             Self::update_row(&self.video_duration, duration),
             //Self::update_row(&self.image_size, Some(image_size)),
-            //Self::update_row(&self.image_format, image_info.details.format_name.as_ref()),
+            Self::update_row(&self.video_container_format, container_format),
             //Self::update_row(&self.image_file_size, Some(format_size(fs_file_size_bytes, DECIMAL))),
         ]
         .into_iter()
