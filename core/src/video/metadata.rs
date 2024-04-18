@@ -15,9 +15,9 @@ use std::process::Command;
 pub struct Metadata {
     pub created_at: Option<DateTime<Utc>>,
 
-    pub width: Option<u32>,
+    pub width: Option<u64>, // 64?
 
-    pub height: Option<u32>,
+    pub height: Option<u64>,
 
     pub duration: Option<TimeDelta>,
 
@@ -35,6 +35,8 @@ pub enum Error {
 
 impl Metadata {
     pub fn from(path: &Path) -> Result<Metadata, Error> {
+        println!("Video path: {:?}", path);
+
         // ffprobe is part of the ffmpeg-full flatpak extension
         let output = Command::new("/usr/bin/ffprobe")
             .arg("-v")
@@ -51,33 +53,40 @@ impl Metadata {
         let v: Value = serde_json::from_slice(output.stdout.as_slice())
             .map_err(|e| Error::Json(e.to_string()))?;
 
-        let video_stream = v.clone().path("$.streams[@.codec_type = 'video'");
-        println!("{:?}", video_stream);
+        let mut metadata = Metadata::default();
 
-        let created_at = v["streams"][0]["tags"]["creation_time"].as_str();
-        let created_at = created_at.and_then(|x| {
-            let dt = DateTime::parse_from_rfc3339(x).ok();
-            dt.map(|y| y.to_utc())
-        });
+        metadata.duration = v["format"]["duration"] // seconds with decimal
+            .as_str()
+            .and_then(|x| {
+                let fractional_secs = x.parse::<f64>();
+                let millis = fractional_secs.map(|s| s * 1000.0).ok();
+                millis.and_then(|m| TimeDelta::try_milliseconds(m as i64))
+            });
 
-        let duration = v["format"]["duration"].as_str(); // seconds with decimal
-        let duration = duration.and_then(|x| {
-            let fractional_secs = x.parse::<f64>();
-            let millis = fractional_secs.map(|s| s * 1000.0).ok();
-            millis.and_then(|m| TimeDelta::try_milliseconds(m as i64))
-        });
+        metadata.container_format = v["format"]["format_long_name"]
+            .as_str()
+            .map(|x| x.to_string());
 
-        let container_format = v["format"]["format_long_name"].as_str();
+        if let Ok(video_stream) = v.clone().path("$.streams[?(@.codec_type == 'video')]") {
+            println!("Video_stream = {}", video_stream);
+            metadata.video_codec = video_stream[0]["codec_name"]
+                .as_str()
+                .map(|x| x.to_string());
+            metadata.width = video_stream[0]["width"].as_u64();
+            metadata.height = video_stream[0]["height"].as_u64();
 
-        let mut metadata = Metadata {
-            created_at,
-            width: None,
-            height: None,
-            duration,
-            container_format: container_format.map(|x| x.to_string()),
-            video_codec: None,
-            audio_codec: None,
-        };
+            let created_at = video_stream[0]["tags"]["creation_time"].as_str();
+            metadata.created_at = created_at.and_then(|x| {
+                let dt = DateTime::parse_from_rfc3339(x).ok();
+                dt.map(|y| y.to_utc())
+            });
+        }
+
+        if let Ok(audio_stream) = v.path("$.streams[?(@.codec_type == 'audio')]") {
+            metadata.audio_codec = audio_stream[0]["codec_name"]
+                .as_str()
+                .map(|x| x.to_string());
+        }
 
         Ok(metadata)
     }

@@ -50,7 +50,10 @@ pub struct PhotoInfo {
     exif_originally_modified_at: adw::ActionRow,
 
     video_details: adw::PreferencesGroup,
+    video_dimensions: adw::ActionRow,
     video_container_format: adw::ActionRow,
+    video_codec: adw::ActionRow,
+    video_audio_codec: adw::ActionRow,
     video_file_size: adw::ActionRow,
     video_originally_created_at: adw::ActionRow,
     video_duration: adw::ActionRow,
@@ -101,14 +104,14 @@ impl SimpleComponent for PhotoInfo {
                 image_details -> adw::PreferencesGroup {
                     #[local_ref]
                     image_size -> adw::ActionRow {
-                        set_title: "Image Size",
+                        set_title: "Dimensions",
                         add_css_class: "property",
                         set_subtitle_selectable: true,
                     },
 
                     #[local_ref]
                     image_format -> adw::ActionRow {
-                        set_title: "Image Format",
+                        set_title: "Format",
                         add_css_class: "property",
                         set_subtitle_selectable: true,
                     },
@@ -149,6 +152,13 @@ impl SimpleComponent for PhotoInfo {
                     },
 
                     #[local_ref]
+                    video_dimensions -> adw::ActionRow {
+                        set_title: "Dimensions",
+                        add_css_class: "property",
+                        set_subtitle_selectable: true,
+                    },
+
+                    #[local_ref]
                     video_file_size -> adw::ActionRow {
                         set_title: "File Size",
                         add_css_class: "property",
@@ -165,6 +175,20 @@ impl SimpleComponent for PhotoInfo {
                     #[local_ref]
                     video_container_format -> adw::ActionRow {
                         set_title: "Container Format",
+                        add_css_class: "property",
+                        set_subtitle_selectable: true,
+                    },
+
+                    #[local_ref]
+                    video_codec -> adw::ActionRow {
+                        set_title: "Video Codec",
+                        add_css_class: "property",
+                        set_subtitle_selectable: true,
+                    },
+
+                    #[local_ref]
+                    video_audio_codec -> adw::ActionRow {
+                        set_title: "Audio Codec",
                         add_css_class: "property",
                         set_subtitle_selectable: true,
                     },
@@ -196,7 +220,10 @@ impl SimpleComponent for PhotoInfo {
 
         let video_details = adw::PreferencesGroup::new();
         let video_duration = adw::ActionRow::new();
+        let video_dimensions = adw::ActionRow::new();
         let video_container_format = adw::ActionRow::new();
+        let video_codec = adw::ActionRow::new();
+        let video_audio_codec = adw::ActionRow::new();
         let video_file_size = adw::ActionRow::new();
         let video_originally_created_at = adw::ActionRow::new();
 
@@ -223,6 +250,9 @@ impl SimpleComponent for PhotoInfo {
             video_originally_created_at: video_originally_created_at.clone(),
             video_duration: video_duration.clone(),
             video_container_format: video_container_format.clone(),
+            video_codec: video_codec.clone(),
+            video_audio_codec: video_audio_codec.clone(),
+            video_dimensions: video_dimensions.clone(),
         };
 
         let widgets = view_output!();
@@ -328,7 +358,7 @@ impl PhotoInfo {
 
         let fs_file_size_bytes = metadata.len();
 
-        let image_size = format!("{} x {}", image_info.width, image_info.height);
+        let image_size = format!("{} ⨉ {}", image_info.width, image_info.height);
 
         let has_image_details = [
             Self::update_row(&self.image_size, Some(image_size)),
@@ -374,31 +404,41 @@ impl PhotoInfo {
         };
 
         // FIXME duplicated from Scanner
-        //let file = fs::File::open(video_path).map_err(|e| e.to_string())?;
-
-        //let video_size = format!("{} x {}", image_info.width, image_info.height);
+        let file = fs::File::open(video_path).map_err(|e| e.to_string())?;
+        let fs_file_size_bytes = file.metadata().ok()
+            .map(|x| format_size(x.len(), DECIMAL));
 
         let metadata = fotema_core::video::Metadata::from(video_path).ok();
+        if metadata.is_none() {
+            self.video_details.set_visible(false);
+        }
+
+        let metadata = metadata.expect("metadata must be present");
+
         println!("video meta = {:?}", metadata);
 
         let created_at: Option<String> = metadata
-            .as_ref()
-            .and_then(|x| x.created_at)
+            .created_at
             .map(|x| x.format("%Y-%m-%d %H:%M:%S %:z").to_string());
 
         let duration = metadata
-            .as_ref()
-            .and_then(|x| x.duration)
+            .duration
             .map(|x| x.to_string());
 
-        let container_format = metadata.and_then(|x| x.container_format);
+        let dimensions = if let (Some(width), Some(height)) = (metadata.width, metadata.height) {
+            Some(format!("{} ⨉ {}", width, height))
+        } else {
+            None
+        };
 
         let has_video_details = [
             Self::update_row(&self.video_originally_created_at, created_at),
             Self::update_row(&self.video_duration, duration),
-            //Self::update_row(&self.image_size, Some(image_size)),
-            Self::update_row(&self.video_container_format, container_format),
-            //Self::update_row(&self.image_file_size, Some(format_size(fs_file_size_bytes, DECIMAL))),
+            Self::update_row(&self.video_dimensions, dimensions),
+            Self::update_row(&self.video_container_format, metadata.container_format),
+            Self::update_row(&self.video_codec, metadata.video_codec),
+            Self::update_row(&self.video_audio_codec, metadata.audio_codec),
+            Self::update_row(&self.video_file_size, fs_file_size_bytes),
         ]
         .into_iter()
         .any(|x| x);
