@@ -270,14 +270,12 @@ impl SimpleComponent for PhotoInfo {
                     return;
                 };
 
+                self.video_details.set_visible(false);
+
                 self.update_file_details(vis.clone());
 
                 if vis.picture_id.is_some() {
                     self.update_photo_details(vis.clone(), image_info);
-                }
-
-                if vis.video_id.is_some() {
-                    self.update_video_details(vis.clone());
                 }
             }
             PhotoInfoInput::Video(visual_id) => {
