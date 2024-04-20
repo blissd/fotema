@@ -8,8 +8,9 @@ CREATE TABLE pictures (
         exif_modified_ts DATETIME, -- UTC timestamp for EXIF original modification date
         is_selfie        BOOLEAN CHECK (is_selfie IN (0, 1)), -- front camera?
         link_path TEXT NOT NULL,
-        link_date TEXT
+        link_date TEXT,
+        content_id TEXT
 );
 
-CREATE INDEX  pic_link_path ON pictures(link_path);
+CREATE INDEX  pic_live_photo_idx ON pictures(link_path, content_id);
 

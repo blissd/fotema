@@ -8,8 +8,9 @@ CREATE TABLE videos (
         duration_millis   INTEGER, -- Duration in milliseconds of video
         video_codec       TEXT, -- Video codec.
         link_path         TEXT NOT NULL, -- Parent path for linking with sibling photos
-        link_date         TEXT -- creation date without time
+        link_date         TEXT, -- creation date without time
+        content_id        TEXT
 );
 
-CREATE INDEX  vid_link_path ON videos(link_path);
+CREATE INDEX  vid_live_photo_idx ON videos(link_path, content_id);
 
