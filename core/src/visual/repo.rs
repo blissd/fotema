@@ -57,6 +57,8 @@ pub struct Visual {
     pub created_at: DateTime<Utc>,
 
     is_selfie: Option<bool>,
+
+    is_ios_live_photo: bool,
 }
 
 impl Visual {
@@ -71,7 +73,7 @@ impl Visual {
     }
 
     pub fn is_motion_photo(&self) -> bool {
-        self.picture_id.is_some() && self.video_id.is_some()
+        self.is_ios_live_photo
     }
 
     pub fn is_photo_only(&self) -> bool {
@@ -158,7 +160,8 @@ impl Repository {
                     video_path,
                     video_thumbnail,
 
-                    created_ts
+                    created_ts,
+                    is_ios_live_photo
                 FROM visual
                 ORDER BY created_ts ASC",
             )
@@ -201,7 +204,9 @@ impl Repository {
                     .map(|x| self.video_thumbnail_base_path.join(x))
                     .expect("Must have a thumbnail");
 
-                let created_at: DateTime<Utc> = row.get(8).ok().expect("Must have created_ts");
+                let created_at: DateTime<Utc> = row.get(8).expect("Must have created_ts");
+
+                let is_ios_live_photo = row.get(9).expect("must have is_ios_live_photo");
 
                 let v = Visual {
                     visual_id,
@@ -215,7 +220,8 @@ impl Repository {
                     video_id,
                     video_path,
                     created_at,
-                    is_selfie: None, // TODO get real value
+                    is_selfie: None, // TODO get real value,
+                    is_ios_live_photo,
                 };
                 Ok(v)
             })
@@ -246,7 +252,8 @@ impl Repository {
                     video_path,
                     video_thumbnail,
 
-                    created_ts
+                    created_ts,
+                    is_ios_live_photo
                 FROM visual
                 AND visual.visual_id = ?1",
             )
@@ -291,6 +298,8 @@ impl Repository {
 
                 let created_at: DateTime<Utc> = row.get(8).ok().expect("Must have created_ts");
 
+                let is_ios_live_photo = row.get(9).expect("must have is_ios_live_photo");
+
                 let v = Visual {
                     visual_id,
                     parent_path: stem_path
@@ -304,6 +313,7 @@ impl Repository {
                     video_path,
                     created_at,
                     is_selfie: None, // TODO get real value
+                    is_ios_live_photo,
                 };
                 Ok(v)
             })
