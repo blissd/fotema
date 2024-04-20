@@ -35,26 +35,16 @@
     ]
   },
   "add-extensions": {
-    /* Exile HEIC (x265) codec into extension */
     "org.gnome.Loupe.Devel.HEIC": {
-      /* Relative to app dir */
       "directory": "lib/libheif-heic",
-      /* Relative to directory above */
       "add-ld-path": "lib",
-      /* Remove extension data from main flatpak package */
       "bundle": true,
-      /* Remove this extension when Loupe is deinstalled */
       "autodelete": true
-    },
-
-  "org.freedesktop.Platform.ffmpeg-full": {
-    "directory": "lib/ffmpeg",
-    "version": "22.08",
-    "add-ld-path": "."
     }
   },
-  "cleanup-commands": [
-    "mkdir -p ${FLATPAK_DEST}/lib/ffmpeg"
+  "inherit-extensions": [
+    "org.freedesktop.Platform.ffmpeg-full",
+    "org.freedesktop.Platform.GL"
   ],
   "modules": [
     {
