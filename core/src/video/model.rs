@@ -76,4 +76,7 @@ pub struct VideoExtra {
 
     // Video codec
     pub video_codec: Option<String>,
+
+    // iOS id for linking a video with a photo
+    pub content_id: Option<String>,
 }

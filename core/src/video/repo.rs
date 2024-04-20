@@ -65,7 +65,8 @@ impl Repository {
                     stream_created_ts = ?3,
                     duration_millis = ?4,
                     link_date = ?5,
-                    video_codec = ?6
+                    video_codec = ?6,
+                    content_id = ?7
                 WHERE video_id = ?1",
                 )
                 .map_err(|e| RepositoryError(e.to_string()))?;
@@ -76,27 +77,16 @@ impl Repository {
                 .as_ref()
                 .and_then(|p| p.strip_prefix(&self.video_thumbnail_base_path).ok());
 
-            let result = stmt.execute(params![
+            stmt.execute(params![
                 video_id.id(),
                 thumbnail_path.as_ref().map(|p| p.to_str()),
                 extra.stream_created_at,
                 extra.stream_duration.map(|x| x.num_milliseconds()),
                 extra.stream_created_at.map(|x| x.naive_utc().date()),
                 extra.video_codec,
-            ]);
-
-            // The "on conflict ignore" constraints look like errors to rusqlite
-            // FIXME get rid of this
-            match result {
-                Err(e @ SqliteFailure(_, _))
-                    if e.sqlite_error_code() == Some(ConstraintViolation) =>
-                {
-                    // println!("Skipping {:?} {}", path, e);
-                }
-                other => {
-                    other.map_err(|e| RepositoryError(format!("Preview: {}", e)))?;
-                }
-            }
+                extra.content_id,
+            ])
+            .map_err(|e| RepositoryError(format!("Preview: {}", e)))?;
         }
 
         tx.commit().map_err(|e| RepositoryError(e.to_string()))

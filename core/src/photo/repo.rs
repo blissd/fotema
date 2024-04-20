@@ -65,7 +65,8 @@ impl Repository {
                     exif_created_ts = ?3,
                     exif_modified_ts = ?4,
                     is_selfie = ?5,
-                    link_date = ?6
+                    link_date = ?6,
+                    content_id = ?7
                 WHERE picture_id = ?1",
                 )
                 .map_err(|e| RepositoryError(e.to_string()))?;
@@ -83,6 +84,7 @@ impl Repository {
                 extra.exif_modified_at,
                 extra.is_selfie(),
                 extra.exif_created_at.map(|x| x.naive_utc().date()),
+                extra.content_id,
             ]);
 
             // The "on conflict ignore" constraints look like errors to rusqlite

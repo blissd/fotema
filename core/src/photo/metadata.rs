@@ -6,9 +6,11 @@ use chrono::prelude::*;
 use chrono::{DateTime, FixedOffset};
 use exif;
 use exif::Exif;
+use serde_json::Value;
 use std::fs;
 use std::io::BufReader;
 use std::path::Path;
+use std::process::Command;
 
 #[derive(Debug, Default, Clone)]
 pub struct Metadata {
@@ -18,10 +20,15 @@ pub struct Metadata {
 
     /// On iPhone the lens model tells you if it was the front or back camera.
     pub lens_model: Option<String>,
+
+    // iOS id for linking a video with a photo
+    pub content_id: Option<String>,
 }
 
 pub enum Error {
     Invalid,
+    ExifTool(String),
+    Json(String),
 }
 
 impl Metadata {
@@ -39,7 +46,12 @@ impl Metadata {
             }
         };
 
-        Metadata::from(exif_data)
+        let mut metadata = Metadata::from(exif_data);
+        if let Ok(ref mut metadata) = metadata {
+            // FIXME inconsistent with from_raw because from_raw cannot get content_id
+            metadata.content_id = Metadata::content_id(path).ok();
+        }
+        metadata
     }
 
     pub fn from_raw(data: Vec<u8>) -> Result<Metadata, Error> {
@@ -109,5 +121,29 @@ impl Metadata {
             .map(|e| e.display_value().to_string());
 
         Ok(metadata)
+    }
+
+    /// Execute 'exiftool' to extract the content_id from the Apple maker notes.
+    /// I tried to extract this using the exif-rs library... but just couldn't figure
+    /// out how to do it.
+    ///
+    /// FIXME use exif-rs or other Rust code to extract content_id instead of bundling Perl
+    /// and exiftool in the Flatpak :-(
+    /// Or... just use exiftool for getting all the exif data?
+    fn content_id(path: &Path) -> Result<String, Error> {
+        let output = Command::new("/app/bin/exiftool")
+            .arg("-json")
+            .arg("-ContentIdentifier")
+            .arg(path.as_os_str())
+            .output()
+            .map_err(|e| Error::ExifTool(e.to_string()))?;
+
+        let v: Value = serde_json::from_slice(output.stdout.as_slice())
+            .map_err(|e| Error::Json(e.to_string()))?;
+
+        v[0]["ContentIdentifier"]
+            .as_str()
+            .map(|x| x.to_string())
+            .ok_or(Error::Invalid)
     }
 }

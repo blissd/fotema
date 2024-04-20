@@ -23,6 +23,8 @@ pub struct Metadata {
     pub video_codec: Option<String>,
 
     pub audio_codec: Option<String>,
+
+    pub content_id: Option<String>, // TODO make this a non-string type
 }
 
 pub enum Error {
@@ -67,12 +69,15 @@ impl Metadata {
                 dt.map(|y| y.to_utc())
             });
 
+        metadata.content_id = v["format"]["tags"]["com.apple.quicktime.content.identifier"]
+            .as_str()
+            .map(|x| x.to_string());
+
         metadata.container_format = v["format"]["format_long_name"]
             .as_str()
             .map(|x| x.to_string());
 
         if let Ok(video_stream) = v.clone().path("$.streams[?(@.codec_type == 'video')]") {
-            println!("Video_stream = {}", video_stream);
             metadata.video_codec = video_stream[0]["codec_name"]
                 .as_str()
                 .map(|x| x.to_string());

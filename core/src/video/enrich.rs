@@ -37,15 +37,21 @@ impl Enricher {
             self.base_path.join(file_name)
         };
 
-        self.compute_thumbnail(video_path, &thumbnail_path)
-            .map_err(|e| PreviewError(format!("save video thumbnail: {}", e)))?;
+        let result = self
+            .compute_thumbnail(video_path, &thumbnail_path)
+            .map_err(|e| PreviewError(format!("save video thumbnail: {}", e)));
 
-        extra.thumbnail_path = Some(thumbnail_path.clone());
+        if result.is_ok() {
+            extra.thumbnail_path = Some(thumbnail_path.clone());
+        } else {
+            println!("Video thumbnail error: {:?}", result);
+        }
 
         if let Ok(metadata) = Metadata::from(video_path) {
             extra.stream_created_at = metadata.created_at;
             extra.stream_duration = metadata.duration;
             extra.video_codec = metadata.video_codec;
+            extra.content_id = metadata.content_id;
         }
 
         Ok(extra)

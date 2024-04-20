@@ -201,7 +201,6 @@ impl Repository {
                     .map(|x| self.video_thumbnail_base_path.join(x))
                     .expect("Must have a thumbnail");
 
-                println!("row = {:?}", row);
                 let created_at: DateTime<Utc> = row.get(8).ok().expect("Must have created_ts");
 
                 let v = Visual {

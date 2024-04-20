@@ -115,6 +115,9 @@ pub struct PhotoExtra {
 
     /// On iPhone the lens model tells you if it was the front or back camera.
     pub exif_lens_model: Option<String>,
+
+    // iOS id for linking a video with a photo
+    pub content_id: Option<String>,
 }
 
 impl PhotoExtra {

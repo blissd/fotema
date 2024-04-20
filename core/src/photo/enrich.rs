@@ -40,16 +40,22 @@ impl Enricher {
             self.base_path.join(file_name)
         };
 
-        self.compute_thumbnail(picture_path, &thumbnail_path)
+        let result = self
+            .compute_thumbnail(picture_path, &thumbnail_path)
             .await
-            .map_err(|e| PreviewError(format!("save photo thumbnail: {}", e)))?;
+            .map_err(|e| PreviewError(format!("save photo thumbnail: {}", e)));
 
-        extra.thumbnail_path = Some(thumbnail_path.clone());
+        if result.is_ok() {
+            extra.thumbnail_path = Some(thumbnail_path.clone());
+        } else {
+            println!("Picture thumbnail error: {:?}", result);
+        }
 
         if let Ok(metadata) = Metadata::from_path(picture_path) {
             extra.exif_created_at = metadata.created_at;
             extra.exif_modified_at = metadata.modified_at;
             extra.exif_lens_model = metadata.lens_model;
+            extra.content_id = metadata.content_id;
         }
 
         Ok(extra)
