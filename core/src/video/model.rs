@@ -73,4 +73,7 @@ pub struct VideoExtra {
 
     // Video duration in stream metadata
     pub stream_duration: Option<TimeDelta>,
+
+    // Video codec
+    pub video_codec: Option<String>,
 }

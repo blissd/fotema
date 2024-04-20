@@ -915,7 +915,7 @@ impl SimpleComponent for App {
                 self.banner.set_button_label(None);
 
                 self.enrich_photos.emit(EnrichPhotosInput::Start);
-                //self.video_thumbnails.emit(VideoThumbnailsInput::Start);
+                //self.enrich_videos.emit(EnrichVideosInput::Start);
             }
 
             AppMsg::CleanupStarted => {

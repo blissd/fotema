@@ -257,7 +257,7 @@ impl SimpleComponent for PhotoInfo {
 
     fn update(&mut self, msg: Self::Input, _sender: ComponentSender<Self>) {
         match msg {
-            PhotoInfoInput::Photo(visual_id, ref image_info) => {
+            PhotoInfoInput::Photo(ref visual_id, ref image_info) => {
                 println!("Received {:?}", msg);
                 let result = self.library.get(visual_id);
                 let Some(ref vis) = result else {
@@ -273,9 +273,9 @@ impl SimpleComponent for PhotoInfo {
                     let _ = self.update_photo_details(vis.clone(), image_info);
                 }
             }
-            PhotoInfoInput::Video(visual_id) => {
+            PhotoInfoInput::Video(ref visual_id) => {
                 println!("Received {:?}", msg);
-                let result = self.library.get(visual_id);
+                let result = self.library.get(&visual_id);
                 let Some(ref vis) = result else {
                     println!("No visual item");
                     return;
@@ -304,7 +304,7 @@ impl PhotoInfo {
             return Err("No picture or video path".to_string());
         };
 
-        Self::update_row(&self.folder, Self::folder_name(&vis.parent_path));
+        Self::update_row(&self.folder, vis.folder_name());
 
         // FIXME duplicated from Scanner
         let file = fs::File::open(path).map_err(|e| e.to_string())?;

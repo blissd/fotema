@@ -110,7 +110,7 @@ impl SimpleAsyncComponent for OnePhoto {
             },
             OnePhotoInput::ViewPhoto(visual_id) => {
                 println!("Showing item for {}", visual_id);
-                let result = self.library.get(visual_id);
+                let result = self.library.get(&visual_id);
 
                 let visual = if let Some(v) = result {
                     v
@@ -152,7 +152,7 @@ impl SimpleAsyncComponent for OnePhoto {
                     self.picture.set_paintable(Some(&texture));
                     self.photo_info.emit(PhotoInfoInput::Photo(visual_id, image.info().clone()));
                 } else { // video or motion photo
-                    self.photo_info.emit(PhotoInfoInput::Video(visual_id));
+                    self.photo_info.emit(PhotoInfoInput::Video(visual_id.clone()));
 
                     let media_file = gtk::MediaFile::for_filename(visual.video_path.clone().expect("Must have video"));
                     self.picture.set_paintable(Some(&media_file));

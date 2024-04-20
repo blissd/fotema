@@ -43,7 +43,7 @@ impl Metadata {
             .arg("-print_format")
             .arg("json")
             .arg("-show_entries")
-            .arg("format=duration,format_long_name:stream_tags=creation_time:stream=codec_name,codec_type,width,height")
+            .arg("format=duration,format_long_name:format_tags=com.apple.quicktime.content.identifier,com.apple.quicktime.creationdate:stream_tags=creation_time:stream=codec_name,codec_type,width,height")
             .output()
             .map_err(|e| Error::Probe(e.to_string()))?;
 
@@ -60,6 +60,13 @@ impl Metadata {
                 millis.and_then(|m| TimeDelta::try_milliseconds(m as i64))
             });
 
+        metadata.created_at = v["format"]["tags"]["com.apple.quicktime.creationdate"]
+            .as_str()
+            .and_then(|x| {
+                let dt = DateTime::parse_from_rfc3339(x).ok();
+                dt.map(|y| y.to_utc())
+            });
+
         metadata.container_format = v["format"]["format_long_name"]
             .as_str()
             .map(|x| x.to_string());
@@ -72,11 +79,14 @@ impl Metadata {
             metadata.width = video_stream[0]["width"].as_u64();
             metadata.height = video_stream[0]["height"].as_u64();
 
-            let created_at = video_stream[0]["tags"]["creation_time"].as_str();
-            metadata.created_at = created_at.and_then(|x| {
-                let dt = DateTime::parse_from_rfc3339(x).ok();
-                dt.map(|y| y.to_utc())
-            });
+            let created_at = video_stream[0]["tags"]["creation_time"]
+                .as_str()
+                .and_then(|x| {
+                    let dt = DateTime::parse_from_rfc3339(x).ok();
+                    dt.map(|y| y.to_utc())
+                });
+
+            metadata.created_at = metadata.created_at.or_else(|| created_at);
         }
 
         if let Ok(audio_stream) = v.path("$.streams[?(@.codec_type == 'audio')]") {

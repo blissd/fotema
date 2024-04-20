@@ -224,7 +224,7 @@ impl SimpleComponent for Album {
                 // Photos are filters so must use get_visible(...) over get(...), otherwise
                 // wrong photo is displayed.
                 if let Some(item) = self.photo_grid.get_visible(index) {
-                    let visual_id = item.borrow().visual.visual_id;
+                    let visual_id = item.borrow().visual.visual_id.clone();
                     println!("index {} has visual_id {}", index, visual_id);
                     let result = sender.output(AlbumOutput::Selected(visual_id));
                     println!("Result = {:?}", result);

@@ -61,10 +61,12 @@ impl Repository {
                 .prepare(
                     "UPDATE videos
                 SET
-                    preview_path = ?1,
-                    stream_created_ts = ?2,
-                    duration_millis = ?3
-                WHERE video_id = ?4",
+                    thumbnail_path = ?2,
+                    stream_created_ts = ?3,
+                    duration_millis = ?4,
+                    link_date = ?5,
+                    video_codec = ?6
+                WHERE video_id = ?1",
                 )
                 .map_err(|e| RepositoryError(e.to_string()))?;
 
@@ -75,10 +77,12 @@ impl Repository {
                 .and_then(|p| p.strip_prefix(&self.video_thumbnail_base_path).ok());
 
             let result = stmt.execute(params![
+                video_id.id(),
                 thumbnail_path.as_ref().map(|p| p.to_str()),
                 extra.stream_created_at,
                 extra.stream_duration.map(|x| x.num_milliseconds()),
-                video_id.id(),
+                extra.stream_created_at.map(|x| x.naive_utc().date()),
+                extra.video_codec,
             ]);
 
             // The "on conflict ignore" constraints look like errors to rusqlite
@@ -106,36 +110,17 @@ impl Repository {
 
         // Create a scope to make borrowing of tx not be an error.
         {
-            let mut vid_lookup_stmt = tx
-                .prepare_cached(
-                    "SELECT video_id
-                FROM videos
-                WHERE video_path = ?1",
-                )
-                .map_err(|e| RepositoryError(format!("Preparing statement: {}", e)))?;
-
             let mut vid_stmt = tx
                 .prepare_cached(
                     "INSERT INTO videos (
                         video_path,
-                        fs_created_ts
+                        fs_created_ts,
+                        link_path
                     ) VALUES (
-                        ?1, ?2
+                        ?1, ?2, ?3
                     ) ON CONFLICT (video_path) DO UPDATE SET
                         fs_created_ts=?2
                     ",
-                )
-                .map_err(|e| RepositoryError(format!("Preparing statement: {}", e)))?;
-
-            let mut vis_stmt = tx
-                .prepare_cached(
-                    "INSERT INTO visual (
-                        stem_path,
-                        video_id
-                    ) VALUES (
-                        ?1,
-                        ?2
-                    ) ON CONFLICT (stem_path) DO UPDATE SET video_id = ?2",
                 )
                 .map_err(|e| RepositoryError(format!("Preparing statement: {}", e)))?;
 
@@ -158,18 +143,11 @@ impl Repository {
                 };
 
                 vid_stmt
-                    .execute(params![path.to_str(), vid.fs_created_at,])
-                    .map_err(|e| RepositoryError(format!("Inserting: {}", e)))?;
-
-                let video_id = vid_lookup_stmt
-                    .query_row(params![path.to_str()], |row| {
-                        let id: i64 = row.get(0).expect("Must have video_id");
-                        Ok(id)
-                    })
-                    .map_err(|e| RepositoryError(format!("Must have video_id: {}", e)))?;
-
-                vis_stmt
-                    .execute(params![stem_path.to_str(), video_id])
+                    .execute(params![
+                        path.to_str(),
+                        vid.fs_created_at,
+                        stem_path.to_str(),
+                    ])
                     .map_err(|e| RepositoryError(format!("Inserting: {}", e)))?;
             }
         }
@@ -186,7 +164,7 @@ impl Repository {
                 "SELECT
                     video_id,
                     video_path,
-                    preview_path,
+                    thumbnail_path,
                     fs_created_ts,
                     stream_created_ts,
                     duration_millis

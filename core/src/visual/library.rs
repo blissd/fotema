@@ -43,8 +43,8 @@ impl Library {
     }
 
     /// Find an item by id.
-    pub fn get(&self, visual_id: VisualId) -> Option<Arc<Visual>> {
+    pub fn get(&self, visual_id: &VisualId) -> Option<Arc<Visual>> {
         let index = self.index.read().unwrap();
-        index.iter().find(|&x| x.visual_id == visual_id).cloned()
+        index.iter().find(|&x| x.visual_id == *visual_id).cloned()
     }
 }

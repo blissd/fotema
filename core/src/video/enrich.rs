@@ -45,6 +45,7 @@ impl Enricher {
         if let Ok(metadata) = Metadata::from(video_path) {
             extra.stream_created_at = metadata.created_at;
             extra.stream_duration = metadata.duration;
+            extra.video_codec = metadata.video_codec;
         }
 
         Ok(extra)

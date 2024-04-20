@@ -61,10 +61,11 @@ impl Repository {
                 .prepare(
                     "UPDATE pictures
                 SET
-                    preview_path = ?2,
+                    thumbnail_path = ?2,
                     exif_created_ts = ?3,
                     exif_modified_ts = ?4,
-                    is_selfie = ?5
+                    is_selfie = ?5,
+                    link_date = ?6
                 WHERE picture_id = ?1",
                 )
                 .map_err(|e| RepositoryError(e.to_string()))?;
@@ -81,6 +82,7 @@ impl Repository {
                 extra.exif_created_at,
                 extra.exif_modified_at,
                 extra.is_selfie(),
+                extra.exif_created_at.map(|x| x.naive_utc().date()),
             ]);
 
             // The "on conflict ignore" constraints look like errors to rusqlite
@@ -109,36 +111,17 @@ impl Repository {
 
         // Create a scope to make borrowing of tx not be an error.
         {
-            let mut pic_lookup_stmt = tx
-                .prepare_cached(
-                    "SELECT picture_id
-                    FROM pictures
-                    WHERE picture_path = ?1",
-                )
-                .map_err(|e| RepositoryError(format!("Preparing statement: {}", e)))?;
-
             let mut pic_insert_stmt = tx
                 .prepare_cached(
                     "INSERT INTO pictures (
                     picture_path,
-                    fs_created_ts
+                    fs_created_ts,
+                    link_path
                 ) VALUES (
-                    ?1, ?2
+                    ?1, ?2, $3
                 ) ON CONFLICT (picture_path) DO UPDATE SET
                     fs_created_ts=?2
                 ",
-                )
-                .map_err(|e| RepositoryError(format!("Preparing statement: {}", e)))?;
-
-            let mut vis_insert_stmt = tx
-                .prepare_cached(
-                    "INSERT INTO visual (
-                        stem_path,
-                        picture_id
-                    ) VALUES (
-                        ?1,
-                        ?2
-                    ) ON CONFLICT (stem_path) DO UPDATE SET picture_id = ?2",
                 )
                 .map_err(|e| RepositoryError(format!("Preparing statement: {}", e)))?;
 
@@ -159,19 +142,12 @@ impl Repository {
                 let stem_path = path.with_file_name(file_stem);
 
                 pic_insert_stmt
-                    .execute(params![path.to_str(), pic.fs_created_at,])
+                    .execute(params![
+                        path.to_str(),
+                        pic.fs_created_at,
+                        stem_path.to_str()
+                    ])
                     .map_err(|e| RepositoryError(format!("Preparing statement: {}", e)))?;
-
-                let picture_id = pic_lookup_stmt
-                    .query_row(params![path.to_str()], |row| {
-                        let id: i64 = row.get(0).expect("Must have picture_id");
-                        Ok(id)
-                    })
-                    .map_err(|e| RepositoryError(format!("Must have picture_id: {}", e)))?;
-
-                vis_insert_stmt
-                    .execute(params![stem_path.to_str(), picture_id])
-                    .map_err(|e| RepositoryError(format!("Inserting: {}", e)))?;
             }
         }
 
@@ -187,7 +163,7 @@ impl Repository {
                 "SELECT
                     pictures.picture_id,
                     pictures.picture_path,
-                    pictures.preview_path as thumbnail_path,
+                    pictures.thumbnail_path,
                     pictures.fs_created_ts,
                     pictures.exif_created_ts,
                     pictures.exif_modified_ts,
@@ -231,7 +207,7 @@ impl Repository {
                 "SELECT
                     pictures.picture_id,
                     pictures.picture_path,
-                    pictures.preview_path as thumbnail_path,
+                    pictures.thumbnail_path,
                     pictures.fs_created_ts,
                     pictures.exif_created_ts,
                     pictures.exif_modified_ts,

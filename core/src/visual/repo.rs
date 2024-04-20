@@ -17,12 +17,12 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 /// Database ID of a visual item
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct VisualId(i64);
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VisualId(String);
 
 impl VisualId {
-    pub fn id(&self) -> i64 {
-        self.0
+    pub fn id(&self) -> &String {
+        &self.0
     }
 }
 
@@ -94,6 +94,7 @@ impl Visual {
         YearMonth { year, month }
     }
 
+    // TODO should really just compute this in photo_info.rs
     pub fn folder_name(&self) -> Option<String> {
         self.parent_path
             .file_name()
@@ -146,22 +147,19 @@ impl Repository {
         let mut stmt = con
             .prepare(
                 "SELECT
-                    visual.visual_id,
-                    visual.stem_path,
+                    visual_id,
+                    link_path AS stem_path,
 
-                    pictures.picture_id,
-                    pictures.picture_path AS picture_path,
-                    pictures.preview_path AS picture_thumbnail,
+                    picture_id,
+                    picture_path,
+                    picture_thumbnail,
 
-                    videos.video_id,
-                    videos.video_path AS video_path,
-                    videos.preview_path AS video_thumbnail,
+                    video_id,
+                    video_path,
+                    video_thumbnail,
 
-                    COALESCE(pictures.exif_created_ts, pictures.exif_modified_ts, videos.stream_created_ts, pictures.fs_created_ts, videos.fs_created_ts) AS created_ts
+                    created_ts
                 FROM visual
-                LEFT JOIN pictures ON visual.picture_id = pictures.picture_id
-                LEFT JOIN videos   ON visual.video_id   = videos.video_id
-                WHERE COALESCE(pictures.preview_path, videos.preview_path) IS NOT NULL
                 ORDER BY created_ts ASC",
             )
             .map_err(|e| RepositoryError(e.to_string()))?;
@@ -203,6 +201,7 @@ impl Repository {
                     .map(|x| self.video_thumbnail_base_path.join(x))
                     .expect("Must have a thumbnail");
 
+                println!("row = {:?}", row);
                 let created_at: DateTime<Utc> = row.get(8).ok().expect("Must have created_ts");
 
                 let v = Visual {
@@ -237,22 +236,19 @@ impl Repository {
         let mut stmt = con
             .prepare(
                 "SELECT
-                    visual.visual_id,
-                    visual.stem_path,
+                    visual_id,
+                    link_path AS stem_path,
 
-                    pictures.picture_id,
-                    pictures.picture_path AS picture_path,
-                    pictures.preview_path AS picture_thumbnail,
+                    picture_id,
+                    picture_path,
+                    picture_thumbnail,
 
-                    videos.video_id,
-                    videos.video_path AS video_path,
-                    videos.preview_path AS video_thumbnail,
+                    video_id,
+                    video_path,
+                    video_thumbnail,
 
-                    COALESCE(pictures.exif_created_ts, pictures.exif_modified_ts, videos.stream_created_ts, pictures.fs_created_ts, videos.fs_created_ts) AS created_ts
+                    created_ts
                 FROM visual
-                LEFT JOIN pictures USING(picture_id)
-                LEFT JOIN videos USING(video_id)
-                WHERE COALESCE(pictures.preview_path, videos.preview_path) IS NOT NULL
                 AND visual.visual_id = ?1",
             )
             .map_err(|e| RepositoryError(e.to_string()))?;
