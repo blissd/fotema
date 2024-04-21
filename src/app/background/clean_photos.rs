@@ -8,31 +8,26 @@ use fotema_core::Result;
 use rayon::prelude::*;
 
 #[derive(Debug)]
-pub enum CleanupInput {
+pub enum CleanPhotosInput {
     Start,
 }
 
 #[derive(Debug)]
-pub enum CleanupOutput {
+pub enum CleanPhotosOutput {
     // Thumbnail generation has started for a given number of images.
     Started,
-
-    // Thumbnail has been generated for a photo.
-    // NOTE do not send a message for every cleaned file because too many will
-    // be send and will freeze the UI for a while.
-    // Cleaned,
 
     // Thumbnail generation has completed
     Completed,
 
 }
 
-pub struct Cleanup {
+pub struct CleanPhotos {
     // Danger! Don't hold the repo mutex for too long as it blocks viewing images.
     repo: fotema_core::photo::Repository,
 }
 
-impl Cleanup {
+impl CleanPhotos {
 
     fn cleanup(&mut self, sender: &ComponentSender<Self>) -> Result<()> {
 
@@ -43,7 +38,7 @@ impl Cleanup {
 
         let pics_count = pics.len();
 
-        if let Err(e) = sender.output(CleanupOutput::Started){
+        if let Err(e) = sender.output(CleanPhotosOutput::Started){
             println!("Failed sending cleanup started: {:?}", e);
         }
 
@@ -61,18 +56,18 @@ impl Cleanup {
 
         println!("Cleaned {} photos in {} seconds.", pics_count, start.elapsed().as_secs());
 
-        if let Err(e) = sender.output(CleanupOutput::Completed) {
-            println!("Failed sending CleanupOutput::Completed: {:?}", e);
+        if let Err(e) = sender.output(CleanPhotosOutput::Completed) {
+            println!("Failed sending CleanPhotosOutput::Completed: {:?}", e);
         }
 
         Ok(())
     }
 }
 
-impl Worker for Cleanup {
+impl Worker for CleanPhotos {
     type Init = fotema_core::photo::Repository;
-    type Input = CleanupInput;
-    type Output = CleanupOutput;
+    type Input = CleanPhotosInput;
+    type Output = CleanPhotosOutput;
 
     fn init(repo: Self::Init, _sender: ComponentSender<Self>) -> Self {
         Self { repo }
@@ -80,11 +75,11 @@ impl Worker for Cleanup {
 
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
-            CleanupInput::Start => {
-                println!("Cleanup...");
+            CleanPhotosInput::Start => {
+                println!("Cleaning photos...");
 
                 if let Err(e) = self.cleanup(&sender) {
-                    println!("Failed to update previews: {}", e);
+                    println!("Failed to clean photos: {}", e);
                 }
             }
         };

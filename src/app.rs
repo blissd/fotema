@@ -46,7 +46,8 @@ use self::components::{
 mod background;
 
 use self::background::{
-    cleanup::{Cleanup, CleanupInput, CleanupOutput},
+    clean_photos::{CleanPhotos, CleanPhotosInput, CleanPhotosOutput},
+    clean_videos::{CleanVideos, CleanVideosInput, CleanVideosOutput},
     enrich_photos::{EnrichPhotos, EnrichPhotosInput, EnrichPhotosOutput},
     enrich_videos::{EnrichVideos, EnrichVideosInput, EnrichVideosOutput},
     load_library::{LoadLibrary, LoadLibraryInput, LoadLibraryOutput},
@@ -63,7 +64,8 @@ pub(super) struct App {
     scan_videos: WorkerController<ScanVideos>,
     enrich_photos: WorkerController<EnrichPhotos>,
     enrich_videos: WorkerController<EnrichVideos>,
-    cleanup: WorkerController<Cleanup>,
+    clean_photos: WorkerController<CleanPhotos>,
+    clean_videos: WorkerController<CleanVideos>,
 
     about_dialog: Controller<AboutDialog>,
     preferences_dialog: Controller<PreferencesDialog>,
@@ -166,8 +168,11 @@ pub(super) enum AppMsg {
     VideoEnrichmentCompleted,
 
     // Cleanup events
-    CleanupStarted,
-    CleanupCompleted,
+    PhotoCleanStarted,
+    PhotoCleanCompleted,
+    VideoCleanStarted,
+    VideoCleanCompleted,
+
 
     // Preferences
     PreferencesUpdated,
@@ -524,11 +529,18 @@ impl SimpleComponent for App {
                 EnrichPhotosOutput::Completed => AppMsg::PhotoEnrichmentCompleted,
             });
 
-        let cleanup = Cleanup::builder()
+        let clean_photos = CleanPhotos::builder()
             .detach_worker(photo_repo.clone())
             .forward(sender.input_sender(), |msg| match msg {
-                CleanupOutput::Started => AppMsg::CleanupStarted,
-                CleanupOutput::Completed => AppMsg::CleanupCompleted,
+                CleanPhotosOutput::Started => AppMsg::PhotoCleanStarted,
+                CleanPhotosOutput::Completed => AppMsg::PhotoCleanCompleted,
+            });
+
+        let clean_videos = CleanVideos::builder()
+            .detach_worker(video_repo.clone())
+            .forward(sender.input_sender(), |msg| match msg {
+                CleanVideosOutput::Started => AppMsg::VideoCleanStarted,
+                CleanVideosOutput::Completed => AppMsg::VideoCleanCompleted,
             });
 
         let all_photos = Album::builder()
@@ -633,7 +645,8 @@ impl SimpleComponent for App {
             scan_videos,
             enrich_photos,
             enrich_videos,
-            cleanup,
+            clean_photos,
+            clean_videos,
             about_dialog,
             preferences_dialog,
             all_photos,
@@ -810,7 +823,7 @@ impl SimpleComponent for App {
             }
             AppMsg::VideoScanCompleted => {
                 println!("Scan videos completed msg received.");
-                self.cleanup.emit(CleanupInput::Start);
+                self.clean_photos.emit(CleanPhotosInput::Start);
             }
             AppMsg::PhotoEnrichmentStarted(count) => {
                 println!("Photo enrichment started.");
@@ -909,21 +922,32 @@ impl SimpleComponent for App {
 
                 sender.input(AppMsg::LibraryRefresh);
             }
-            AppMsg::CleanupCompleted => {
-                println!("Cleanup completed.");
+            AppMsg::PhotoCleanStarted => {
+                println!("Photo cleanup started.");
+                self.banner.set_title("Photo database maintenance.");
+                self.banner.set_revealed(true);
+            }
+            AppMsg::PhotoCleanCompleted => {
+                println!("Photo cleanup completed.");
+                self.banner.set_revealed(false);
+                self.banner.set_button_label(None);
+
+                //self.enrich_photos.emit(EnrichPhotosInput::Start);
+                self.clean_videos.emit(CleanVideosInput::Start);
+            }
+            AppMsg::VideoCleanStarted => {
+                println!("Video cleanup started.");
+                self.banner.set_title("Video database maintenance.");
+                self.banner.set_revealed(true);
+            }
+            AppMsg::VideoCleanCompleted => {
+                println!("Video cleanup completed.");
                 self.banner.set_revealed(false);
                 self.banner.set_button_label(None);
 
                 self.enrich_photos.emit(EnrichPhotosInput::Start);
                 //self.enrich_videos.emit(EnrichVideosInput::Start);
             }
-
-            AppMsg::CleanupStarted => {
-                println!("Cleanup started.");
-                self.banner.set_title("Database maintenance.");
-                self.banner.set_revealed(true);
-            }
-
             AppMsg::PreferencesUpdated => {
                 println!("Preferences updated.");
                 // TODO create a Preferences struct to hold preferences and send with update message.
