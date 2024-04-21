@@ -1,0 +1,83 @@
+{
+  "name": "exiftool",
+  "buildsystem": "simple",
+  "build-commands": [
+    "perl Makefile.PL",
+    "make install"
+  ],
+  "cleanup": [
+    "*.pod"
+  ],
+  "sources": [
+    {
+      "type": "git",
+      "url": "https://github.com/exiftool/exiftool.git",
+      "tag": "12.80",
+      "commit": "da736f3d8894b233dfa44a6b68d793b1fc78b0cb",
+      "x-checker-data": {
+        "type": "git",
+        "tag-pattern": "^(\\d+\\.\\d+[02468])$"
+      }
+    }
+  ],
+  "modules": [
+    {
+      "name": "perl",
+      "buildsystem": "simple",
+      "build-commands": [
+        "./Configure -des -Dprefix=$FLATPAK_DEST -Dman1dir=none -Dman3dir=none",
+        "make",
+        "make install"
+      ],
+      "post-install": [
+        "chmod -R u+w $FLATPAK_DEST/lib/perl5"
+      ],
+      "cleanup": [
+        "/bin/corelist",
+        "/bin/cpan",
+        "/bin/enc2xs",
+        "/bin/encguess",
+        "/bin/h2ph",
+        "/bin/h2xs",
+        "/bin/instmodsh",
+        "/bin/json_pp",
+        "/bin/libnetcfg",
+        "/bin/perl5*",
+        "/bin/perlbug",
+        "/bin/perldoc",
+        "/bin/perlivp",
+        "/bin/perlthanks",
+        "/bin/piconv",
+        "/bin/pl2pm",
+        "/bin/pod2html",
+        "/bin/pod2man",
+        "/bin/pod2text",
+        "/bin/pod2usage",
+        "/bin/podchecker",
+        "/bin/prove",
+        "/bin/ptar",
+        "/bin/ptardiff",
+        "/bin/ptargrep",
+        "/bin/shasum",
+        "/bin/splain",
+        "/bin/streamzip",
+        "/bin/xsubpp",
+        "/bin/zipdetails",
+        "*.pod"
+      ],
+      "sources": [
+        {
+          "type": "git",
+          "url": "https://github.com/Perl/perl5.git",
+          "tag": "v5.38.2",
+          "commit": "55dd2f792ffc8cefe614350a411f785374281b24",
+          "disable-fsckobjects": true,
+          "x-checker-data": {
+            "type": "git",
+            "tag-pattern": "^v(\\d+\\.\\d+[02468].\\d+)$"
+          }
+        }
+      ]
+    }
+  ]
+}

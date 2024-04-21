@@ -11,6 +11,7 @@
   "finish-args": [
     "--device=dri",
     "--socket=wayland",
+    "--socket=fallback-x11",
     "--socket=pulseaudio",
     "--filesystem=xdg-pictures:ro",
     "--env=RUST_LOG=fotema=debug",
@@ -44,159 +45,14 @@
   },
   "inherit-extensions": [
     "org.freedesktop.Platform.ffmpeg-full",
-    "org.freedesktop.Platform.GL"
+    "org.freedesktop.Platform.GL",
+    "org.freedesktop.Platform.VAAPI.Intel"
   ],
   "modules": [
-    {
-      "name": "libde265",
-      "buildsystem": "cmake-ninja",
-      "config-opts": [
-        "-DCMAKE_INSTALL_PREFIX=/app/lib/libheif-heic",
-        "-DENABLE_SDL=Off"
-      ],
-      "sources": [
-        {
-          "type": "git",
-          "url": "https://github.com/strukturag/libde265.git",
-          "commit": "17bb8d9fcea62db8cdeb0fc7ef8d15dbd19a22e4",
-          "tag": "v1.0.15",
-          "x-checker-data": {
-            "type": "git",
-            "tag-pattern": "^v([\\d.]+)$"
-          }
-        }
-      ]
-    },
-    {
-      "name": "libheif",
-      "buildsystem": "cmake-ninja",
-      "config-opts": [
-        "-DWITH_LIBDE265_PLUGIN=On",
-        "-DPLUGIN_DIRECTORY=/app/lib/libheif-heic/lib",
-        "-DLIBDE265_INCLUDE_DIR=/app/lib/libheif-heic/include",
-        "-DLIBDE265_PKGCONF_LIBRARY_DIRS=/app/lib/libheif-heic/lib",
-        "-DWITH_X265=Off",
-        "-DWITH_SvtEnc=Off",
-        "-DWITH_SvtEnc_PLUGIN=Off",
-        "-DWITH_AOM_ENCODER=Off",
-        "-DWITH_RAV1E_PLUGIN=Off",
-        "-DWITH_RAV1E=Off",
-        "-DWITH_EXAMPLES=Off"
-      ],
-      "sources": [
-        {
-          "type": "git",
-          "url": "https://github.com/strukturag/libheif.git",
-          "commit": "59b58566de0d8e2e9fea958abeba1d3346bda9de",
-          "tag": "v1.17.6",
-          "x-checker-data": {
-            "type": "git",
-            "tag-pattern": "^v([\\d.]+)$"
-          }
-        }
-      ]
-    },
-    {
-      "name": "glycin-loaders",
-      "buildsystem": "meson",
-      "config-opts": [
-        "-Dprofile=dev"
-      ],
-      "sources": [
-        {
-          "type": "archive",
-          "url": "https://download.gnome.org/sources/glycin-loaders/1.0/glycin-loaders-1.0.1.tar.xz",
-          "sha256": "d0f022462ff555856e85ea940474470bb36b37c9ffcbcba63a03fe5e954370cf",
-          "x-checker-data": {
-            "type": "gnome",
-            "name": "glycin-loaders"
-          }
-        }
-      ]
-    },
-    {
-      "name": "exiftool",
-      "buildsystem": "simple",
-      "build-commands": [
-        "perl Makefile.PL",
-        "make install"
-      ],
-      "cleanup": [
-        "*.pod"
-      ],
-      "sources": [
-        {
-          "type": "git",
-          "url": "https://github.com/exiftool/exiftool.git",
-          "tag": "12.80",
-          "commit": "da736f3d8894b233dfa44a6b68d793b1fc78b0cb",
-          "x-checker-data": {
-            "type": "git",
-            "tag-pattern": "^(\\d+\\.\\d+[02468])$"
-          }
-        }
-      ],
-      "modules": [
-        {
-          "name": "perl",
-          "buildsystem": "simple",
-          "build-commands": [
-            "./Configure -des -Dprefix=$FLATPAK_DEST -Dman1dir=none -Dman3dir=none",
-            "make",
-            "make install"
-          ],
-          "post-install": [
-            "chmod -R u+w $FLATPAK_DEST/lib/perl5"
-          ],
-          "cleanup": [
-            "/bin/corelist",
-            "/bin/cpan",
-            "/bin/enc2xs",
-            "/bin/encguess",
-            "/bin/h2ph",
-            "/bin/h2xs",
-            "/bin/instmodsh",
-            "/bin/json_pp",
-            "/bin/libnetcfg",
-            "/bin/perl5*",
-            "/bin/perlbug",
-            "/bin/perldoc",
-            "/bin/perlivp",
-            "/bin/perlthanks",
-            "/bin/piconv",
-            "/bin/pl2pm",
-            "/bin/pod2html",
-            "/bin/pod2man",
-            "/bin/pod2text",
-            "/bin/pod2usage",
-            "/bin/podchecker",
-            "/bin/prove",
-            "/bin/ptar",
-            "/bin/ptardiff",
-            "/bin/ptargrep",
-            "/bin/shasum",
-            "/bin/splain",
-            "/bin/streamzip",
-            "/bin/xsubpp",
-            "/bin/zipdetails",
-            "*.pod"
-          ],
-          "sources": [
-            {
-              "type": "git",
-              "url": "https://github.com/Perl/perl5.git",
-              "tag": "v5.38.2",
-              "commit": "55dd2f792ffc8cefe614350a411f785374281b24",
-              "disable-fsckobjects": true,
-              "x-checker-data": {
-                "type": "git",
-                "tag-pattern": "^v(\\d+\\.\\d+[02468].\\d+)$"
-              }
-            }
-          ]
-        }
-      ]
-    },
+    "modules/libde265.json",
+    "modules/libheif.json",
+    "modules/glycin-loaders.json",
+    "modules/exiftool.json",
     {
       "name": "fotema",
       "buildsystem": "meson",
