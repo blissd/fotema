@@ -23,6 +23,7 @@ FROM
   FULL OUTER JOIN videos USING (link_path, content_id)
 WHERE
   COALESCE(pictures.thumbnail_path, videos.thumbnail_path) IS NOT NULL
+  AND videos.video_codec IS NOT 'hevc'
 ORDER BY
   created_ts ASC
 

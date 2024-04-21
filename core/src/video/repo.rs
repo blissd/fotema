@@ -159,6 +159,7 @@ impl Repository {
                     stream_created_ts,
                     duration_millis
                 FROM videos
+                WHERE video_codec IS NOT 'hevc'
                 ORDER BY COALESCE(stream_created_ts, fs_created_ts) ASC",
             )
             .map_err(|e| RepositoryError(e.to_string()))?;
