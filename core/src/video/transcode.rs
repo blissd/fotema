@@ -42,6 +42,8 @@ impl Transcoder {
             .arg("error")
             .arg("-i")
             .arg(video_path.as_os_str())
+            .arg("-c:a")
+            .arg("copy")
             .arg("-c:v")
             .arg("h264")
             .arg(transcoded_path.as_os_str())
