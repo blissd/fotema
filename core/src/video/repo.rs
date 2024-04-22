@@ -9,8 +9,6 @@ use crate::video::model::{ScannedFile, Video, VideoExtra, VideoId};
 use chrono::*;
 use rusqlite;
 use rusqlite::params;
-use rusqlite::Error::SqliteFailure;
-use rusqlite::ErrorCode::ConstraintViolation;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
@@ -21,7 +19,8 @@ pub struct Repository {
     /// Base path to picture library on file system
     library_base_path: PathBuf,
 
-    video_thumbnail_base_path: PathBuf,
+    /// Base path for thumbnails and transcoded videos
+    thumbnail_base_path: PathBuf,
 
     /// Connection to backing Sqlite database.
     con: Arc<Mutex<rusqlite::Connection>>,
@@ -31,7 +30,7 @@ impl Repository {
     /// Builds a Repository and creates operational tables.
     pub fn open(
         library_base_path: &Path,
-        video_thumbnail_base_path: &Path,
+        thumbnail_base_path: &Path,
         con: Arc<Mutex<rusqlite::Connection>>,
     ) -> Result<Repository> {
         if !library_base_path.is_dir() {
@@ -41,9 +40,12 @@ impl Repository {
             )));
         }
 
+        let thumbnail_base_path = PathBuf::from(thumbnail_base_path).join("video_thumbnails");
+        let _ = std::fs::create_dir_all(&thumbnail_base_path);
+
         let repo = Repository {
             library_base_path: PathBuf::from(library_base_path),
-            video_thumbnail_base_path: PathBuf::from(video_thumbnail_base_path),
+            thumbnail_base_path,
             con,
         };
 
@@ -75,7 +77,13 @@ impl Repository {
             let thumbnail_path = extra
                 .thumbnail_path
                 .as_ref()
-                .and_then(|p| p.strip_prefix(&self.video_thumbnail_base_path).ok());
+                .and_then(|p| p.strip_prefix(&self.thumbnail_base_path).ok());
+
+            // convert to relative path before saving to database
+            let transcoded_path = extra
+                .transcoded_path
+                .as_ref()
+                .and_then(|p| p.strip_prefix(&self.thumbnail_base_path).ok());
 
             stmt.execute(params![
                 video_id.id(),
@@ -84,7 +92,7 @@ impl Repository {
                 extra.stream_duration.map(|x| x.num_milliseconds()),
                 extra.video_codec,
                 extra.content_id,
-                extra.transcoded_path.as_ref().map(|p| p.to_str()),
+                transcoded_path.as_ref().map(|p| p.to_str()),
             ])
             .map_err(|e| RepositoryError(format!("Preview: {}", e)))?;
         }
@@ -157,7 +165,9 @@ impl Repository {
                     thumbnail_path,
                     fs_created_ts,
                     stream_created_ts,
-                    duration_millis
+                    duration_millis,
+                    video_codec,
+                    transcoded_path
                 FROM videos
                 ORDER BY COALESCE(stream_created_ts, fs_created_ts) ASC",
             )
@@ -172,13 +182,18 @@ impl Repository {
                     thumbnail_path: row
                         .get(2)
                         .ok()
-                        .map(|p: String| self.video_thumbnail_base_path.join(p)),
+                        .map(|p: String| self.thumbnail_base_path.join(p)),
                     fs_created_at: row.get(3).ok().expect("Must have fs_created_at"),
                     stream_created_at: row.get(4).ok(),
                     stream_duration: row
                         .get(5)
                         .ok()
                         .and_then(|x: i64| TimeDelta::try_milliseconds(x)),
+                    video_codec: row.get(6).ok(),
+                    transcoded_path: row
+                        .get(7)
+                        .ok()
+                        .map(|p: String| self.thumbnail_base_path.join(p)),
                 })
             })
             .map_err(|e| RepositoryError(e.to_string()))?;

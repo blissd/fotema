@@ -23,7 +23,8 @@ pub struct Enricher {
 
 impl Enricher {
     pub fn build(base_path: &Path, transcoder: Transcoder) -> Result<Self> {
-        let base_path = PathBuf::from(base_path);
+        let base_path = PathBuf::from(base_path).join("video_thumbnails");
+        let _ = std::fs::create_dir_all(&base_path);
         Ok(Self {
             base_path,
             transcoder,

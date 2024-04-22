@@ -24,7 +24,8 @@ pub struct Enricher {
 
 impl Enricher {
     pub fn build(base_path: &Path) -> Result<Enricher> {
-        let base_path = PathBuf::from(base_path);
+        let base_path = PathBuf::from(base_path).join("photo_thumbnails");
+        let _ = std::fs::create_dir_all(&base_path);
         Ok(Enricher { base_path })
     }
 

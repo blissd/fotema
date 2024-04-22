@@ -5,8 +5,6 @@
 use relm4::prelude::*;
 use relm4::Worker;
 use fotema_core::Result;
-use rayon::prelude::*;
-
 
 #[derive(Debug)]
 pub enum EnrichVideosInput {
@@ -44,7 +42,13 @@ impl EnrichVideos {
         let unprocessed_vids: Vec<fotema_core::video::model::Video> = repo
             .all()?
             .into_iter()
-            .filter(|vid| !vid.thumbnail_path.as_ref().is_some_and(|p| p.exists()))
+            .filter(|vid| {
+                let has_thumbnail = vid.thumbnail_path.as_ref().is_some_and(|p| p.exists());
+                let needs_transcode = vid.is_transcode_required()
+                    && !vid.transcoded_path.as_ref().is_some_and(|p| p.exists());
+
+                !has_thumbnail || needs_transcode
+            })
             .collect();
 
         let vids_count = unprocessed_vids.len();

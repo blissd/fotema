@@ -19,7 +19,8 @@ pub enum Error {
 
 impl Transcoder {
     pub fn new(base_path: &Path) -> Self {
-        let base_path = PathBuf::from(base_path);
+        let base_path = PathBuf::from(base_path).join("video_transcodes");
+        let _ = std::fs::create_dir_all(&base_path);
         Self { base_path }
     }
 

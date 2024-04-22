@@ -21,7 +21,8 @@ pub struct Repository {
     /// Base path to picture library on file system
     library_base_path: PathBuf,
 
-    photo_thumbnail_base_path: PathBuf,
+    /// Base path for photo thumbnails
+    thumbnail_base_path: PathBuf,
 
     /// Connection to backing Sqlite database.
     con: Arc<Mutex<rusqlite::Connection>>,
@@ -31,7 +32,7 @@ impl Repository {
     /// Builds a Repository and creates operational tables.
     pub fn open(
         library_base_path: &Path,
-        photo_thumbnail_base_path: &Path,
+        thumbnail_base_path: &Path,
         con: Arc<Mutex<rusqlite::Connection>>,
     ) -> Result<Repository> {
         if !library_base_path.is_dir() {
@@ -41,9 +42,12 @@ impl Repository {
             )));
         }
 
+        let thumbnail_base_path = PathBuf::from(thumbnail_base_path).join("photo_thumbnails");
+        let _ = std::fs::create_dir_all(&thumbnail_base_path);
+
         let repo = Repository {
             library_base_path: PathBuf::from(library_base_path),
-            photo_thumbnail_base_path: PathBuf::from(photo_thumbnail_base_path),
+            thumbnail_base_path,
             con,
         };
 
@@ -75,7 +79,7 @@ impl Repository {
             let thumbnail_path = extra
                 .thumbnail_path
                 .as_ref()
-                .and_then(|p| p.strip_prefix(&self.photo_thumbnail_base_path).ok());
+                .and_then(|p| p.strip_prefix(&self.thumbnail_base_path).ok());
 
             let result = stmt.execute(params![
                 picture_id.id(),
@@ -184,7 +188,7 @@ impl Repository {
                     thumbnail_path: row
                         .get(2)
                         .ok()
-                        .map(|p: String| self.photo_thumbnail_base_path.join(p)),
+                        .map(|p: String| self.thumbnail_base_path.join(p)),
                     fs_created_at: row.get(3).ok().expect("Must have fs_created_ts"),
                     exif_created_at: row.get(4).ok(),
                     exif_modified_at: row.get(5).ok(),
@@ -228,7 +232,7 @@ impl Repository {
                     thumbnail_path: row
                         .get(2)
                         .ok()
-                        .map(|p: String| self.photo_thumbnail_base_path.join(p)),
+                        .map(|p: String| self.thumbnail_base_path.join(p)),
                     fs_created_at: row.get(3).ok().expect("Must have fs_created_ts"),
                     exif_created_at: row.get(4).ok(),
                     exif_modified_at: row.get(5).ok(),

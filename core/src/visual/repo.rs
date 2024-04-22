@@ -119,9 +119,8 @@ pub struct Repository {
     /// Base path to picture library on file system
     library_base_path: path::PathBuf,
 
-    video_thumbnail_base_path: path::PathBuf,
-
-    photo_thumbnail_base_path: path::PathBuf,
+    /// Base path for thumbnails and transcoded videos
+    thumbnail_base_path: path::PathBuf,
 
     /// Connection to backing Sqlite database.
     con: Arc<Mutex<rusqlite::Connection>>,
@@ -131,8 +130,7 @@ impl Repository {
     /// Builds a Repository and creates operational tables.
     pub fn open(
         library_base_path: &path::Path,
-        photo_thumbnail_base_path: &path::Path,
-        video_thumbnail_base_path: &path::Path,
+        thumbnail_base_path: &path::Path,
         con: Arc<Mutex<rusqlite::Connection>>,
     ) -> Result<Repository> {
         if !library_base_path.is_dir() {
@@ -144,8 +142,7 @@ impl Repository {
 
         let repo = Repository {
             library_base_path: path::PathBuf::from(library_base_path),
-            video_thumbnail_base_path: path::PathBuf::from(video_thumbnail_base_path),
-            photo_thumbnail_base_path: path::PathBuf::from(photo_thumbnail_base_path),
+            thumbnail_base_path: path::PathBuf::from(thumbnail_base_path),
             con,
         };
         Ok(repo)
@@ -210,9 +207,9 @@ impl Repository {
                     row.get(7).map(|x: String| PathBuf::from(x)).ok();
 
                 let thumbnail_path = picture_thumbnail
-                    .map(|x| self.photo_thumbnail_base_path.join(x))
+                    .map(|x| self.thumbnail_base_path.join(x))
                     .or_else(|| video_thumbnail)
-                    .map(|x| self.video_thumbnail_base_path.join(x))
+                    .map(|x| self.thumbnail_base_path.join(x))
                     .expect("Must have a thumbnail");
 
                 let created_at: DateTime<Utc> = row.get(8).expect("Must have created_ts");
@@ -312,9 +309,9 @@ impl Repository {
                     row.get(7).map(|x: String| PathBuf::from(x)).ok();
 
                 let thumbnail_path = picture_thumbnail
-                    .map(|x| self.photo_thumbnail_base_path.join(x))
+                    .map(|x| self.thumbnail_base_path.join(x))
                     .or_else(|| video_thumbnail)
-                    .map(|x| self.video_thumbnail_base_path.join(x))
+                    .map(|x| self.thumbnail_base_path.join(x))
                     .expect("Must have a thumbnail");
 
                 let created_at: DateTime<Utc> = row.get(8).ok().expect("Must have created_ts");

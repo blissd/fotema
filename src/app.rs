@@ -461,39 +461,30 @@ impl SimpleComponent for App {
 
         let photo_repo = fotema_core::photo::Repository::open(
             &pic_base_dir,
-            &photo_thumbnail_base_path,
+            &cache_dir,
             con.clone(),
         )
         .unwrap();
 
         let photo_enricher = {
-            let _ = std::fs::create_dir_all(&photo_thumbnail_base_path);
+            let _ = std::fs::create_dir_all(&cache_dir);
             fotema_core::photo::Enricher::build(&photo_thumbnail_base_path).unwrap()
         };
-
-        let video_thumbnail_base_path = cache_dir.join("video_thumbnails");
-        let _ = std::fs::create_dir_all(&video_thumbnail_base_path);
 
         let video_scan = fotema_core::video::Scanner::build(&pic_base_dir).unwrap();
 
         let video_repo = {
-            video::Repository::open(&pic_base_dir, &video_thumbnail_base_path, con.clone()).unwrap()
+            video::Repository::open(&pic_base_dir, &cache_dir, con.clone()).unwrap()
         };
 
-        let video_transcode_base_path = cache_dir.join("video_transcodes");
-        let _ = std::fs::create_dir_all(&video_transcode_base_path);
+        let video_transcoder = video::Transcoder::new(&cache_dir);
 
-        let video_transcoder = video::Transcoder::new(&video_transcode_base_path);
-
-        let video_enricher = {
-            let _ = std::fs::create_dir_all(&video_thumbnail_base_path);
-            fotema_core::video::Enricher::build(&video_thumbnail_base_path, video_transcoder).unwrap()
-        };
+        let video_enricher =
+            fotema_core::video::Enricher::build(&cache_dir, video_transcoder).unwrap();
 
         let visual_repo = fotema_core::visual::Repository::open(
             &pic_base_dir,
-            &photo_thumbnail_base_path,
-            &video_thumbnail_base_path,
+            &cache_dir,
             con.clone(),
         )
         .unwrap();

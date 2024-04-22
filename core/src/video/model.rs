@@ -45,8 +45,20 @@ pub struct Video {
     /// Video stream metadata creation timestamp
     pub stream_created_at: Option<DateTime<Utc>>,
 
-    // Video stream metadata duration
+    /// Video stream metadata duration
     pub stream_duration: Option<TimeDelta>,
+
+    /// Path to transcoded video
+    pub transcoded_path: Option<PathBuf>,
+
+    /// Video codec
+    pub video_codec: Option<String>,
+}
+
+impl Video {
+    pub fn is_transcode_required(&self) -> bool {
+        self.video_codec.as_ref().is_some_and(|x| x == "hevc")
+    }
 }
 
 /// A video on the local file system that has been scanned.
