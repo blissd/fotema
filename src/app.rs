@@ -450,6 +450,7 @@ impl SimpleComponent for App {
             .expect("Expect XDG_PICTURES_DIR");
 
         let photo_thumbnail_base_path = cache_dir.join("picture_thumbnails");
+        let _ = std::fs::create_dir_all(&photo_thumbnail_base_path);
 
         let photo_scan = fotema_core::photo::Scanner::build(&pic_base_dir).unwrap();
 
@@ -471,6 +472,7 @@ impl SimpleComponent for App {
         };
 
         let video_thumbnail_base_path = cache_dir.join("video_thumbnails");
+        let _ = std::fs::create_dir_all(&video_thumbnail_base_path);
 
         let video_scan = fotema_core::video::Scanner::build(&pic_base_dir).unwrap();
 
@@ -478,9 +480,14 @@ impl SimpleComponent for App {
             video::Repository::open(&pic_base_dir, &video_thumbnail_base_path, con.clone()).unwrap()
         };
 
+        let video_transcode_base_path = cache_dir.join("video_transcodes");
+        let _ = std::fs::create_dir_all(&video_transcode_base_path);
+
+        let video_transcoder = video::Transcoder::new(&video_transcode_base_path);
+
         let video_enricher = {
             let _ = std::fs::create_dir_all(&video_thumbnail_base_path);
-            fotema_core::video::Enricher::build(&video_thumbnail_base_path).unwrap()
+            fotema_core::video::Enricher::build(&video_thumbnail_base_path, video_transcoder).unwrap()
         };
 
         let visual_repo = fotema_core::visual::Repository::open(
@@ -709,17 +716,6 @@ impl SimpleComponent for App {
         model.spinner.start();
 
         model.load_library.emit(LoadLibraryInput::Refresh);
-
-       // model.all_photos.emit(AlbumInput::Refresh);
-
-        //model.scan_photos.sender().emit(ScanPhotosInput::Start);
-
-        //model.scan_videos.sender().emit(ScanVideosInput::Start);
-        //model.video_thumbnails.emit(VideoThumbnailsInput::Start);
-
-        //        model.selfie_photos.emit(SelfiePhotosInput::Refresh);
-        //      model.month_photos.emit(MonthPhotosInput::Refresh);
-        //    model.year_photos.emit(YearPhotosInput::Refresh);
 
         ComponentParts { model, widgets }
     }

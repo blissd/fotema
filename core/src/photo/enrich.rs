@@ -25,8 +25,6 @@ pub struct Enricher {
 impl Enricher {
     pub fn build(base_path: &Path) -> Result<Enricher> {
         let base_path = PathBuf::from(base_path);
-        std::fs::create_dir_all(base_path.join("square"))
-            .map_err(|e| RepositoryError(e.to_string()))?;
         Ok(Enricher { base_path })
     }
 

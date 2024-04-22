@@ -10,7 +10,9 @@ SELECT
   videos.video_path,
   videos.thumbnail_path AS video_thumbnail,
   videos.video_codec,
-  videos.content_id is not null AS is_ios_live_photo,
+  videos.transcoded_path AS video_transcoded_path,
+  videos.video_codec IN ('hevc') AS is_transcode_required,
+  videos.content_id IS NOT NULL AS is_ios_live_photo,
   COALESCE(
     pictures.exif_created_ts,
     pictures.exif_modified_ts,
@@ -23,7 +25,6 @@ FROM
   FULL OUTER JOIN videos USING (link_path, content_id)
 WHERE
   COALESCE(pictures.thumbnail_path, videos.thumbnail_path) IS NOT NULL
-  AND videos.video_codec IS NOT 'hevc'
 ORDER BY
   created_ts ASC
 

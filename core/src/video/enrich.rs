@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+use super::transcode::Transcoder;
 use super::Metadata;
 use crate::video::model::{VideoExtra, VideoId};
 use crate::Error::*;
@@ -17,14 +18,16 @@ const EDGE: u32 = 200;
 #[derive(Debug, Clone)]
 pub struct Enricher {
     base_path: PathBuf,
+    transcoder: Transcoder,
 }
 
 impl Enricher {
-    pub fn build(base_path: &Path) -> Result<Self> {
+    pub fn build(base_path: &Path, transcoder: Transcoder) -> Result<Self> {
         let base_path = PathBuf::from(base_path);
-        std::fs::create_dir_all(base_path.join("square"))
-            .map_err(|e| RepositoryError(e.to_string()))?;
-        Ok(Self { base_path })
+        Ok(Self {
+            base_path,
+            transcoder,
+        })
     }
 
     /// Computes a preview square for an image that has been inserted
@@ -50,8 +53,12 @@ impl Enricher {
         if let Ok(metadata) = Metadata::from(video_path) {
             extra.stream_created_at = metadata.created_at;
             extra.stream_duration = metadata.duration;
-            extra.video_codec = metadata.video_codec;
+            extra.video_codec = metadata.video_codec.clone();
             extra.content_id = metadata.content_id;
+
+            if metadata.video_codec.is_some_and(|x| x == "hevc") {
+                extra.transcoded_path = self.transcoder.transcode(*video_id, video_path).ok();
+            }
         }
 
         Ok(extra)
@@ -67,9 +74,8 @@ impl Enricher {
             .tempfile()
             .map_err(|e| PreviewError(format!("Temp file: {}", e)))?;
 
-        // ffmpeg is installed as a flatpak extension.
         // ffmpeg command will extract the first frame and save it as a PNG file.
-        Command::new("/usr/bin/ffmpeg")
+        Command::new("ffmpeg")
             .arg("-loglevel")
             .arg("error")
             .arg("-y") // temp file will already exist, so allow overwriting

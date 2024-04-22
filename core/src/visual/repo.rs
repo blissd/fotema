@@ -49,6 +49,9 @@ pub struct Visual {
 
     pub video_path: Option<PathBuf>,
 
+    // Transcoded version of video_path of video_codec is not supported.
+    pub video_transcoded_path: Option<PathBuf>,
+
     pub picture_id: Option<PictureId>,
 
     pub picture_path: Option<PathBuf>,
@@ -56,9 +59,14 @@ pub struct Visual {
     /// EXIF or file system creation timestamp
     pub created_at: DateTime<Utc>,
 
+    // Is this a selfie?
     is_selfie: Option<bool>,
 
+    // Is this an iOS live photo?
     is_ios_live_photo: bool,
+
+    // Does the video_code require the video is transcoded?
+    pub is_transcode_required: Option<bool>,
 }
 
 impl Visual {
@@ -161,7 +169,10 @@ impl Repository {
                     video_thumbnail,
 
                     created_ts,
-                    is_ios_live_photo
+                    is_ios_live_photo,
+
+                    video_transcoded_path,
+                    is_transcode_required
                 FROM visual
                 ORDER BY created_ts ASC",
             )
@@ -206,7 +217,12 @@ impl Repository {
 
                 let created_at: DateTime<Utc> = row.get(8).expect("Must have created_ts");
 
-                let is_ios_live_photo = row.get(9).expect("must have is_ios_live_photo");
+                let is_ios_live_photo: bool = row.get(9).expect("must have is_ios_live_photo");
+
+                let video_transcoded_path: Option<PathBuf> =
+                    row.get(10).map(|x: String| PathBuf::from(x)).ok();
+
+                let is_transcode_required: Option<bool> = row.get(11).ok();
 
                 let v = Visual {
                     visual_id,
@@ -222,6 +238,8 @@ impl Repository {
                     created_at,
                     is_selfie: None, // TODO get real value,
                     is_ios_live_photo,
+                    video_transcoded_path,
+                    is_transcode_required,
                 };
                 Ok(v)
             })
@@ -254,6 +272,9 @@ impl Repository {
 
                     created_ts,
                     is_ios_live_photo
+
+                    video_transcoded_path,
+                    is_transcode_required
                 FROM visual
                 AND visual.visual_id = ?1",
             )
@@ -298,7 +319,12 @@ impl Repository {
 
                 let created_at: DateTime<Utc> = row.get(8).ok().expect("Must have created_ts");
 
-                let is_ios_live_photo = row.get(9).expect("must have is_ios_live_photo");
+                let is_ios_live_photo: bool = row.get(9).expect("must have is_ios_live_photo");
+
+                let video_transcoded_path: Option<PathBuf> =
+                    row.get(10).map(|x: String| PathBuf::from(x)).ok();
+
+                let is_transcode_required: Option<bool> = row.get(11).ok();
 
                 let v = Visual {
                     visual_id,
@@ -314,6 +340,8 @@ impl Repository {
                     created_at,
                     is_selfie: None, // TODO get real value
                     is_ios_live_photo,
+                    video_transcoded_path,
+                    is_transcode_required,
                 };
                 Ok(v)
             })

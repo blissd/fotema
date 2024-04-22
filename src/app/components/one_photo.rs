@@ -154,7 +154,12 @@ impl SimpleAsyncComponent for OnePhoto {
                 } else { // video or motion photo
                     self.photo_info.emit(PhotoInfoInput::Video(visual_id.clone()));
 
-                    let media_file = gtk::MediaFile::for_filename(visual.video_path.clone().expect("Must have video"));
+
+                    let video_path = visual.video_transcoded_path.clone()
+                        .or_else(|| visual.video_path.clone())
+                        .expect("must have video path");
+
+                    let media_file = gtk::MediaFile::for_filename(video_path);
                     self.picture.set_paintable(Some(&media_file));
 
                     if visual.is_motion_photo() {

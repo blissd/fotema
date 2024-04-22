@@ -79,4 +79,7 @@ pub struct VideoExtra {
 
     // iOS id for linking a video with a photo
     pub content_id: Option<String>,
+
+    // Path to transcoded video
+    pub transcoded_path: Option<PathBuf>,
 }

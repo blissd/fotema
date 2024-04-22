@@ -64,9 +64,9 @@ impl Repository {
                     thumbnail_path = ?2,
                     stream_created_ts = ?3,
                     duration_millis = ?4,
-                    link_date = ?5,
-                    video_codec = ?6,
-                    content_id = ?7
+                    video_codec = ?5,
+                    content_id = ?6,
+                    transcoded_path = ?7
                 WHERE video_id = ?1",
                 )
                 .map_err(|e| RepositoryError(e.to_string()))?;
@@ -82,9 +82,9 @@ impl Repository {
                 thumbnail_path.as_ref().map(|p| p.to_str()),
                 extra.stream_created_at,
                 extra.stream_duration.map(|x| x.num_milliseconds()),
-                extra.stream_created_at.map(|x| x.naive_utc().date()),
                 extra.video_codec,
                 extra.content_id,
+                extra.transcoded_path.as_ref().map(|p| p.to_str()),
             ])
             .map_err(|e| RepositoryError(format!("Preview: {}", e)))?;
         }
@@ -159,7 +159,6 @@ impl Repository {
                     stream_created_ts,
                     duration_millis
                 FROM videos
-                WHERE video_codec IS NOT 'hevc'
                 ORDER BY COALESCE(stream_created_ts, fs_created_ts) ASC",
             )
             .map_err(|e| RepositoryError(e.to_string()))?;

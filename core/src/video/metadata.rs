@@ -37,7 +37,7 @@ impl Metadata {
         println!("Video path: {:?}", path);
 
         // ffprobe is part of the ffmpeg-full flatpak extension
-        let output = Command::new("/usr/bin/ffprobe")
+        let output = Command::new("ffprobe")
             .arg("-v")
             .arg("quiet")
             .arg("-i")
