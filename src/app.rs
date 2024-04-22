@@ -449,9 +449,6 @@ impl SimpleComponent for App {
         let pic_base_dir = glib::user_special_dir(glib::enums::UserDirectory::Pictures)
             .expect("Expect XDG_PICTURES_DIR");
 
-        let photo_thumbnail_base_path = cache_dir.join("picture_thumbnails");
-        let _ = std::fs::create_dir_all(&photo_thumbnail_base_path);
-
         let photo_scan = fotema_core::photo::Scanner::build(&pic_base_dir).unwrap();
 
         let db_path = data_dir.join("pictures.sqlite");
@@ -466,10 +463,8 @@ impl SimpleComponent for App {
         )
         .unwrap();
 
-        let photo_enricher = {
-            let _ = std::fs::create_dir_all(&cache_dir);
-            fotema_core::photo::Enricher::build(&photo_thumbnail_base_path).unwrap()
-        };
+        let photo_enricher =
+            fotema_core::photo::Enricher::build(&cache_dir).unwrap();
 
         let video_scan = fotema_core::video::Scanner::build(&pic_base_dir).unwrap();
 
