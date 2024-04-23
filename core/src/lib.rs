@@ -14,8 +14,8 @@ pub use photo::model::PictureId;
 pub use time::Year;
 pub use time::YearMonth;
 pub use video::VideoId;
-pub use visual::repo::VisualId;
 pub use visual::Library;
+pub use visual::VisualId;
 
 /// A typedef of the result returned by many methods.
 pub type Result<T, E = Error> = std::result::Result<T, E>;

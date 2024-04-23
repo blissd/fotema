@@ -17,7 +17,7 @@ use std::sync::Arc;
 
 #[derive(Debug)]
 struct PhotoGridItem {
-    picture: Arc<fotema_core::visual::repo::Visual>,
+    picture: Arc<fotema_core::visual::Visual>,
 }
 #[derive(Debug)]
 pub enum YearPhotosInput {

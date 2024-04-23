@@ -2,7 +2,8 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use super::repo::{Repository, Visual};
+use super::model::Visual;
+use super::repo::Repository;
 use crate::Result;
 use crate::VisualId;
 use std::sync::{Arc, RwLock};
@@ -32,6 +33,8 @@ impl Library {
         for item in all {
             index.push(Arc::new(item));
         }
+
+        println!("Library has {} items", index.len());
 
         Ok(())
     }

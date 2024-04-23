@@ -59,7 +59,7 @@ pub enum AlbumOutput {
 
 #[derive(Debug)]
 struct PhotoGridItem {
-    visual: Arc<fotema_core::visual::repo::Visual>,
+    visual: Arc<fotema_core::visual::Visual>,
 }
 
 struct PhotoGridItemWidgets {

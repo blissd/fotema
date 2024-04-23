@@ -40,7 +40,7 @@ impl Repository {
             )));
         }
 
-        let thumbnail_base_path = PathBuf::from(thumbnail_base_path).join("video_thumbnails");
+        let thumbnail_base_path = PathBuf::from(thumbnail_base_path);
         let _ = std::fs::create_dir_all(&thumbnail_base_path);
 
         let repo = Repository {

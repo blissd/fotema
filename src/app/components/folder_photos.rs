@@ -18,7 +18,7 @@ struct PhotoGridItem {
     folder_name: String,
 
     // Folder album cover
-    picture: Arc<fotema_core::visual::repo::Visual>,
+    picture: Arc<fotema_core::visual::Visual>,
 }
 
 struct Widgets {
