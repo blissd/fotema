@@ -1,9 +1,6 @@
 {
   "name": "glycin-loaders",
   "buildsystem": "meson",
-  "config-opts": [
-    "-Dprofile=dev"
-  ],
   "sources": [
     {
       "type": "archive",
