@@ -35,10 +35,6 @@
       "--share=network"
     ]
   },
-  "inherit-extensions": [
-    "org.freedesktop.Platform.GL",
-    "org.freedesktop.Platform.VAAPI.Intel"
-  ],
   "modules": [
     "modules/libde265.json",
     "modules/libheif.json",
