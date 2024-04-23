@@ -35,14 +35,6 @@
       "--share=network"
     ]
   },
-  "add-extensions": {
-    "org.gnome.Loupe.Devel.HEIC": {
-      "directory": "lib/libheif-heic",
-      "add-ld-path": "lib",
-      "bundle": true,
-      "autodelete": true
-    }
-  },
   "inherit-extensions": [
     "org.freedesktop.Platform.GL",
     "org.freedesktop.Platform.VAAPI.Intel"
