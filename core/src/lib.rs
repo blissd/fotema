@@ -3,19 +3,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 pub mod database;
-pub mod error;
 pub mod photo;
 pub mod time;
 pub mod video;
 pub mod visual;
 
-pub use error::Error;
 pub use photo::model::PictureId;
 pub use time::Year;
 pub use time::YearMonth;
 pub use video::VideoId;
 pub use visual::Library;
 pub use visual::VisualId;
-
-/// A typedef of the result returned by many methods.
-pub type Result<T, E = Error> = std::result::Result<T, E>;

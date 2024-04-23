@@ -3,8 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use crate::photo::model::ScannedFile;
-use crate::Error::*;
-use crate::Result;
+use anyhow::*;
 use chrono;
 use chrono::prelude::*;
 use std::fs;
@@ -23,7 +22,7 @@ pub struct Scanner {
 
 impl Scanner {
     pub fn build(scan_base: &Path) -> Result<Self> {
-        fs::create_dir_all(scan_base).map_err(|e| ScannerError(e.to_string()))?;
+        fs::create_dir_all(scan_base)?;
         let scan_base = PathBuf::from(scan_base);
         Ok(Self { scan_base })
     }
@@ -73,19 +72,15 @@ impl Scanner {
     }
 
     pub fn scan_one(&self, path: &Path) -> Result<ScannedFile> {
-        let file = fs::File::open(path).map_err(|e| ScannerError(e.to_string()))?;
+        let file = fs::File::open(path)?;
 
-        let metadata = file.metadata().map_err(|e| ScannerError(e.to_string()))?;
+        let metadata = file.metadata()?;
 
-        let fs_created_at = metadata
-            .created()
-            .map(|x| Into::<DateTime<Utc>>::into(x))
-            .map_err(|e| ScannerError(e.to_string()))?;
+        let fs_created_at = metadata.created().map(|x| Into::<DateTime<Utc>>::into(x))?;
 
         let fs_modified_at = metadata
             .modified()
-            .map(|x| Into::<DateTime<Utc>>::into(x))
-            .map_err(|e| ScannerError(e.to_string()))?;
+            .map(|x| Into::<DateTime<Utc>>::into(x))?;
 
         let fs_file_size_bytes = metadata.len();
 

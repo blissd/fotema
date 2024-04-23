@@ -5,8 +5,9 @@
 use super::thumbnail::Thumbnailer;
 use super::Metadata;
 use crate::photo::model::{PhotoExtra, PictureId};
-use crate::Result;
+use anyhow::*;
 use std::path::Path;
+use std::result::Result::Ok;
 
 /// Enrichment operations for photos.
 /// Enriches photos with a thumbnail and EXIF metadata.

@@ -3,8 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use crate::photo::model::PictureId;
-use crate::Error::*;
-use crate::Result;
+use anyhow::*;
 use fast_image_resize as fr;
 use gdk4::prelude::TextureExt;
 use glycin;
@@ -30,8 +29,7 @@ pub struct Thumbnailer {
 impl Thumbnailer {
     pub fn build(base_path: &Path) -> Result<Thumbnailer> {
         let base_path = PathBuf::from(base_path).join("photo_thumbnails");
-        std::fs::create_dir_all(&base_path)
-            .map_err(|e| PreviewError(format!("thumbnail dir: {}", e)))?;
+        std::fs::create_dir_all(&base_path)?;
 
         Ok(Thumbnailer { base_path })
     }
@@ -59,10 +57,7 @@ impl Thumbnailer {
     }
 
     fn fast_thumbnail(&self, path: &Path, thumbnail_path: &Path) -> Result<()> {
-        let img = ImageReader::open(path)
-            .map_err(|e| PreviewError(format!("image open: {}", e)))?
-            .decode()
-            .map_err(|e| PreviewError(format!("image decode: {}", e)))?;
+        let img = ImageReader::open(path)?.decode()?;
 
         let width = NonZeroU32::new(img.width()).unwrap();
 
@@ -73,15 +68,14 @@ impl Thumbnailer {
             height,
             img.to_rgba8().into_raw(),
             fr::PixelType::U8x4,
-        )
-        .map_err(|e| PreviewError(format!("image save: {}", e)))?;
+        )?;
 
         let mut src_view = src_image.view();
 
         // A square box centred on the image.
         src_view.set_crop_box_to_fit_dst_size(
-            NonZeroU32::new(EDGE).unwrap(),
-            NonZeroU32::new(EDGE).unwrap(),
+            NonZeroU32::new(EDGE).expect("Must be EDGE"),
+            NonZeroU32::new(EDGE).expect("Must be EDGE"),
             Some((0.5, 0.5)),
         );
 
@@ -93,8 +87,8 @@ impl Thumbnailer {
         //    .map_err(|e| PreviewError(format!("fast thumbnail: {}", e)))?;
 
         // Create container for data of destination image
-        let dst_width = NonZeroU32::new(EDGE).unwrap();
-        let dst_height = NonZeroU32::new(EDGE).unwrap();
+        let dst_width = NonZeroU32::new(EDGE).expect("Must be EDGE");
+        let dst_height = NonZeroU32::new(EDGE).expect("Must be EDGE");
         let mut dst_image = fr::Image::new(dst_width, dst_height, src_image.pixel_type());
 
         // Get mutable view of destination image data
@@ -103,30 +97,25 @@ impl Thumbnailer {
         // Create Resizer instance and resize source image
         // into buffer of destination image
         let mut resizer = fr::Resizer::new(fr::ResizeAlg::Convolution(fr::FilterType::Lanczos3));
-        resizer
-            .resize(&src_view, &mut dst_view)
-            .map_err(|e| PreviewError(format!("fast thumbnail resize: {}", e)))?;
+        resizer.resize(&src_view, &mut dst_view)?;
 
         // Divide RGB channels of destination image by alpha
         // alpha_mul_div
-        //     .divide_alpha_inplace(&mut dst_view)
-        //   .map_err(|e| PreviewError(format!("fast thumbnail: {}", e)))?;
+        //     .divide_alpha_inplace(&mut dst_view)?;
 
         // Write destination image as PNG-file
 
-        let file = std::fs::File::create(thumbnail_path)
-            .map_err(|e| PreviewError(format!("fast thumbnail encode: {}", e)))?;
-
+        let file = std::fs::File::create(thumbnail_path)?;
         let mut file = BufWriter::new(file);
 
-        PngEncoder::new(&mut file)
-            .write_image(
-                dst_image.buffer(),
-                dst_width.get(),
-                dst_height.get(),
-                ExtendedColorType::Rgba8,
-            )
-            .map_err(|e| PreviewError(format!("fast thumbnail encode: {}", e)))
+        PngEncoder::new(&mut file).write_image(
+            dst_image.buffer(),
+            dst_width.get(),
+            dst_height.get(),
+            ExtendedColorType::Rgba8,
+        )?;
+
+        Ok(())
     }
 
     /// Copy an image to a PNG file using Glycin, and then use image-rs to compute the thumbnail.
@@ -134,25 +123,13 @@ impl Thumbnailer {
     async fn fallback_thumbnail(&self, source_path: &Path, thumbnail_path: &Path) -> Result<()> {
         let file = gio::File::for_path(source_path);
 
-        let image = glycin::Loader::new(file)
-            .load()
-            .await
-            .map_err(|e| PreviewError(format!("Glycin load image: {}", e)))?;
+        let image = glycin::Loader::new(file).load().await?;
 
-        let frame = image
-            .next_frame()
-            .await
-            .map_err(|e| PreviewError(format!("Glycin image frame: {}", e)))?;
+        let frame = image.next_frame().await?;
 
-        let png_file = tempfile::Builder::new()
-            .suffix(".png")
-            .tempfile()
-            .map_err(|e| PreviewError(format!("Temp file: {}", e)))?;
+        let png_file = tempfile::Builder::new().suffix(".png").tempfile()?;
 
-        frame
-            .texture
-            .save_to_png(png_file.path())
-            .map_err(|e| PreviewError(format!("image save: {}", e)))?;
+        frame.texture.save_to_png(png_file.path())?;
 
         self.fast_thumbnail(png_file.path(), thumbnail_path)
     }

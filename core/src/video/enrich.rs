@@ -5,12 +5,12 @@
 use super::transcode::Transcoder;
 use super::Metadata;
 use crate::video::model::{VideoExtra, VideoId};
-use crate::Error::*;
-use crate::Result;
+use anyhow::*;
 use image::io::Reader as ImageReader;
 use image::DynamicImage;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::result::Result::Ok;
 use tempfile;
 
 const EDGE: u32 = 200;
@@ -24,7 +24,7 @@ pub struct Enricher {
 impl Enricher {
     pub fn build(base_path: &Path, transcoder: Transcoder) -> Result<Self> {
         let base_path = PathBuf::from(base_path).join("video_thumbnails");
-        let _ = std::fs::create_dir_all(&base_path);
+        std::fs::create_dir_all(&base_path)?;
         Ok(Self {
             base_path,
             transcoder,
@@ -41,9 +41,7 @@ impl Enricher {
             self.base_path.join(file_name)
         };
 
-        let result = self
-            .compute_thumbnail(video_path, &thumbnail_path)
-            .map_err(|e| PreviewError(format!("save video thumbnail: {}", e)));
+        let result = self.compute_thumbnail(video_path, &thumbnail_path);
 
         if result.is_ok() {
             extra.thumbnail_path = Some(thumbnail_path.clone());
@@ -70,10 +68,7 @@ impl Enricher {
             return Ok(());
         }
 
-        let temporary_png_file = tempfile::Builder::new()
-            .suffix(".png")
-            .tempfile()
-            .map_err(|e| PreviewError(format!("Temp file: {}", e)))?;
+        let temporary_png_file = tempfile::Builder::new().suffix(".png").tempfile()?;
 
         // ffmpeg command will extract the first frame and save it as a PNG file.
         Command::new("ffmpeg")
@@ -87,28 +82,21 @@ impl Enricher {
             .arg("-vf")
             .arg(r"select=eq(n\,0)") // select frame zero
             .arg(temporary_png_file.path())
-            .status()
-            .map_err(|e| PreviewError(format!("ffmpeg result: {}", e)))?;
+            .status()?;
 
         let thumbnail = self.standard_thumbnail(temporary_png_file.path())?;
 
-        thumbnail
-            .save(thumbnail_path)
-            .or_else(|e| {
-                let _ = std::fs::remove_file(&thumbnail_path);
-                Err(e) // don't lose original error
-            })
-            .map_err(|e| PreviewError(format!("save video thumbnail: {}", e)))?;
+        thumbnail.save(thumbnail_path).or_else(|e| {
+            let _ = std::fs::remove_file(&thumbnail_path);
+            Err(e) // don't lose original error
+        })?;
 
         Ok(())
     }
 
     // FIXME copy-and-paste from photo thumbnailer
     fn standard_thumbnail(&self, path: &Path) -> Result<DynamicImage> {
-        let img = ImageReader::open(path)
-            .map_err(|e| PreviewError(format!("image open: {}", e)))?
-            .decode()
-            .map_err(|e| PreviewError(format!("image decode: {}", e)))?;
+        let img = ImageReader::open(path)?.decode()?;
 
         let img = if img.width() == img.height() && img.width() == EDGE {
             return Ok(img);

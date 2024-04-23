@@ -4,7 +4,7 @@
 
 use relm4::prelude::*;
 use relm4::Worker;
-use fotema_core::Result;
+use anyhow::*;
 
 #[derive(Debug)]
 pub enum EnrichVideosInput {

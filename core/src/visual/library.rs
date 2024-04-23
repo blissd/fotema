@@ -4,8 +4,8 @@
 
 use super::model::Visual;
 use super::repo::Repository;
-use crate::Result;
 use crate::VisualId;
+use anyhow::*;
 use std::sync::{Arc, RwLock};
 
 /// Index of all images and photos in the library

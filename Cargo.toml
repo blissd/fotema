@@ -27,6 +27,7 @@ rayon = "1.10.0"
 glycin = "1.0.2"
 futures = "0.3.30"
 chrono = "0.4.38"
+anyhow = "1.0.82"
 
 
 [dependencies.fotema_core]

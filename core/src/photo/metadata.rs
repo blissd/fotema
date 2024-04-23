@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+use anyhow::*;
 use chrono::prelude::*;
 use chrono::{DateTime, FixedOffset};
 use exif;
@@ -11,6 +12,7 @@ use std::fs;
 use std::io::BufReader;
 use std::path::Path;
 use std::process::Command;
+use std::result::Result::Ok;
 
 #[derive(Debug, Default, Clone)]
 pub struct Metadata {
@@ -25,28 +27,14 @@ pub struct Metadata {
     pub content_id: Option<String>,
 }
 
-pub enum Error {
-    Invalid,
-    ExifTool(String),
-    Json(String),
-}
-
 impl Metadata {
-    pub fn from_path(path: &Path) -> Result<Metadata, Error> {
-        let exif_data = {
-            let file = fs::File::open(path).map_err(|_| Error::Invalid)?;
-
-            let f = &mut BufReader::new(file);
-            match exif::Reader::new().read_from_container(f) {
-                Ok(file) => file,
-                Err(_) => {
-                    // Assume this error is when there is no EXIF data.
-                    return Ok(Metadata::default());
-                }
-            }
-        };
+    pub fn from_path(path: &Path) -> Result<Metadata> {
+        let file = fs::File::open(path)?;
+        let file = &mut BufReader::new(file);
+        let exif_data = exif::Reader::new().read_from_container(file)?;
 
         let mut metadata = Metadata::from(exif_data);
+
         if let Ok(ref mut metadata) = metadata {
             // FIXME inconsistent with from_raw because from_raw cannot get content_id
             metadata.content_id = Metadata::content_id(path).ok();
@@ -54,7 +42,7 @@ impl Metadata {
         metadata
     }
 
-    pub fn from_raw(data: Vec<u8>) -> Result<Metadata, Error> {
+    pub fn from_raw(data: Vec<u8>) -> Result<Metadata> {
         let exif_data = {
             match exif::Reader::new().read_raw(data) {
                 Ok(exif) => exif,
@@ -68,7 +56,7 @@ impl Metadata {
         Metadata::from(exif_data)
     }
 
-    fn from(exif_data: Exif) -> Result<Metadata, Error> {
+    fn from(exif_data: Exif) -> Result<Metadata> {
         fn parse_date_time(
             date_time_field: Option<&exif::Field>,
             time_offset_field: Option<&exif::Field>,
@@ -130,20 +118,18 @@ impl Metadata {
     /// FIXME use exif-rs or other Rust code to extract content_id instead of bundling Perl
     /// and exiftool in the Flatpak :-(
     /// Or... just use exiftool for getting all the exif data?
-    fn content_id(path: &Path) -> Result<String, Error> {
+    fn content_id(path: &Path) -> Result<String> {
         let output = Command::new("/app/bin/exiftool")
             .arg("-json")
             .arg("-ContentIdentifier")
             .arg(path.as_os_str())
-            .output()
-            .map_err(|e| Error::ExifTool(e.to_string()))?;
+            .output()?;
 
-        let v: Value = serde_json::from_slice(output.stdout.as_slice())
-            .map_err(|e| Error::Json(e.to_string()))?;
+        let v: Value = serde_json::from_slice(output.stdout.as_slice())?;
 
         v[0]["ContentIdentifier"]
             .as_str()
             .map(|x| x.to_string())
-            .ok_or(Error::Invalid)
+            .ok_or_else(|| anyhow!("Missing content id"))
     }
 }

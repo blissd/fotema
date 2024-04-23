@@ -2,10 +2,8 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use crate::Error::*;
-use crate::Result;
-
 use crate::video::model::{ScannedFile, Video, VideoExtra, VideoId};
+use anyhow::*;
 use chrono::*;
 use rusqlite;
 use rusqlite::params;
@@ -33,15 +31,8 @@ impl Repository {
         thumbnail_base_path: &Path,
         con: Arc<Mutex<rusqlite::Connection>>,
     ) -> Result<Repository> {
-        if !library_base_path.is_dir() {
-            return Err(RepositoryError(format!(
-                "{:?} is not a directory",
-                library_base_path
-            )));
-        }
-
         let thumbnail_base_path = PathBuf::from(thumbnail_base_path);
-        let _ = std::fs::create_dir_all(&thumbnail_base_path);
+        std::fs::create_dir_all(&thumbnail_base_path)?;
 
         let repo = Repository {
             library_base_path: PathBuf::from(library_base_path),
@@ -54,14 +45,11 @@ impl Repository {
 
     pub fn update(&mut self, video_id: &VideoId, extra: &VideoExtra) -> Result<()> {
         let mut con = self.con.lock().unwrap();
-        let tx = con
-            .transaction()
-            .map_err(|e| RepositoryError(e.to_string()))?;
+        let tx = con.transaction()?;
 
         {
-            let mut stmt = tx
-                .prepare(
-                    "UPDATE videos
+            let mut stmt = tx.prepare(
+                "UPDATE videos
                 SET
                     thumbnail_path = ?2,
                     stream_created_ts = ?3,
@@ -70,8 +58,7 @@ impl Repository {
                     content_id = ?6,
                     transcoded_path = ?7
                 WHERE video_id = ?1",
-                )
-                .map_err(|e| RepositoryError(e.to_string()))?;
+            )?;
 
             // convert to relative path before saving to database
             let thumbnail_path = extra
@@ -93,24 +80,21 @@ impl Repository {
                 extra.video_codec,
                 extra.content_id,
                 transcoded_path.as_ref().map(|p| p.to_str()),
-            ])
-            .map_err(|e| RepositoryError(format!("Preview: {}", e)))?;
+            ])?;
         }
 
-        tx.commit().map_err(|e| RepositoryError(e.to_string()))
+        tx.commit()?;
+        Ok(())
     }
 
     pub fn add_all(&mut self, vids: &Vec<ScannedFile>) -> Result<()> {
         let mut con = self.con.lock().unwrap();
-        let tx = con
-            .transaction()
-            .map_err(|e| RepositoryError(format!("Starting transaction: {}", e)))?;
+        let tx = con.transaction()?;
 
         // Create a scope to make borrowing of tx not be an error.
         {
-            let mut vid_stmt = tx
-                .prepare_cached(
-                    "INSERT INTO videos (
+            let mut vid_stmt = tx.prepare_cached(
+                "INSERT INTO videos (
                         video_path,
                         fs_created_ts,
                         link_path
@@ -119,17 +103,11 @@ impl Repository {
                     ) ON CONFLICT (video_path) DO UPDATE SET
                         fs_created_ts=?2
                     ",
-                )
-                .map_err(|e| RepositoryError(format!("Preparing statement: {}", e)))?;
+            )?;
 
             for vid in vids {
                 // convert to relative path before saving to database
-                let path = vid
-                    .path
-                    .strip_prefix(&self.library_base_path)
-                    .map_err(|e| {
-                        RepositoryError(format!("Stripping prefix for {:?}: {}", &vid.path, e))
-                    })?;
+                let path = vid.path.strip_prefix(&self.library_base_path)?;
 
                 // Path without suffix so sibling pictures and videos can be related
                 let stem_path = {
@@ -140,26 +118,23 @@ impl Repository {
                     path.with_file_name(file_stem)
                 };
 
-                vid_stmt
-                    .execute(params![
-                        path.to_str(),
-                        vid.fs_created_at,
-                        stem_path.to_str(),
-                    ])
-                    .map_err(|e| RepositoryError(format!("Inserting: {}", e)))?;
+                vid_stmt.execute(params![
+                    path.to_str(),
+                    vid.fs_created_at,
+                    stem_path.to_str(),
+                ])?;
             }
         }
 
-        tx.commit()
-            .map_err(|e| RepositoryError(format!("Committing transaction: {}", e)))
+        tx.commit()?;
+        Ok(())
     }
 
     /// Gets all videos in the repository, in ascending order of modification timestamp.
     pub fn all(&self) -> Result<Vec<Video>> {
         let con = self.con.lock().unwrap();
-        let mut stmt = con
-            .prepare(
-                "SELECT
+        let mut stmt = con.prepare(
+            "SELECT
                     video_id,
                     video_path,
                     thumbnail_path,
@@ -170,33 +145,30 @@ impl Repository {
                     transcoded_path
                 FROM videos
                 ORDER BY COALESCE(stream_created_ts, fs_created_ts) ASC",
-            )
-            .map_err(|e| RepositoryError(e.to_string()))?;
+        )?;
 
-        let iter = stmt
-            .query_map([], |row| {
-                let path_result: rusqlite::Result<String> = row.get(1);
-                path_result.map(|relative_path| Video {
-                    video_id: VideoId::new(row.get(0).unwrap()), // should always have a primary key
-                    path: self.library_base_path.join(relative_path), // compute full path
-                    thumbnail_path: row
-                        .get(2)
-                        .ok()
-                        .map(|p: String| self.thumbnail_base_path.join(p)),
-                    fs_created_at: row.get(3).ok().expect("Must have fs_created_at"),
-                    stream_created_at: row.get(4).ok(),
-                    stream_duration: row
-                        .get(5)
-                        .ok()
-                        .and_then(|x: i64| TimeDelta::try_milliseconds(x)),
-                    video_codec: row.get(6).ok(),
-                    transcoded_path: row
-                        .get(7)
-                        .ok()
-                        .map(|p: String| self.thumbnail_base_path.join(p)),
-                })
+        let iter = stmt.query_map([], |row| {
+            let path_result: rusqlite::Result<String> = row.get(1);
+            path_result.map(|relative_path| Video {
+                video_id: VideoId::new(row.get(0).unwrap()), // should always have a primary key
+                path: self.library_base_path.join(relative_path), // compute full path
+                thumbnail_path: row
+                    .get(2)
+                    .ok()
+                    .map(|p: String| self.thumbnail_base_path.join(p)),
+                fs_created_at: row.get(3).ok().expect("Must have fs_created_at"),
+                stream_created_at: row.get(4).ok(),
+                stream_duration: row
+                    .get(5)
+                    .ok()
+                    .and_then(|x: i64| TimeDelta::try_milliseconds(x)),
+                video_codec: row.get(6).ok(),
+                transcoded_path: row
+                    .get(7)
+                    .ok()
+                    .map(|p: String| self.thumbnail_base_path.join(p)),
             })
-            .map_err(|e| RepositoryError(e.to_string()))?;
+        })?;
 
         // Would like to return an iterator... but Rust is defeating me.
         let mut vids = Vec::new();
@@ -209,12 +181,9 @@ impl Repository {
 
     pub fn remove(&mut self, video_id: VideoId) -> Result<()> {
         let con = self.con.lock().unwrap();
-        let mut stmt = con
-            .prepare("DELETE FROM videos WHERE video_id = ?1")
-            .map_err(|e| RepositoryError(e.to_string()))?;
+        let mut stmt = con.prepare("DELETE FROM videos WHERE video_id = ?1")?;
 
-        stmt.execute([video_id.id()])
-            .map_err(|e| RepositoryError(e.to_string()))?;
+        stmt.execute([video_id.id()])?;
 
         Ok(())
     }

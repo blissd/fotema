@@ -849,6 +849,7 @@ dependencies = [
 name = "fotema"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "chrono",
  "fotema_core",
  "futures",
@@ -866,6 +867,7 @@ dependencies = [
 name = "fotema_core"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "chrono",
  "fast_image_resize",
  "gdk4",
