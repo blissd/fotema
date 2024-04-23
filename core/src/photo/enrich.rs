@@ -113,12 +113,37 @@ impl Enricher {
         )
         .map_err(|e| PreviewError(format!("image save: {}", e)))?;
 
+        // A square box centred on the image.
+        /*
+        let crop_box = if img.width() == img.height() {
+            fr::CropBox{left: 0.0, top: 0.0, width: img.width() as f64, height: img.height() as f64}
+        } else if img.width() < img.height() {
+            let h = (img.height() - img.width()) as f64 / 2.0;
+            fr::CropBox{left: 0.0, top: h, width: img.width() as f64, height: img.width() as f64}
+        } else {
+            let w = (img.width() - img.height()) as f64 / 2.0;
+            fr::CropBox{left: w, top: 0.0, width: img.height() as f64, height: img.height() as f64}
+        };
+
+
+        let mut src_view = src_image.view();
+        src_view.set_crop_box(crop_box)
+            .map_err(|e| PreviewError(format!("fast thumbnail crop: {}", e)))?;
+            */
+
+        let mut src_view = src_image.view();
+        src_view.set_crop_box_to_fit_dst_size(
+            NonZeroU32::new(EDGE).unwrap(),
+            NonZeroU32::new(EDGE).unwrap(),
+            Some((0.5, 0.5)),
+        );
+
         // Multiple RGB channels of source image by alpha channel
         // (not required for the Nearest algorithm)
-        let alpha_mul_div = fr::MulDiv::default();
-        alpha_mul_div
-            .multiply_alpha_inplace(&mut src_image.view_mut())
-            .map_err(|e| PreviewError(format!("fast thumbnail: {}", e)))?;
+        //let alpha_mul_div = fr::MulDiv::default();
+        //alpha_mul_div
+        //    .multiply_alpha_inplace(&mut src_view)
+        //    .map_err(|e| PreviewError(format!("fast thumbnail: {}", e)))?;
 
         // Create container for data of destination image
         let dst_width = NonZeroU32::new(EDGE).unwrap();
@@ -132,13 +157,13 @@ impl Enricher {
         // into buffer of destination image
         let mut resizer = fr::Resizer::new(fr::ResizeAlg::Convolution(fr::FilterType::Lanczos3));
         resizer
-            .resize(&src_image.view(), &mut dst_view)
+            .resize(&src_view, &mut dst_view)
             .map_err(|e| PreviewError(format!("fast thumbnail resize: {}", e)))?;
 
         // Divide RGB channels of destination image by alpha
-        alpha_mul_div
-            .divide_alpha_inplace(&mut dst_view)
-            .map_err(|e| PreviewError(format!("fast thumbnail: {}", e)))?;
+        // alpha_mul_div
+        //     .divide_alpha_inplace(&mut dst_view)
+        //   .map_err(|e| PreviewError(format!("fast thumbnail: {}", e)))?;
 
         // Write destination image as PNG-file
         let mut result_buf = BufWriter::new(Vec::new());
