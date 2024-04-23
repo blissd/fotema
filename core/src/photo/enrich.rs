@@ -6,25 +6,19 @@ use super::thumbnail::Thumbnailer;
 use super::Metadata;
 use crate::photo::model::{PhotoExtra, PictureId};
 use crate::Result;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 /// Enrichment operations for photos.
 /// Enriches photos with a thumbnail and EXIF metadata.
 #[derive(Debug, Clone)]
 pub struct Enricher {
-    base_path: PathBuf,
     thumbnailer: Thumbnailer,
 }
 
 impl Enricher {
     pub fn build(base_path: &Path) -> Result<Enricher> {
         let thumbnailer = Thumbnailer::build(base_path)?;
-        let base_path = PathBuf::from(base_path).join("photo_thumbnails");
-        let _ = std::fs::create_dir_all(&base_path);
-        Ok(Enricher {
-            base_path,
-            thumbnailer,
-        })
+        Ok(Enricher { thumbnailer })
     }
 
     /// Computes a preview square for an image that has been inserted
