@@ -11,6 +11,7 @@ edition = "2021"
 
 [dependencies]
 chrono = "0.4.37"
+fast_image_resize = "3.0.4"
 gdk4 = "0.8.1"
 gio = "0.19.4"
 glycin = "1.0.2"

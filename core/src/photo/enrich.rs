@@ -6,11 +6,22 @@ use super::Metadata;
 use crate::photo::model::{PhotoExtra, PictureId};
 use crate::Error::*;
 use crate::Result;
+use fast_image_resize as fr;
 use gdk4::prelude::TextureExt;
 use glycin;
+use image::codecs::png;
+use image::codecs::png::PngEncoder;
 use image::io::Reader as ImageReader;
+use image::ColorType;
 use image::DynamicImage;
+use image::ExtendedColorType;
+use image::ImageEncoder;
+use std::io::prelude::*;
+use std::io::BufWriter;
+use std::io::Cursor;
+use std::num::NonZeroU32;
 use std::path::{Path, PathBuf};
+
 use tempfile;
 
 const EDGE: u32 = 200;
@@ -64,7 +75,8 @@ impl Enricher {
             return Ok(());
         }
 
-        let thumbnail = self.standard_thumbnail(picture_path);
+        let thumbnail = self.fast_thumbnail(picture_path);
+        //.or_else(|_| self.standard_thumbnail(picture_path))
 
         let thumbnail = if thumbnail.is_err() {
             self.fallback_thumbnail(picture_path).await
@@ -75,12 +87,76 @@ impl Enricher {
         thumbnail
             .save(thumbnail_path)
             .or_else(|e| {
-                let _ = std::fs::remove_file(&thumbnail_path);
+                // let _ = std::fs::remove_file(&thumbnail_path);
                 Err(e) // don't lose original error
             })
             .map_err(|e| PreviewError(format!("image save: {}", e)))?;
 
         Ok(())
+    }
+
+    fn fast_thumbnail(&self, path: &Path) -> Result<DynamicImage> {
+        let img = ImageReader::open(path)
+            .map_err(|e| PreviewError(format!("image open: {}", e)))?
+            .decode()
+            .map_err(|e| PreviewError(format!("image decode: {}", e)))?;
+
+        let width = NonZeroU32::new(img.width()).unwrap();
+
+        let height = NonZeroU32::new(img.height()).unwrap();
+
+        let mut src_image = fr::Image::from_vec_u8(
+            width,
+            height,
+            img.to_rgba8().into_raw(),
+            fr::PixelType::U8x4,
+        )
+        .map_err(|e| PreviewError(format!("image save: {}", e)))?;
+
+        // Multiple RGB channels of source image by alpha channel
+        // (not required for the Nearest algorithm)
+        let alpha_mul_div = fr::MulDiv::default();
+        alpha_mul_div
+            .multiply_alpha_inplace(&mut src_image.view_mut())
+            .map_err(|e| PreviewError(format!("fast thumbnail: {}", e)))?;
+
+        // Create container for data of destination image
+        let dst_width = NonZeroU32::new(EDGE).unwrap();
+        let dst_height = NonZeroU32::new(EDGE).unwrap();
+        let mut dst_image = fr::Image::new(dst_width, dst_height, src_image.pixel_type());
+
+        // Get mutable view of destination image data
+        let mut dst_view = dst_image.view_mut();
+
+        // Create Resizer instance and resize source image
+        // into buffer of destination image
+        let mut resizer = fr::Resizer::new(fr::ResizeAlg::Convolution(fr::FilterType::Lanczos3));
+        resizer
+            .resize(&src_image.view(), &mut dst_view)
+            .map_err(|e| PreviewError(format!("fast thumbnail resize: {}", e)))?;
+
+        // Divide RGB channels of destination image by alpha
+        alpha_mul_div
+            .divide_alpha_inplace(&mut dst_view)
+            .map_err(|e| PreviewError(format!("fast thumbnail: {}", e)))?;
+
+        // Write destination image as PNG-file
+        let mut result_buf = BufWriter::new(Vec::new());
+        PngEncoder::new(&mut result_buf)
+            .write_image(
+                dst_image.buffer(),
+                dst_width.get(),
+                dst_height.get(),
+                ExtendedColorType::Rgba8,
+            )
+            .map_err(|e| PreviewError(format!("fast thumbnail encode: {}", e)))?;
+
+        let result_buf = result_buf
+            .into_inner()
+            .map_err(|e| PreviewError(format!("fast thumbnail buf: {}", e)))?;
+
+        image::load_from_memory_with_format(&result_buf, image::ImageFormat::Png)
+            .map_err(|e| PreviewError(format!("fast thumbnail memload: {}", e)))
     }
 
     fn standard_thumbnail(&self, path: &Path) -> Result<DynamicImage> {
@@ -130,7 +206,7 @@ impl Enricher {
             .save_to_png(png_file.path())
             .map_err(|e| PreviewError(format!("image save: {}", e)))?;
 
-        self.standard_thumbnail(png_file.path())
+        self.fast_thumbnail(png_file.path())
     }
 }
 
