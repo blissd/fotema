@@ -53,6 +53,7 @@ use self::background::{
     load_library::{LoadLibrary, LoadLibraryInput, LoadLibraryOutput},
     scan_photos::{ScanPhotos, ScanPhotosInput, ScanPhotosOutput},
     scan_videos::{ScanVideos, ScanVideosInput, ScanVideosOutput},
+    thumbnail_photos::{ThumbnailPhotos, ThumbnailPhotosInput, ThumbnailPhotosOutput},
 };
 
 pub(super) struct App {
@@ -66,6 +67,7 @@ pub(super) struct App {
     enrich_videos: WorkerController<EnrichVideos>,
     clean_photos: WorkerController<CleanPhotos>,
     clean_videos: WorkerController<CleanVideos>,
+    thumbnail_photos: WorkerController<ThumbnailPhotos>,
 
     about_dialog: Controller<AboutDialog>,
     preferences_dialog: Controller<PreferencesDialog>,
@@ -159,8 +161,12 @@ pub(super) enum AppMsg {
 
     // Thumbnail generation events
     PhotoEnrichmentStarted(usize),
-    PhotoEnriched,
+    PhotoEnrichmentEnriched,
     PhotoEnrichmentCompleted,
+
+    ThumbnailPhotosStarted(usize),
+    ThumbnailPhotosGenerated,
+    ThumbnailPhotosCompleted,
 
     // Thumbnail generation events
     VideoEnrichmentStarted(usize),
@@ -463,8 +469,7 @@ impl SimpleComponent for App {
         )
         .unwrap();
 
-        let photo_enricher =
-            fotema_core::photo::Enricher::build(&cache_dir).unwrap();
+        let photo_thumbnailer = fotema_core::photo::Thumbnailer::build(&cache_dir).unwrap();
 
         let video_scan = fotema_core::video::Scanner::build(&pic_base_dir).unwrap();
 
@@ -515,11 +520,19 @@ impl SimpleComponent for App {
             });
 
         let enrich_photos = EnrichPhotos::builder()
-            .detach_worker((photo_enricher.clone(), photo_repo.clone()))
+            .detach_worker(photo_repo.clone())
             .forward(sender.input_sender(), |msg| match msg {
                 EnrichPhotosOutput::Started(count) => AppMsg::PhotoEnrichmentStarted(count),
-                EnrichPhotosOutput::Generated => AppMsg::PhotoEnriched,
+                EnrichPhotosOutput::Enriched => AppMsg::PhotoEnrichmentEnriched,
                 EnrichPhotosOutput::Completed => AppMsg::PhotoEnrichmentCompleted,
+            });
+
+        let thumbnail_photos = ThumbnailPhotos::builder()
+            .detach_worker((photo_thumbnailer.clone(), photo_repo.clone()))
+            .forward(sender.input_sender(), |msg| match msg {
+                ThumbnailPhotosOutput::Started(count) => AppMsg::ThumbnailPhotosStarted(count),
+                ThumbnailPhotosOutput::Generated => AppMsg::ThumbnailPhotosGenerated,
+                ThumbnailPhotosOutput::Completed => AppMsg::ThumbnailPhotosCompleted,
             });
 
         let clean_photos = CleanPhotos::builder()
@@ -634,12 +647,15 @@ impl SimpleComponent for App {
         let model = Self {
             load_library,
             last_load_at: None,
+
             scan_photos,
             scan_videos,
             enrich_photos,
             enrich_videos,
             clean_photos,
             clean_videos,
+            thumbnail_photos,
+
             about_dialog,
             preferences_dialog,
             all_photos,
@@ -809,9 +825,7 @@ impl SimpleComponent for App {
             }
             AppMsg::PhotoEnrichmentStarted(count) => {
                 println!("Photo enrichment started.");
-                self.banner
-                    .set_title("Generating photo thumbnails. This will take a while.");
-                // Show button to refresh all photo grids.
+                self.banner.set_title("Processing photo metadata.");
                 self.banner.set_button_label(Some("Refresh"));
                 self.banner.set_revealed(true);
 
@@ -826,10 +840,10 @@ impl SimpleComponent for App {
                 self.progress_box.set_visible(true);
                 self.progress_bar.set_fraction(0.0);
                 self.progress_bar
-                    .set_text(Some("Generating photo thumbnails."));
+                    .set_text(Some("Processing photo metadata."));
                 self.progress_bar.set_pulse_step(0.25);
             }
-            AppMsg::PhotoEnriched => {
+            AppMsg::PhotoEnrichmentEnriched => {
                 println!("Photo enriched.");
                 self.progress_current_count += 1;
                 // Show pulsing for first 20 items so that it catches the eye, then
@@ -849,19 +863,13 @@ impl SimpleComponent for App {
                 println!("Photo enrichment completed.");
                 self.spinner.stop();
                 self.banner.set_revealed(false);
-                self.banner.set_button_label(None);
-                self.progress_box.set_visible(false);
 
                 // Now generate video thumbnails
                 self.enrich_videos.emit(EnrichVideosInput::Start);
-
-                //sender.input(AppMsg::LibraryRefresh);
             }
             AppMsg::VideoEnrichmentStarted(count) => {
                 println!("Video thumbnail generation started.");
-                self.banner
-                    .set_title("Generating video thumbnails. This will take a while.");
-                // Show button to refresh all photo grids.
+                self.banner.set_title("Generating video thumbnails. This will take a while.");
                 self.banner.set_button_label(Some("Refresh"));
                 self.banner.set_revealed(true);
 
@@ -903,6 +911,53 @@ impl SimpleComponent for App {
                 self.progress_box.set_visible(false);
 
                 sender.input(AppMsg::LibraryRefresh);
+            }
+            AppMsg::ThumbnailPhotosStarted(count) => {
+                println!("Photo thumbnail generation started.");
+                self.banner
+                    .set_title("Generating photo thumbnails. This will take a while.");
+                // Show button to refresh all photo grids.
+                self.banner.set_button_label(Some("Refresh"));
+                self.banner.set_revealed(true);
+
+                self.spinner.start();
+
+                let show = self.main_navigation.shows_sidebar();
+                self.spinner.set_visible(!show);
+
+                self.progress_end_count = count;
+                self.progress_current_count = 0;
+
+                self.progress_box.set_visible(true);
+                self.progress_bar.set_fraction(0.0);
+                self.progress_bar
+                    .set_text(Some("Generating photo thumbnails."));
+                self.progress_bar.set_pulse_step(0.25);
+            }
+            AppMsg::ThumbnailPhotosGenerated => {
+                println!("Photo thumbnail generated.");
+                self.progress_current_count += 1;
+                // Show pulsing for first 20 items so that it catches the eye, then
+                // switch to fractional view
+                if self.progress_current_count < 20 {
+                    self.progress_bar.pulse();
+                } else {
+                    if self.progress_current_count == 20 {
+                        self.progress_bar.set_text(None);
+                    }
+                    let fraction =
+                        self.progress_current_count as f64 / self.progress_end_count as f64;
+                    self.progress_bar.set_fraction(fraction);
+                }
+            }
+            AppMsg::ThumbnailPhotosCompleted => {
+                println!("Photo thumbnails completed.");
+                self.spinner.stop();
+                self.banner.set_revealed(false);
+                self.banner.set_button_label(None);
+                self.progress_box.set_visible(false);
+
+                self.enrich_videos.emit(EnrichVideosInput::Start);
             }
             AppMsg::PhotoCleanStarted => {
                 println!("Photo cleanup started.");

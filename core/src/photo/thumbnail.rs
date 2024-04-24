@@ -19,8 +19,7 @@ use tempfile;
 
 const EDGE: u32 = 200;
 
-/// Enrichment operations for photos.
-/// Enriches photos with a thumbnail and EXIF metadata.
+/// Thumbnail operations for photos.
 #[derive(Debug, Clone)]
 pub struct Thumbnailer {
     base_path: PathBuf,
@@ -46,17 +45,16 @@ impl Thumbnailer {
             return Ok(thumbnail_path);
         }
 
-        let thumbnail = self.fast_thumbnail(picture_path, &thumbnail_path);
+        let thumbnail = Self::fast_thumbnail(picture_path, &thumbnail_path);
 
         if thumbnail.is_err() {
-            self.fallback_thumbnail(picture_path, &thumbnail_path)
-                .await?
+            Self::fallback_thumbnail(picture_path, &thumbnail_path).await?
         }
 
         Ok(thumbnail_path)
     }
 
-    fn fast_thumbnail(&self, path: &Path, thumbnail_path: &Path) -> Result<()> {
+    pub fn fast_thumbnail(path: &Path, thumbnail_path: &Path) -> Result<()> {
         let img = ImageReader::open(path)?.decode()?;
 
         let width = NonZeroU32::new(img.width()).unwrap();
@@ -120,7 +118,7 @@ impl Thumbnailer {
 
     /// Copy an image to a PNG file using Glycin, and then use image-rs to compute the thumbnail.
     /// This is the fallback if image-rs can't decode the original image (such as HEIC images).
-    async fn fallback_thumbnail(&self, source_path: &Path, thumbnail_path: &Path) -> Result<()> {
+    pub async fn fallback_thumbnail(source_path: &Path, thumbnail_path: &Path) -> Result<()> {
         let file = gio::File::for_path(source_path);
 
         let image = glycin::Loader::new(file).load().await?;
@@ -131,6 +129,6 @@ impl Thumbnailer {
 
         frame.texture.save_to_png(png_file.path())?;
 
-        self.fast_thumbnail(png_file.path(), thumbnail_path)
+        Self::fast_thumbnail(png_file.path(), thumbnail_path)
     }
 }

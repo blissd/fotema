@@ -5,8 +5,8 @@
 use relm4::prelude::*;
 use relm4::Worker;
 use rayon::prelude::*;
-use futures::executor::block_on;
 use anyhow::*;
+use fotema_core::photo::metadata;
 
 
 #[derive(Debug)]
@@ -16,20 +16,18 @@ pub enum EnrichPhotosInput {
 
 #[derive(Debug)]
 pub enum EnrichPhotosOutput {
-    // Thumbnail generation has started for a given number of images.
+    // Metadata enrichment started.
     Started(usize),
 
     // Thumbnail has been generated for a photo.
-    Generated,
+    Enriched,
 
-    // Thumbnail generation has completed
+    // Metadata enrichment completed
     Completed,
 
 }
 
 pub struct EnrichPhotos {
-    enricher: fotema_core::photo::Enricher,
-
     // Danger! Don't hold the repo mutex for too long as it blocks viewing images.
     repo: fotema_core::photo::Repository,
 }
@@ -37,8 +35,7 @@ pub struct EnrichPhotos {
 impl EnrichPhotos {
 
     fn enrich(
-        repo: fotema_core::photo::Repository,
-        enricher: fotema_core::photo::Enricher,
+        mut repo: fotema_core::photo::Repository,
         sender: &ComponentSender<EnrichPhotos>) -> Result<()>
      {
         let start = std::time::Instant::now();
@@ -54,21 +51,18 @@ impl EnrichPhotos {
             println!("Failed sending gen started: {:?}", e);
         }
 
-        unprocessed_pics
+        let metadatas = unprocessed_pics
             .par_iter() // don't multiprocess until memory usage is better understood.
             //.iter()
-            .for_each(|pic| {
-                let result = block_on(async {enricher.enrich(&pic.picture_id, &pic.path).await});
-                let result = result.and_then(|extra| repo.clone().update(&pic.picture_id, &extra));
+            .flat_map(|pic| {
+                let result = metadata::from_path(&pic.path);
+                result.map(|m| (pic.picture_id, m))
+            })
+            .collect();
 
-                if let Err(e) = result {
-                    println!("Failed add_preview: {:?}", e);
-                } else if let Err(e) = sender.output(EnrichPhotosOutput::Generated) {
-                    println!("Failed sending EnrichPhotosOutput::Generated: {:?}", e);
-                }
-            });
+        let result = repo.add_metadatas(metadatas);
 
-        println!("Generated {} previews in {} seconds.", pics_count, start.elapsed().as_secs());
+        println!("Extracted {} photo metadatas in {} seconds.", pics_count, start.elapsed().as_secs());
 
         if let Err(e) = sender.output(EnrichPhotosOutput::Completed) {
             println!("Failed sending EnrichPhotosOutput::Completed: {:?}", e);
@@ -79,13 +73,12 @@ impl EnrichPhotos {
 }
 
 impl Worker for EnrichPhotos {
-    type Init = (fotema_core::photo::Enricher, fotema_core::photo::Repository);
+    type Init = fotema_core::photo::Repository;
     type Input = EnrichPhotosInput;
     type Output = EnrichPhotosOutput;
 
-    fn init((enricher, repo): Self::Init, _sender: ComponentSender<Self>) -> Self  {
+    fn init(repo: Self::Init, _sender: ComponentSender<Self>) -> Self  {
         let model = EnrichPhotos {
-            enricher,
             repo,
         };
         model
@@ -97,11 +90,10 @@ impl Worker for EnrichPhotos {
             EnrichPhotosInput::Start => {
                 println!("Enriching photos...");
                 let repo = self.repo.clone();
-                let previewer = self.enricher.clone();
 
                 // Avoid runtime panic from calling block_on
                 rayon::spawn(move || {
-                    if let Err(e) = EnrichPhotos::enrich(repo, previewer, &sender) {
+                    if let Err(e) = EnrichPhotos::enrich(repo, &sender) {
                         println!("Failed to update previews: {}", e);
                     }
                 });

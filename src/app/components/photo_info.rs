@@ -362,7 +362,7 @@ impl PhotoInfo {
         self.image_details.set_visible(has_image_details);
 
         if let Some(Ok(exif)) = image_info.details.exif.as_ref().map(|x| x.get_full()) {
-            let metadata = fotema_core::photo::Metadata::from_raw(exif).ok();
+            let metadata = fotema_core::photo::metadata::from_raw(exif).ok();
 
             let created_at: Option<String> = metadata
                 .clone()

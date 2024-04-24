@@ -2,8 +2,9 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use crate::photo::model::{PhotoExtra, Picture, PictureId, ScannedFile};
+use crate::photo::model::{Picture, PictureId, ScannedFile};
 
+use super::Metadata;
 use anyhow::*;
 ///! Repository of metadata about pictures on the local filesystem.
 use rusqlite;
@@ -47,7 +48,39 @@ impl Repository {
         Ok(repo)
     }
 
-    pub fn update(&mut self, picture_id: &PictureId, extra: &PhotoExtra) -> Result<()> {
+    pub fn add_metadatas(&mut self, pics: Vec<(PictureId, Metadata)>) -> Result<()> {
+        let mut con = self.con.lock().unwrap();
+        let tx = con.transaction()?;
+
+        {
+            let mut stmt = tx.prepare(
+                "UPDATE pictures
+                SET
+                    exif_created_ts = ?2,
+                    exif_modified_ts = ?3,
+                    is_selfie = ?4,
+                    link_date = ?5,
+                    content_id = ?6
+                WHERE picture_id = ?1",
+            )?;
+
+            for (picture_id, metadata) in pics {
+                stmt.execute(params![
+                    picture_id.id(),
+                    metadata.created_at,
+                    metadata.modified_at,
+                    metadata.is_selfie(),
+                    metadata.created_at.map(|x| x.naive_utc().date()),
+                    metadata.content_id,
+                ])?;
+            }
+        }
+
+        tx.commit()?;
+        Ok(())
+    }
+
+    pub fn add_thumbnail(&mut self, picture_id: &PictureId, thumbnail_path: &Path) -> Result<()> {
         let mut con = self.con.lock().unwrap();
         let tx = con.transaction()?;
 
@@ -56,28 +89,15 @@ impl Repository {
                 "UPDATE pictures
                 SET
                     thumbnail_path = ?2,
-                    exif_created_ts = ?3,
-                    exif_modified_ts = ?4,
-                    is_selfie = ?5,
-                    link_date = ?6,
-                    content_id = ?7
                 WHERE picture_id = ?1",
             )?;
 
             // convert to relative path before saving to database
-            let thumbnail_path = extra
-                .thumbnail_path
-                .as_ref()
-                .and_then(|p| p.strip_prefix(&self.thumbnail_base_path).ok());
+            let thumbnail_path = thumbnail_path.strip_prefix(&self.thumbnail_base_path).ok();
 
             stmt.execute(params![
                 picture_id.id(),
                 thumbnail_path.as_ref().map(|p| p.to_str()),
-                extra.exif_created_at,
-                extra.exif_modified_at,
-                extra.is_selfie(),
-                extra.exif_created_at.map(|x| x.naive_utc().date()),
-                extra.content_id,
             ])?;
         }
 

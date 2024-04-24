@@ -104,25 +104,22 @@ pub struct ScannedFile {
 
 /// Extra (non-filesystem) metadata for videos
 
-#[derive(Debug, Clone, Default)]
-pub struct PhotoExtra {
-    // Path to square thumbnail file
-    pub thumbnail_path: Option<PathBuf>,
+#[derive(Debug, Default, Clone)]
+pub struct Metadata {
+    pub created_at: Option<DateTime<FixedOffset>>,
 
-    pub exif_created_at: Option<DateTime<FixedOffset>>,
-
-    pub exif_modified_at: Option<DateTime<FixedOffset>>,
+    pub modified_at: Option<DateTime<FixedOffset>>,
 
     /// On iPhone the lens model tells you if it was the front or back camera.
-    pub exif_lens_model: Option<String>,
+    pub lens_model: Option<String>,
 
     // iOS id for linking a video with a photo
     pub content_id: Option<String>,
 }
 
-impl PhotoExtra {
+impl Metadata {
     pub fn is_selfie(&self) -> bool {
-        self.exif_lens_model
+        self.lens_model
             .as_ref()
             .is_some_and(|x| x.contains("front"))
     }
