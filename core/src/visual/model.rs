@@ -39,7 +39,7 @@ pub struct Visual {
 
     /// Path to thumbnail. If both a picture and a video are present, then this will
     /// be the picture thumbnail path.
-    pub thumbnail_path: PathBuf,
+    pub thumbnail_path: Option<PathBuf>,
 
     pub video_id: Option<VideoId>,
 

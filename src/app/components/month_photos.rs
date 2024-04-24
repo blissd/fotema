@@ -93,10 +93,10 @@ impl RelmGridItem for PhotoGridItem {
             .label
             .set_label(format!("{} {}", ym.month.name(), ym.year).as_str());
 
-        if self.picture.thumbnail_path.exists() {
+        if self.picture.thumbnail_path.as_ref().is_some_and(|x| x.exists()) {
             widgets
                 .picture
-                .set_filename(Some(self.picture.thumbnail_path.clone()));
+                .set_filename(self.picture.thumbnail_path.clone());
         } else {
             widgets.picture.set_resource(Some(
                 "/dev/romantics/Fotema/icons/image-missing-symbolic.svg",
@@ -161,7 +161,7 @@ impl SimpleComponent for MonthPhotos {
                     .repo
                     .all()
                     .into_iter()
-                    .filter(|x| x.thumbnail_path.exists())
+                    //.filter(|x| x.thumbnail_path.is_some_and(|x| x.exists()))
                     .dedup_by(|x, y| x.year_month() == y.year_month())
                     .map(|picture| PhotoGridItem { picture });
 

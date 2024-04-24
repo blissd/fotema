@@ -5,6 +5,7 @@
 use gtk::prelude::OrientableExt;
 use fotema_core::VisualId;
 use fotema_core::YearMonth;
+use fotema_core::photo;
 use relm4::gtk;
 use relm4::gtk::prelude::*;
 use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
@@ -60,6 +61,7 @@ pub enum AlbumOutput {
 #[derive(Debug)]
 struct PhotoGridItem {
     visual: Arc<fotema_core::visual::Visual>,
+//    photo_thumbnailer: photo::Thumbnailer,
 }
 
 struct PhotoGridItemWidgets {
@@ -118,8 +120,15 @@ impl RelmGridItem for PhotoGridItem {
     }
 
     fn bind(&mut self, widgets: &mut Self::Widgets, _root: &mut Self::Root) {
-        if self.visual.thumbnail_path.exists() {
-            widgets.picture.set_filename(Some(self.visual.thumbnail_path.clone()));
+    /*
+        if self.visual.thumbnail_path.as_ref().is_none() && self.visual.picture_id.is_some() {
+            let visual = self.visual.borrow_mut();
+            let thumbnail_path = self.photo_thumbnailer.thumbnail(&visual.picture_id, visual.picture_path.expect("must have picture path"));
+        }
+        */
+
+        if self.visual.thumbnail_path.as_ref().is_some_and(|x| x.exists()) {
+            widgets.picture.set_filename(self.visual.thumbnail_path.clone());
             if self.visual.is_motion_photo() || self.visual.is_video_only() {
                 widgets.status_overlay.set_visible(true);
                 if self.visual.is_video_only() {
@@ -259,7 +268,7 @@ impl Album {
 
     fn update_filter(&mut self, filter: AlbumFilter) {
         self.photo_grid.clear_filters();
-        self.photo_grid.add_filter(Album::filter_has_thumbnail);
+        //self.photo_grid.add_filter(Album::filter_has_thumbnail);
 
         match filter {
             AlbumFilter::All => {
@@ -304,6 +313,6 @@ impl Album {
     }
 
     fn filter_has_thumbnail(item: &PhotoGridItem) -> bool {
-        item.visual.thumbnail_path.exists()
+        item.visual.thumbnail_path.as_ref().is_some_and(|x| x.exists())
     }
 }

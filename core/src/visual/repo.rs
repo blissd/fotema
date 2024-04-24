@@ -100,8 +100,7 @@ impl Repository {
             let thumbnail_path = picture_thumbnail
                 .map(|x| self.thumbnail_base_path.join(x))
                 .or_else(|| video_thumbnail)
-                .map(|x| self.thumbnail_base_path.join(x))
-                .expect("Must have a thumbnail");
+                .map(|x| self.thumbnail_base_path.join(x));
 
             let created_at: DateTime<Utc> = row.get(8).expect("Must have created_ts");
 
@@ -197,8 +196,7 @@ impl Repository {
             let thumbnail_path = picture_thumbnail
                 .map(|x| self.thumbnail_base_path.join(x))
                 .or_else(|| video_thumbnail)
-                .map(|x| self.thumbnail_base_path.join(x))
-                .expect("Must have a thumbnail");
+                .map(|x| self.thumbnail_base_path.join(x));
 
             let created_at: DateTime<Utc> = row.get(8).ok().expect("Must have created_ts");
 
