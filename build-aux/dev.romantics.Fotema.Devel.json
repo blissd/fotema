@@ -39,7 +39,6 @@
     "modules/libde265.json",
     "modules/libheif.json",
     "modules/glycin-loaders.json",
-    "modules/exiftool.json",
     "modules/ffmpeg.json",
     {
       "name": "fotema",
