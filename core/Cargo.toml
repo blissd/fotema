@@ -11,6 +11,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.82"
+byteorder = "1.5.0"
 chrono = "0.4.37"
 fast_image_resize = "3.0.4"
 gdk4 = "0.8.1"
@@ -20,6 +21,8 @@ gtk = "0.18.1"
 image = "0.25.0"
 jsonpath-rust = "0.5.0"
 kamadak-exif = "0.5.5"
+plist = "1.6.1"
+pretty-hex = "0.4.1"
 rayon = "1.10.0"
 refinery = { version = "0.8.14", features = ["rusqlite"] }
 rusqlite = { version = "0.31.0", features = ["bundled", "chrono"] }
