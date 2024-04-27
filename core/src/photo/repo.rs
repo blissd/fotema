@@ -69,7 +69,7 @@ impl Repository {
             for (picture_id, metadata) in pics {
                 stmt.execute(params![
                     picture_id.id(),
-                    metadata.scan_version,
+                    metadata::VERSION,
                     metadata.created_at,
                     metadata.modified_at,
                     metadata.is_selfie(),

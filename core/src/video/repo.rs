@@ -90,7 +90,7 @@ impl Repository {
             for (video_id, metadata) in vids {
                 stmt.execute(params![
                     video_id.id(),
-                    metadata.scan_version,
+                    metadata::VERSION,
                     metadata.created_at,
                     metadata.duration.map(|x| x.num_milliseconds()),
                     metadata.video_codec,

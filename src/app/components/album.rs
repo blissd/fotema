@@ -5,7 +5,6 @@
 use gtk::prelude::OrientableExt;
 use fotema_core::VisualId;
 use fotema_core::YearMonth;
-use fotema_core::photo;
 use relm4::gtk;
 use relm4::gtk::prelude::*;
 use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
@@ -310,9 +309,5 @@ impl Album {
 
     fn filter_folder(path: PathBuf) -> impl Fn(&PhotoGridItem) -> bool {
         move |item: &PhotoGridItem| item.visual.parent_path  == path
-    }
-
-    fn filter_has_thumbnail(item: &PhotoGridItem) -> bool {
-        item.visual.thumbnail_path.as_ref().is_some_and(|x| x.exists())
     }
 }

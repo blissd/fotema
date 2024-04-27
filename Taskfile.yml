@@ -13,6 +13,15 @@ vars:
 
 tasks:
 
+  install-fedora-deps:
+    desc: Install development libraries
+    cmds:
+      - sudo dnf install -y libavformat-free-devel
+      - sudo dnf install -y libavfilter-free-devel
+      - sudo dnf install -y libavdevice-free-devel
+      - sudo dnf install -y clang-libs
+      - sudo dnf install -y clang-devel
+
   flatpak-devel:
     desc: Development build and install with flatpak-builder
     cmds: 

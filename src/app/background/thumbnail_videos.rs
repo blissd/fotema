@@ -4,8 +4,6 @@
 
 use relm4::prelude::*;
 use relm4::Worker;
-use rayon::prelude::*;
-use futures::executor::block_on;
 use anyhow::*;
 
 

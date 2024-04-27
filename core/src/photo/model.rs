@@ -106,9 +106,6 @@ pub struct ScannedFile {
 
 #[derive(Debug, Default, Clone)]
 pub struct Metadata {
-    /// versioning of metadata scanning used
-    pub scan_version: u32,
-
     pub created_at: Option<DateTime<FixedOffset>>,
 
     pub modified_at: Option<DateTime<FixedOffset>>,

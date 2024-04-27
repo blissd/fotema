@@ -5,10 +5,8 @@
 use super::Metadata;
 use anyhow::*;
 use chrono::{DateTime, TimeDelta};
-use jsonpath_rust::JsonPathQuery;
-use serde_json::Value;
+use ffmpeg_next as ffmpeg;
 use std::path::Path;
-use std::process::Command;
 use std::result::Result::Ok;
 
 /// This version number should be incremented each time metadata scanning has
@@ -19,69 +17,66 @@ use std::result::Result::Ok;
 pub const VERSION: u32 = 1;
 
 pub fn from_path(path: &Path) -> Result<Metadata> {
-    // ffprobe is part of the ffmpeg-full flatpak extension
-    // FIXME can video metadata be extracted with the ffmpeg-next Rust library?
-    let output = Command::new("ffprobe")
-        .arg("-v")
-        .arg("quiet")
-        .arg("-i")
-        .arg(path.as_os_str())
-        .arg("-print_format")
-        .arg("json")
-        .arg("-show_entries")
-        .arg("format=duration,format_long_name:format_tags=com.apple.quicktime.content.identifier,com.apple.quicktime.creationdate:stream_tags=creation_time:stream=codec_name,codec_type,width,height")
-        .output()?;
-
-    let v: Value = serde_json::from_slice(output.stdout.as_slice())?;
-
     let mut metadata = Metadata::default();
-    metadata.scan_version = VERSION;
 
-    metadata.duration = v["format"]["duration"] // seconds with decimal
-        .as_str()
-        .and_then(|x| {
-            let fractional_secs = x.parse::<f64>();
-            let millis = fractional_secs.map(|s| s * 1000.0).ok();
-            millis.and_then(|m| TimeDelta::try_milliseconds(m as i64))
-        });
+    let context = ffmpeg::format::input(path)?;
 
-    metadata.created_at = v["format"]["tags"]["com.apple.quicktime.creationdate"]
-        .as_str()
-        .and_then(|x| {
-            let dt = DateTime::parse_from_rfc3339(x).ok();
-            dt.map(|y| y.to_utc())
-        });
+    let context_metadata = context.metadata();
 
-    metadata.content_id = v["format"]["tags"]["com.apple.quicktime.content.identifier"]
-        .as_str()
-        .map(|x| x.to_string());
+    metadata.created_at = context_metadata.get("creation_time").and_then(|x| {
+        let dt = DateTime::parse_from_rfc3339(x).ok();
+        dt.map(|y| y.to_utc())
+    });
 
-    metadata.container_format = v["format"]["format_long_name"]
-        .as_str()
-        .map(|x| x.to_string());
+    metadata.content_id = context_metadata
+        .get("com.apple.quicktime.content.identifier")
+        .map(String::from);
 
-    if let Ok(video_stream) = v.clone().path("$.streams[?(@.codec_type == 'video')]") {
-        metadata.video_codec = video_stream[0]["codec_name"]
-            .as_str()
-            .map(|x| x.to_string());
-        metadata.width = video_stream[0]["width"].as_u64();
-        metadata.height = video_stream[0]["height"].as_u64();
+    metadata.container_format = Some(String::from(context.format().description()));
 
-        let created_at = video_stream[0]["tags"]["creation_time"]
-            .as_str()
-            .and_then(|x| {
+    if let Some(stream) = context.streams().best(ffmpeg::media::Type::Video) {
+        let duration = stream.duration() as f64 * f64::from(stream.time_base()) * 1000.0;
+        metadata.duration = TimeDelta::try_milliseconds(duration as i64);
+
+        let stream_metadata = stream.metadata();
+
+        metadata.created_at = metadata.created_at.or_else(|| {
+            stream_metadata.get("creation_time").and_then(|x| {
                 let dt = DateTime::parse_from_rfc3339(x).ok();
                 dt.map(|y| y.to_utc())
-            });
+            })
+        });
 
-        metadata.created_at = metadata.created_at.or_else(|| created_at);
+        let codec = ffmpeg::codec::context::Context::from_parameters(stream.parameters())?;
+        metadata.video_codec = Some(String::from(codec.id().name()));
+
+        if let Ok(video) = codec.decoder().video() {
+            metadata.width = Some(video.width() as u64);
+            metadata.height = Some(video.height() as u64);
+        }
     }
 
-    if let Ok(audio_stream) = v.path("$.streams[?(@.codec_type == 'audio')]") {
-        metadata.audio_codec = audio_stream[0]["codec_name"]
-            .as_str()
-            .map(|x| x.to_string());
+    if let Some(stream) = context.streams().best(ffmpeg::media::Type::Audio) {
+        let codec = ffmpeg::codec::context::Context::from_parameters(stream.parameters())?;
+        metadata.audio_codec = Some(String::from(codec.id().name()));
     }
 
     Ok(metadata)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_ffmpeg_next() {
+        ffmpeg::init().unwrap();
+
+        let dir = env!("CARGO_MANIFEST_DIR");
+        let file = Path::new(dir).join("/var/home/david/Pictures/Test/raw_heic/IMG_9835.MOV");
+        let metadata = from_path(&file).unwrap();
+        println!("metadata: {:?}", metadata);
+        //let file = fs::File::open(file).unwrap();
+        //let file = &mut BufReader::new(file);
+    }
 }

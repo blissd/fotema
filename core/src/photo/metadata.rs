@@ -91,7 +91,6 @@ fn from_exif(exif_data: Exif) -> Result<Metadata> {
     }
 
     let mut metadata = Metadata::default();
-    metadata.scan_version = VERSION;
 
     metadata.created_at = parse_date_time(
         exif_data.get_field(exif::Tag::DateTimeOriginal, exif::In::PRIMARY),
