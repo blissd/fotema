@@ -13,6 +13,7 @@ use std::result::Result::Ok;
 
 pub fn from_path(path: &Path) -> Result<Metadata> {
     // ffprobe is part of the ffmpeg-full flatpak extension
+    // FIXME can video metadata be extracted with the ffmpeg-next Rust library?
     let output = Command::new("ffprobe")
         .arg("-v")
         .arg("quiet")
