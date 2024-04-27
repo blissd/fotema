@@ -105,63 +105,7 @@ fn from_exif(exif_data: Exif) -> Result<Metadata> {
     Ok(metadata)
 }
 
-#[derive(Debug)]
-enum TagDataType {
-    Byte,
-    Ascii,
-    Short,
-    Long,
-    Rational,
-    SByte,
-    Undefined,
-    SShort,
-    SLong,
-    SRational,
-    Float,
-    Double,
-}
-
-impl TagDataType {
-    fn from_type_id(id: u16) -> Option<TagDataType> {
-        match id {
-            1 => Some(TagDataType::Byte),
-            2 => Some(TagDataType::Ascii),
-            3 => Some(TagDataType::Short),
-            4 => Some(TagDataType::Long),
-            5 => Some(TagDataType::Rational),
-            6 => Some(TagDataType::SByte),
-            7 => Some(TagDataType::Undefined),
-            8 => Some(TagDataType::SShort),
-            9 => Some(TagDataType::SLong),
-            10 => Some(TagDataType::SRational),
-            11 => Some(TagDataType::Float),
-            12 => Some(TagDataType::Double),
-            _ => None,
-        }
-    }
-
-    fn size(&self) -> usize {
-        match *self {
-            TagDataType::Byte => 1,
-            TagDataType::Ascii => 1,
-            TagDataType::Short => 2,
-            TagDataType::Long => 4,
-            TagDataType::Rational => 8,
-            TagDataType::SByte => 1,
-            TagDataType::Undefined => 1,
-            TagDataType::SShort => 2,
-            TagDataType::SLong => 4,
-            TagDataType::SRational => 8,
-            TagDataType::Float => 4,
-            TagDataType::Double => 8,
-        }
-    }
-}
-
-/// I've tried to get exif-rs to parse the Apple maker note, but I just can't get
-/// it to work. This function is a poor-man's EXIF parser that walks the tags
-/// until the content identifier is found and returns it.
-/// See https://www.media.mit.edu/pia/Research/deepview/exif.html
+/// Parse content ID from the Apple maker note
 fn ios_content_id(exif_data: &Exif) -> Option<String> {
     let maker_note = exif_data.get_field(exif::Tag::MakerNote, exif::In::PRIMARY)?;
     let exif::Value::Undefined(ref raw, _offset) = maker_note.value else {
@@ -172,57 +116,43 @@ fn ios_content_id(exif_data: &Exif) -> Option<String> {
         return None;
     }
 
+    // We have an Apple maker note which contains EXIF tags, but they aren't quite in the right format
+    // for the exif-rs library to parse.
+    //
+    // EXIF data starts at byte 12 with a byte order mark, but doesn't include the magic 0x2a.
+    //
+    // To fix this we rewrite the begging of the buffer to do the following:
+    // 1. Start with a byte order mark (0x4d4d);
+    // 2. Have the Douglas constant (0x002a).
+    // 3. Have the byte offset of the first piece of data (14)
+
     let mut buf: Vec<u8> = Vec::new();
     buf.extend_from_slice(raw);
-    let mut buf = Cursor::new(buf);
-    buf.set_position(14);
 
-    let tag_count = buf.read_u16::<BigEndian>().unwrap();
-    //println!("tag count = {}", tag_count);
+    buf[0] = 0x4d;
+    buf[1] = 0x4d;
+    buf[2] = 0;
+    buf[3] = 0x2a; // the Douglas constant
+    buf[4] = 0;
+    buf[5] = 0;
+    buf[6] = 0;
+    buf[7] = 14;
 
-    loop {
-        let tag_id = buf.read_u16::<BigEndian>().ok()?;
-        let tag_type_id = buf.read_u16::<BigEndian>().ok()?;
-        let tag_type = TagDataType::from_type_id(tag_type_id)?;
-        let value_count = buf.read_u32::<BigEndian>().ok()?;
+    let exif_data = exif::Reader::new().read_raw(buf).ok()?;
 
-        //println!( "tag_id: {}, tag_type: {:?}, value_count: {}", tag_id, tag_type, value_count );
+    let content_id =
+        exif_data.get_field(exif::Tag(exif::Context::Tiff, 0x11), exif::In::PRIMARY)?;
 
-        if value_count == 0 || value_count > 2024 {
-            // Ignore anything that is too big or zero length
-            return None;
+    let content_id = match content_id.value {
+        exif::Value::Ascii(ref vecs) => {
+            let mut bytes = Vec::with_capacity(vecs[0].len());
+            bytes.extend_from_slice(&vecs[0]);
+            String::from_utf8(bytes).ok()
         }
+        _ => None,
+    };
 
-        let value_len = value_count as usize * tag_type.size();
-        //println!("value_len : {}", value_len);
-
-        // If value length is <= 4 bytes, then the next four bytes contain the value.
-        // If value length is > 4 bytes, then the next four bytes are an index to where the value is stored.
-        // We only care about the content identifier, so just skip the value offset for other fields.
-        // Content identifier has an id of 0x11
-        if tag_id != 0x11 || value_len <= 4 {
-            buf.set_position(buf.position() + 4);
-            continue;
-        }
-
-        // If we are here, then we have found the content identifier.
-        // content identifiers are longer than 4 bytes so we know that we must use the value offset
-        let value_offset = buf.read_u32::<BigEndian>().ok()? as usize;
-        //println!("value_offset: {}", value_offset);
-
-        let mut value = Vec::with_capacity(value_len);
-        let end_idx = value_offset + value_len;
-        value.extend_from_slice(&buf.get_ref()[value_offset..end_idx - 1]);
-        //println!("raw value:\n{}", pretty_hex(&value));
-
-        let content_id = String::from_utf8(value).ok()?;
-        //println!("content_id: {}", content_id);
-        return Some(content_id);
-    }
-    //let id = parse_apple_maker_note_content_id(buf);
-
-    //println!("id = {:?}", id);
-    //None
+    content_id
 }
 
 #[cfg(test)]
@@ -240,7 +170,7 @@ mod tests {
         let content_id = ios_content_id(&exif_data);
 
         assert_eq!(
-            Some("12A813C0-2516-4A6A-BF48-CE453071F714".to_string()),
+            Some("5D3FF377-55D1-4BFF-A4FF-56B2298FC6C2".to_string()),
             content_id
         );
     }
