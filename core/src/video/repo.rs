@@ -44,6 +44,31 @@ impl Repository {
         Ok(repo)
     }
 
+    pub fn add_thumbnail(&mut self, video_id: &VideoId, thumbnail_path: &Path) -> Result<()> {
+        let mut con = self.con.lock().unwrap();
+        let tx = con.transaction()?;
+
+        {
+            let mut stmt = tx.prepare(
+                "UPDATE videos
+                SET
+                    thumbnail_path = ?2
+                WHERE video_id = ?1",
+            )?;
+
+            // convert to relative path before saving to database
+            let thumbnail_path = thumbnail_path.strip_prefix(&self.thumbnail_base_path).ok();
+
+            stmt.execute(params![
+                video_id.id(),
+                thumbnail_path.as_ref().map(|p| p.to_str()),
+            ])?;
+        }
+
+        tx.commit()?;
+        Ok(())
+    }
+
     pub fn add_metadata(&mut self, vids: Vec<(VideoId, Metadata)>) -> Result<()> {
         let mut con = self.con.lock().unwrap();
         let tx = con.transaction()?;
