@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use crate::photo::thumbnail::Thumbnailer as PhotoThumbnailer;
-use crate::video::model::{VideoExtra, VideoId};
+use crate::video::model::VideoId;
 use anyhow::*;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -29,22 +29,14 @@ impl Thumbnailer {
     /// Computes a preview square for an image that has been inserted
     /// into the Repository. Preview image will be written to file system.
     pub fn thumbnail(&self, video_id: &VideoId, video_path: &Path) -> Result<PathBuf> {
-        let mut extra = VideoExtra::default();
-
         let thumbnail_path = {
             let file_name = format!("{}_{}x{}.png", video_id, EDGE, EDGE);
             self.base_path.join(file_name)
         };
 
-        let result = self.compute_thumbnail(video_path, &thumbnail_path);
-
-        if result.is_ok() {
-            extra.thumbnail_path = Some(thumbnail_path.clone());
-        } else {
-            println!("Video thumbnail error: {:?}", result);
-        }
-
-        Ok(thumbnail_path)
+        self.compute_thumbnail(video_path, &thumbnail_path)
+            .map(|_| thumbnail_path)
+            .inspect_err(|e| println!("Video thumbnail error: {:?}", e))
     }
 
     fn compute_thumbnail(&self, video_path: &Path, thumbnail_path: &Path) -> Result<()> {

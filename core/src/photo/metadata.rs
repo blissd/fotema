@@ -4,14 +4,12 @@
 
 use super::Metadata;
 use anyhow::*;
-use byteorder::{BigEndian, ReadBytesExt};
 use chrono::prelude::*;
 use chrono::{DateTime, FixedOffset};
 use exif;
 use exif::Exif;
 use std::fs;
 use std::io::BufReader;
-use std::io::Cursor;
 use std::path::Path;
 use std::result::Result::Ok;
 

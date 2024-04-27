@@ -5,6 +5,7 @@
 use relm4::prelude::*;
 use relm4::Worker;
 use anyhow::*;
+use fotema_core::video::metadata;
 
 #[derive(Debug)]
 pub enum EnrichVideosInput {
@@ -25,16 +26,13 @@ pub enum EnrichVideosOutput {
 }
 
 pub struct EnrichVideos {
-    enricher: fotema_core::video::Enricher,
-
     repo: fotema_core::video::Repository,
 }
 
 impl EnrichVideos {
 
     fn enrich(
-        repo: fotema_core::video::Repository,
-        enricher: fotema_core::video::Enricher,
+        mut repo: fotema_core::video::Repository,
         sender: &ComponentSender<EnrichVideos>) -> Result<()>
      {
         let start = std::time::Instant::now();
@@ -56,23 +54,18 @@ impl EnrichVideos {
             println!("Failed sending gen started: {:?}", e);
         }
 
-        unprocessed_vids
+        let metadatas = unprocessed_vids
             //.par_iter() // don't multiprocess until memory usage is better understood.
             .iter()
-            .for_each(|vid| {
-                let result = enricher.enrich(&vid.video_id, &vid.path);
-                let result = result.and_then(|extra| repo.clone().update(&vid.video_id, &extra));
+            .flat_map(|vid| {
+                let result = metadata::from_path(&vid.path);
+                result.map(|m| (vid.video_id, m))
+            })
+            .collect();
 
-                if result.is_err() {
-                    println!("Failed video add preview for {:?}: {:?}", &vid.path, result);
-                }
+        repo.add_metadata(metadatas)?;
 
-                if let Err(e) = sender.output(EnrichVideosOutput::Generated) {
-                    println!("Failed sending EnrichVideosOutput::Generated: {:?}", e);
-                }
-            });
-
-        println!("Generated {} video thumbnails in {} seconds.", vids_count, start.elapsed().as_secs());
+        println!("Enriched {} videos in {} seconds.", vids_count, start.elapsed().as_secs());
 
         if let Err(e) = sender.output(EnrichVideosOutput::Completed) {
             println!("Failed sending EnrichVideosOutput::Completed: {:?}", e);
@@ -83,13 +76,12 @@ impl EnrichVideos {
 }
 
 impl Worker for EnrichVideos {
-    type Init = (fotema_core::video::Enricher, fotema_core::video::Repository);
+    type Init = fotema_core::video::Repository;
     type Input = EnrichVideosInput;
     type Output = EnrichVideosOutput;
 
-    fn init((enricher, repo): Self::Init, _sender: ComponentSender<Self>) -> Self  {
+    fn init(repo: Self::Init, _sender: ComponentSender<Self>) -> Self  {
         let model = EnrichVideos {
-            enricher,
             repo,
         };
         model
@@ -101,11 +93,10 @@ impl Worker for EnrichVideos {
             EnrichVideosInput::Start => {
                 println!("Enriching videos...");
                 let repo = self.repo.clone();
-                let enricher = self.enricher.clone();
 
                 // Avoid runtime panic from calling block_on
                 rayon::spawn(move || {
-                    if let Err(e) = EnrichVideos::enrich(repo, enricher, &sender) {
+                    if let Err(e) = EnrichVideos::enrich(repo, &sender) {
                         println!("Failed to enrich videos: {}", e);
                     }
                 });

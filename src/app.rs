@@ -479,9 +479,6 @@ impl SimpleComponent for App {
 
         let video_transcoder = video::Transcoder::new(&cache_dir);
 
-        let video_enricher =
-            fotema_core::video::Enricher::build(&cache_dir, video_transcoder).unwrap();
-
         let visual_repo = fotema_core::visual::Repository::open(
             &pic_base_dir,
             &cache_dir,
@@ -512,7 +509,7 @@ impl SimpleComponent for App {
             });
 
         let enrich_videos = EnrichVideos::builder()
-            .detach_worker((video_enricher.clone(), video_repo.clone()))
+            .detach_worker(video_repo.clone())
             .forward(sender.input_sender(), |msg| match msg {
                 EnrichVideosOutput::Started(count) => AppMsg::VideoEnrichmentStarted(count),
                 EnrichVideosOutput::Generated => AppMsg::VideoEnriched,
@@ -868,8 +865,8 @@ impl SimpleComponent for App {
                 self.enrich_videos.emit(EnrichVideosInput::Start);
             }
             AppMsg::VideoEnrichmentStarted(count) => {
-                println!("Video thumbnail generation started.");
-                self.banner.set_title("Generating video thumbnails. This will take a while.");
+                println!("Video enrichment started.");
+                self.banner.set_title("Processing video metadata");
                 self.banner.set_button_label(Some("Refresh"));
                 self.banner.set_revealed(true);
 
@@ -910,7 +907,8 @@ impl SimpleComponent for App {
                 self.banner.set_button_label(None);
                 self.progress_box.set_visible(false);
 
-                sender.input(AppMsg::LibraryRefresh);
+                //sender.input(AppMsg::LibraryRefresh);
+                self.thumbnail_photos.emit(ThumbnailPhotosInput::Start);
             }
             AppMsg::ThumbnailPhotosStarted(count) => {
                 println!("Photo thumbnail generation started.");

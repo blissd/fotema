@@ -60,7 +60,7 @@ impl EnrichPhotos {
             })
             .collect();
 
-        let result = repo.add_metadatas(metadatas);
+        repo.add_metadatas(metadatas)?;
 
         println!("Extracted {} photo metadatas in {} seconds.", pics_count, start.elapsed().as_secs());
 

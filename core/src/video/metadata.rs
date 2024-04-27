@@ -2,104 +2,77 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use chrono::{DateTime, TimeDelta, Utc};
+use super::Metadata;
+use anyhow::*;
+use chrono::{DateTime, TimeDelta};
 use jsonpath_rust::JsonPathQuery;
 use serde_json::Value;
 use std::path::Path;
 use std::process::Command;
+use std::result::Result::Ok;
 
-#[derive(Debug, Default, Clone)]
-pub struct Metadata {
-    pub created_at: Option<DateTime<Utc>>,
+pub fn from_path(path: &Path) -> Result<Metadata> {
+    // ffprobe is part of the ffmpeg-full flatpak extension
+    let output = Command::new("ffprobe")
+        .arg("-v")
+        .arg("quiet")
+        .arg("-i")
+        .arg(path.as_os_str())
+        .arg("-print_format")
+        .arg("json")
+        .arg("-show_entries")
+        .arg("format=duration,format_long_name:format_tags=com.apple.quicktime.content.identifier,com.apple.quicktime.creationdate:stream_tags=creation_time:stream=codec_name,codec_type,width,height")
+        .output()?;
 
-    pub width: Option<u64>, // 64?
+    let v: Value = serde_json::from_slice(output.stdout.as_slice())?;
 
-    pub height: Option<u64>,
+    let mut metadata = Metadata::default();
 
-    pub duration: Option<TimeDelta>,
+    metadata.duration = v["format"]["duration"] // seconds with decimal
+        .as_str()
+        .and_then(|x| {
+            let fractional_secs = x.parse::<f64>();
+            let millis = fractional_secs.map(|s| s * 1000.0).ok();
+            millis.and_then(|m| TimeDelta::try_milliseconds(m as i64))
+        });
 
-    pub container_format: Option<String>,
+    metadata.created_at = v["format"]["tags"]["com.apple.quicktime.creationdate"]
+        .as_str()
+        .and_then(|x| {
+            let dt = DateTime::parse_from_rfc3339(x).ok();
+            dt.map(|y| y.to_utc())
+        });
 
-    pub video_codec: Option<String>,
+    metadata.content_id = v["format"]["tags"]["com.apple.quicktime.content.identifier"]
+        .as_str()
+        .map(|x| x.to_string());
 
-    pub audio_codec: Option<String>,
+    metadata.container_format = v["format"]["format_long_name"]
+        .as_str()
+        .map(|x| x.to_string());
 
-    pub content_id: Option<String>, // TODO make this a non-string type
-}
-
-pub enum Error {
-    Probe(String),
-    Json(String),
-}
-
-impl Metadata {
-    pub fn from(path: &Path) -> Result<Metadata, Error> {
-        println!("Video path: {:?}", path);
-
-        // ffprobe is part of the ffmpeg-full flatpak extension
-        let output = Command::new("ffprobe")
-            .arg("-v")
-            .arg("quiet")
-            .arg("-i")
-            .arg(path.as_os_str())
-            .arg("-print_format")
-            .arg("json")
-            .arg("-show_entries")
-            .arg("format=duration,format_long_name:format_tags=com.apple.quicktime.content.identifier,com.apple.quicktime.creationdate:stream_tags=creation_time:stream=codec_name,codec_type,width,height")
-            .output()
-            .map_err(|e| Error::Probe(e.to_string()))?;
-
-        let v: Value = serde_json::from_slice(output.stdout.as_slice())
-            .map_err(|e| Error::Json(e.to_string()))?;
-
-        let mut metadata = Metadata::default();
-
-        metadata.duration = v["format"]["duration"] // seconds with decimal
+    if let Ok(video_stream) = v.clone().path("$.streams[?(@.codec_type == 'video')]") {
+        metadata.video_codec = video_stream[0]["codec_name"]
             .as_str()
-            .and_then(|x| {
-                let fractional_secs = x.parse::<f64>();
-                let millis = fractional_secs.map(|s| s * 1000.0).ok();
-                millis.and_then(|m| TimeDelta::try_milliseconds(m as i64))
-            });
+            .map(|x| x.to_string());
+        metadata.width = video_stream[0]["width"].as_u64();
+        metadata.height = video_stream[0]["height"].as_u64();
 
-        metadata.created_at = v["format"]["tags"]["com.apple.quicktime.creationdate"]
+        let created_at = video_stream[0]["tags"]["creation_time"]
             .as_str()
             .and_then(|x| {
                 let dt = DateTime::parse_from_rfc3339(x).ok();
                 dt.map(|y| y.to_utc())
             });
 
-        metadata.content_id = v["format"]["tags"]["com.apple.quicktime.content.identifier"]
-            .as_str()
-            .map(|x| x.to_string());
-
-        metadata.container_format = v["format"]["format_long_name"]
-            .as_str()
-            .map(|x| x.to_string());
-
-        if let Ok(video_stream) = v.clone().path("$.streams[?(@.codec_type == 'video')]") {
-            metadata.video_codec = video_stream[0]["codec_name"]
-                .as_str()
-                .map(|x| x.to_string());
-            metadata.width = video_stream[0]["width"].as_u64();
-            metadata.height = video_stream[0]["height"].as_u64();
-
-            let created_at = video_stream[0]["tags"]["creation_time"]
-                .as_str()
-                .and_then(|x| {
-                    let dt = DateTime::parse_from_rfc3339(x).ok();
-                    dt.map(|y| y.to_utc())
-                });
-
-            metadata.created_at = metadata.created_at.or_else(|| created_at);
-        }
-
-        if let Ok(audio_stream) = v.path("$.streams[?(@.codec_type == 'audio')]") {
-            metadata.audio_codec = audio_stream[0]["codec_name"]
-                .as_str()
-                .map(|x| x.to_string());
-        }
-
-        Ok(metadata)
+        metadata.created_at = metadata.created_at.or_else(|| created_at);
     }
+
+    if let Ok(audio_stream) = v.path("$.streams[?(@.codec_type == 'audio')]") {
+        metadata.audio_codec = audio_stream[0]["codec_name"]
+            .as_str()
+            .map(|x| x.to_string());
+    }
+
+    Ok(metadata)
 }

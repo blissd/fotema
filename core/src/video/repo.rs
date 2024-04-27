@@ -2,7 +2,8 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use crate::video::model::{ScannedFile, Video, VideoExtra, VideoId};
+use super::Metadata;
+use crate::video::model::{ScannedFile, Video, VideoId};
 use anyhow::*;
 use chrono::*;
 use rusqlite;
@@ -43,7 +44,7 @@ impl Repository {
         Ok(repo)
     }
 
-    pub fn update(&mut self, video_id: &VideoId, extra: &VideoExtra) -> Result<()> {
+    pub fn add_metadata(&mut self, vids: Vec<(VideoId, Metadata)>) -> Result<()> {
         let mut con = self.con.lock().unwrap();
         let tx = con.transaction()?;
 
@@ -51,36 +52,22 @@ impl Repository {
             let mut stmt = tx.prepare(
                 "UPDATE videos
                 SET
-                    thumbnail_path = ?2,
-                    stream_created_ts = ?3,
-                    duration_millis = ?4,
-                    video_codec = ?5,
-                    content_id = ?6,
-                    transcoded_path = ?7
+                    stream_created_ts = ?2,
+                    duration_millis = ?3,
+                    video_codec = ?4,
+                    content_id = ?5
                 WHERE video_id = ?1",
             )?;
 
-            // convert to relative path before saving to database
-            let thumbnail_path = extra
-                .thumbnail_path
-                .as_ref()
-                .and_then(|p| p.strip_prefix(&self.thumbnail_base_path).ok());
-
-            // convert to relative path before saving to database
-            let transcoded_path = extra
-                .transcoded_path
-                .as_ref()
-                .and_then(|p| p.strip_prefix(&self.thumbnail_base_path).ok());
-
-            stmt.execute(params![
-                video_id.id(),
-                thumbnail_path.as_ref().map(|p| p.to_str()),
-                extra.stream_created_at,
-                extra.stream_duration.map(|x| x.num_milliseconds()),
-                extra.video_codec,
-                extra.content_id,
-                transcoded_path.as_ref().map(|p| p.to_str()),
-            ])?;
+            for (video_id, metadata) in vids {
+                stmt.execute(params![
+                    video_id.id(),
+                    metadata.created_at,
+                    metadata.duration.map(|x| x.num_milliseconds()),
+                    metadata.video_codec,
+                    metadata.content_id,
+                ])?;
+            }
         }
 
         tx.commit()?;

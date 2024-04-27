@@ -74,24 +74,21 @@ pub struct ScannedFile {
     pub fs_file_size_bytes: u64,
 }
 
-/// Extra (non-filesystem) metadata for videos
-#[derive(Debug, Clone, Default)]
-pub struct VideoExtra {
-    // Path to square thumbnail file
-    pub thumbnail_path: Option<PathBuf>,
+#[derive(Debug, Default, Clone)]
+pub struct Metadata {
+    pub created_at: Option<DateTime<Utc>>,
 
-    // Creation timestamp from stream metadata
-    pub stream_created_at: Option<DateTime<Utc>>,
+    pub width: Option<u64>, // 64?
 
-    // Video duration in stream metadata
-    pub stream_duration: Option<TimeDelta>,
+    pub height: Option<u64>,
 
-    // Video codec
+    pub duration: Option<TimeDelta>,
+
+    pub container_format: Option<String>,
+
     pub video_codec: Option<String>,
 
-    // iOS id for linking a video with a photo
-    pub content_id: Option<String>,
+    pub audio_codec: Option<String>,
 
-    // Path to transcoded video
-    pub transcoded_path: Option<PathBuf>,
+    pub content_id: Option<String>, // TODO make this a non-string type
 }

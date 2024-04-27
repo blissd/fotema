@@ -88,7 +88,7 @@ impl Repository {
             let mut stmt = tx.prepare(
                 "UPDATE pictures
                 SET
-                    thumbnail_path = ?2,
+                    thumbnail_path = ?2
                 WHERE picture_id = ?1",
             )?;
 

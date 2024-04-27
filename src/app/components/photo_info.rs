@@ -399,7 +399,7 @@ impl PhotoInfo {
         let fs_file_size_bytes = file.metadata().ok()
             .map(|x| format_size(x.len(), DECIMAL));
 
-        let metadata = fotema_core::video::Metadata::from(video_path).ok();
+        let metadata = fotema_core::video::metadata::from_path(video_path).ok();
         if metadata.is_none() {
             self.video_details.set_visible(false);
         }
