@@ -9,7 +9,8 @@ CREATE TABLE videos (
         duration_millis   INTEGER, -- Duration in milliseconds of video
         video_codec       TEXT, -- Video codec.
         transcoded_path   TEXT, -- path to transcoded video
-        content_id        TEXT -- iOS ID for linking with sibling photos
+        content_id        TEXT, -- iOS ID for linking with sibling photos
+        metadata_version  INTEGER NOT NULL DEFAULT 0 -- code version that scanned metadata
 );
 
 CREATE INDEX  vid_live_photo_idx ON videos(link_path, content_id);

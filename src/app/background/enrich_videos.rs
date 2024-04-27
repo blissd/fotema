@@ -37,24 +37,14 @@ impl EnrichVideos {
      {
         let start = std::time::Instant::now();
 
-        let unprocessed_vids: Vec<fotema_core::video::model::Video> = repo
-            .all()?
-            .into_iter()
-            .filter(|vid| {
-                let has_thumbnail = vid.thumbnail_path.as_ref().is_some_and(|p| p.exists());
-                let needs_transcode = vid.is_transcode_required()
-                    && !vid.transcoded_path.as_ref().is_some_and(|p| p.exists());
+        let unprocessed = repo.find_need_metadata_update()?;
 
-                !has_thumbnail || needs_transcode
-            })
-            .collect();
-
-        let vids_count = unprocessed_vids.len();
-        if let Err(e) = sender.output(EnrichVideosOutput::Started(vids_count)){
+        let count = unprocessed.len();
+        if let Err(e) = sender.output(EnrichVideosOutput::Started(count)){
             println!("Failed sending gen started: {:?}", e);
         }
 
-        let metadatas = unprocessed_vids
+        let metadatas = unprocessed
             //.par_iter() // don't multiprocess until memory usage is better understood.
             .iter()
             .flat_map(|vid| {
@@ -65,7 +55,7 @@ impl EnrichVideos {
 
         repo.add_metadata(metadatas)?;
 
-        println!("Enriched {} videos in {} seconds.", vids_count, start.elapsed().as_secs());
+        println!("Enriched {} videos in {} seconds.", count, start.elapsed().as_secs());
 
         if let Err(e) = sender.output(EnrichVideosOutput::Completed) {
             println!("Failed sending EnrichVideosOutput::Completed: {:?}", e);

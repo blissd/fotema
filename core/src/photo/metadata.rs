@@ -13,6 +13,13 @@ use std::io::BufReader;
 use std::path::Path;
 use std::result::Result::Ok;
 
+/// This version number should be incremented each time metadata scanning has
+/// a bug fix or feature addition that changes the metadata produced.
+/// Each photo will be saved with a metadata scan version which will allow for
+/// easy selection of photos when there metadata can be updated.
+
+pub const VERSION: u32 = 1;
+
 /// Extract EXIF metadata from file
 pub fn from_path(path: &Path) -> Result<Metadata> {
     let file = fs::File::open(path)?;
@@ -84,6 +91,7 @@ fn from_exif(exif_data: Exif) -> Result<Metadata> {
     }
 
     let mut metadata = Metadata::default();
+    metadata.scan_version = VERSION;
 
     metadata.created_at = parse_date_time(
         exif_data.get_field(exif::Tag::DateTimeOriginal, exif::In::PRIMARY),

@@ -40,18 +40,14 @@ impl EnrichPhotos {
      {
         let start = std::time::Instant::now();
 
-        let unprocessed_pics: Vec<fotema_core::photo::model::Picture> = repo
-            .all()?
-            .into_iter()
-            .filter(|pic| !pic.thumbnail_path.as_ref().is_some_and(|p| p.exists()))
-            .collect();
+        let unprocessed = repo.find_need_metadata_update()?;
 
-        let pics_count = unprocessed_pics.len();
-        if let Err(e) = sender.output(EnrichPhotosOutput::Started(pics_count)){
+        let count = unprocessed.len();
+        if let Err(e) = sender.output(EnrichPhotosOutput::Started(count)){
             println!("Failed sending gen started: {:?}", e);
         }
 
-        let metadatas = unprocessed_pics
+        let metadatas = unprocessed
             .par_iter() // don't multiprocess until memory usage is better understood.
             //.iter()
             .flat_map(|pic| {
@@ -62,7 +58,7 @@ impl EnrichPhotos {
 
         repo.add_metadatas(metadatas)?;
 
-        println!("Extracted {} photo metadatas in {} seconds.", pics_count, start.elapsed().as_secs());
+        println!("Extracted {} photo metadatas in {} seconds.", count, start.elapsed().as_secs());
 
         if let Err(e) = sender.output(EnrichPhotosOutput::Completed) {
             println!("Failed sending EnrichPhotosOutput::Completed: {:?}", e);

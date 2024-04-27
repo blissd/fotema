@@ -2,12 +2,14 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+use super::metadata;
 use super::Metadata;
 use crate::video::model::{ScannedFile, Video, VideoId};
 use anyhow::*;
 use chrono::*;
 use rusqlite;
 use rusqlite::params;
+use rusqlite::Row;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
@@ -77,16 +79,18 @@ impl Repository {
             let mut stmt = tx.prepare(
                 "UPDATE videos
                 SET
-                    stream_created_ts = ?2,
-                    duration_millis = ?3,
-                    video_codec = ?4,
-                    content_id = ?5
+                    metadata_version = ?2,
+                    stream_created_ts = ?3,
+                    duration_millis = ?4,
+                    video_codec = ?5,
+                    content_id = ?6
                 WHERE video_id = ?1",
             )?;
 
             for (video_id, metadata) in vids {
                 stmt.execute(params![
                     video_id.id(),
+                    metadata.scan_version,
                     metadata.created_at,
                     metadata.duration.map(|x| x.num_milliseconds()),
                     metadata.video_codec,
@@ -159,36 +163,70 @@ impl Repository {
                 ORDER BY COALESCE(stream_created_ts, fs_created_ts) ASC",
         )?;
 
-        let iter = stmt.query_map([], |row| {
-            let path_result: rusqlite::Result<String> = row.get(1);
-            path_result.map(|relative_path| Video {
-                video_id: VideoId::new(row.get(0).unwrap()), // should always have a primary key
-                path: self.library_base_path.join(relative_path), // compute full path
-                thumbnail_path: row
-                    .get(2)
-                    .ok()
-                    .map(|p: String| self.thumbnail_base_path.join(p)),
-                fs_created_at: row.get(3).ok().expect("Must have fs_created_at"),
-                stream_created_at: row.get(4).ok(),
-                stream_duration: row
-                    .get(5)
-                    .ok()
-                    .and_then(|x: i64| TimeDelta::try_milliseconds(x)),
-                video_codec: row.get(6).ok(),
-                transcoded_path: row
-                    .get(7)
-                    .ok()
-                    .map(|p: String| self.thumbnail_base_path.join(p)),
-            })
-        })?;
+        let result = stmt.query_map([], |row| self.to_video(row))?;
+        let result = result.flatten().collect();
+        Ok(result)
+    }
 
-        // Would like to return an iterator... but Rust is defeating me.
-        let mut vids = Vec::new();
-        for vid in iter.flatten() {
-            vids.push(vid);
-        }
+    /// Gets all videos in the repository, in ascending order of modification timestamp.
+    pub fn find_need_metadata_update(&self) -> Result<Vec<Video>> {
+        let con = self.con.lock().unwrap();
+        let mut stmt = con.prepare(
+            "SELECT
+                    video_id,
+                    video_path,
+                    thumbnail_path,
+                    fs_created_ts,
+                    stream_created_ts,
+                    duration_millis,
+                    video_codec,
+                    transcoded_path
+                FROM videos
+                WHERE metadata_version < ?1
+                ORDER BY COALESCE(stream_created_ts, fs_created_ts) ASC",
+        )?;
 
-        Ok(vids)
+        let result = stmt.query_map([metadata::VERSION], |row| self.to_video(row))?;
+        let result = result.flatten().collect();
+        Ok(result)
+    }
+
+    fn to_video(&self, row: &Row<'_>) -> rusqlite::Result<Video> {
+        let video_id = row.get("video_id").map(|x| VideoId::new(x))?;
+
+        let video_path: String = row.get("video_path")?;
+        let video_path = self.library_base_path.join(video_path);
+
+        let thumbnail_path = row
+            .get("thumbnail_path")
+            .map(|p: String| self.thumbnail_base_path.join(p))
+            .ok();
+
+        let fs_created_at = row.get("fs_created_ts")?;
+        let stream_created_at = row.get("stream_created_at").ok();
+
+        let stream_duration = row
+            .get("stream_duration")
+            .ok()
+            .and_then(|x: i64| TimeDelta::try_milliseconds(x));
+
+        let video_codec = row.get("video_codec").ok();
+
+        let transcoded_path = row
+            .get("transcoded_path")
+            .map(|p: String| self.thumbnail_base_path.join(p))
+            .ok();
+
+        std::result::Result::Ok(Video {
+            video_id,
+            path: video_path,
+            thumbnail_path,
+            fs_created_at,
+            stream_created_at,
+            stream_duration,
+            video_codec,
+            transcoded_path,
+        })
     }
 
     pub fn remove(&mut self, video_id: VideoId) -> Result<()> {

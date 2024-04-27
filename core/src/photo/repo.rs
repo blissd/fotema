@@ -4,11 +4,12 @@
 
 use crate::photo::model::{Picture, PictureId, ScannedFile};
 
+use super::metadata;
 use super::Metadata;
 use anyhow::*;
-///! Repository of metadata about pictures on the local filesystem.
 use rusqlite;
 use rusqlite::params;
+use rusqlite::Row;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
@@ -56,17 +57,19 @@ impl Repository {
             let mut stmt = tx.prepare(
                 "UPDATE pictures
                 SET
-                    exif_created_ts = ?2,
-                    exif_modified_ts = ?3,
-                    is_selfie = ?4,
-                    link_date = ?5,
-                    content_id = ?6
+                    metadata_version = ?2,
+                    exif_created_ts = ?3,
+                    exif_modified_ts = ?4,
+                    is_selfie = ?5,
+                    link_date = ?6,
+                    content_id = ?7
                 WHERE picture_id = ?1",
             )?;
 
             for (picture_id, metadata) in pics {
                 stmt.execute(params![
                     picture_id.id(),
+                    metadata.scan_version,
                     metadata.created_at,
                     metadata.modified_at,
                     metadata.is_selfie(),
@@ -163,29 +166,37 @@ impl Repository {
                 ORDER BY COALESCE(exif_created_ts, fs_created_ts) ASC",
         )?;
 
-        let iter = stmt.query_map([], |row| {
-            let path_result: rusqlite::Result<String> = row.get(1);
-            path_result.map(|relative_path| Picture {
-                picture_id: PictureId::new(row.get(0).unwrap()), // should always have a primary key
-                path: self.library_base_path.join(relative_path), // compute full path
-                thumbnail_path: row
-                    .get(2)
-                    .ok()
-                    .map(|p: String| self.thumbnail_base_path.join(p)),
-                fs_created_at: row.get(3).ok().expect("Must have fs_created_ts"),
-                exif_created_at: row.get(4).ok(),
-                exif_modified_at: row.get(5).ok(),
-                is_selfie: row.get(6).ok(),
-            })
-        })?;
+        let result = stmt
+            .query_map([], |row| self.to_picture(row))?
+            .flatten()
+            .collect();
 
-        // Would like to return an iterator... but Rust is defeating me.
-        let mut pics = Vec::new();
-        for pic in iter.flatten() {
-            pics.push(pic);
-        }
+        Ok(result)
+    }
 
-        Ok(pics)
+    /// Gets all pictures in the repository, in ascending order of modification timestamp.
+    pub fn find_need_metadata_update(&self) -> Result<Vec<Picture>> {
+        let con = self.con.lock().unwrap();
+        let mut stmt = con.prepare(
+            "SELECT
+                    pictures.picture_id,
+                    pictures.picture_path,
+                    pictures.thumbnail_path,
+                    pictures.fs_created_ts,
+                    pictures.exif_created_ts,
+                    pictures.exif_modified_ts,
+                    pictures.is_selfie
+                FROM pictures
+                WHERE metadata_version < ?1
+                ORDER BY COALESCE(exif_created_ts, fs_created_ts) ASC",
+        )?;
+
+        let result = stmt
+            .query_map([metadata::VERSION], |row| self.to_picture(row))?
+            .flatten()
+            .collect();
+
+        Ok(result)
     }
 
     pub fn get(&mut self, picture_id: PictureId) -> Result<Option<Picture>> {
@@ -203,24 +214,37 @@ impl Repository {
                 WHERE pictures.picture_id = ?1",
         )?;
 
-        let iter = stmt.query_map([picture_id.id()], |row| {
-            let path_result: rusqlite::Result<String> = row.get(1);
-            path_result.map(|relative_path| Picture {
-                picture_id: PictureId::new(row.get(0).unwrap()), // should always have a primary key
-                path: self.library_base_path.join(relative_path), // compute full path
-                thumbnail_path: row
-                    .get(2)
-                    .ok()
-                    .map(|p: String| self.thumbnail_base_path.join(p)),
-                fs_created_at: row.get(3).ok().expect("Must have fs_created_ts"),
-                exif_created_at: row.get(4).ok(),
-                exif_modified_at: row.get(5).ok(),
-                is_selfie: row.get(6).ok(),
-            })
-        })?;
+        let iter = stmt.query_map([picture_id.id()], |row| self.to_picture(row))?;
 
         let head = iter.flatten().nth(0);
         Ok(head)
+    }
+
+    fn to_picture(&self, row: &Row<'_>) -> rusqlite::Result<Picture> {
+        let picture_id = row.get("picture_id").map(|x| PictureId::new(x))?;
+
+        let picture_path: String = row.get("picture_path")?;
+        let picture_path = self.library_base_path.join(picture_path);
+
+        let thumbnail_path = row
+            .get("thumbnail_path")
+            .map(|p: String| self.thumbnail_base_path.join(p))
+            .ok();
+
+        let fs_created_at = row.get("fs_created_ts")?;
+        let exif_created_at = row.get("exif_created_ts").ok();
+        let exif_modified_at = row.get("exif_modified_ts").ok();
+        let is_selfie = row.get("is_selfie").ok();
+
+        std::result::Result::Ok(Picture {
+            picture_id,
+            path: picture_path,
+            thumbnail_path,
+            fs_created_at,
+            exif_created_at,
+            exif_modified_at,
+            is_selfie,
+        })
     }
 
     pub fn remove(&mut self, picture_id: PictureId) -> Result<()> {
