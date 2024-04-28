@@ -41,18 +41,21 @@ impl ThumbnailVideos {
      {
         let start = std::time::Instant::now();
 
-        let unprocessed_vids: Vec<fotema_core::video::model::Video> = repo
+        let mut unprocessed: Vec<fotema_core::video::model::Video> = repo
             .all()?
             .into_iter()
             .filter(|vid| !vid.thumbnail_path.as_ref().is_some_and(|p| p.exists()))
             .collect();
 
-        let vid_count = unprocessed_vids.len();
-        if let Err(e) = sender.output(ThumbnailVideosOutput::Started(vid_count)){
+        // should be ascending time order from database, so reverse to process newest items first
+        unprocessed.reverse();
+
+        let count = unprocessed.len();
+        if let Err(e) = sender.output(ThumbnailVideosOutput::Started(count)){
             println!("Failed sending gen started: {:?}", e);
         }
 
-        unprocessed_vids
+        unprocessed
             //.par_iter() // don't multiprocess until memory usage is better understood.
             .iter()
             .for_each(|vid| {
@@ -66,7 +69,7 @@ impl ThumbnailVideos {
                 }
             });
 
-        println!("Generated {} video thumbnails in {} seconds.", vid_count, start.elapsed().as_secs());
+        println!("Generated {} video thumbnails in {} seconds.", count, start.elapsed().as_secs());
 
         if let Err(e) = sender.output(ThumbnailVideosOutput::Completed) {
             println!("Failed sending ThumbnailVideosOutput::Completed: {:?}", e);
