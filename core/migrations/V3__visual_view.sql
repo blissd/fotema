@@ -23,7 +23,6 @@ SELECT
 FROM
   pictures
   FULL OUTER JOIN videos USING (link_path, content_id)
- WHERE COALESCE(picture_thumbnail, video_thumbnail) IS NOT NULL
 ORDER BY
   created_ts ASC
 

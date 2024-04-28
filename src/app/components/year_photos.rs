@@ -92,7 +92,7 @@ impl RelmGridItem for PhotoGridItem {
                 .set_filename(self.picture.thumbnail_path.clone());
         } else {
             widgets.picture.set_resource(Some(
-                "/dev/romantics/Fotema/icons/image-missing-symbolic.svg",
+                "/dev/romantics/Fotema/icons/scalable/actions/image-missing-symbolic.svg",
             ));
         }
     }

@@ -139,7 +139,7 @@ impl RelmGridItem for PhotoGridItem {
                 widgets.status_overlay.set_visible(false);
             }
         } else {
-            widgets.picture.set_resource(Some("/dev/romantics/Fotema/icons/image-missing-symbolic.svg"));
+            widgets.picture.set_resource(Some("/dev/romantics/Fotema/icons/scalable/actions/image-missing-symbolic.svg"));
         }
     }
 
