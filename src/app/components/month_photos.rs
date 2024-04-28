@@ -7,6 +7,8 @@ use fotema_core;
 
 use itertools::Itertools;
 use relm4::gtk;
+use relm4::gtk::gdk;
+use relm4::gtk::gdk_pixbuf;
 use relm4::gtk::prelude::FrameExt;
 use relm4::gtk::prelude::WidgetExt;
 use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
@@ -98,9 +100,12 @@ impl RelmGridItem for PhotoGridItem {
                 .picture
                 .set_filename(self.picture.thumbnail_path.clone());
         } else {
-            widgets.picture.set_resource(Some(
-                "/dev/romantics/Fotema/icons/image-missing-symbolic.svg",
-            ));
+            let pb = gdk_pixbuf::Pixbuf::from_resource_at_scale(
+                "/dev/romantics/Fotema/icons/scalable/actions/image-missing-symbolic.svg",
+                200, 200, true
+            ).unwrap();
+            let img = gdk::Texture::for_pixbuf(&pb);
+            widgets.picture.set_paintable(Some(&img));
         }
     }
 
