@@ -202,10 +202,30 @@ impl Repository {
             .map(|x: String| PathBuf::from(x))
             .ok();
 
-        let thumbnail_path = picture_thumbnail
-            .map(|x| self.thumbnail_base_path.join(x))
-            .or_else(|| video_thumbnail)
-            .map(|x| self.thumbnail_base_path.join(x));
+        // If the thumbnail path is absent in the database, the compute the path we know it
+        // will have. Eventually the thumbnail generation background process will create the file
+        // and it will show up in the UI without having to refresh the data.
+        let thumbnail_path: Option<PathBuf> = if let Some(ref picture_id) = picture_id {
+            picture_thumbnail
+                .or_else(|| {
+                    Some(
+                        path::Path::new("photo_thumbnails")
+                            .join(format!("{}_200x200.png", picture_id)),
+                    )
+                })
+                .map(|x| self.thumbnail_base_path.join(x))
+        } else if let Some(ref video_id) = video_id {
+            video_thumbnail
+                .or_else(|| {
+                    Some(
+                        path::Path::new("video_thumbnails")
+                            .join(format!("{}_200x200.png", video_id)),
+                    )
+                })
+                .map(|x| self.thumbnail_base_path.join(x))
+        } else {
+            None
+        };
 
         let created_at: DateTime<Utc> = row.get("created_ts").ok().expect("Must have created_ts");
 
