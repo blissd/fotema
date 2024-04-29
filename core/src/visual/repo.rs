@@ -64,7 +64,8 @@ impl Repository {
                     is_ios_live_photo,
 
                     video_transcoded_path,
-                    is_transcode_required
+                    is_transcode_required,
+                    duration_millis
                 FROM visual
                 ORDER BY created_ts ASC",
         )?;
@@ -93,74 +94,13 @@ impl Repository {
                     is_ios_live_photo
 
                     video_transcoded_path,
-                    is_transcode_required
+                    is_transcode_required,
+                    video_duration
                 FROM visual
                 AND visual.visual_id = ?1",
         )?;
 
-        let iter = stmt.query_map([visual_id.id()], |row| {
-            let visual_id = row
-                .get(0)
-                .map(|x| VisualId::new(x))
-                .expect("Must have visual_id");
-
-            let stem_path: PathBuf = row
-                .get(1)
-                .map(|x: String| PathBuf::from(x))
-                .expect("Stem path");
-
-            let picture_id: Option<PictureId> = row.get(2).map(|x| PictureId::new(x)).ok();
-
-            let picture_path: Option<PathBuf> = row.get(3).map(|x: String| PathBuf::from(x)).ok();
-
-            let picture_path = picture_path.map(|x| self.library_base_path.join(x));
-
-            let picture_thumbnail: Option<PathBuf> =
-                row.get(4).map(|x: String| PathBuf::from(x)).ok();
-
-            let video_id: Option<VideoId> = row.get(5).map(|x| VideoId::new(x)).ok();
-
-            let video_path: Option<PathBuf> = row.get(6).map(|x: String| PathBuf::from(x)).ok();
-
-            let video_path = video_path.map(|x| self.library_base_path.join(x));
-
-            let video_thumbnail: Option<PathBuf> =
-                row.get(7).map(|x: String| PathBuf::from(x)).ok();
-
-            let thumbnail_path = picture_thumbnail
-                .map(|x| self.thumbnail_base_path.join(x))
-                .or_else(|| video_thumbnail)
-                .map(|x| self.thumbnail_base_path.join(x));
-
-            let created_at: DateTime<Utc> = row.get(8).ok().expect("Must have created_ts");
-
-            let is_ios_live_photo: bool = row.get(9).expect("must have is_ios_live_photo");
-
-            let video_transcoded_path: Option<PathBuf> =
-                row.get(10).map(|x: String| PathBuf::from(x)).ok();
-
-            let is_transcode_required: Option<bool> = row.get(11).ok();
-
-            let v = Visual {
-                visual_id,
-                parent_path: stem_path
-                    .parent()
-                    .map(|x| PathBuf::from(x))
-                    .expect("Parent path"),
-                thumbnail_path,
-                picture_id,
-                picture_path,
-                video_id,
-                video_path,
-                created_at,
-                is_selfie: None, // TODO get real value
-                is_ios_live_photo,
-                video_transcoded_path,
-                is_transcode_required,
-            };
-            Ok(v)
-        })?;
-
+        let iter = stmt.query_map([visual_id.id()], |row| self.to_visual(row))?;
         let head = iter.flatten().nth(0);
         Ok(head)
     }
@@ -240,6 +180,11 @@ impl Repository {
 
         let is_transcode_required: Option<bool> = row.get("is_transcode_required").ok();
 
+        let video_duration: Option<TimeDelta> = row
+            .get("duration_millis")
+            .ok()
+            .and_then(|x| TimeDelta::try_milliseconds(x));
+
         let v = Visual {
             visual_id,
             parent_path: stem_path
@@ -256,6 +201,7 @@ impl Repository {
             is_ios_live_photo,
             video_transcoded_path,
             is_transcode_required,
+            video_duration,
         };
         Ok(v)
     }

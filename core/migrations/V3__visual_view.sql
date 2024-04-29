@@ -13,6 +13,7 @@ SELECT
   videos.transcoded_path AS video_transcoded_path,
   videos.video_codec IN ('hevc') AS is_transcode_required,
   videos.content_id IS NOT NULL AS is_ios_live_photo,
+  videos.duration_millis as duration_millis,
   COALESCE(
     pictures.exif_created_ts,
     pictures.exif_modified_ts,

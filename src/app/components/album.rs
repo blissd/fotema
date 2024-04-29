@@ -69,6 +69,8 @@ struct PhotoGridItemWidgets {
     picture: gtk::Picture,
     status_overlay: gtk::Frame,
     motion_type_icon: gtk::Image,
+    duration_overlay: gtk::Frame,
+    duration_label: gtk::Label,
 }
 
 impl RelmGridItem for PhotoGridItem {
@@ -96,6 +98,22 @@ impl RelmGridItem for PhotoGridItem {
                         },
                     },
 
+                    #[name(duration_overlay)]
+                    add_overlay =  &gtk::Frame {
+                        set_halign: gtk::Align::End,
+                        set_valign: gtk::Align::End,
+                        set_margin_all: 8,
+                        add_css_class: "photo-grid-photo-status-frame",
+
+
+                        #[wrap(Some)]
+                        #[name(duration_label)]
+                        set_child = &gtk::Label{
+                            add_css_class: "photo-grid-month-label",
+                        },
+                    },
+
+
                     #[wrap(Some)]
                     set_child = &gtk::Frame {
                         set_width_request: 200,
@@ -115,6 +133,8 @@ impl RelmGridItem for PhotoGridItem {
             picture,
             status_overlay,
             motion_type_icon,
+            duration_overlay,
+            duration_label,
         };
 
         (root, widgets)
@@ -139,16 +159,34 @@ impl RelmGridItem for PhotoGridItem {
             widgets.picture.set_paintable(Some(&img));
         }
 
-        if self.visual.is_motion_photo() || self.visual.is_video_only() {
+        if self.visual.is_motion_photo() {
             widgets.status_overlay.set_visible(true);
-            if self.visual.is_video_only() {
-                widgets.motion_type_icon.set_icon_name(Some("play-symbolic"));
-            } else if self.visual.is_motion_photo() {
-                widgets.motion_type_icon.set_icon_name(Some("cd-symbolic"));
-            }
+            widgets.duration_overlay.set_visible(false);
+            widgets.duration_label.set_label("");
+            widgets.motion_type_icon.set_icon_name(Some("cd-symbolic"));
+        } else if self.visual.is_video_only() && self.visual.video_duration.is_some() {
+            widgets.status_overlay.set_visible(false);
+            widgets.duration_overlay.set_visible(true);
+
+            let total_seconds = self.visual.video_duration.expect("must have video duration").num_seconds();
+            let seconds = total_seconds % 60;
+            let minutes = (total_seconds / 60) % 60;
+            let hours = (total_seconds / 60) / 60;
+            let hhmmss = if hours == 0 {
+                format!("{}:{:0>2}", minutes, seconds)
+            } else {
+                format!("{}:{:0>2}:{:0>2}", hours, minutes, seconds)
+            };
+            widgets.duration_label.set_label(&hhmmss);
+        } else if self.visual.is_video_only() {
+            widgets.status_overlay.set_visible(true);
+            widgets.duration_overlay.set_visible(false);
+            widgets.motion_type_icon.set_icon_name(Some("play-symbolic"));
         } else {
             widgets.status_overlay.set_visible(false);
             widgets.motion_type_icon.set_icon_name(None);
+            widgets.duration_overlay.set_visible(false);
+            widgets.duration_label.set_label("");
         }
     }
 
@@ -156,6 +194,8 @@ impl RelmGridItem for PhotoGridItem {
         widgets.picture.set_filename(None::<&Path>);
         widgets.motion_type_icon.set_icon_name(None);
         widgets.status_overlay.set_visible(false);
+        widgets.duration_overlay.set_visible(false);
+        widgets.duration_label.set_label("");
     }
 }
 

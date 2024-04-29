@@ -48,6 +48,9 @@ pub struct Visual {
     // Transcoded version of video_path of video_codec is not supported.
     pub video_transcoded_path: Option<PathBuf>,
 
+    // Duration of video content
+    pub video_duration: Option<TimeDelta>,
+
     pub picture_id: Option<PictureId>,
 
     pub picture_path: Option<PathBuf>,
