@@ -130,16 +130,6 @@ impl RelmGridItem for PhotoGridItem {
 
         if self.visual.thumbnail_path.as_ref().is_some_and(|x| x.exists()) {
             widgets.picture.set_filename(self.visual.thumbnail_path.clone());
-            if self.visual.is_motion_photo() || self.visual.is_video_only() {
-                widgets.status_overlay.set_visible(true);
-                if self.visual.is_video_only() {
-                    widgets.motion_type_icon.set_icon_name(Some("play-symbolic"));
-                } else if self.visual.is_motion_photo() {
-                    widgets.motion_type_icon.set_icon_name(Some("cd-symbolic"));
-                }
-            } else {
-                widgets.status_overlay.set_visible(false);
-            }
         } else {
             let pb = gdk_pixbuf::Pixbuf::from_resource_at_scale(
                 "/dev/romantics/Fotema/icons/scalable/actions/image-missing-symbolic.svg",
@@ -147,6 +137,18 @@ impl RelmGridItem for PhotoGridItem {
             ).unwrap();
            let img = gdk::Texture::for_pixbuf(&pb);
             widgets.picture.set_paintable(Some(&img));
+        }
+
+        if self.visual.is_motion_photo() || self.visual.is_video_only() {
+            widgets.status_overlay.set_visible(true);
+            if self.visual.is_video_only() {
+                widgets.motion_type_icon.set_icon_name(Some("play-symbolic"));
+            } else if self.visual.is_motion_photo() {
+                widgets.motion_type_icon.set_icon_name(Some("cd-symbolic"));
+            }
+        } else {
+            widgets.status_overlay.set_visible(false);
+            widgets.motion_type_icon.set_icon_name(None);
         }
     }
 
