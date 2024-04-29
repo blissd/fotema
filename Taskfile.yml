@@ -21,6 +21,7 @@ tasks:
       - sudo dnf install -y libavdevice-free-devel
       - sudo dnf install -y clang-libs
       - sudo dnf install -y clang-devel
+      - sudo dnf install -y libadwaita-devel
 
   flatpak-devel:
     desc: Development build and install with flatpak-builder
