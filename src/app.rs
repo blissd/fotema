@@ -733,7 +733,8 @@ impl SimpleComponent for App {
         model.spinner.set_visible(true);
         model.spinner.start();
 
-        model.load_library.emit(LoadLibraryInput::Refresh);
+        // model.load_library.emit(LoadLibraryInput::Refresh);
+        model.scan_photos.emit(ScanPhotosInput::Start);
 
         ComponentParts { model, widgets }
     }
@@ -800,6 +801,7 @@ impl SimpleComponent for App {
                 println!("Refresh photo grids");
 
                 // Refresh messages cause the photos to be loaded into various photo grids
+                // and can cause a "Fotema Is Not Reponding" dialog to pop up, which is terrible.
                 // TODO can we just refresh the currently visible photo grid?
                 self.all_photos.emit(AlbumInput::Refresh);
                 self.selfies_page.emit(AlbumInput::Refresh);
@@ -812,12 +814,12 @@ impl SimpleComponent for App {
 
                 // Is this the completion of the first library scan after start up.
                 // We only want to trigger a photo/video scan once.
-                if self.last_load_at.is_none() {
-                    self.scan_photos.emit(ScanPhotosInput::Start);
-                } else {
-                    self.spinner.set_visible(false);
-                    self.spinner.stop();
-                }
+                //if self.last_load_at.is_none() {
+                //    self.scan_photos.emit(ScanPhotosInput::Start);
+                //} else {
+                //    self.spinner.set_visible(false);
+                //    self.spinner.stop();
+                //}
 
                 self.last_load_at = Some(std::time::SystemTime::now());
             }
@@ -926,7 +928,7 @@ impl SimpleComponent for App {
                 self.banner.set_button_label(None);
                 self.progress_box.set_visible(false);
 
-                //sender.input(AppMsg::LibraryRefresh);
+                self.load_library.emit(LoadLibraryInput::Refresh);
                 self.thumbnail_photos.emit(ThumbnailPhotosInput::Start);
             }
             AppMsg::ThumbnailPhotosStarted(count) => {
