@@ -812,15 +812,6 @@ impl SimpleComponent for App {
                 self.month_photos.emit(MonthPhotosInput::Refresh);
                 self.year_photos.emit(YearPhotosInput::Refresh);
 
-                // Is this the completion of the first library scan after start up.
-                // We only want to trigger a photo/video scan once.
-                //if self.last_load_at.is_none() {
-                //    self.scan_photos.emit(ScanPhotosInput::Start);
-                //} else {
-                //    self.spinner.set_visible(false);
-                //    self.spinner.stop();
-                //}
-
                 self.last_load_at = Some(std::time::SystemTime::now());
             }
             AppMsg::PhotoScanStarted => {
@@ -844,7 +835,7 @@ impl SimpleComponent for App {
             AppMsg::PhotoEnrichmentStarted(count) => {
                 println!("Photo enrichment started.");
                 self.banner.set_title("Processing photo metadata.");
-                self.banner.set_button_label(Some("Refresh"));
+                //self.banner.set_button_label(Some("Refresh"));
                 self.banner.set_revealed(true);
 
                 self.spinner.start();
@@ -888,7 +879,7 @@ impl SimpleComponent for App {
             AppMsg::VideoEnrichmentStarted(count) => {
                 println!("Video enrichment started.");
                 self.banner.set_title("Processing video metadata");
-                self.banner.set_button_label(Some("Refresh"));
+                //self.banner.set_button_label(Some("Refresh"));
                 self.banner.set_revealed(true);
 
                 self.spinner.start();
@@ -936,7 +927,7 @@ impl SimpleComponent for App {
                 self.banner
                     .set_title("Generating photo thumbnails. This will take a while.");
                 // Show button to refresh all photo grids.
-                self.banner.set_button_label(Some("Refresh"));
+                //self.banner.set_button_label(Some("Refresh"));
                 self.banner.set_revealed(true);
 
                 self.spinner.start();
@@ -983,8 +974,8 @@ impl SimpleComponent for App {
                 println!("Video thumbnail generation started.");
                 self.banner
                     .set_title("Generating video thumbnails. This will take a while.");
-                // Show button to refresh all pshoto grids.
-                self.banner.set_button_label(Some("Refresh"));
+                // Show button to refresh all photo grids.
+                //self.banner.set_button_label(Some("Refresh"));
                 self.banner.set_revealed(true);
 
                 self.spinner.start();
@@ -1023,8 +1014,6 @@ impl SimpleComponent for App {
                 self.banner.set_revealed(false);
                 self.banner.set_button_label(None);
                 self.progress_box.set_visible(false);
-
-                self.load_library.emit(LoadLibraryInput::Refresh);
             }
             AppMsg::PhotoCleanStarted => {
                 println!("Photo cleanup started.");

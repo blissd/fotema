@@ -62,6 +62,9 @@ impl ThumbnailPhotos {
             //.iter()
             .for_each(|pic| {
                 let result = block_on(async {thumbnailer.thumbnail(&pic.picture_id, &pic.path).await});
+
+                // TODO is it faster to persist all thumbnail paths to database in a
+                // batch at the end instead of one by one?
                 let result = result.and_then(|thumbnail_path| repo.clone().add_thumbnail(&pic.picture_id, &thumbnail_path));
 
                 if let Err(e) = result {
