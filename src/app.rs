@@ -441,7 +441,7 @@ impl SimpleComponent for App {
         let library = fotema_core::visual::Library::new(visual_repo.clone());
 
         let bootstrap = Bootstrap::builder()
-            .detach_worker(library.clone())
+            .detach_worker((con.clone(), library.clone()))
             .forward(sender.input_sender(), |msg| match msg {
                 BootstrapOutput::ProgressStarted(count, banner_msg, progress_label) => AppMsg::ProgressStarted(count, banner_msg, progress_label),
                 BootstrapOutput::ProgressAdvanced => AppMsg::ProgressAdvanced,

@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use anyhow::*;
-use rusqlite::Connection;
+pub use rusqlite::Connection;
 use std::path;
 
 // Embed migration SQL in executable.
