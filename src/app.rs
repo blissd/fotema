@@ -144,14 +144,14 @@ pub(super) enum AppMsg {
     // Finished processing
     ProgressCompleted,
 
-    // Show banner message
-    ShowBanner(String),
-
-    // Show progress bar title
-    ShowProgressTitle(String),
+    // A task (without a progress bar) has started
+    TaskStarted(String),
 
     // Preferences
     PreferencesUpdated,
+
+    // All background bootstrap tasks have completed
+    BootstrapCompleted,
 }
 
 relm4::new_action_group!(pub(super) WindowActionGroup, "win");
@@ -446,9 +446,9 @@ impl SimpleComponent for App {
                 BootstrapOutput::ProgressStarted(count, banner_msg, progress_label) => AppMsg::ProgressStarted(count, banner_msg, progress_label),
                 BootstrapOutput::ProgressAdvanced => AppMsg::ProgressAdvanced,
                 BootstrapOutput::ProgressCompleted => AppMsg::ProgressCompleted,
-                BootstrapOutput::ShowBanner(msg) => AppMsg::ShowBanner(msg),
-                BootstrapOutput::ShowProgressTitle(msg) => AppMsg::ShowProgressTitle(msg),
+                BootstrapOutput::TaskStarted(msg) => AppMsg::TaskStarted(msg),
                 BootstrapOutput::LibraryRefreshed => AppMsg::LibraryRefreshed,
+                BootstrapOutput::Completed => AppMsg::BootstrapCompleted,
             });
 
         let all_photos = Album::builder()
@@ -685,13 +685,12 @@ impl SimpleComponent for App {
                 self.month_photos.emit(MonthPhotosInput::Refresh);
                 self.year_photos.emit(YearPhotosInput::Refresh);
             }
-            AppMsg::ShowBanner(msg) => {
+            AppMsg::TaskStarted(msg) => {
                 self.spinner.start();
                 self.banner.set_title(&msg);
                 self.banner.set_revealed(true);
-            }
-            AppMsg::ShowProgressTitle(msg) => {
-                self.progress_bar.set_text(Some(&msg));
+                self.progress_box.set_visible(false);
+                self.progress_bar.set_text(None);
             }
             AppMsg::ProgressStarted(count, banner_title, progress_label) => {
                 println!("Progress started: {}", banner_title);
@@ -714,6 +713,7 @@ impl SimpleComponent for App {
             AppMsg::ProgressAdvanced => {
                 println!("Progress advanced");
                 self.progress_current_count += 1;
+
                 // Show pulsing for first 20 items so that it catches the eye, then
                 // switch to fractional view
                 if self.progress_current_count < 20 {
@@ -731,6 +731,14 @@ impl SimpleComponent for App {
                 println!("Progress completed.");
                 self.spinner.stop();
                 self.banner.set_revealed(false);
+                self.progress_box.set_visible(false);
+            }
+            AppMsg::BootstrapCompleted => {
+                println!("Bootstrap completed.");
+                self.spinner.stop();
+                self.banner.set_revealed(false);
+                self.progress_bar.set_text(None);
+                self.progress_box.set_visible(false);
             }
             AppMsg::PreferencesUpdated => {
                 println!("Preferences updated.");
