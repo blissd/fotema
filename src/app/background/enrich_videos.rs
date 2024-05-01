@@ -17,12 +17,8 @@ pub enum EnrichVideosOutput {
     // Thumbnail generation has started for a given number of videos.
     Started(usize),
 
-    // Thumbnail has been generated for a photo.
-    Generated,
-
     // Thumbnail generation has completed
     Completed,
-
 }
 
 pub struct EnrichVideos {

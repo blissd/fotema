@@ -19,9 +19,6 @@ pub enum EnrichPhotosOutput {
     // Metadata enrichment started.
     Started(usize),
 
-    // Thumbnail has been generated for a photo.
-    Enriched,
-
     // Metadata enrichment completed
     Completed,
 

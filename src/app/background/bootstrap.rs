@@ -42,11 +42,9 @@ pub enum BootstrapInput {
     // Enrich with metadata
 
     PhotoEnrichmentStarted(usize),
-    PhotoEnrichmentEnriched,
     PhotoEnrichmentCompleted,
 
     VideoEnrichmentStarted(usize),
-    VideoEnriched,
     VideoEnrichmentCompleted,
 
     // Thumbnail generation events
@@ -166,7 +164,6 @@ impl Worker for Bootstrap {
             .detach_worker(video_repo.clone())
             .forward(sender.input_sender(), |msg| match msg {
                 EnrichVideosOutput::Started(count) => BootstrapInput::VideoEnrichmentStarted(count),
-                EnrichVideosOutput::Generated => BootstrapInput::VideoEnriched,
                 EnrichVideosOutput::Completed => BootstrapInput::VideoEnrichmentCompleted,
             });
 
@@ -174,7 +171,6 @@ impl Worker for Bootstrap {
             .detach_worker(photo_repo.clone())
             .forward(sender.input_sender(), |msg| match msg {
                 EnrichPhotosOutput::Started(count) => BootstrapInput::PhotoEnrichmentStarted(count),
-                EnrichPhotosOutput::Enriched => BootstrapInput::PhotoEnrichmentEnriched,
                 EnrichPhotosOutput::Completed => BootstrapInput::PhotoEnrichmentCompleted,
             });
 
@@ -267,10 +263,6 @@ impl Worker for Bootstrap {
                 let msg = "Processing photo metadata.".to_string();
                 let _ = sender.output(BootstrapOutput::ProgressStarted(count, msg.clone(), msg));
             }
-            BootstrapInput::PhotoEnrichmentEnriched => {
-                println!("bootstrap: photo enrichment advanced");
-                let _ = sender.output(BootstrapOutput::ProgressAdvanced);
-            }
             BootstrapInput::PhotoEnrichmentCompleted => {
                 println!("bootstrap: photo enrichment completed");
                 let _ = sender.output(BootstrapOutput::ProgressCompleted);
@@ -280,10 +272,6 @@ impl Worker for Bootstrap {
                 println!("bootstrap: video enrichment started");
                 let msg = "Processing video metadata.".to_string();
                 let _ = sender.output(BootstrapOutput::ProgressStarted(count, msg.clone(), msg));
-            }
-            BootstrapInput::VideoEnriched => {
-                println!("bootstrap: video enrichment advanced");
-                let _ = sender.output(BootstrapOutput::ProgressAdvanced);
             }
             BootstrapInput::VideoEnrichmentCompleted => {
                 println!("bootstrap: video enrichment completed");
