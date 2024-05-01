@@ -26,13 +26,16 @@ impl Library {
 
     /// Reload all visual library items from database.
     pub fn refresh(&mut self) -> Result<()> {
-        let all = self.repo.all()?;
+        let mut all = self
+            .repo
+            .all()?
+            .into_iter()
+            .map(|x| Arc::new(x))
+            .collect::<Vec<Arc<Visual>>>();
 
         let mut index = self.index.write().unwrap();
         index.clear();
-        for item in all {
-            index.push(Arc::new(item));
-        }
+        index.append(&mut all);
 
         println!("Library has {} items", index.len());
 

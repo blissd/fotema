@@ -171,7 +171,7 @@ impl SimpleComponent for MonthPhotos {
                     .map(|picture| PhotoGridItem { picture });
 
                 self.photo_grid.clear();
-                self.photo_grid.extend_from_iter(all_pictures.into_iter());
+                self.photo_grid.extend_from_iter(all_pictures);
 
                 if !self.photo_grid.is_empty() {
                     self.photo_grid.view.scroll_to(

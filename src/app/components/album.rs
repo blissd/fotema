@@ -259,7 +259,7 @@ impl SimpleComponent for Album {
                 self.photo_grid.clear();
 
                 //self.photo_grid.add_filter(move |item| (self.photo_grid_filter)(&item.picture));
-                self.photo_grid.extend_from_iter(all.into_iter());
+                self.photo_grid.extend_from_iter(all);
 
                 if !self.photo_grid.is_empty() {
                     // We must scroll to a valid index... but we can't get the index of the
