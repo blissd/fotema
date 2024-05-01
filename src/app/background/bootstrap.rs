@@ -12,6 +12,7 @@ use fotema_core::database;
 use fotema_core::video;
 
 use std::sync::{Arc, Mutex};
+use std::time::Instant;
 
 use super::{
     clean_photos::{CleanPhotos, CleanPhotosInput, CleanPhotosOutput},
@@ -89,6 +90,8 @@ pub enum BootstrapOutput {
 }
 
 pub struct Bootstrap {
+    started_at: Option<Instant>,
+
     load_library: WorkerController<LoadLibrary>,
 
     scan_photos: WorkerController<ScanPhotos>,
@@ -205,6 +208,7 @@ impl Worker for Bootstrap {
             });
 
         let model = Bootstrap {
+            started_at: None,
             load_library,
             scan_photos,
             scan_videos,
@@ -224,6 +228,7 @@ impl Worker for Bootstrap {
         match msg {
             BootstrapInput::Start => {
                 println!("bootstrap: start");
+                self.started_at = Some(Instant::now());
                 self.scan_photos.emit(ScanPhotosInput::Start);
             }
             BootstrapInput::PhotoScanStarted => {
@@ -305,10 +310,11 @@ impl Worker for Bootstrap {
                 let _ = sender.output(BootstrapOutput::ProgressAdvanced);
             }
             BootstrapInput::ThumbnailVideosCompleted => {
-                println!("bootstrap: video thumbnails completed");
+                let duration = self.started_at.map(|x| x.elapsed());
+                println!("bootstrap: video thumbnails completed in {:?}", duration);
+
                 let _ = sender.output(BootstrapOutput::ProgressCompleted);
                 let _ = sender.output(BootstrapOutput::Completed);
-
             }
             BootstrapInput::LibraryRefreshed => {
                 let _ = sender.output(BootstrapOutput::LibraryRefreshed);
