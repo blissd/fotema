@@ -13,4 +13,5 @@ pub use time::Year;
 pub use time::YearMonth;
 pub use video::VideoId;
 pub use visual::Library;
+pub use visual::Visual;
 pub use visual::VisualId;

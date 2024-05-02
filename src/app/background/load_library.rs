@@ -4,40 +4,56 @@
 
 use relm4::prelude::*;
 use relm4::Worker;
+use crate::app::SharedState;
+use fotema_core::visual::Repository;
+use fotema_core::Visual;
+use std::sync::Arc;
+use anyhow::*;
 
 #[derive(Debug)]
 pub enum LoadLibraryInput {
     Refresh,
 }
 
-#[derive(Debug)]
-pub enum LoadLibraryOutput {
-    Refreshed,
-}
-
 pub struct LoadLibrary {
-    library: fotema_core::visual::Library,
+    repo: Repository,
+    state: SharedState,
 }
 
 impl Worker for LoadLibrary {
-    type Init = fotema_core::visual::Library;
+    type Init = (Repository, SharedState);
     type Input = LoadLibraryInput;
-    type Output = LoadLibraryOutput;
+    type Output = ();
 
-    fn init(library: Self::Init, _sender: ComponentSender<Self>) -> Self {
-        Self { library }
+    fn init((repo, state): Self::Init, _sender: ComponentSender<Self>) -> Self {
+        Self { repo, state }
     }
 
-    fn update(&mut self, msg: LoadLibraryInput, sender: ComponentSender<Self>) {
+    fn update(&mut self, msg: LoadLibraryInput, _sender: ComponentSender<Self>) {
         match msg {
             LoadLibraryInput::Refresh => {
-                let result = self.library.refresh();
-                if let Ok(_) = result {
-                    let _ = sender.output(LoadLibraryOutput::Refreshed);
-                } else if let Err(e) = result {
-                    println!("Failed scan with: {}", e);
+                let result = self.load();
+
+                if let Err(e) = result {
+                    println!("Failed load library with: {}", e);
                 }
             }
         };
+    }
+}
+
+impl LoadLibrary {
+    fn load(&self) -> Result<()> {
+        let mut all = self
+            .repo
+            .all()?
+            .into_iter()
+            .map(|x| Arc::new(x))
+            .collect::<Vec<Arc<Visual>>>();
+
+        let mut index = self.state.write();
+        index.clear();
+        index.append(&mut all);
+        Ok(())
     }
 }

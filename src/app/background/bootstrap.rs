@@ -9,7 +9,9 @@ use relm4::{
 };
 use crate::config::APP_ID;
 use fotema_core::database;
+use fotema_core::photo;
 use fotema_core::video;
+use fotema_core::visual;
 
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
@@ -19,19 +21,18 @@ use super::{
     clean_videos::{CleanVideos, CleanVideosInput, CleanVideosOutput},
     enrich_photos::{EnrichPhotos, EnrichPhotosInput, EnrichPhotosOutput},
     enrich_videos::{EnrichVideos, EnrichVideosInput, EnrichVideosOutput},
-    load_library::{LoadLibrary, LoadLibraryInput, LoadLibraryOutput},
+    load_library::{LoadLibrary, LoadLibraryInput},
     scan_photos::{ScanPhotos, ScanPhotosInput, ScanPhotosOutput},
     scan_videos::{ScanVideos, ScanVideosInput, ScanVideosOutput},
     thumbnail_photos::{ThumbnailPhotos, ThumbnailPhotosInput, ThumbnailPhotosOutput},
     thumbnail_videos::{ThumbnailVideos, ThumbnailVideosInput, ThumbnailVideosOutput},
 };
 
+use crate::app::SharedState;
+
 #[derive(Debug)]
 pub enum BootstrapInput {
     Start,
-
-    // Photos library has been loaded from database.
-    LibraryRefreshed,
 
     // File-system scan events
     PhotoScanStarted,
@@ -81,9 +82,6 @@ pub enum BootstrapOutput {
     // Show banner message and start spinner
     TaskStarted(String),
 
-    // Library has been refreshed.
-    LibraryRefreshed,
-
     // Bootstrap process has completed.
     Completed,
 
@@ -108,11 +106,11 @@ pub struct Bootstrap {
 }
 
 impl Worker for Bootstrap {
-    type Init = (Arc<Mutex<database::Connection>>, fotema_core::Library);
+    type Init = (Arc<Mutex<database::Connection>>, SharedState);
     type Input = BootstrapInput;
     type Output = BootstrapOutput;
 
-    fn init((con, library): Self::Init, sender: ComponentSender<Self>) -> Self  {
+    fn init((con, state): Self::Init, sender: ComponentSender<Self>) -> Self  {
         let data_dir = glib::user_data_dir().join(APP_ID);
         let _ = std::fs::create_dir_all(&data_dir);
 
@@ -122,18 +120,18 @@ impl Worker for Bootstrap {
         let pic_base_dir = glib::user_special_dir(glib::enums::UserDirectory::Pictures)
             .expect("Expect XDG_PICTURES_DIR");
 
-        let photo_scan = fotema_core::photo::Scanner::build(&pic_base_dir).unwrap();
+        let photo_scan = photo::Scanner::build(&pic_base_dir).unwrap();
 
-        let photo_repo = fotema_core::photo::Repository::open(
+        let photo_repo = photo::Repository::open(
             &pic_base_dir,
             &cache_dir,
             con.clone(),
         )
         .unwrap();
 
-        let photo_thumbnailer = fotema_core::photo::Thumbnailer::build(&cache_dir).unwrap();
+        let photo_thumbnailer = photo::Thumbnailer::build(&cache_dir).unwrap();
 
-        let video_scan = fotema_core::video::Scanner::build(&pic_base_dir).unwrap();
+        let video_scan = video::Scanner::build(&pic_base_dir).unwrap();
 
         let video_repo = {
             video::Repository::open(&pic_base_dir, &cache_dir, con.clone()).unwrap()
@@ -141,13 +139,18 @@ impl Worker for Bootstrap {
 
         let video_transcoder = video::Transcoder::new(&cache_dir);
 
-        let video_thumbnailer = fotema_core::video::Thumbnailer::build(&cache_dir).unwrap();
+        let video_thumbnailer = video::Thumbnailer::build(&cache_dir).unwrap();
+
+        let visual_repo = visual::Repository::open(
+            &pic_base_dir,
+            &cache_dir,
+            con.clone(),
+        )
+        .unwrap();
 
         let load_library = LoadLibrary::builder()
-            .detach_worker(library.clone())
-            .forward(sender.input_sender(), |msg| match msg {
-                LoadLibraryOutput::Refreshed => BootstrapInput::LibraryRefreshed,
-            });
+            .detach_worker((visual_repo.clone(), state))
+            .detach();
 
         let scan_photos = ScanPhotos::builder()
             .detach_worker((photo_scan.clone(), photo_repo.clone()))
@@ -315,9 +318,6 @@ impl Worker for Bootstrap {
 
                 let _ = sender.output(BootstrapOutput::ProgressCompleted);
                 let _ = sender.output(BootstrapOutput::Completed);
-            }
-            BootstrapInput::LibraryRefreshed => {
-                let _ = sender.output(BootstrapOutput::LibraryRefreshed);
             }
         };
     }

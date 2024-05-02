@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use gtk::prelude::OrientableExt;
-use fotema_core;
 
 use itertools::Itertools;
 use relm4::gtk;
@@ -14,6 +13,8 @@ use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
 use relm4::*;
 use std::path;
 use std::sync::Arc;
+
+use crate::app::SharedState;
 
 #[derive(Debug)]
 struct PhotoGridItem {
@@ -104,13 +105,13 @@ impl RelmGridItem for PhotoGridItem {
 }
 
 pub struct FolderPhotos {
-    repo: fotema_core::visual::Library,
+    state: SharedState,
     photo_grid: TypedGridView<PhotoGridItem, gtk::SingleSelection>,
 }
 
 #[relm4::component(pub)]
 impl SimpleComponent for FolderPhotos {
-    type Init = fotema_core::visual::Library;
+    type Init = SharedState;
     type Input = FolderPhotosInput;
     type Output = FolderPhotosOutput;
 
@@ -134,13 +135,13 @@ impl SimpleComponent for FolderPhotos {
     }
 
     fn init(
-        repo: Self::Init,
+        state: Self::Init,
         _root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
         let photo_grid = TypedGridView::new();
 
-        let model = FolderPhotos { repo, photo_grid };
+        let model = FolderPhotos { state, photo_grid };
 
         let pictures_box = &model.photo_grid.view;
 
@@ -162,17 +163,19 @@ impl SimpleComponent for FolderPhotos {
                 }
             }
             FolderPhotosInput::Refresh => {
-                let all_pictures = self
-                    .repo
-                    .all()
-                    .into_iter()
-                   // .filter(|x| x.thumbnail_path.exists())
-                    .sorted_by_key(|pic| pic.parent_path.clone())
-                    .group_by(|pic| pic.parent_path.clone());
+                let all = {
+                    let data = self.state.read();
+                    data.clone()
+                        .into_iter()
+                       // .filter(|x| x.thumbnail_path.exists())
+                        .sorted_by_key(|pic| pic.parent_path.clone())
+                        .group_by(|pic| pic.parent_path.clone())
+                        //.collect::<Vec<Arc<Visual>>>()
+                };
 
                 let mut pictures = Vec::new();
 
-                for (_key, mut group) in &all_pictures {
+                for (_key, mut group) in &all {
                     let first = group.nth(0).expect("Groups can't be empty");
                     let album = PhotoGridItem {
                         folder_name: first.folder_name().unwrap_or("-".to_string()),

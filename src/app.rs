@@ -21,6 +21,8 @@ use relm4::{
     SimpleComponent, WorkerController,
 };
 
+use relm4;
+
 use crate::config::{APP_ID, PROFILE};
 use fotema_core::database;
 use fotema_core::video;
@@ -48,6 +50,10 @@ mod background;
 use self::background::bootstrap::{
     Bootstrap, BootstrapInput, BootstrapOutput,
 };
+
+// Visual items to be shared between various views.
+// State is loaded by the `load_library` background task.
+type SharedState = Arc<relm4::SharedState<Vec<Arc<fotema_core::Visual>>>>;
 
 pub(super) struct App {
     about_dialog: Controller<AboutDialog>,
@@ -130,9 +136,6 @@ pub(super) enum AppMsg {
 
     // Scroll to first photo in year
     GoToYear(i32),
-
-    // Refresh all photo grid views. Manually triggered by button press.
-    LibraryRefreshed,
 
     // A task that can make progress has started.
     // count of items, banner text, progress bar text
@@ -431,78 +434,82 @@ impl SimpleComponent for App {
 
         let video_transcoder = video::Transcoder::new(&cache_dir);
 
-        let visual_repo = fotema_core::visual::Repository::open(
-            &pic_base_dir,
-            &cache_dir,
-            con.clone(),
-        )
-        .unwrap();
-
-        let library = fotema_core::visual::Library::new(visual_repo.clone());
+        let state = SharedState::new(relm4::SharedState::new());
 
         let bootstrap = Bootstrap::builder()
-            .detach_worker((con.clone(), library.clone()))
+            .detach_worker((con.clone(), state.clone()))
             .forward(sender.input_sender(), |msg| match msg {
                 BootstrapOutput::ProgressStarted(count, banner_msg, progress_label) => AppMsg::ProgressStarted(count, banner_msg, progress_label),
                 BootstrapOutput::ProgressAdvanced => AppMsg::ProgressAdvanced,
                 BootstrapOutput::ProgressCompleted => AppMsg::ProgressCompleted,
                 BootstrapOutput::TaskStarted(msg) => AppMsg::TaskStarted(msg),
-                BootstrapOutput::LibraryRefreshed => AppMsg::LibraryRefreshed,
                 BootstrapOutput::Completed => AppMsg::BootstrapCompleted,
             });
 
         let all_photos = Album::builder()
-            .launch((library.clone(), AlbumFilter::All))
+            .launch((state.clone(), AlbumFilter::All))
             .forward(sender.input_sender(), |msg| match msg {
                 AlbumOutput::Selected(id) => AppMsg::ViewPhoto(id),
             });
 
+        state.subscribe(all_photos.sender(), |_| AlbumInput::Refresh);
+
         let month_photos = MonthPhotos::builder()
-            .launch(library.clone()).forward(
+            .launch(state.clone()).forward(
             sender.input_sender(),
             |msg| match msg {
                 MonthPhotosOutput::MonthSelected(ym) => AppMsg::GoToMonth(ym),
             },
         );
 
+        state.subscribe(month_photos.sender(), |_| MonthPhotosInput::Refresh);
+
         let year_photos = YearPhotos::builder()
-            .launch(library.clone()).forward(
+            .launch(state.clone()).forward(
             sender.input_sender(),
             |msg| match msg {
                 YearPhotosOutput::YearSelected(year) => AppMsg::GoToYear(year),
             },
         );
 
+        state.subscribe(year_photos.sender(), |_| YearPhotosInput::Refresh);
+
         let photo_info = PhotoInfo::builder()
-            .launch(library.clone())
+            .launch(state.clone())
             .detach();
 
         let one_photo = OnePhoto::builder()
-            .launch((library.clone(), photo_info))
+            .launch((state.clone(), photo_info))
             .detach();
 
         let selfies_page = Album::builder()
-            .launch((library.clone(), AlbumFilter::Selfies))
+            .launch((state.clone(), AlbumFilter::Selfies))
             .forward(sender.input_sender(), |msg| match msg {
                 AlbumOutput::Selected(id) => AppMsg::ViewPhoto(id),
             });
+
+        state.subscribe(selfies_page.sender(), |_| AlbumInput::Refresh);
 
         let show_selfies = AppWidgets::show_selfies();
 
         let motion_page = Album::builder()
-            .launch((library.clone(), AlbumFilter::Motion))
+            .launch((state.clone(), AlbumFilter::Motion))
             .forward(sender.input_sender(), |msg| match msg {
                 AlbumOutput::Selected(id) => AppMsg::ViewPhoto(id),
             });
+
+        state.subscribe(motion_page.sender(), |_| AlbumInput::Refresh);
 
         let videos_page = Album::builder()
-            .launch((library.clone(), AlbumFilter::Videos))
+            .launch((state.clone(), AlbumFilter::Videos))
             .forward(sender.input_sender(), |msg| match msg {
                 AlbumOutput::Selected(id) => AppMsg::ViewPhoto(id),
             });
 
+        state.subscribe(videos_page.sender(), |_| AlbumInput::Refresh);
+
         let folder_photos = FolderPhotos::builder()
-            .launch(library.clone())
+            .launch(state.clone())
             .forward(
             sender.input_sender(),
             |msg| match msg {
@@ -510,13 +517,15 @@ impl SimpleComponent for App {
             },
         );
 
+        state.subscribe(folder_photos.sender(), |_| FolderPhotosInput::Refresh);
+
         let folder_album = Album::builder()
-            .launch((library.clone(), AlbumFilter::None))
+            .launch((state.clone(), AlbumFilter::None))
             .forward(sender.input_sender(), |msg| match msg {
                 AlbumOutput::Selected(id) => AppMsg::ViewPhoto(id),
             });
 
-        folder_album.emit(AlbumInput::Refresh); // initial photo
+        state.subscribe(folder_album.sender(), |_| AlbumInput::Refresh);
 
         let about_dialog = AboutDialog::builder().launch(root.clone()).detach();
 
@@ -669,21 +678,6 @@ impl SimpleComponent for App {
                 // Display month photos view.
                 self.library_view_stack.set_visible_child_name("month");
                 self.month_photos.emit(MonthPhotosInput::GoToYear(year));
-            }
-            AppMsg::LibraryRefreshed => {
-                println!("Refresh photo grids");
-
-                // Refresh messages cause the photos to be loaded into various photo grids
-                // and can cause a "Fotema Is Not Reponding" dialog to pop up, which is terrible.
-                // TODO can we just refresh the currently visible photo grid?
-                self.all_photos.emit(AlbumInput::Refresh);
-                self.selfies_page.emit(AlbumInput::Refresh);
-                self.videos_page.emit(AlbumInput::Refresh);
-                self.motion_page.emit(AlbumInput::Refresh);
-                self.folder_album.emit(AlbumInput::Refresh);
-                self.folder_photos.emit(FolderPhotosInput::Refresh);
-                self.month_photos.emit(MonthPhotosInput::Refresh);
-                self.year_photos.emit(YearPhotosInput::Refresh);
             }
             AppMsg::TaskStarted(msg) => {
                 self.spinner.start();

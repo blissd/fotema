@@ -14,6 +14,8 @@ use relm4::*;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use crate::app::SharedState;
+
 #[derive(Debug)]
 pub enum AlbumFilter {
     // Show no photos
@@ -43,7 +45,7 @@ pub enum AlbumInput {
     // Scroll to first photo of year/month.
     GoToMonth(YearMonth),
 
-    // Reload photos from database
+    // State has been updated
     Refresh,
 
     // I'd like to pass a closure of Fn(Picture)->bool for the filter... but Rust
@@ -62,7 +64,6 @@ pub enum AlbumOutput {
 #[derive(Debug)]
 struct PhotoGridItem {
     visual: Arc<fotema_core::visual::Visual>,
-//    photo_thumbnailer: photo::Thumbnailer,
 }
 
 struct PhotoGridItemWidgets {
@@ -141,13 +142,6 @@ impl RelmGridItem for PhotoGridItem {
     }
 
     fn bind(&mut self, widgets: &mut Self::Widgets, _root: &mut Self::Root) {
-    /*
-        if self.visual.thumbnail_path.as_ref().is_none() && self.visual.picture_id.is_some() {
-            let visual = self.visual.borrow_mut();
-            let thumbnail_path = self.photo_thumbnailer.thumbnail(&visual.picture_id, visual.picture_path.expect("must have picture path"));
-        }
-        */
-
         if self.visual.thumbnail_path.as_ref().is_some_and(|x| x.exists()) {
             widgets.picture.set_filename(self.visual.thumbnail_path.clone());
         } else {
@@ -200,13 +194,13 @@ impl RelmGridItem for PhotoGridItem {
 }
 
 pub struct Album {
-    repo: fotema_core::visual::Library,
+    state: SharedState,
     photo_grid: TypedGridView<PhotoGridItem, gtk::SingleSelection>,
 }
 
 #[relm4::component(pub)]
 impl SimpleComponent for Album {
-    type Init = (fotema_core::visual::Library, AlbumFilter);
+    type Init = (SharedState, AlbumFilter);
     type Input = AlbumInput;
     type Output = AlbumOutput;
 
@@ -228,13 +222,13 @@ impl SimpleComponent for Album {
     }
 
     fn init(
-        (repo, initial_filter): Self::Init,
+        (state, initial_filter): Self::Init,
         _root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
         let photo_grid = TypedGridView::new();
 
-        let mut model = Album { repo, photo_grid };
+        let mut model = Album { state, photo_grid };
 
         model.update_filter(initial_filter);
 
@@ -250,11 +244,13 @@ impl SimpleComponent for Album {
                 self.update_filter(filter);
             }
             AlbumInput::Refresh => {
-                let all = self
-                    .repo
-                    .all()
-                    .into_iter()
-                    .map(|visual| PhotoGridItem { visual });
+                let all = {
+                    let data = self.state.read();
+                    data
+                        .iter()
+                        .map(|visual| PhotoGridItem { visual: visual.clone() })
+                        .collect::<Vec<PhotoGridItem>>()
+                };
 
                 self.photo_grid.clear();
 

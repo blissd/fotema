@@ -17,6 +17,8 @@ use relm4::*;
 use std::path;
 use std::sync::Arc;
 
+use crate::app::SharedState;
+
 #[derive(Debug)]
 struct PhotoGridItem {
     picture: Arc<fotema_core::visual::Visual>,
@@ -108,13 +110,13 @@ impl RelmGridItem for PhotoGridItem {
 }
 
 pub struct YearPhotos {
-    repo: fotema_core::visual::Library,
+    state: SharedState,
     photo_grid: TypedGridView<PhotoGridItem, gtk::NoSelection>,
 }
 
 #[relm4::component(pub)]
 impl SimpleComponent for YearPhotos {
-    type Init = fotema_core::visual::Library;
+    type Init = SharedState;
     type Input = YearPhotosInput;
     type Output = YearPhotosOutput;
 
@@ -138,13 +140,13 @@ impl SimpleComponent for YearPhotos {
     }
 
     fn init(
-        repo: Self::Init,
+        state: Self::Init,
         _root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
         let photo_grid = TypedGridView::new();
 
-        let model = YearPhotos { repo, photo_grid };
+        let model = YearPhotos { state, photo_grid };
 
         let photo_grid_view = &model.photo_grid.view;
 
@@ -155,13 +157,14 @@ impl SimpleComponent for YearPhotos {
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
             YearPhotosInput::Refresh => {
-                let all_pictures = self
-                    .repo
-                    .all()
-                    .into_iter()
-                    //.filter(|x| x.thumbnail_path.exists())
-                    .dedup_by(|x, y| x.year() == y.year())
-                    .map(|picture| PhotoGridItem { picture });
+             let all_pictures = {
+                    let data = self.state.read();
+                    data
+                        .iter()
+                        .dedup_by(|x, y| x.year() == y.year())
+                        .map(|picture| PhotoGridItem { picture: picture.clone() })
+                        .collect::<Vec<PhotoGridItem>>()
+                };
 
                 self.photo_grid.clear();
                 self.photo_grid.extend_from_iter(all_pictures);

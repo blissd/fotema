@@ -5,7 +5,6 @@
 /// Properties view for a photo.
 ///Inspired by how Loupe displays its property view.
 
-use fotema_core::Library;
 use fotema_core::VisualId;
 use gtk::prelude::OrientableExt;
 
@@ -19,6 +18,7 @@ use std::fs;
 use std::sync::Arc;
 use chrono::{DateTime, Utc};
 
+use crate::app::SharedState;
 
 #[derive(Debug)]
 pub enum PhotoInfoInput {
@@ -27,7 +27,7 @@ pub enum PhotoInfoInput {
 }
 
 pub struct PhotoInfo {
-    library: Library,
+    state: SharedState,
 
     folder: adw::ActionRow,
 
@@ -58,7 +58,7 @@ pub struct PhotoInfo {
 
 #[relm4::component(pub)]
 impl SimpleComponent for PhotoInfo {
-    type Init = Library;
+    type Init = SharedState;
     type Input = PhotoInfoInput;
     type Output = ();
 
@@ -194,7 +194,7 @@ impl SimpleComponent for PhotoInfo {
     }
 
     fn init(
-        library: Self::Init,
+        state: Self::Init,
         _root: Self::Root,
         _sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
@@ -224,7 +224,7 @@ impl SimpleComponent for PhotoInfo {
         let video_originally_created_at = adw::ActionRow::new();
 
         let model = PhotoInfo {
-            library,
+            state,
             folder: folder.clone(),
 
             date_time_details: date_time_details.clone(),
@@ -259,7 +259,11 @@ impl SimpleComponent for PhotoInfo {
         match msg {
             PhotoInfoInput::Photo(ref visual_id, ref image_info) => {
                 println!("Received {:?}", msg);
-                let result = self.library.get(visual_id);
+                let result = {
+                    let data = self.state.read();
+                    data.iter().find(|&x| x.visual_id == *visual_id).cloned()
+                };
+
                 let Some(ref vis) = result else {
                     println!("No visual item");
                     return;
@@ -275,7 +279,11 @@ impl SimpleComponent for PhotoInfo {
             }
             PhotoInfoInput::Video(ref visual_id) => {
                 println!("Received {:?}", msg);
-                let result = self.library.get(&visual_id);
+                let result = {
+                    let data = self.state.read();
+                    data.iter().find(|&x| x.visual_id == *visual_id).cloned()
+                };
+
                 let Some(ref vis) = result else {
                     println!("No visual item");
                     return;

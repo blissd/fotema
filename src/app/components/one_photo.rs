@@ -13,10 +13,12 @@ use glycin;
 
 use crate::app::components::photo_info::PhotoInfo;
 use crate::app::components::photo_info::PhotoInfoInput;
+use crate::app::SharedState;
 
 #[derive(Debug)]
 pub enum OnePhotoInput {
     ViewPhoto(VisualId),
+
     ToggleInfo,
 
     // The photo/video page has been hidden so any playing media should stop.
@@ -24,7 +26,7 @@ pub enum OnePhotoInput {
 }
 
 pub struct OnePhoto {
-    library: fotema_core::Library,
+    state: SharedState,
 
     // Photo to show
     picture: gtk::Picture,
@@ -40,7 +42,7 @@ pub struct OnePhoto {
 
 #[relm4::component(pub async)]
 impl SimpleAsyncComponent for OnePhoto {
-    type Init = (fotema_core::Library, Controller<PhotoInfo>);
+    type Init = (SharedState, Controller<PhotoInfo>);
     type Input = OnePhotoInput;
     type Output = ();
 
@@ -80,7 +82,7 @@ impl SimpleAsyncComponent for OnePhoto {
     }
 
     async fn init(
-        (library, photo_info): Self::Init,
+        (state, photo_info): Self::Init,
         root: Self::Root,
         _sender: AsyncComponentSender<Self>,
     ) -> AsyncComponentParts<Self>  {
@@ -90,7 +92,7 @@ impl SimpleAsyncComponent for OnePhoto {
         let split_view = adw::OverlaySplitView::new();
 
         let model = OnePhoto {
-            library,
+            state,
             picture: picture.clone(),
             photo_info,
             split_view: split_view.clone(),
@@ -110,7 +112,10 @@ impl SimpleAsyncComponent for OnePhoto {
             },
             OnePhotoInput::ViewPhoto(visual_id) => {
                 println!("Showing item for {}", visual_id);
-                let result = self.library.get(&visual_id);
+                let result = {
+                    let data = self.state.read();
+                    data.iter().find(|&x| x.visual_id == visual_id).cloned()
+                };
 
                 let visual = if let Some(v) = result {
                     v
