@@ -248,22 +248,6 @@ impl Worker for Bootstrap {
             }
             BootstrapInput::VideoScanCompleted => {
                 println!("bootstrap: scan videos completed");
-                self.clean_photos.emit(CleanPhotosInput::Start);
-            }
-            BootstrapInput::PhotoCleanStarted => {
-                println!("bootstrap: photo cleanup started.");
-                let _  = sender.output(BootstrapOutput::TaskStarted(String::from("Photo database maintenance.")));
-            }
-            BootstrapInput::PhotoCleanCompleted => {
-                println!("bootstrap: photo cleanup completed.");
-                self.clean_videos.emit(CleanVideosInput::Start);
-            }
-            BootstrapInput::VideoCleanStarted => {
-                println!("bootstrap: video cleanup started.");
-                let _  = sender.output(BootstrapOutput::TaskStarted(String::from("Video database maintenance.")));
-            }
-            BootstrapInput::VideoCleanCompleted => {
-                println!("bootstrap: video cleanup completed.");
                 self.enrich_photos.emit(EnrichPhotosInput::Start);
             }
             BootstrapInput::PhotoEnrichmentStarted(count) => {
@@ -315,6 +299,22 @@ impl Worker for Bootstrap {
             BootstrapInput::ThumbnailVideosCompleted => {
                 let duration = self.started_at.map(|x| x.elapsed());
                 println!("bootstrap: video thumbnails completed in {:?}", duration);
+                self.clean_photos.emit(CleanPhotosInput::Start);
+            }
+            BootstrapInput::PhotoCleanStarted => {
+                println!("bootstrap: photo cleanup started.");
+                let _  = sender.output(BootstrapOutput::TaskStarted(String::from("Photo database maintenance.")));
+            }
+            BootstrapInput::PhotoCleanCompleted => {
+                println!("bootstrap: photo cleanup completed.");
+                self.clean_videos.emit(CleanVideosInput::Start);
+            }
+            BootstrapInput::VideoCleanStarted => {
+                println!("bootstrap: video cleanup started.");
+                let _  = sender.output(BootstrapOutput::TaskStarted(String::from("Video database maintenance.")));
+            }
+            BootstrapInput::VideoCleanCompleted => {
+                println!("bootstrap: video cleanup completed.");
 
                 let _ = sender.output(BootstrapOutput::ProgressCompleted);
                 let _ = sender.output(BootstrapOutput::Completed);
