@@ -27,7 +27,6 @@ use crate::config::{APP_ID, PROFILE};
 use fotema_core::database;
 use fotema_core::video;
 use fotema_core::VisualId;
-use fotema_core::YearMonth;
 
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -38,11 +37,11 @@ use self::components::{
     about::AboutDialog,
     album::{Album, AlbumFilter, AlbumInput, AlbumOutput},
     folder_photos::{FolderPhotos, FolderPhotosInput, FolderPhotosOutput},
-    month_photos::{MonthPhotos, MonthPhotosInput, MonthPhotosOutput},
+    library::{Library, LibraryInput, LibraryOutput},
     one_photo::{OnePhoto, OnePhotoInput},
     photo_info::PhotoInfo,
     preferences::{PreferencesDialog, PreferencesInput, PreferencesOutput},
-    year_photos::{YearPhotos, YearPhotosInput, YearPhotosOutput},
+
 };
 
 mod background;
@@ -61,9 +60,8 @@ pub(super) struct App {
 
     bootstrap: WorkerController<Bootstrap>,
 
-    all_photos: Controller<Album>,
-    month_photos: Controller<MonthPhotos>,
-    year_photos: Controller<YearPhotos>,
+    library: Controller<Library>,
+
     one_photo: AsyncController<OnePhoto>,
 
     show_selfies: bool,
@@ -130,12 +128,6 @@ pub(super) enum AppMsg {
     ViewHidden,
 
     ViewFolder(PathBuf),
-
-    // Scroll to first photo in month
-    GoToMonth(YearMonth),
-
-    // Scroll to first photo in year
-    GoToYear(i32),
 
     // A task that can make progress has started.
     // count of items, banner text, progress bar text
@@ -205,7 +197,6 @@ impl SimpleComponent for App {
                 } else {
                     None
                 },
-
 
             add_breakpoint = adw::Breakpoint::new(adw::BreakpointCondition::new_length(
                 adw::BreakpointConditionLengthType::MaxWidth,
@@ -284,9 +275,10 @@ impl SimpleComponent for App {
                                         set_icon_name: "dock-left-symbolic",
                                         connect_clicked => AppMsg::ToggleSidebar,
                                     },
+
                                     //#[wrap(Some)]
                                     //set_title_widget = &adw::ViewSwitcher {
-                                    //    set_stack: Some(&library_view_stack),
+                                    //   set_stack: Some(model.library.widget()),
                                     //    set_policy: adw::ViewSwitcherPolicy::Wide,
                                     //},
 
@@ -314,17 +306,11 @@ impl SimpleComponent for App {
 
                                         add_child = &gtk::Box {
                                             set_orientation: gtk::Orientation::Vertical,
-
-                                            #[local_ref]
-                                            library_view_stack -> adw::ViewStack {
-                                                add_titled_with_icon[Some("all"), "All", "playlist-infinite-symbolic"] = model.all_photos.widget(),
-                                                add_titled_with_icon[Some("month"), "Month", "month-symbolic"] = model.month_photos.widget(),
-                                                add_titled_with_icon[Some("year"), "Year", "year-symbolic"] = model.year_photos.widget(),
-                                            },
+                                            container_add: model.library.widget(),
 
                                             #[name(switcher_bar)]
                                             adw::ViewSwitcherBar {
-                                                set_stack: Some(&library_view_stack),
+                                                set_stack: Some(model.library.widget()),
                                             },
                                         } -> {
                                             set_title: "Library",
@@ -446,33 +432,11 @@ impl SimpleComponent for App {
                 BootstrapOutput::Completed => AppMsg::BootstrapCompleted,
             });
 
-        let all_photos = Album::builder()
-            .launch((state.clone(), AlbumFilter::All))
+        let library = Library::builder()
+            .launch(state.clone())
             .forward(sender.input_sender(), |msg| match msg {
-                AlbumOutput::Selected(id) => AppMsg::ViewPhoto(id),
+                LibraryOutput::ViewPhoto(id) => AppMsg::ViewPhoto(id),
             });
-
-        state.subscribe(all_photos.sender(), |_| AlbumInput::Refresh);
-
-        let month_photos = MonthPhotos::builder()
-            .launch(state.clone()).forward(
-            sender.input_sender(),
-            |msg| match msg {
-                MonthPhotosOutput::MonthSelected(ym) => AppMsg::GoToMonth(ym),
-            },
-        );
-
-        state.subscribe(month_photos.sender(), |_| MonthPhotosInput::Refresh);
-
-        let year_photos = YearPhotos::builder()
-            .launch(state.clone()).forward(
-            sender.input_sender(),
-            |msg| match msg {
-                YearPhotosOutput::YearSelected(year) => AppMsg::GoToYear(year),
-            },
-        );
-
-        state.subscribe(year_photos.sender(), |_| YearPhotosInput::Refresh);
 
         let photo_info = PhotoInfo::builder()
             .launch(state.clone())
@@ -560,9 +524,8 @@ impl SimpleComponent for App {
             about_dialog,
             preferences_dialog,
 
-            all_photos,
-            month_photos,
-            year_photos,
+            library,
+
             one_photo,
             motion_page,
             videos_page,
@@ -639,7 +602,7 @@ impl SimpleComponent for App {
 
                 if child_name.is_some_and(|x| x.as_str() == "Library") {
                     let vs = adw::ViewSwitcher::builder()
-                        .stack(&self.library_view_stack)
+                        .stack(self.library.widget())
                         .policy(adw::ViewSwitcherPolicy::Wide)
                         .build();
                     self.header_bar.set_title_widget(Some(&vs));
@@ -668,16 +631,6 @@ impl SimpleComponent for App {
                     .emit(AlbumInput::Filter(AlbumFilter::Folder(path)));
                 //self.folder_album
                 self.picture_navigation_view.push_by_tag("album");
-            }
-            AppMsg::GoToMonth(ym) => {
-                // Display all photos view.
-                self.library_view_stack.set_visible_child_name("all");
-                self.all_photos.emit(AlbumInput::GoToMonth(ym));
-            }
-            AppMsg::GoToYear(year) => {
-                // Display month photos view.
-                self.library_view_stack.set_visible_child_name("month");
-                self.month_photos.emit(MonthPhotosInput::GoToYear(year));
             }
             AppMsg::TaskStarted(msg) => {
                 self.spinner.start();
