@@ -137,12 +137,14 @@ impl SimpleComponent for Library {
             }
             LibraryInput::GoToMonth(ym) => {
                 // Display all photos view.
-                self.stack.set_visible_child_name("all");
+                self.stack.set_visible_child_name(LibraryViewName::All.into());
+                self.all_photos.emit(AlbumInput::Activate);
                 self.all_photos.emit(AlbumInput::GoToMonth(ym));
             },
             LibraryInput::GoToYear(year) => {
                 // Display month photos view.
-                self.stack.set_visible_child_name("month");
+                self.stack.set_visible_child_name(LibraryViewName::Month.into());
+                self.month_photos.emit(MonthPhotosInput::Activate);
                 self.month_photos.emit(MonthPhotosInput::GoToYear(year));
             },
             LibraryInput::ViewPhoto(id) => {
