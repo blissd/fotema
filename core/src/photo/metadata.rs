@@ -126,10 +126,10 @@ fn ios_content_id(exif_data: &Exif) -> Option<String> {
     //
     // EXIF data starts at byte 12 with a byte order mark, but doesn't include the magic 0x2a.
     //
-    // To fix this we rewrite the begging of the buffer to do the following:
+    // To fix this we rewrite the begining of the buffer to do the following:
     // 1. Start with a byte order mark (0x4d4d);
     // 2. Have the Douglas constant (0x002a).
-    // 3. Have the byte offset of the first piece of data (14)
+    // 3. Have the byte offset point to the first piece of data (14)
 
     let mut buf: Vec<u8> = Vec::new();
     buf.extend_from_slice(raw);
