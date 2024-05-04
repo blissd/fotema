@@ -21,7 +21,7 @@ impl SimpleComponent for AboutDialog {
     type Root = adw::AboutDialog;
 
     fn init_root() -> Self::Root {
-        adw::AboutDialog::builder()
+        let mut about = adw::AboutDialog::builder()
             .application_icon(APP_ID)
             .license_type(gtk::License::Gpl30)
             .website("https://github.com/blissd/fotema")
@@ -30,10 +30,19 @@ impl SimpleComponent for AboutDialog {
             .version(VERSION)
             //.translator_credits("translator-credits")
             .copyright("© 2024 David Bliss")
+            .developer_name("David Bliss")
             .developers(vec!["David Bliss"])
             .designers(vec!["David Bliss"])
             .can_close(true)
-            .build()
+            .build();
+
+        about.add_acknowledgement_section(Some("Open Source Projects"), &[
+            "Relm 4 https://relm4.org/",
+            "Glycin by Sophie Herold https://gitlab.gnome.org/sophie-h/glycin",
+            "The venerable FFMPEG https://ffmpeg.org/",
+        ]);
+
+        about
     }
 
     fn init(
