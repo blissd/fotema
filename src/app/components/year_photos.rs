@@ -18,6 +18,8 @@ use std::path;
 use std::sync::Arc;
 
 use crate::app::SharedState;
+use crate::app::ActiveView;
+use crate::app::ViewName;
 
 #[derive(Debug)]
 struct PhotoGridItem {
@@ -113,12 +115,13 @@ impl RelmGridItem for PhotoGridItem {
 
 pub struct YearPhotos {
     state: SharedState,
+    active_view: ActiveView,
     photo_grid: TypedGridView<PhotoGridItem, gtk::NoSelection>,
 }
 
 #[relm4::component(pub)]
 impl SimpleComponent for YearPhotos {
-    type Init = SharedState;
+    type Init = (SharedState, ActiveView);
     type Input = YearPhotosInput;
     type Output = YearPhotosOutput;
 
@@ -142,13 +145,13 @@ impl SimpleComponent for YearPhotos {
     }
 
     fn init(
-        state: Self::Init,
+        (state, active_view): Self::Init,
         _root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
         let photo_grid = TypedGridView::new();
 
-        let model = YearPhotos { state, photo_grid };
+        let model = YearPhotos { state, active_view, photo_grid };
 
         let photo_grid_view = &model.photo_grid.view;
 
@@ -159,27 +162,14 @@ impl SimpleComponent for YearPhotos {
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
             YearPhotosInput::Activate => {
-                println!("*** Year activated ***");
+                *self.active_view.write() = ViewName::Year;
+                if self.photo_grid.is_empty() {
+                    self.refresh();
+                }
             }
             YearPhotosInput::Refresh => {
-             let all_pictures = {
-                    let data = self.state.read();
-                    data
-                        .iter()
-                        .dedup_by(|x, y| x.year() == y.year())
-                        .map(|picture| PhotoGridItem { picture: picture.clone() })
-                        .collect::<Vec<PhotoGridItem>>()
-                };
-
-                self.photo_grid.clear();
-                self.photo_grid.extend_from_iter(all_pictures);
-
-                if !self.photo_grid.is_empty() {
-                    self.photo_grid.view.scroll_to(
-                        self.photo_grid.len() - 1,
-                        gtk::ListScrollFlags::SELECT,
-                        None,
-                    );
+                if *self.active_view.read() == ViewName::Year {
+                    self.refresh();
                 }
             }
             YearPhotosInput::YearSelected(index) => {
@@ -190,6 +180,30 @@ impl SimpleComponent for YearPhotos {
                     println!("Result = {:?}", result);
                 }
             }
+        }
+    }
+}
+
+impl YearPhotos {
+    fn refresh(&mut self) {
+        let all_pictures = {
+            let data = self.state.read();
+            data
+                .iter()
+                .dedup_by(|x, y| x.year() == y.year())
+                .map(|picture| PhotoGridItem { picture: picture.clone() })
+                .collect::<Vec<PhotoGridItem>>()
+        };
+
+        self.photo_grid.clear();
+        self.photo_grid.extend_from_iter(all_pictures);
+
+        if !self.photo_grid.is_empty() {
+            self.photo_grid.view.scroll_to(
+                self.photo_grid.len() - 1,
+                gtk::ListScrollFlags::SELECT,
+                None,
+            );
         }
     }
 }

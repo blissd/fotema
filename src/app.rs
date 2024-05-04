@@ -58,16 +58,27 @@ use self::background::bootstrap::{
 // State is loaded by the `load_library` background task.
 type SharedState = Arc<relm4::SharedState<Vec<Arc<fotema_core::Visual>>>>;
 
-#[derive(Debug, Eq, PartialEq, EnumString, IntoStaticStr)]
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq, EnumString, IntoStaticStr)]
 pub enum ViewName {
     Nothing, // no view
     Library, // parent of all, month, and year views.
+    All,
+    Month,
+    Year,
     Videos,
     Animated,
     Folders,
     Folder,
     Selfies,
 }
+
+impl Default for ViewName {
+    fn default() -> Self { ViewName::Nothing }
+}
+
+/// Currently visible view
+type ActiveView = Arc<relm4::SharedState<ViewName>>;
 
 pub(super) struct App {
     about_dialog: Controller<AboutDialog>,
@@ -436,6 +447,7 @@ impl SimpleComponent for App {
         let video_transcoder = video::Transcoder::new(&cache_dir);
 
         let state = SharedState::new(relm4::SharedState::new());
+        let active_view = ActiveView::new(relm4::SharedState::new());
 
         let bootstrap = Bootstrap::builder()
             .detach_worker((con.clone(), state.clone()))
@@ -448,7 +460,7 @@ impl SimpleComponent for App {
             });
 
         let library = Library::builder()
-            .launch(state.clone())
+            .launch((state.clone(), active_view.clone()))
             .forward(sender.input_sender(), |msg| match msg {
                 LibraryOutput::ViewPhoto(id) => AppMsg::ViewPhoto(id),
             });
@@ -462,7 +474,7 @@ impl SimpleComponent for App {
             .detach();
 
         let selfies_page = Album::builder()
-            .launch((state.clone(), AlbumFilter::Selfies))
+            .launch((state.clone(), active_view.clone(), ViewName::Selfies, AlbumFilter::Selfies))
             .forward(sender.input_sender(), |msg| match msg {
                 AlbumOutput::Selected(id) => AppMsg::ViewPhoto(id),
             });
@@ -472,7 +484,7 @@ impl SimpleComponent for App {
         let show_selfies = AppWidgets::show_selfies();
 
         let motion_page = Album::builder()
-            .launch((state.clone(), AlbumFilter::Motion))
+            .launch((state.clone(), active_view.clone(), ViewName::Animated, AlbumFilter::Motion))
             .forward(sender.input_sender(), |msg| match msg {
                 AlbumOutput::Selected(id) => AppMsg::ViewPhoto(id),
             });
@@ -480,7 +492,7 @@ impl SimpleComponent for App {
         state.subscribe(motion_page.sender(), |_| AlbumInput::Refresh);
 
         let videos_page = Album::builder()
-            .launch((state.clone(), AlbumFilter::Videos))
+            .launch((state.clone(), active_view.clone(), ViewName::Videos, AlbumFilter::Videos))
             .forward(sender.input_sender(), |msg| match msg {
                 AlbumOutput::Selected(id) => AppMsg::ViewPhoto(id),
             });
@@ -488,7 +500,7 @@ impl SimpleComponent for App {
         state.subscribe(videos_page.sender(), |_| AlbumInput::Refresh);
 
         let folder_photos = FolderPhotos::builder()
-            .launch(state.clone())
+            .launch((state.clone(), active_view.clone()))
             .forward(
             sender.input_sender(),
             |msg| match msg {
@@ -499,7 +511,7 @@ impl SimpleComponent for App {
         state.subscribe(folder_photos.sender(), |_| FolderPhotosInput::Refresh);
 
         let folder_album = Album::builder()
-            .launch((state.clone(), AlbumFilter::None))
+            .launch((state.clone(), active_view.clone(), ViewName::Folder, AlbumFilter::None))
             .forward(sender.input_sender(), |msg| match msg {
                 AlbumOutput::Selected(id) => AppMsg::ViewPhoto(id),
             });
@@ -636,7 +648,12 @@ impl SimpleComponent for App {
 
                 // figure out which view to activate
                 match child_name {
-                    ViewName::Library  => self.library.emit(LibraryInput::Activate),
+                    ViewName::Library | ViewName::All | ViewName::Month | ViewName::Year => {
+                        // Note that we'll only won't get All, Month, and Year activations
+                        // here, they are handled in the Library view. However, we must handle
+                        // the enums for completeness.
+                        self.library.emit(LibraryInput::Activate);
+                    },
                     ViewName::Videos => self.videos_page.emit(AlbumInput::Activate),
                     ViewName::Selfies => self.selfies_page.emit(AlbumInput::Activate),
                     ViewName::Animated => self.motion_page.emit(AlbumInput::Activate),
@@ -656,10 +673,10 @@ impl SimpleComponent for App {
                 self.one_photo.emit(OnePhotoInput::Hidden);
             }
             AppMsg::ViewFolder(path) => {
-                self.folder_album
-                    .emit(AlbumInput::Filter(AlbumFilter::Folder(path)));
-                //self.folder_album
+                self.folder_album.emit(AlbumInput::Activate);
+                self.folder_album.emit(AlbumInput::Filter(AlbumFilter::Folder(path)));
                 self.picture_navigation_view.push_by_tag("album");
+
             }
             AppMsg::TaskStarted(msg) => {
                 self.spinner.start();

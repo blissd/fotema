@@ -20,6 +20,8 @@ use std::path;
 use std::sync::Arc;
 
 use crate::app::SharedState;
+use crate::app::ActiveView;
+use crate::app::ViewName;
 
 #[derive(Debug)]
 struct PhotoGridItem {
@@ -120,12 +122,13 @@ impl RelmGridItem for PhotoGridItem {
 
 pub struct MonthPhotos {
     state: SharedState,
+    active_view: ActiveView,
     photo_grid: TypedGridView<PhotoGridItem, gtk::SingleSelection>,
 }
 
 #[relm4::component(pub)]
 impl SimpleComponent for MonthPhotos {
-    type Init = SharedState;
+    type Init = (SharedState, ActiveView);
     type Input = MonthPhotosInput;
     type Output = MonthPhotosOutput;
 
@@ -149,13 +152,13 @@ impl SimpleComponent for MonthPhotos {
     }
 
     fn init(
-        state: Self::Init,
+        (state, active_view): Self::Init,
         _root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
         let photo_grid = TypedGridView::new();
 
-        let model = MonthPhotos { state, photo_grid };
+        let model = MonthPhotos { state, active_view, photo_grid };
 
         let photo_grid_view = &model.photo_grid.view;
 
@@ -166,27 +169,14 @@ impl SimpleComponent for MonthPhotos {
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
             MonthPhotosInput::Activate => {
-                println!("*** month activated ***");
+                *self.active_view.write() = ViewName::Month;
+                if self.photo_grid.is_empty() {
+                    self.refresh();
+                }
             }
             MonthPhotosInput::Refresh => {
-                let all_pictures = {
-                    let data = self.state.read();
-                    data
-                        .iter()
-                        .dedup_by(|x, y| x.year_month() == y.year_month())
-                        .map(|picture| PhotoGridItem { picture: picture.clone() })
-                        .collect::<Vec<PhotoGridItem>>()
-                };
-
-                self.photo_grid.clear();
-                self.photo_grid.extend_from_iter(all_pictures);
-
-                if !self.photo_grid.is_empty() {
-                    self.photo_grid.view.scroll_to(
-                        self.photo_grid.len() - 1,
-                        gtk::ListScrollFlags::SELECT,
-                        None,
-                    );
+                if *self.active_view.read() == ViewName::Month {
+                    self.refresh();
                 }
             }
             MonthPhotosInput::MonthSelected(index) => {
@@ -209,6 +199,30 @@ impl SimpleComponent for MonthPhotos {
                     self.photo_grid.view.scroll_to(index, flags, None);
                 }
             }
+        }
+    }
+}
+
+impl MonthPhotos {
+    fn refresh(&mut self) {
+        let all_pictures = {
+            let data = self.state.read();
+            data
+                .iter()
+                .dedup_by(|x, y| x.year_month() == y.year_month())
+                .map(|picture| PhotoGridItem { picture: picture.clone() })
+                .collect::<Vec<PhotoGridItem>>()
+        };
+
+        self.photo_grid.clear();
+        self.photo_grid.extend_from_iter(all_pictures);
+
+        if !self.photo_grid.is_empty() {
+            self.photo_grid.view.scroll_to(
+                self.photo_grid.len() - 1,
+                gtk::ListScrollFlags::SELECT,
+                None,
+            );
         }
     }
 }

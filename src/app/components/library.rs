@@ -11,6 +11,9 @@ use strum::EnumString;
 use strum::IntoStaticStr;
 
 use crate::app::SharedState;
+use crate::app::ActiveView;
+use crate::app::ViewName;
+
 use super::album::{Album, AlbumFilter, AlbumInput, AlbumOutput};
 use super::month_photos::{MonthPhotos, MonthPhotosInput, MonthPhotosOutput};
 use super::year_photos::{YearPhotos, YearPhotosInput, YearPhotosOutput};
@@ -51,7 +54,7 @@ pub struct Library {
 }
 
 #[derive(Debug, Eq, PartialEq, EnumString, IntoStaticStr)]
-enum ViewName {
+enum LibraryViewName {
     Nothing, // no active child when first created
     All,
     Month,
@@ -60,27 +63,27 @@ enum ViewName {
 
 #[relm4::component(pub)]
 impl SimpleComponent for Library {
-    type Init = SharedState;
+    type Init = (SharedState, ActiveView);
     type Input = LibraryInput;
     type Output = LibraryOutput;
 
     view! {
         adw::ViewStack {
-            add_titled_with_icon[Some(ViewName::All.into()), "All", "playlist-infinite-symbolic"] = all_photos.widget(),
-            add_titled_with_icon[Some(ViewName::Month.into()), "Month", "month-symbolic"] = month_photos.widget(),
-            add_titled_with_icon[Some(ViewName::Year.into()), "Year", "year-symbolic"] = year_photos.widget(),
+            add_titled_with_icon[Some(LibraryViewName::All.into()), "All", "playlist-infinite-symbolic"] = all_photos.widget(),
+            add_titled_with_icon[Some(LibraryViewName::Month.into()), "Month", "month-symbolic"] = month_photos.widget(),
+            add_titled_with_icon[Some(LibraryViewName::Year.into()), "Year", "year-symbolic"] = year_photos.widget(),
             connect_visible_child_notify => LibraryInput::Activate,
         },
     }
 
     fn init(
-        state: Self::Init,
+        (state, active_view): Self::Init,
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
 
         let all_photos = Album::builder()
-            .launch((state.clone(), AlbumFilter::All))
+            .launch((state.clone(), active_view.clone(), ViewName::All, AlbumFilter::All))
             .forward(sender.input_sender(), |msg| match msg {
                 AlbumOutput::Selected(id) => LibraryInput::ViewPhoto(id),
             });
@@ -88,9 +91,8 @@ impl SimpleComponent for Library {
         state.subscribe(all_photos.sender(), |_| AlbumInput::Refresh);
 
         let month_photos = MonthPhotos::builder()
-            .launch(state.clone()).forward(
-            sender.input_sender(),
-            |msg| match msg {
+            .launch((state.clone(), active_view.clone()))
+            .forward(sender.input_sender(), |msg| match msg {
                 MonthPhotosOutput::MonthSelected(ym) => LibraryInput::GoToMonth(ym),
             },
         );
@@ -98,9 +100,8 @@ impl SimpleComponent for Library {
         state.subscribe(month_photos.sender(), |_| MonthPhotosInput::Refresh);
 
         let year_photos = YearPhotos::builder()
-            .launch(state.clone()).forward(
-            sender.input_sender(),
-            |msg| match msg {
+            .launch((state.clone(), active_view.clone()))
+            .forward(sender.input_sender(),|msg| match msg {
                 YearPhotosOutput::YearSelected(year) => LibraryInput::GoToYear(year),
             },
         );
@@ -123,17 +124,15 @@ impl SimpleComponent for Library {
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
             LibraryInput::Activate => {
-                println!("***** Library activated! *****");
-
                 let child_name = self.stack.visible_child_name()
-                    .and_then(|x| ViewName::from_str(x.as_str()).ok())
-                    .unwrap_or(ViewName::Nothing);
+                    .and_then(|x| LibraryViewName::from_str(x.as_str()).ok())
+                    .unwrap_or(LibraryViewName::Nothing);
 
                 match child_name {
-                    ViewName::All => self.all_photos.emit(AlbumInput::Activate),
-                    ViewName::Month => self.month_photos.emit(MonthPhotosInput::Activate),
-                    ViewName::Year => self.year_photos.emit(YearPhotosInput::Activate),
-                    ViewName::Nothing => println!("Nothing activated for library view :-/"),
+                    LibraryViewName::All => self.all_photos.emit(AlbumInput::Activate),
+                    LibraryViewName::Month => self.month_photos.emit(MonthPhotosInput::Activate),
+                    LibraryViewName::Year => self.year_photos.emit(YearPhotosInput::Activate),
+                    LibraryViewName::Nothing => println!("Nothing activated for library view :-/"),
                 }
             }
             LibraryInput::GoToMonth(ym) => {

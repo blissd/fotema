@@ -15,6 +15,8 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use crate::app::SharedState;
+use crate::app::ActiveView;
+use crate::app::ViewName;
 
 #[derive(Debug)]
 pub enum AlbumFilter {
@@ -199,12 +201,14 @@ impl RelmGridItem for PhotoGridItem {
 
 pub struct Album {
     state: SharedState,
+    active_view: ActiveView,
+    view_name: ViewName,
     photo_grid: TypedGridView<PhotoGridItem, gtk::SingleSelection>,
 }
 
 #[relm4::component(pub)]
 impl SimpleComponent for Album {
-    type Init = (SharedState, AlbumFilter);
+    type Init = (SharedState, ActiveView, ViewName, AlbumFilter);
     type Input = AlbumInput;
     type Output = AlbumOutput;
 
@@ -226,13 +230,13 @@ impl SimpleComponent for Album {
     }
 
     fn init(
-        (state, initial_filter): Self::Init,
+        (state, active_view, view_name, initial_filter): Self::Init,
         _root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
         let photo_grid = TypedGridView::new();
 
-        let mut model = Album { state, photo_grid };
+        let mut model = Album { state, active_view, view_name, photo_grid };
 
         model.update_filter(initial_filter);
 
@@ -244,14 +248,19 @@ impl SimpleComponent for Album {
 
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
-            AlbumInput::Filter(filter) => {
-                self.update_filter(filter);
-            }
             AlbumInput::Activate => {
-                self.refresh();
+                *self.active_view.write() = self.view_name;
+                if self.photo_grid.is_empty() {
+                    self.refresh();
+                }
             }
             AlbumInput::Refresh => {
-                // self.refresh();
+                if *self.active_view.read() == self.view_name {
+                    self.refresh();
+                }
+            }
+            AlbumInput::Filter(filter) => {
+                self.update_filter(filter);
             }
             AlbumInput::Selected(index) => {
                 // Photos are filters so must use get_visible(...) over get(...), otherwise
