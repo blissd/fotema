@@ -25,6 +25,8 @@ struct PhotoGridItem {
 }
 #[derive(Debug)]
 pub enum YearPhotosInput {
+    Activate,
+
     /// User has selected year in grid view
     YearSelected(u32), // WARN this is an index into an Vec, not a year.
 
@@ -156,6 +158,9 @@ impl SimpleComponent for YearPhotos {
 
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
+            YearPhotosInput::Activate => {
+                println!("*** Year activated ***");
+            }
             YearPhotosInput::Refresh => {
              let all_pictures = {
                     let data = self.state.read();

@@ -32,6 +32,8 @@ struct Widgets {
 }
 #[derive(Debug)]
 pub enum MonthPhotosInput {
+    Activate,
+
     /// A month has been selected in the grid view
     MonthSelected(u32), // WARN this is an index into a Vec, not a month
 
@@ -163,6 +165,9 @@ impl SimpleComponent for MonthPhotos {
 
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
+            MonthPhotosInput::Activate => {
+                println!("*** month activated ***");
+            }
             MonthPhotosInput::Refresh => {
                 let all_pictures = {
                     let data = self.state.read();

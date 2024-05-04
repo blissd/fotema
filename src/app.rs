@@ -30,6 +30,10 @@ use fotema_core::VisualId;
 
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
+use std::str::FromStr;
+
+use strum::EnumString;
+use strum::IntoStaticStr;
 
 mod components;
 
@@ -53,6 +57,17 @@ use self::background::bootstrap::{
 // Visual items to be shared between various views.
 // State is loaded by the `load_library` background task.
 type SharedState = Arc<relm4::SharedState<Vec<Arc<fotema_core::Visual>>>>;
+
+#[derive(Debug, Eq, PartialEq, EnumString, IntoStaticStr)]
+pub enum ViewName {
+    Nothing, // no view
+    Library, // parent of all, month, and year views.
+    Videos,
+    Animated,
+    Folders,
+    Folder,
+    Selfies,
+}
 
 pub(super) struct App {
     about_dialog: Controller<AboutDialog>,
@@ -314,7 +329,7 @@ impl SimpleComponent for App {
                                             },
                                         } -> {
                                             set_title: "Library",
-                                            set_name: "Library",
+                                            set_name: ViewName::Library.into(),
 
                                             // NOTE gtk::StackSidebar doesn't show icon :-/
                                             set_icon_name: "image-alt-symbolic",
@@ -325,7 +340,7 @@ impl SimpleComponent for App {
                                             container_add: model.videos_page.widget(),
                                         } -> {
                                             set_title: "Videos",
-                                            set_name: "Videos",
+                                            set_name: ViewName::Videos.into(),
                                             // NOTE gtk::StackSidebar doesn't show icon :-/
                                             set_icon_name: "video-reel-symbolic",
                                         },
@@ -335,7 +350,7 @@ impl SimpleComponent for App {
                                             container_add: model.motion_page.widget(),
                                         } -> {
                                             set_title: "Animated",
-                                            set_name: "Animated",
+                                            set_name: ViewName::Animated.into(),
                                             // NOTE gtk::StackSidebar doesn't show icon :-/
                                             set_icon_name: "sonar-symbolic",
                                         },
@@ -346,7 +361,7 @@ impl SimpleComponent for App {
                                         } -> {
                                             set_visible: model.show_selfies,
                                             set_title: "Selfies",
-                                            set_name: "Selfies",
+                                            set_name: ViewName::Selfies.into(),
                                             // NOTE gtk::StackSidebar doesn't show icon :-/
                                             set_icon_name: "sentiment-very-satisfied-symbolic",
                                         },
@@ -361,7 +376,7 @@ impl SimpleComponent for App {
                                             },
                                         } -> {
                                             set_title: "Folders",
-                                            set_name: "Folders",
+                                            set_name: ViewName::Folders.into(),
                                             // NOTE gtk::StackSidebar doesn't show icon :-/
                                             set_icon_name: "folder-symbolic",
                                         },
@@ -598,9 +613,12 @@ impl SimpleComponent for App {
             }
             AppMsg::SwitchView => {
                 let child = self.main_stack.visible_child();
-                let child_name = self.main_stack.visible_child_name();
+                let child_name = self.main_stack.visible_child_name()
+                    .and_then(|x| ViewName::from_str(x.as_str()).ok())
+                    .unwrap_or(ViewName::Nothing);
 
-                if child_name.is_some_and(|x| x.as_str() == "Library") {
+                // Set special library header, otherwise set standard label header
+                if child_name == ViewName::Library {
                     let vs = adw::ViewSwitcher::builder()
                         .stack(self.library.widget())
                         .policy(adw::ViewSwitcherPolicy::Wide)
@@ -614,6 +632,17 @@ impl SimpleComponent for App {
                         .css_classes(["title"])
                         .build();
                     self.header_bar.set_title_widget(Some(&label));
+                }
+
+                // figure out which view to activate
+                match child_name {
+                    ViewName::Library  => self.library.emit(LibraryInput::Activate),
+                    ViewName::Videos => self.videos_page.emit(AlbumInput::Activate),
+                    ViewName::Selfies => self.selfies_page.emit(AlbumInput::Activate),
+                    ViewName::Animated => self.motion_page.emit(AlbumInput::Activate),
+                    ViewName::Folders => self.folder_photos.emit(FolderPhotosInput::Activate),
+                    ViewName::Folder => self.folder_album.emit(AlbumInput::Activate),
+                    ViewName::Nothing => println!("Nothing activated... which should not happen"),
                 }
             }
             AppMsg::ViewPhoto(visual_id) => {

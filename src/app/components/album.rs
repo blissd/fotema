@@ -39,14 +39,18 @@ pub enum AlbumFilter {
 
 #[derive(Debug)]
 pub enum AlbumInput {
+
+    /// Album is visible
+    Activate,
+
+    // State has been updated
+    Refresh,
+
     /// User has selected photo in grid view
     Selected(u32), // Index into a Vec
 
     // Scroll to first photo of year/month.
     GoToMonth(YearMonth),
-
-    // State has been updated
-    Refresh,
 
     // I'd like to pass a closure of Fn(Picture)->bool for the filter... but Rust
     // is making that too hard.
@@ -243,35 +247,11 @@ impl SimpleComponent for Album {
             AlbumInput::Filter(filter) => {
                 self.update_filter(filter);
             }
+            AlbumInput::Activate => {
+                self.refresh();
+            }
             AlbumInput::Refresh => {
-                let all = {
-                    let data = self.state.read();
-                    data
-                        .iter()
-                        .map(|visual| PhotoGridItem { visual: visual.clone() })
-                        .collect::<Vec<PhotoGridItem>>()
-                };
-
-                self.photo_grid.clear();
-
-                //self.photo_grid.add_filter(move |item| (self.photo_grid_filter)(&item.picture));
-                self.photo_grid.extend_from_iter(all);
-
-                if !self.photo_grid.is_empty() {
-                    // We must scroll to a valid index... but we can't get the index of the
-                    // last item if filters are enabled. So as a workaround disable filters,
-                    // scroll to end, and then enable filters.
-
-                    self.disable_filters();
-
-                    self.photo_grid.view.scroll_to(
-                        self.photo_grid.len() - 1,
-                        gtk::ListScrollFlags::SELECT,
-                        None,
-                    );
-
-                    self.enable_filters();
-                }
+                // self.refresh();
             }
             AlbumInput::Selected(index) => {
                 // Photos are filters so must use get_visible(...) over get(...), otherwise
@@ -298,6 +278,38 @@ impl SimpleComponent for Album {
 }
 
 impl Album {
+
+    fn refresh(&mut self) {
+        let all = {
+            let data = self.state.read();
+            data
+                .iter()
+                .map(|visual| PhotoGridItem { visual: visual.clone() })
+                .collect::<Vec<PhotoGridItem>>()
+        };
+
+        self.photo_grid.clear();
+
+        //self.photo_grid.add_filter(move |item| (self.photo_grid_filter)(&item.picture));
+        self.photo_grid.extend_from_iter(all);
+
+        if !self.photo_grid.is_empty() {
+            // We must scroll to a valid index... but we can't get the index of the
+            // last item if filters are enabled. So as a workaround disable filters,
+            // scroll to end, and then enable filters.
+
+            self.disable_filters();
+
+            self.photo_grid.view.scroll_to(
+                self.photo_grid.len() - 1,
+                gtk::ListScrollFlags::SELECT,
+                None,
+            );
+
+            self.enable_filters();
+        }
+    }
+
     fn disable_filters(&mut self) {
         for i in 0..(self.photo_grid.filters_len()) {
             self.photo_grid.set_filter_status(i, false);

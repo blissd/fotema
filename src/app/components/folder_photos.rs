@@ -30,6 +30,8 @@ struct Widgets {
 }
 #[derive(Debug)]
 pub enum FolderPhotosInput {
+    Activate,
+
     // Reload photos from database
     Refresh,
 
@@ -152,6 +154,9 @@ impl SimpleComponent for FolderPhotos {
 
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
+            FolderPhotosInput::Activate => {
+                println!("Folder photos activated");
+            }
             FolderPhotosInput::FolderSelected(index) => {
                 println!("Folder selected index: {}", index);
                 if let Some(item) = self.photo_grid.get_visible(index) {
