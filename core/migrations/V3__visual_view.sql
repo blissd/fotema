@@ -6,6 +6,7 @@ SELECT
   pictures.picture_id,
   pictures.picture_path,
   pictures.thumbnail_path AS picture_thumbnail,
+  pictures.is_selfie,
   videos.video_id,
   videos.video_path,
   videos.thumbnail_path AS video_thumbnail,

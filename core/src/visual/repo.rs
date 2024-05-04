@@ -55,6 +55,7 @@ impl Repository {
                     picture_id,
                     picture_path,
                     picture_thumbnail,
+                    is_selfie,
 
                     video_id,
                     video_path,
@@ -85,6 +86,7 @@ impl Repository {
                     picture_id,
                     picture_path,
                     picture_thumbnail,
+                    is_selfie,
 
                     video_id,
                     video_path,
@@ -129,6 +131,8 @@ impl Repository {
             .get("picture_thumbnail")
             .map(|x: String| PathBuf::from(x))
             .ok();
+
+        let is_selfie: Option<bool> = row.get("is_selfie").ok();
 
         let video_id: Option<VideoId> = row.get("video_id").map(|x| VideoId::new(x)).ok();
 
@@ -197,7 +201,7 @@ impl Repository {
             video_id,
             video_path,
             created_at,
-            is_selfie: None, // TODO get real value
+            is_selfie,
             is_ios_live_photo,
             video_transcoded_path,
             is_transcode_required,
