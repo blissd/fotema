@@ -7,7 +7,9 @@ SPDX-License-Identifier: GFDL-1.3-or-later
 
 __fotema__ (___adj. Esperanto___) "fond of taking photos"
 
-Clean and simple GNOME photo gallery.
+A photo gallery for Linux.
+
+![All Photos View](/build-aux/screenshots/all-photos.png?raw=true "All Photos View")
 
 ## Building the project
 

@@ -366,7 +366,7 @@ impl Album {
     }
 
     fn filter_videos(item: &PhotoGridItem) -> bool {
-        item.visual.is_video_only()
+        item.visual.is_video_only() && !item.visual.is_motion_photo()
     }
 
     fn filter_motion_photos(item: &PhotoGridItem) -> bool {

@@ -17,9 +17,13 @@
     </ul>
   </description>
   <screenshots>
+    <screenshot type="default" xml:lang="en">
+      <image xml:lang="en">https://github.com/blissd/fotema/blob/main/build-aux/screenshots/all-photos.png?raw=true</image>
+      <caption>All photos view</caption>
+    </screenshot>
     <screenshot type="default">
-      <image>https://example.org/fotema.png</image>
-      <caption>Main window</caption>
+      <image xml:lang="en">https://github.com/blissd/fotema/blob/main/build-aux/screenshots/folders-view.png?raw=true</image>
+      <caption>Folders view</caption>
     </screenshot>
   </screenshots>
   <url type="homepage">https://github.com/blissd/fotema</url>
