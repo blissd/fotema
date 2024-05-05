@@ -38,8 +38,8 @@ impl SimpleComponent for AboutDialog {
 
         about.add_acknowledgement_section(Some("Open Source Projects"), &[
             "Relm 4 https://relm4.org/",
-            "Glycin by Sophie Herold https://gitlab.gnome.org/sophie-h/glycin",
-            "The venerable FFMPEG https://ffmpeg.org/",
+            "Glycin https://gitlab.gnome.org/sophie-h/glycin",
+            "FFMPEG https://ffmpeg.org/",
         ]);
 
         about
