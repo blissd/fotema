@@ -23,6 +23,12 @@ pub enum OnePhotoInput {
 
     // The photo/video page has been hidden so any playing media should stop.
     Hidden,
+
+    // Transcode the current video
+    TranscodeOne,
+
+    // Transcode all incompatible videos
+    TranscodeAll,
 }
 
 pub struct OnePhoto {
@@ -30,6 +36,8 @@ pub struct OnePhoto {
 
     // Photo to show
     picture: gtk::Picture,
+
+    transcode_status: adw::StatusPage,
 
     // Info for photo
     photo_info: Controller<PhotoInfo>,
@@ -70,12 +78,42 @@ impl SimpleAsyncComponent for OnePhoto {
                 set_sidebar_position: gtk::PackType::End,
 
                 #[wrap(Some)]
-                #[local_ref]
-                set_content = &picture -> gtk::Picture {
-                    //set_vexpand: true,
-                    //set_hexpand: true,
-                    //set_can_shrink: true,
-                    //set_valign: gtk::Align::Center,
+                set_content = &gtk::Box {
+                    set_orientation: gtk::Orientation::Vertical,
+
+                    #[local_ref]
+                    picture -> gtk::Picture {
+                    },
+
+                    #[local_ref]
+                    transcode_status -> adw::StatusPage {
+                        set_visible: false,
+                        set_icon_name: Some("playback-error-symbolic"),
+                        set_description: Some("This video must be converted before it can be played.\nThis only needs to happen once, but it takes a while to convert a video."),
+
+                        #[wrap(Some)]
+                        set_child = &adw::Clamp {
+                            set_orientation: gtk::Orientation::Horizontal,
+                            set_maximum_size: 400,
+
+                            #[wrap(Some)]
+                            set_child = &gtk::Box {
+                                set_orientation: gtk::Orientation::Vertical,
+
+                                gtk::Button {
+                                    set_label: "Convert this video",
+                                    add_css_class: "suggested-action",
+                                    add_css_class: "pill",
+                                    connect_clicked => OnePhotoInput::TranscodeOne,
+                                },
+                                gtk::Button {
+                                    set_label: "Convert all incompatible videos",
+                                    add_css_class: "pill",
+                                    connect_clicked => OnePhotoInput::TranscodeAll,
+                                },
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -91,9 +129,13 @@ impl SimpleAsyncComponent for OnePhoto {
 
         let split_view = adw::OverlaySplitView::new();
 
+        let transcode_status = adw::StatusPage::new();
+        transcode_status.set_child(Some(&gtk::Label::new(Some("foo"))));
+
         let model = OnePhoto {
             state,
             picture: picture.clone(),
+            transcode_status: transcode_status.clone(),
             photo_info,
             split_view: split_view.clone(),
             title: String::from("-"),
@@ -135,6 +177,9 @@ impl SimpleAsyncComponent for OnePhoto {
                 self.picture.set_paintable(None::<&gdk::Paintable>);
 
                 if visual.is_photo_only() {
+                    self.picture.set_visible(true);
+                    self.transcode_status.set_visible(false);
+
                     let file = gio::File::for_path(visual_path.clone());
                     let image_result = glycin::Loader::new(file).load().await;
 
@@ -159,28 +204,44 @@ impl SimpleAsyncComponent for OnePhoto {
                 } else { // video or motion photo
                     self.photo_info.emit(PhotoInfoInput::Video(visual_id.clone()));
 
+                    let is_transcoded = visual.video_transcoded_path.as_ref().is_some_and(|x| x.exists());
 
-                    let video_path = visual.video_transcoded_path.clone()
-                        .or_else(|| visual.video_path.clone())
-                        .expect("must have video path");
-
-                    let media_file = gtk::MediaFile::for_filename(video_path);
-                    self.picture.set_paintable(Some(&media_file));
-
-                    if visual.is_motion_photo() {
-                       media_file.set_muted(true);
-                       media_file.set_loop(true);
+                    if visual.is_transcode_required.is_some_and(|x| x) && !is_transcoded {
+                        self.picture.set_visible(false);
+                        self.transcode_status.set_visible(true);
+                        self.split_view.set_collapsed(true);
                     } else {
-                       media_file.set_muted(false);
-                       media_file.set_loop(false);
-                    }
+                        self.picture.set_visible(true);
+                        self.transcode_status.set_visible(false);
 
-                    media_file.play();
+                        let video_path = visual.video_transcoded_path.clone()
+                            .or_else(|| visual.video_path.clone())
+                            .expect("must have video path");
+
+                        let media_file = gtk::MediaFile::for_filename(video_path);
+                        self.picture.set_paintable(Some(&media_file));
+
+                        if visual.is_motion_photo() {
+                           //media_file.set_muted(true);
+                           media_file.set_loop(true);
+                        } else {
+                           //media_file.set_muted(false);
+                           media_file.set_loop(false);
+                        }
+
+                        media_file.play();
+                    }
                 }
             },
             OnePhotoInput::ToggleInfo => {
                 let show = self.split_view.shows_sidebar();
                 self.split_view.set_show_sidebar(!show);
+            },
+            OnePhotoInput::TranscodeOne => {
+                println!("Transcode one");
+            },
+            OnePhotoInput::TranscodeAll => {
+                println!("Transcode all");
             }
         }
     }
