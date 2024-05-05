@@ -465,12 +465,8 @@ impl SimpleComponent for App {
                 LibraryOutput::ViewPhoto(id) => AppMsg::ViewPhoto(id),
             });
 
-        let photo_info = PhotoInfo::builder()
-            .launch(state.clone())
-            .detach();
-
         let one_photo = OnePhoto::builder()
-            .launch((state.clone(), photo_info))
+            .launch(state.clone())
             .detach();
 
         let selfies_page = Album::builder()

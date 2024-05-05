@@ -50,7 +50,7 @@ pub struct OnePhoto {
 
 #[relm4::component(pub async)]
 impl SimpleAsyncComponent for OnePhoto {
-    type Init = (SharedState, Controller<PhotoInfo>);
+    type Init = SharedState;
     type Input = OnePhotoInput;
     type Output = ();
 
@@ -72,6 +72,8 @@ impl SimpleAsyncComponent for OnePhoto {
             #[wrap(Some)]
             #[local_ref]
             set_content = &split_view -> adw::OverlaySplitView {
+                set_collapsed: true,
+
                 #[wrap(Some)]
                 set_sidebar = model.photo_info.widget(),
 
@@ -120,7 +122,7 @@ impl SimpleAsyncComponent for OnePhoto {
     }
 
     async fn init(
-        (state, photo_info): Self::Init,
+        state: Self::Init,
         root: Self::Root,
         _sender: AsyncComponentSender<Self>,
     ) -> AsyncComponentParts<Self>  {
@@ -131,6 +133,10 @@ impl SimpleAsyncComponent for OnePhoto {
 
         let transcode_status = adw::StatusPage::new();
         transcode_status.set_child(Some(&gtk::Label::new(Some("foo"))));
+
+        let photo_info = PhotoInfo::builder()
+            .launch(state.clone())
+            .detach();
 
         let model = OnePhoto {
             state,
