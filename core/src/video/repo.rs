@@ -71,6 +71,31 @@ impl Repository {
         Ok(())
     }
 
+    pub fn add_transcode(&mut self, video_id: VideoId, transcoded_path: &Path) -> Result<()> {
+        let mut con = self.con.lock().unwrap();
+        let tx = con.transaction()?;
+
+        {
+            let mut stmt = tx.prepare(
+                "UPDATE videos
+                SET
+                    transcoded_path = ?2
+                WHERE video_id = ?1",
+            )?;
+
+            // convert to relative path before saving to database
+            let transcoded_path = transcoded_path.strip_prefix(&self.thumbnail_base_path).ok();
+
+            stmt.execute(params![
+                video_id.id(),
+                transcoded_path.as_ref().map(|p| p.to_str()),
+            ])?;
+        }
+
+        tx.commit()?;
+        Ok(())
+    }
+
     pub fn add_metadata(&mut self, vids: Vec<(VideoId, Metadata)>) -> Result<()> {
         let mut con = self.con.lock().unwrap();
         let tx = con.transaction()?;

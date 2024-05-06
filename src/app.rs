@@ -42,16 +42,15 @@ use self::components::{
     album::{Album, AlbumFilter, AlbumInput, AlbumOutput},
     folder_photos::{FolderPhotos, FolderPhotosInput, FolderPhotosOutput},
     library::{Library, LibraryInput, LibraryOutput},
-    one_photo::{OnePhoto, OnePhotoInput},
-    photo_info::PhotoInfo,
+    one_photo::{OnePhoto, OnePhotoInput, OnePhotoOutput},
     preferences::{PreferencesDialog, PreferencesInput, PreferencesOutput},
-
 };
 
 mod background;
 
-use self::background::bootstrap::{
-    Bootstrap, BootstrapInput, BootstrapOutput,
+use self::background::{
+    bootstrap::{Bootstrap, BootstrapInput, BootstrapOutput},
+    video_transcode::{VideoTranscode, VideoTranscodeInput, VideoTranscodeOutput},
 };
 
 // Visual items to be shared between various views.
@@ -85,6 +84,7 @@ pub(super) struct App {
     preferences_dialog: Controller<PreferencesDialog>,
 
     bootstrap: WorkerController<Bootstrap>,
+    video_transcode: WorkerController<VideoTranscode>,
 
     library: Controller<Library>,
 
@@ -173,6 +173,12 @@ pub(super) enum AppMsg {
 
     // All background bootstrap tasks have completed
     BootstrapCompleted,
+
+    TranscodeOne(VisualId),
+    TranscodeAll,
+
+    VideoTranscodeStarted,
+    VideoTranscodeCompleted,
 }
 
 relm4::new_action_group!(pub(super) WindowActionGroup, "win");
@@ -444,6 +450,10 @@ impl SimpleComponent for App {
         let con = database::setup(&db_path).expect("Must be able to open database");
         let con = Arc::new(Mutex::new(con));
 
+        let video_repo = {
+            video::Repository::open(&pic_base_dir, &cache_dir, con.clone()).unwrap()
+        };
+
         let video_transcoder = video::Transcoder::new(&cache_dir);
 
         let state = SharedState::new(relm4::SharedState::new());
@@ -465,9 +475,21 @@ impl SimpleComponent for App {
                 LibraryOutput::ViewPhoto(id) => AppMsg::ViewPhoto(id),
             });
 
+        let transcoder = video::Transcoder::new(&cache_dir);
+
+        let video_transcode = VideoTranscode::builder()
+            .detach_worker((state.clone(), video_repo, transcoder.clone()))
+            .forward(sender.input_sender(), |msg| match msg {
+                VideoTranscodeOutput::Started => AppMsg::VideoTranscodeStarted,
+                VideoTranscodeOutput::Completed => AppMsg::VideoTranscodeCompleted,
+            });
+
         let one_photo = OnePhoto::builder()
             .launch(state.clone())
-            .detach();
+            .forward(sender.input_sender(), |msg| match msg {
+                OnePhotoOutput::TranscodeOne(visual_id) => AppMsg::TranscodeOne(visual_id),
+                OnePhotoOutput::TranscodeAll => AppMsg::TranscodeAll,
+            });
 
         let selfies_page = Album::builder()
             .launch((state.clone(), active_view.clone(), ViewName::Selfies, AlbumFilter::Selfies))
@@ -543,6 +565,7 @@ impl SimpleComponent for App {
 
         let model = Self {
             bootstrap,
+            video_transcode,
 
             about_dialog,
             preferences_dialog,
@@ -729,6 +752,18 @@ impl SimpleComponent for App {
                 self.progress_bar.set_text(None);
                 self.progress_box.set_visible(false);
             }
+            AppMsg::TranscodeOne(visual_id) => {
+                self.video_transcode.emit(VideoTranscodeInput::One(visual_id));
+            },
+            AppMsg::TranscodeAll => {
+                println!("Ignoring transcode all");
+            },
+            AppMsg::VideoTranscodeStarted => {
+                println!("Video transcode started");
+            },
+            AppMsg::VideoTranscodeCompleted => {
+                println!("Video transcode completed");
+            },
             AppMsg::PreferencesUpdated => {
                 println!("Preferences updated.");
                 // TODO create a Preferences struct to hold preferences and send with update message.

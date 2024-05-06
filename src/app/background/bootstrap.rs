@@ -137,8 +137,6 @@ impl Worker for Bootstrap {
             video::Repository::open(&pic_base_dir, &cache_dir, con.clone()).unwrap()
         };
 
-        let video_transcoder = video::Transcoder::new(&cache_dir);
-
         let video_thumbnailer = video::Thumbnailer::build(&cache_dir).unwrap();
 
         let visual_repo = visual::Repository::open(

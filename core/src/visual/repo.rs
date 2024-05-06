@@ -146,7 +146,7 @@ impl Repository {
             .map(|x: String| PathBuf::from(x))
             .ok();
 
-        // If the thumbnail path is absent in the database, the compute the path we know it
+        // If the thumbnail path is absent in the database, then compute the path we know it
         // will have. Eventually the thumbnail generation background process will create the file
         // and it will show up in the UI without having to refresh the data.
         let thumbnail_path: Option<PathBuf> = if let Some(ref picture_id) = picture_id {
@@ -179,8 +179,18 @@ impl Repository {
 
         let video_transcoded_path: Option<PathBuf> = row
             .get("video_transcoded_path")
-            .map(|x: String| PathBuf::from(x))
-            .ok();
+            .ok()
+            .map(|x: String| PathBuf::from(x));
+
+        let video_transcoded_path = if let Some(ref video_id) = video_id {
+            video_transcoded_path.or_else(|| {
+                Some(path::Path::new("video_transcodes").join(format!("{}.mkv", video_id)))
+            })
+        } else {
+            video_transcoded_path
+        };
+
+        let video_transcoded_path = video_transcoded_path.map(|x| self.thumbnail_base_path.join(x));
 
         let is_transcode_required: Option<bool> = row.get("is_transcode_required").ok();
 

@@ -31,6 +31,12 @@ pub enum OnePhotoInput {
     TranscodeAll,
 }
 
+#[derive(Debug)]
+pub enum OnePhotoOutput {
+    TranscodeOne(VisualId),
+    TranscodeAll,
+}
+
 pub struct OnePhoto {
     state: SharedState,
 
@@ -45,14 +51,18 @@ pub struct OnePhoto {
     // Photo and photo info views
     split_view: adw::OverlaySplitView,
 
+    // Window title, which should be the image/video name.
     title: String,
+
+    // Visual ID of currently displayed item
+    visual_id: Option<VisualId>,
 }
 
 #[relm4::component(pub async)]
 impl SimpleAsyncComponent for OnePhoto {
     type Init = SharedState;
     type Input = OnePhotoInput;
-    type Output = ();
+    type Output = OnePhotoOutput;
 
     view! {
         adw::ToolbarView {
@@ -145,6 +155,7 @@ impl SimpleAsyncComponent for OnePhoto {
             photo_info,
             split_view: split_view.clone(),
             title: String::from("-"),
+            visual_id: None,
         };
 
         let widgets = view_output!();
@@ -152,7 +163,7 @@ impl SimpleAsyncComponent for OnePhoto {
         AsyncComponentParts { model, widgets }
     }
 
-    async fn update(&mut self, msg: Self::Input, _sender: AsyncComponentSender<Self>) {
+    async fn update(&mut self, msg: Self::Input, sender: AsyncComponentSender<Self>) {
         match msg {
             OnePhotoInput::Hidden => {
                 self.picture.set_paintable(None::<&gdk::Paintable>);
@@ -160,6 +171,8 @@ impl SimpleAsyncComponent for OnePhoto {
             },
             OnePhotoInput::ViewPhoto(visual_id) => {
                 println!("Showing item for {}", visual_id);
+                self.visual_id = None;
+
                 let result = {
                     let data = self.state.read();
                     data.iter().find(|&x| x.visual_id == visual_id).cloned()
@@ -206,9 +219,11 @@ impl SimpleAsyncComponent for OnePhoto {
                     let texture = frame.texture;
 
                     self.picture.set_paintable(Some(&texture));
-                    self.photo_info.emit(PhotoInfoInput::Photo(visual_id, image.info().clone()));
+                    self.photo_info.emit(PhotoInfoInput::Photo(visual_id.clone(), image.info().clone()));
                 } else { // video or motion photo
                     self.photo_info.emit(PhotoInfoInput::Video(visual_id.clone()));
+
+                    println!("****** transcode path = {:?} ****", visual.video_transcoded_path);
 
                     let is_transcoded = visual.video_transcoded_path.as_ref().is_some_and(|x| x.exists());
 
@@ -221,6 +236,7 @@ impl SimpleAsyncComponent for OnePhoto {
                         self.transcode_status.set_visible(false);
 
                         let video_path = visual.video_transcoded_path.clone()
+                            .filter(|x| x.exists())
                             .or_else(|| visual.video_path.clone())
                             .expect("must have video path");
 
@@ -238,6 +254,7 @@ impl SimpleAsyncComponent for OnePhoto {
                         media_file.play();
                     }
                 }
+                self.visual_id = Some(visual_id);
             },
             OnePhotoInput::ToggleInfo => {
                 let show = self.split_view.shows_sidebar();
@@ -245,9 +262,13 @@ impl SimpleAsyncComponent for OnePhoto {
             },
             OnePhotoInput::TranscodeOne => {
                 println!("Transcode one");
+                if let Some(ref visual_id) = self.visual_id {
+                    let _ = sender.output(OnePhotoOutput::TranscodeOne(visual_id.clone()));
+                }
             },
             OnePhotoInput::TranscodeAll => {
                 println!("Transcode all");
+                let _ = sender.output(OnePhotoOutput::TranscodeAll);
             }
         }
     }

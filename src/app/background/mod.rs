@@ -12,3 +12,4 @@ pub mod scan_photos;
 pub mod scan_videos;
 pub mod thumbnail_photos;
 pub mod thumbnail_videos;
+pub mod video_transcode;
