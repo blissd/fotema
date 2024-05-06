@@ -29,7 +29,7 @@ impl SimpleComponent for AboutDialog {
             .application_name("Fotema")
             .version(VERSION)
             //.translator_credits("translator-credits")
-            .copyright("© 2024 David Bliss")
+            .copyright("Copyright © 2024 David Bliss")
             .developer_name("David Bliss")
             .developers(vec!["David Bliss"])
             .designers(vec!["David Bliss"])
@@ -39,8 +39,14 @@ impl SimpleComponent for AboutDialog {
         about.add_acknowledgement_section(Some("Open Source Projects"), &[
             "Relm 4 https://relm4.org/",
             "Glycin https://gitlab.gnome.org/sophie-h/glycin",
-            "FFMPEG https://ffmpeg.org/",
+            "FFmpeg https://ffmpeg.org/",
+            "libheif https://github.com/strukturag/libheif",
+            "libde265 https://github.com/strukturag/libde265",
         ]);
+
+        about.add_legal_section("FFmpeg", Some("Copyright © 2024 FFmpeg"), gtk::License::Gpl30, None);
+        about.add_legal_section("libheif", Some("Copyright © 2017–2023 Dirk Farin"), gtk::License::Lgpl30, None);
+        about.add_legal_section("libde265", Some("Copyright © 2017–2023 Dirk Farin"), gtk::License::Lgpl30, None);
 
         about
     }
