@@ -21,7 +21,7 @@ impl SimpleComponent for AboutDialog {
     type Root = adw::AboutDialog;
 
     fn init_root() -> Self::Root {
-        let mut about = adw::AboutDialog::builder()
+        let about = adw::AboutDialog::builder()
             .application_icon(APP_ID)
             .license_type(gtk::License::Gpl30)
             .website("https://github.com/blissd/fotema")
