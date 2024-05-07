@@ -78,9 +78,6 @@ impl SimpleComponent for ProgressPanel {
                 // switch to fractional view
                 if count < 20 {
                     self.progress_bar.pulse();
-                } else if count == 20 {
-                    self.progress_bar.set_text(None);
-                    self.progress_bar.set_fraction(fraction);
                 } else {
                     self.progress_bar.set_fraction(fraction);
                 }
