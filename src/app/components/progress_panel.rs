@@ -56,8 +56,6 @@ impl SimpleComponent for ProgressPanel {
     fn update(&mut self, msg: Self::Input, _sender: ComponentSender<Self>) {
         match msg {
             ProgressPanelInput::Update(task_name, fraction, count) => {
-                println!("**** progress update ******* {}/{}", fraction, count);
-
                 if count == 0 {
                     self.progress_bar.set_visible(true);
                     match task_name {

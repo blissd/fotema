@@ -68,8 +68,8 @@ impl ThumbnailPhotos {
         progress_monitor.emit(ProgressMonitorInput::Start(TaskName::Thumbnail(MediaType::Photo), count));
 
         unprocessed
-            .par_iter() // don't multiprocess until memory usage is better understood.
-            //.iter()
+            //.par_iter() // don't multiprocess until memory usage is better understood.
+            .iter()
             .for_each(|pic| {
                 let result = block_on(async {thumbnailer.thumbnail(&pic.picture_id, &pic.path).await});
 
