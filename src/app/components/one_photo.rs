@@ -13,7 +13,12 @@ use glycin;
 
 use crate::app::components::photo_info::PhotoInfo;
 use crate::app::components::photo_info::PhotoInfoInput;
+use crate::app::components::progress_monitor::ProgressMonitor;
+use crate::app::components::progress_panel::ProgressPanel;
 use crate::app::SharedState;
+
+use std::sync::Arc;
+
 
 #[derive(Debug)]
 pub enum OnePhotoInput {
@@ -24,16 +29,12 @@ pub enum OnePhotoInput {
     // The photo/video page has been hidden so any playing media should stop.
     Hidden,
 
-    // Transcode the current video
-    TranscodeOne,
-
     // Transcode all incompatible videos
     TranscodeAll,
 }
 
 #[derive(Debug)]
 pub enum OnePhotoOutput {
-    TranscodeOne(VisualId),
     TranscodeAll,
 }
 
@@ -43,7 +44,11 @@ pub struct OnePhoto {
     // Photo to show
     picture: gtk::Picture,
 
+    transcode_button: gtk::Button,
+
     transcode_status: adw::StatusPage,
+
+    transcode_progress: Controller<ProgressPanel>,
 
     // Info for photo
     photo_info: Controller<PhotoInfo>,
@@ -60,7 +65,7 @@ pub struct OnePhoto {
 
 #[relm4::component(pub async)]
 impl SimpleAsyncComponent for OnePhoto {
-    type Init = SharedState;
+    type Init = (SharedState, Arc<Reducer<ProgressMonitor>>);
     type Input = OnePhotoInput;
     type Output = OnePhotoOutput;
 
@@ -112,17 +117,15 @@ impl SimpleAsyncComponent for OnePhoto {
                             set_child = &gtk::Box {
                                 set_orientation: gtk::Orientation::Vertical,
 
-                                gtk::Button {
-                                    set_label: "Convert this video",
-                                    add_css_class: "suggested-action",
-                                    add_css_class: "pill",
-                                    connect_clicked => OnePhotoInput::TranscodeOne,
-                                },
-                                gtk::Button {
+                                #[local_ref]
+                                transcode_button -> gtk::Button {
                                     set_label: "Convert all incompatible videos",
+                                    add_css_class: "suggested-action",
                                     add_css_class: "pill",
                                     connect_clicked => OnePhotoInput::TranscodeAll,
                                 },
+
+                                model.transcode_progress.widget(),
                             }
                         }
                     }
@@ -132,7 +135,7 @@ impl SimpleAsyncComponent for OnePhoto {
     }
 
     async fn init(
-        state: Self::Init,
+        (state, transcode_progress_monitor): Self::Init,
         root: Self::Root,
         _sender: AsyncComponentSender<Self>,
     ) -> AsyncComponentParts<Self>  {
@@ -141,8 +144,13 @@ impl SimpleAsyncComponent for OnePhoto {
 
         let split_view = adw::OverlaySplitView::new();
 
+        let transcode_button = gtk::Button::new();
+
+        let transcode_progress = ProgressPanel::builder()
+            .launch(transcode_progress_monitor.clone())
+            .detach();
+
         let transcode_status = adw::StatusPage::new();
-        transcode_status.set_child(Some(&gtk::Label::new(Some("foo"))));
 
         let photo_info = PhotoInfo::builder()
             .launch(state.clone())
@@ -151,7 +159,9 @@ impl SimpleAsyncComponent for OnePhoto {
         let model = OnePhoto {
             state,
             picture: picture.clone(),
+            transcode_button: transcode_button.clone(),
             transcode_status: transcode_status.clone(),
+            transcode_progress,
             photo_info,
             split_view: split_view.clone(),
             title: String::from("-"),
@@ -223,8 +233,6 @@ impl SimpleAsyncComponent for OnePhoto {
                 } else { // video or motion photo
                     self.photo_info.emit(PhotoInfoInput::Video(visual_id.clone()));
 
-                    println!("****** transcode path = {:?} ****", visual.video_transcoded_path);
-
                     let is_transcoded = visual.video_transcoded_path.as_ref().is_some_and(|x| x.exists());
 
                     if visual.is_transcode_required.is_some_and(|x| x) && !is_transcoded {
@@ -260,14 +268,9 @@ impl SimpleAsyncComponent for OnePhoto {
                 let show = self.split_view.shows_sidebar();
                 self.split_view.set_show_sidebar(!show);
             },
-            OnePhotoInput::TranscodeOne => {
-                println!("Transcode one");
-                if let Some(ref visual_id) = self.visual_id {
-                    let _ = sender.output(OnePhotoOutput::TranscodeOne(visual_id.clone()));
-                }
-            },
             OnePhotoInput::TranscodeAll => {
                 println!("Transcode all");
+                self.transcode_button.set_visible(false);
                 let _ = sender.output(OnePhotoOutput::TranscodeAll);
             }
         }

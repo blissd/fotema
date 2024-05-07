@@ -4,18 +4,28 @@
 
 use relm4::prelude::*;
 use relm4::Worker;
+use relm4::Reducer;
+
 use anyhow::*;
 
 use fotema_core::video::Repository;
-use fotema_core::VisualId;
 use fotema_core::video::Transcoder;
+use fotema_core::Visual;
+
+use crate::app::components::progress_monitor::{
+    ProgressMonitor,
+    ProgressMonitorInput,
+    TaskName,
+};
+
+use std::sync::Arc;
 
 use crate::app::SharedState;
 
 #[derive(Debug)]
 pub enum VideoTranscodeInput {
-    /// Transcode one video
-    One(VisualId),
+    /// Transcode all videos
+    All,
 }
 
 #[derive(Debug)]
@@ -34,57 +44,71 @@ pub struct VideoTranscode {
     transcoder: Transcoder,
 
     state: SharedState,
+
+    progress_monitor: Arc<Reducer<ProgressMonitor>>,
 }
 
 impl VideoTranscode {
 
-    fn transcode_one(&mut self, visual_id: VisualId, sender: &ComponentSender<Self>) -> Result<()> {
+    fn transcode_all(&mut self, sender: &ComponentSender<Self>) -> Result<()> {
 
-        let visual = {
+        let unprocessed: Vec<Arc<Visual>> = {
             let data = self.state.read();
-            data.iter().find(|&x| x.visual_id == visual_id).cloned()
+            data.iter()
+                .filter(|&x| x.video_id.is_some())
+                .filter(|&x| x.is_transcode_required.is_some_and(|y| y))
+                .filter(|&x| x.video_path.as_ref().is_some_and(|y| y.exists()))
+                .filter(|&x| !x.video_transcoded_path.as_ref().is_some_and(|y| y.exists()))
+                .cloned()
+                .collect()
         };
 
-        let Some(visual) = visual else {
-            return Err(anyhow!("Visual not found: {}", visual_id));
-        };
+        self.progress_monitor
+            .emit(ProgressMonitorInput::Start(TaskName::Transcode, unprocessed.len()));
 
-        let Some(video_id) = visual.video_id else {
-            return Err(anyhow!("Visual does not have video_id: {}", visual_id));
-        };
+        let _ = sender.output(VideoTranscodeOutput::Started);
 
-        let Some(ref video_path) = visual.video_path else {
-            return Err(anyhow!("Visual does not have video_path: {}", visual_id));
-        };
+        unprocessed
+            .iter()
+            .for_each(|visual| {
+                let video_id = visual.video_id.expect("Must have video_id");
+                let video_path = visual.video_path.as_ref().expect("Must have video_path");
 
-        let result = self.transcoder.transcode(video_id, &video_path);
-        if let std::result::Result::Ok(ref transcode_path) = result {
-            self.repo.add_transcode(video_id, transcode_path);
-        }
+                let result = self.transcoder.transcode(video_id, &video_path);
 
-        if let Err(e) = sender.output(VideoTranscodeOutput::Completed) {
-            println!("Failed sending VideoTranscodeOutput::Completed: {:?}", e);
-        }
+                if let std::result::Result::Ok(ref transcode_path) = result {
+                    if let Err(e) = self.repo.add_transcode(video_id, transcode_path) {
+                        println!("Failed adding transcode path: {:?}", e);
+                    }
+                }
+
+                self.progress_monitor.emit(ProgressMonitorInput::Advance);
+
+            });
+
+        self.progress_monitor.emit(ProgressMonitorInput::Complete);
+
+        let _ = sender.output(VideoTranscodeOutput::Completed);
 
         Ok(())
     }
 }
 
 impl Worker for VideoTranscode {
-    type Init = (SharedState, Repository, Transcoder);
+    type Init = (SharedState, Repository, Transcoder, Arc<Reducer<ProgressMonitor>>);
     type Input = VideoTranscodeInput;
     type Output = VideoTranscodeOutput;
 
-    fn init((state, repo, transcoder): Self::Init, _sender: ComponentSender<Self>) -> Self {
-        Self { state, repo, transcoder }
+    fn init((state, repo, transcoder, progress_monitor): Self::Init, _sender: ComponentSender<Self>) -> Self {
+        Self { state, repo, transcoder, progress_monitor }
     }
 
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
-            VideoTranscodeInput::One(visual_id) => {
-                println!("Transcoding item with visual_id: {}", visual_id);
+            VideoTranscodeInput::All => {
+                println!("Transcoding all incompatible videos");
 
-                if let Err(e) = self.transcode_one(visual_id, &sender) {
+                if let Err(e) = self.transcode_all(&sender) {
                     println!("Failed to transcode photo: {}", e);
                 }
             },

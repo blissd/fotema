@@ -17,7 +17,7 @@ use relm4::{
     },
     main_application,
     prelude::AsyncController,
-    Component, ComponentController, ComponentParts, ComponentSender, Controller, RelmWidgetExt,
+    Component, ComponentController, ComponentParts, ComponentSender, Controller,
     SimpleComponent, WorkerController,
     shared_state::Reducer,
 };
@@ -54,7 +54,7 @@ use self::background::{
     video_transcode::{VideoTranscode, VideoTranscodeInput, VideoTranscodeOutput},
 };
 
-use self::components::progress_monitor::{ProgressMonitor, TaskName};
+use self::components::progress_monitor::ProgressMonitor;
 use self::components::progress_panel::ProgressPanel;
 
 // Visual items to be shared between various views.
@@ -127,7 +127,8 @@ pub(super) struct App {
     // Activity indicator. Only shown when progress bar is hidden.
     spinner: gtk::Spinner,
 
-    thumbnail_progress: Controller<ProgressPanel>,
+    bootstrap_progress: Controller<ProgressPanel>,
+    transcode_progress: Controller<ProgressPanel>,
 
     // Message banner
     banner: adw::Banner,
@@ -160,7 +161,6 @@ pub(super) enum AppMsg {
     // All background bootstrap tasks have completed
     BootstrapCompleted,
 
-    TranscodeOne(VisualId),
     TranscodeAll,
 
     VideoTranscodeStarted,
@@ -268,7 +268,8 @@ impl SimpleComponent for App {
                                         set_vexpand: true,
                                     },
 
-                                    model.thumbnail_progress.widget(),
+                                    model.bootstrap_progress.widget(),
+                                    model.transcode_progress.widget(),
                                 }
                             }
                         },
@@ -436,15 +437,22 @@ impl SimpleComponent for App {
         let state = SharedState::new(relm4::SharedState::new());
         let active_view = ActiveView::new(relm4::SharedState::new());
 
-        let progress_monitor: Reducer<ProgressMonitor> = Reducer::new();
-        let progress_monitor = Arc::new(progress_monitor);
+        let bootstrap_progress_monitor: Reducer<ProgressMonitor> = Reducer::new();
+        let bootstrap_progress_monitor = Arc::new(bootstrap_progress_monitor);
 
-        let thumbnail_progress = self::components::progress_panel::ProgressPanel::builder()
-            .launch(progress_monitor.clone())
+        let bootstrap_progress = self::components::progress_panel::ProgressPanel::builder()
+            .launch(bootstrap_progress_monitor.clone())
+            .detach();
+
+        let transcode_progress_monitor: Reducer<ProgressMonitor> = Reducer::new();
+        let transcode_progress_monitor = Arc::new(transcode_progress_monitor);
+
+        let transcode_progress = self::components::progress_panel::ProgressPanel::builder()
+            .launch(transcode_progress_monitor.clone())
             .detach();
 
         let bootstrap = Bootstrap::builder()
-            .detach_worker((con.clone(), state.clone(), progress_monitor))
+            .detach_worker((con.clone(), state.clone(), bootstrap_progress_monitor))
             .forward(sender.input_sender(), |msg| match msg {
                 BootstrapOutput::TaskStarted(msg) => AppMsg::TaskStarted(msg),
                 BootstrapOutput::Completed => AppMsg::BootstrapCompleted,
@@ -459,16 +467,15 @@ impl SimpleComponent for App {
         let transcoder = video::Transcoder::new(&cache_dir);
 
         let video_transcode = VideoTranscode::builder()
-            .detach_worker((state.clone(), video_repo, transcoder.clone()))
+            .detach_worker((state.clone(), video_repo, transcoder.clone(), transcode_progress_monitor.clone()))
             .forward(sender.input_sender(), |msg| match msg {
                 VideoTranscodeOutput::Started => AppMsg::VideoTranscodeStarted,
                 VideoTranscodeOutput::Completed => AppMsg::VideoTranscodeCompleted,
             });
 
         let one_photo = OnePhoto::builder()
-            .launch(state.clone())
+            .launch((state.clone(), transcode_progress_monitor.clone()))
             .forward(sender.input_sender(), |msg| match msg {
-                OnePhotoOutput::TranscodeOne(visual_id) => AppMsg::TranscodeOne(visual_id),
                 OnePhotoOutput::TranscodeAll => AppMsg::TranscodeAll,
             });
 
@@ -564,7 +571,8 @@ impl SimpleComponent for App {
             header_bar: header_bar.clone(),
             spinner: spinner.clone(),
 
-            thumbnail_progress,
+            bootstrap_progress,
+            transcode_progress,
 
             banner: banner.clone(),
         };
@@ -683,11 +691,9 @@ impl SimpleComponent for App {
                 self.spinner.stop();
                 self.banner.set_revealed(false);
             }
-            AppMsg::TranscodeOne(visual_id) => {
-                self.video_transcode.emit(VideoTranscodeInput::One(visual_id));
-            },
             AppMsg::TranscodeAll => {
-                println!("Ignoring transcode all");
+                println!("Transcode all");
+                self.video_transcode.emit(VideoTranscodeInput::All);
             },
             AppMsg::VideoTranscodeStarted => {
                 println!("Video transcode started");
