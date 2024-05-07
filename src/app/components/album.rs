@@ -18,6 +18,8 @@ use crate::app::SharedState;
 use crate::app::ActiveView;
 use crate::app::ViewName;
 
+use tracing::{event, Level};
+
 #[derive(Debug)]
 pub enum AlbumFilter {
     // Show no photos
@@ -267,18 +269,17 @@ impl SimpleComponent for Album {
                 // wrong photo is displayed.
                 if let Some(item) = self.photo_grid.get_visible(index) {
                     let visual_id = item.borrow().visual.visual_id.clone();
-                    println!("index {} has visual_id {}", index, visual_id);
-                    let result = sender.output(AlbumOutput::Selected(visual_id));
-                    println!("Result = {:?}", result);
+                    event!(Level::DEBUG, "index {} has visual_id {}", index, visual_id);
+                    let _ = sender.output(AlbumOutput::Selected(visual_id));
                 }
             }
             AlbumInput::GoToMonth(ym) => {
-                println!("Showing for month: {}", ym);
+                event!(Level::INFO, "Showing for month: {}", ym);
                 let index_opt = self.photo_grid.find(|p| p.visual.year_month() == ym);
-                println!("Found: {:?}", index_opt);
+                event!(Level::DEBUG, "Found: {:?}", index_opt);
                 if let Some(index) = index_opt {
                     let flags = gtk::ListScrollFlags::SELECT;
-                    println!("Scrolling to {}", index);
+                    event!(Level::DEBUG, "Scrolling to {}", index);
                     self.photo_grid.view.scroll_to(index, flags, None);
                 }
             }

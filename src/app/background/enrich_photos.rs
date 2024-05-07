@@ -8,6 +8,7 @@ use rayon::prelude::*;
 use anyhow::*;
 use fotema_core::photo::metadata;
 
+use tracing::{event, Level};
 
 #[derive(Debug)]
 pub enum EnrichPhotosInput {
@@ -54,10 +55,10 @@ impl EnrichPhotos {
 
         repo.add_metadatas(metadatas)?;
 
-        println!("Extracted {} photo metadatas in {} seconds.", count, start.elapsed().as_secs());
+        event!(Level::INFO, "Extracted {} photo metadatas in {} seconds.", count, start.elapsed().as_secs());
 
         if let Err(e) = sender.output(EnrichPhotosOutput::Completed) {
-            println!("Failed sending EnrichPhotosOutput::Completed: {:?}", e);
+            event!(Level::ERROR, "Failed sending EnrichPhotosOutput::Completed: {:?}", e);
         }
 
         Ok(())
@@ -80,13 +81,13 @@ impl Worker for EnrichPhotos {
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
             EnrichPhotosInput::Start => {
-                println!("Enriching photos...");
+                event!(Level::INFO, "Enriching photos...");
                 let repo = self.repo.clone();
 
                 // Avoid runtime panic from calling block_on
                 rayon::spawn(move || {
                     if let Err(e) = EnrichPhotos::enrich(repo, &sender) {
-                        println!("Failed to update previews: {}", e);
+                        event!(Level::ERROR, "Failed to update previews: {}", e);
                     }
                 });
             }

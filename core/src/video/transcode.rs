@@ -7,6 +7,8 @@ use std::process::Command;
 
 use crate::video::VideoId;
 
+use tracing::{event, Level};
+
 #[derive(Debug, Clone)]
 pub struct Transcoder {
     /// Base path for storing transcoded videos
@@ -35,7 +37,7 @@ impl Transcoder {
             return Ok(PathBuf::from(transcoded_path));
         }
 
-        println!("Transcoding video: {:?}", video_path);
+        event!(Level::DEBUG, "Transcoding video: {:?}", video_path);
 
         // FIXME can transcoding be reliably hardware accelerated?
         Command::new("ffmpeg")

@@ -7,6 +7,8 @@ use relm4::Worker;
 use rayon::prelude::*;
 use anyhow::*;
 
+use tracing::{event, Level};
+
 #[derive(Debug)]
 pub enum CleanVideosInput {
     Start,
@@ -39,7 +41,7 @@ impl CleanVideos {
         let vids_count = vids.len();
 
         if let Err(e) = sender.output(CleanVideosOutput::Started){
-            println!("Failed sending cleanup started: {:?}", e);
+            event!(Level::ERROR, "Failed sending cleanup started: {:?}", e);
         }
 
         vids.par_iter()
@@ -47,17 +49,17 @@ impl CleanVideos {
                 if !vid.path.exists() {
                     let result = self.repo.clone().remove(vid.video_id);
                     if let Err(e) = result {
-                        println!("Failed remove {}: {:?}", vid.video_id, e);
+                        event!(Level::ERROR, "Failed remove {}: {:?}", vid.video_id, e);
                     } else {
-                        println!("Removed {}", vid.video_id);
+                        event!(Level::INFO, "Removed {}", vid.video_id);
                     }
                 }
             });
 
-        println!("Cleaned {} videos in {} seconds.", vids_count, start.elapsed().as_secs());
+        event!(Level::INFO, "Cleaned {} videos in {} seconds.", vids_count, start.elapsed().as_secs());
 
         if let Err(e) = sender.output(CleanVideosOutput::Completed) {
-            println!("Failed sending CleanVideosOutput::Completed: {:?}", e);
+            event!(Level::ERROR, "Failed sending CleanVideosOutput::Completed: {:?}", e);
         }
 
         Ok(())
@@ -76,10 +78,10 @@ impl Worker for CleanVideos {
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
             CleanVideosInput::Start => {
-                println!("Cleaning videos...");
+                event!(Level::INFO, "Cleaning videos...");
 
                 if let Err(e) = self.cleanup(&sender) {
-                    println!("Failed to clean videos: {}", e);
+                    event!(Level::ERROR, "Failed to clean videos: {}", e);
                 }
             }
         };

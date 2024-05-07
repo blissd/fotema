@@ -23,6 +23,8 @@ use crate::app::SharedState;
 use crate::app::ActiveView;
 use crate::app::ViewName;
 
+use tracing::{event, Level};
+
 #[derive(Debug)]
 struct PhotoGridItem {
     picture: Arc<fotema_core::visual::Visual>,
@@ -182,20 +184,19 @@ impl SimpleComponent for MonthPhotos {
             MonthPhotosInput::MonthSelected(index) => {
                 if let Some(item) = self.photo_grid.get(index) {
                     let ym = item.borrow().picture.year_month();
-                    println!("index {} has year_month {}", index, ym);
-                    let result = sender.output(MonthPhotosOutput::MonthSelected(ym));
-                    println!("Result = {:?}", result);
+                    event!(Level::DEBUG, "index {} has year_month {}", index, ym);
+                    let _ = sender.output(MonthPhotosOutput::MonthSelected(ym));
                 }
             }
             MonthPhotosInput::GoToYear(year) => {
-                println!("Showing for year: {}", year);
+                event!(Level::INFO, "Showing for year: {}", year);
                 let index_opt = self
                     .photo_grid
                     .find(|p| p.picture.year_month().year == year);
-                println!("Found: {:?}", index_opt);
+                event!(Level::DEBUG, "Found: {:?}", index_opt);
                 if let Some(index) = index_opt {
                     let flags = gtk::ListScrollFlags::SELECT;
-                    println!("Scrolling to {}", index);
+                    event!(Level::DEBUG, "Scrolling to {}", index);
                     self.photo_grid.view.scroll_to(index, flags, None);
                 }
             }

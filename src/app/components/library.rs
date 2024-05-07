@@ -18,6 +18,8 @@ use super::album::{Album, AlbumFilter, AlbumInput, AlbumOutput};
 use super::month_photos::{MonthPhotos, MonthPhotosInput, MonthPhotosOutput};
 use super::year_photos::{YearPhotos, YearPhotosInput, YearPhotosOutput};
 
+use tracing::{event, Level};
+
 #[derive(Debug)]
 pub enum LibraryInput {
     // Library view is activated
@@ -129,7 +131,7 @@ impl SimpleComponent for Library {
                     LibraryViewName::All => self.all_photos.emit(AlbumInput::Activate),
                     LibraryViewName::Month => self.month_photos.emit(MonthPhotosInput::Activate),
                     LibraryViewName::Year => self.year_photos.emit(YearPhotosInput::Activate),
-                    LibraryViewName::Nothing => println!("Nothing activated for library view :-/"),
+                    LibraryViewName::Nothing => event!(Level::ERROR, "Nothing activated for library view :-/"),
                 }
             }
             LibraryInput::GoToMonth(ym) => {

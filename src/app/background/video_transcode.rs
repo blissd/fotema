@@ -11,6 +11,7 @@ use anyhow::*;
 use fotema_core::video::Repository;
 use fotema_core::video::Transcoder;
 use fotema_core::Visual;
+use tracing::{event, Level};
 
 use crate::app::components::progress_monitor::{
     ProgressMonitor,
@@ -78,7 +79,7 @@ impl VideoTranscode {
 
                 if let std::result::Result::Ok(ref transcode_path) = result {
                     if let Err(e) = self.repo.add_transcode(video_id, transcode_path) {
-                        println!("Failed adding transcode path: {:?}", e);
+                        event!(Level::ERROR, "Failed adding transcode path: {:?}", e);
                     }
                 }
 
@@ -106,10 +107,10 @@ impl Worker for VideoTranscode {
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
             VideoTranscodeInput::All => {
-                println!("Transcoding all incompatible videos");
+                event!(Level::INFO, "Transcoding all incompatible videos");
 
                 if let Err(e) = self.transcode_all(&sender) {
-                    println!("Failed to transcode photo: {}", e);
+                    event!(Level::ERROR, "Failed to transcode photo: {}", e);
                 }
             },
         };

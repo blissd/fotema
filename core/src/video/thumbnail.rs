@@ -9,6 +9,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::result::Result::Ok;
 use tempfile;
+use tracing::{event, Level};
 
 const EDGE: u32 = 200;
 
@@ -36,7 +37,7 @@ impl Thumbnailer {
 
         self.compute_thumbnail(video_path, &thumbnail_path)
             .map(|_| thumbnail_path)
-            .inspect_err(|e| println!("Video thumbnail error: {:?}", e))
+            .inspect_err(|e| event!(Level::ERROR, "Video thumbnail error: {:?}", e))
     }
 
     fn compute_thumbnail(&self, video_path: &Path, thumbnail_path: &Path) -> Result<()> {

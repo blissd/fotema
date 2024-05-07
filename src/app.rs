@@ -36,6 +36,8 @@ use std::str::FromStr;
 use strum::EnumString;
 use strum::IntoStaticStr;
 
+use tracing::{event, Level};
+
 mod components;
 
 use self::components::{
@@ -655,7 +657,7 @@ impl SimpleComponent for App {
                     ViewName::Animated => self.motion_page.emit(AlbumInput::Activate),
                     ViewName::Folders => self.folder_photos.emit(FolderPhotosInput::Activate),
                     ViewName::Folder => self.folder_album.emit(AlbumInput::Activate),
-                    ViewName::Nothing => println!("Nothing activated... which should not happen"),
+                    ViewName::Nothing => event!(Level::WARN, "Nothing activated... which should not happen"),
                 }
             }
             AppMsg::ViewPhoto(visual_id) => {
@@ -680,22 +682,22 @@ impl SimpleComponent for App {
                 self.banner.set_revealed(true);
             }
             AppMsg::BootstrapCompleted => {
-                println!("Bootstrap completed.");
+                event!(Level::INFO, "Bootstrap completed.");
                 self.spinner.stop();
                 self.banner.set_revealed(false);
             }
             AppMsg::TranscodeAll => {
-                println!("Transcode all");
+                event!(Level::INFO, "Transcode all");
                 self.video_transcode.emit(VideoTranscodeInput::All);
             },
             AppMsg::VideoTranscodeStarted => {
-                println!("Video transcode started");
+                event!(Level::INFO, "Video transcode started");
             },
             AppMsg::VideoTranscodeCompleted => {
-                println!("Video transcode completed");
+                event!(Level::INFO, "Video transcode completed");
             },
             AppMsg::PreferencesUpdated => {
-                println!("Preferences updated.");
+                event!(Level::INFO, "Preferences updated.");
                 // TODO create a Preferences struct to hold preferences and send with update message.
                 self.show_selfies = AppWidgets::show_selfies();
             }

@@ -27,6 +27,10 @@ fn main() {
     tracing_subscriber::fmt()
         .with_span_events(tracing_subscriber::fmt::format::FmtSpan::FULL)
         .with_max_level(tracing::Level::INFO)
+        .with_timer(tracing_subscriber::fmt::time::ChronoLocal::new(
+            "%T%.3f".into(),
+        ))
+        .compact()
         .init();
 
     // setup gettext

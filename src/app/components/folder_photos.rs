@@ -18,6 +18,8 @@ use crate::app::SharedState;
 use crate::app::ActiveView;
 use crate::app::ViewName;
 
+use tracing::{event, Level};
+
 #[derive(Debug)]
 struct PhotoGridItem {
     folder_name: String,
@@ -169,10 +171,10 @@ impl SimpleComponent for FolderPhotos {
                 }
             }
             FolderPhotosInput::FolderSelected(index) => {
-                println!("Folder selected index: {}", index);
+                event!(Level::DEBUG, "Folder selected index: {}", index);
                 if let Some(item) = self.photo_grid.get_visible(index) {
                     let item = item.borrow();
-                    println!("Folder selected item: {}", item.folder_name);
+                    event!(Level::DEBUG, "Folder selected item: {}", item.folder_name);
 
                     let _ = sender
                         .output(FolderPhotosOutput::FolderSelected(item.picture.parent_path.clone()));

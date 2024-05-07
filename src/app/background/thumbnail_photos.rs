@@ -9,6 +9,7 @@ use rayon::prelude::*;
 use futures::executor::block_on;
 use anyhow::*;
 use std::sync::Arc;
+use tracing::{event, Level};
 
 use crate::app::components::progress_monitor::{
     ProgressMonitor,
@@ -78,13 +79,13 @@ impl ThumbnailPhotos {
                 let result = result.and_then(|thumbnail_path| repo.clone().add_thumbnail(&pic.picture_id, &thumbnail_path));
 
                 if let Err(e) = result {
-                    println!("Failed add_thumbnail: {:?}", e);
+                    event!(Level::ERROR, "Failed add_thumbnail: {:?}", e);
                 }
 
                 progress_monitor.emit(ProgressMonitorInput::Advance);
             });
 
-        println!("Generated {} photo thumbnails in {} seconds.", count, start.elapsed().as_secs());
+        event!(Level::INFO, "Generated {} photo thumbnails in {} seconds.", count, start.elapsed().as_secs());
 
         progress_monitor.emit(ProgressMonitorInput::Complete);
 
@@ -112,7 +113,7 @@ impl Worker for ThumbnailPhotos {
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
             ThumbnailPhotosInput::Start => {
-                println!("Generating photo thumbnails...");
+                event!(Level::INFO, "Generating photo thumbnails...");
                 let repo = self.repo.clone();
                 let thumbnailer = self.thumbnailer.clone();
                 let progress_monitor = self.progress_monitor.clone();
@@ -120,7 +121,7 @@ impl Worker for ThumbnailPhotos {
                 // Avoid runtime panic from calling block_on
                 rayon::spawn(move || {
                     if let Err(e) = ThumbnailPhotos::enrich(repo, thumbnailer, progress_monitor, sender) {
-                        println!("Failed to update previews: {}", e);
+                        event!(Level::ERROR, "Failed to update previews: {}", e);
                     }
                 });
             }

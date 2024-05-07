@@ -19,6 +19,7 @@ use crate::app::SharedState;
 
 use std::sync::Arc;
 
+use tracing::{event, Level};
 
 #[derive(Debug)]
 pub enum OnePhotoInput {
@@ -180,7 +181,7 @@ impl SimpleAsyncComponent for OnePhoto {
                 self.title = String::from("-");
             },
             OnePhotoInput::ViewPhoto(visual_id) => {
-                println!("Showing item for {}", visual_id);
+                event!(Level::INFO, "Showing item for {}", visual_id);
                 self.visual_id = None;
 
                 let result = {
@@ -191,7 +192,7 @@ impl SimpleAsyncComponent for OnePhoto {
                 let visual = if let Some(v) = result {
                     v
                 } else {
-                    println!("Failed loading visual item: {:?}", result);
+                    event!(Level::ERROR, "Failed loading visual item: {:?}", result);
                     return;
                 };
 
@@ -215,14 +216,14 @@ impl SimpleAsyncComponent for OnePhoto {
                     let image = if let Ok(image) = image_result {
                         image
                     } else {
-                        println!("Failed loading image: {:?}", image_result);
+                        event!(Level::ERROR, "Failed loading image: {:?}", image_result);
                         return;
                     };
 
                     let frame = if let Ok(frame) = image.next_frame().await {
                         frame
                     } else {
-                        println!("Failed getting image frame");
+                        event!(Level::ERROR, "Failed getting image frame");
                         return;
                     };
 
@@ -269,7 +270,7 @@ impl SimpleAsyncComponent for OnePhoto {
                 self.split_view.set_show_sidebar(!show);
             },
             OnePhotoInput::TranscodeAll => {
-                println!("Transcode all");
+                event!(Level::INFO, "Transcode all");
                 self.transcode_button.set_visible(false);
                 let _ = sender.output(OnePhotoOutput::TranscodeAll);
             }

@@ -7,6 +7,8 @@ use relm4::Worker;
 use anyhow::*;
 use fotema_core::video::metadata;
 
+use tracing::{event, Level};
+
 #[derive(Debug)]
 pub enum EnrichVideosInput {
     Start,
@@ -50,10 +52,10 @@ impl EnrichVideos {
 
         repo.add_metadata(metadatas)?;
 
-        println!("Enriched {} videos in {} seconds.", count, start.elapsed().as_secs());
+        event!(Level::INFO, "Enriched {} videos in {} seconds.", count, start.elapsed().as_secs());
 
         if let Err(e) = sender.output(EnrichVideosOutput::Completed) {
-            println!("Failed sending EnrichVideosOutput::Completed: {:?}", e);
+            event!(Level::ERROR, "Failed sending EnrichVideosOutput::Completed: {:?}", e);
         }
 
         Ok(())
@@ -76,13 +78,13 @@ impl Worker for EnrichVideos {
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
             EnrichVideosInput::Start => {
-                println!("Enriching videos...");
+                event!(Level::INFO, "Enriching videos...");
                 let repo = self.repo.clone();
 
                 // Avoid runtime panic from calling block_on
                 rayon::spawn(move || {
                     if let Err(e) = EnrichVideos::enrich(repo, &sender) {
-                        println!("Failed to enrich videos: {}", e);
+                        event!(Level::ERROR, "Failed to enrich videos: {}", e);
                     }
                 });
             }

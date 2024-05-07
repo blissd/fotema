@@ -19,6 +19,8 @@ use chrono::{DateTime, Utc};
 
 use crate::app::SharedState;
 
+use tracing::{event, Level};
+
 #[derive(Debug)]
 pub enum PhotoInfoInput {
     Photo(VisualId, ImageInfo),
@@ -257,14 +259,13 @@ impl SimpleComponent for PhotoInfo {
     fn update(&mut self, msg: Self::Input, _sender: ComponentSender<Self>) {
         match msg {
             PhotoInfoInput::Photo(ref visual_id, ref image_info) => {
-                println!("Received {:?}", msg);
                 let result = {
                     let data = self.state.read();
                     data.iter().find(|&x| x.visual_id == *visual_id).cloned()
                 };
 
                 let Some(ref vis) = result else {
-                    println!("No visual item");
+                    event!(Level::WARN, "No visual item");
                     return;
                 };
 
@@ -277,14 +278,13 @@ impl SimpleComponent for PhotoInfo {
                 }
             }
             PhotoInfoInput::Video(ref visual_id) => {
-                println!("Received {:?}", msg);
                 let result = {
                     let data = self.state.read();
                     data.iter().find(|&x| x.visual_id == *visual_id).cloned()
                 };
 
                 let Some(ref vis) = result else {
-                    println!("No visual item");
+                    event!(Level::WARN, "No visual item");
                     return;
                 };
 
@@ -412,8 +412,6 @@ impl PhotoInfo {
         }
 
         let metadata = metadata.expect("metadata must be present");
-
-        println!("video meta = {:?}", metadata);
 
         let created_at: Option<String> = metadata
             .created_at

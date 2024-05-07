@@ -175,9 +175,7 @@ impl SimpleComponent for YearPhotos {
             YearPhotosInput::YearSelected(index) => {
                 if let Some(item) = self.photo_grid.get(index) {
                     let date = item.borrow().picture.year_month();
-                    println!("index {} has year {}", index, date.year);
-                    let result = sender.output(YearPhotosOutput::YearSelected(date.year));
-                    println!("Result = {:?}", result);
+                    let _ = sender.output(YearPhotosOutput::YearSelected(date.year));
                 }
             }
         }

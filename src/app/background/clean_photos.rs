@@ -7,6 +7,8 @@ use relm4::Worker;
 use rayon::prelude::*;
 use anyhow::*;
 
+use tracing::{event, Level};
+
 #[derive(Debug)]
 pub enum CleanPhotosInput {
     Start,
@@ -39,7 +41,7 @@ impl CleanPhotos {
         let pics_count = pics.len();
 
         if let Err(e) = sender.output(CleanPhotosOutput::Started){
-            println!("Failed sending cleanup started: {:?}", e);
+            event!(Level::ERROR, "Failed sending cleanup started: {:?}", e);
         }
 
         pics.par_iter()
@@ -47,17 +49,17 @@ impl CleanPhotos {
                 if !pic.path.exists() {
                     let result = self.repo.clone().remove(pic.picture_id);
                     if let Err(e) = result {
-                        println!("Failed remove {}: {:?}", pic.picture_id, e);
+                        event!(Level::ERROR, "Failed remove {}: {:?}", pic.picture_id, e);
                     } else {
-                        println!("Removed {}", pic.picture_id);
+                        event!(Level::INFO, "Removed {}", pic.picture_id);
                     }
                 }
             });
 
-        println!("Cleaned {} photos in {} seconds.", pics_count, start.elapsed().as_secs());
+        event!(Level::INFO, "Cleaned {} photos in {} seconds.", pics_count, start.elapsed().as_secs());
 
         if let Err(e) = sender.output(CleanPhotosOutput::Completed) {
-            println!("Failed sending CleanPhotosOutput::Completed: {:?}", e);
+            event!(Level::ERROR, "Failed sending CleanPhotosOutput::Completed: {:?}", e);
         }
 
         Ok(())
@@ -76,10 +78,10 @@ impl Worker for CleanPhotos {
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
             CleanPhotosInput::Start => {
-                println!("Cleaning photos...");
+                event!(Level::INFO, "Cleaning photos...");
 
                 if let Err(e) = self.cleanup(&sender) {
-                    println!("Failed to clean photos: {}", e);
+                    event!(Level::ERROR, "Failed to clean photos: {}", e);
                 }
             }
         };
