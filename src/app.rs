@@ -151,17 +151,7 @@ pub(super) enum AppMsg {
 
     ViewFolder(PathBuf),
 
-    // A task that can make progress has started.
-    // count of items, banner text, progress bar text
-    ProgressStarted(usize, String, String),
-
-    // One item has been processed
-    ProgressAdvanced,
-
-    // Finished processing
-    ProgressCompleted,
-
-    // A task (without a progress bar) has started
+    // A task has started.
     TaskStarted(String),
 
     // Preferences
@@ -687,24 +677,6 @@ impl SimpleComponent for App {
                 self.spinner.start();
                 self.banner.set_title(&msg);
                 self.banner.set_revealed(true);
-            }
-            AppMsg::ProgressStarted(count, banner_title, progress_label) => {
-                println!("Progress started: {}", banner_title);
-                self.banner.set_title(&banner_title);
-                self.banner.set_revealed(true);
-
-                self.spinner.start();
-
-                let show = self.main_navigation.shows_sidebar();
-                self.spinner.set_visible(!show);
-            }
-            AppMsg::ProgressAdvanced => {
-                println!("Progress advanced");
-            }
-            AppMsg::ProgressCompleted => {
-                println!("Progress completed.");
-                self.spinner.stop();
-                self.banner.set_revealed(false);
             }
             AppMsg::BootstrapCompleted => {
                 println!("Bootstrap completed.");
