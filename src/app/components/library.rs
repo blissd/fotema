@@ -42,8 +42,6 @@ pub enum LibraryOutput {
 
 
 pub struct Library {
-    state: SharedState,
-
     stack: adw::ViewStack,
 
     all_photos: Controller<Album>,
@@ -111,7 +109,6 @@ impl SimpleComponent for Library {
         let widgets = view_output!();
 
         let model = Library {
-            state,
             stack: root,
             all_photos,
             month_photos,

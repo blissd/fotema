@@ -27,9 +27,6 @@ pub enum ProgressMonitorInput {
     Start(TaskName, usize),
     Advance,
     Complete,
-
-    /// FIXME figure out if 'Idle' will be used.
-    Idle,
 }
 
 /// Monitors the progress of a task and informs subscribers about changes.
@@ -69,11 +66,6 @@ impl Reducible for ProgressMonitor {
             }
             ProgressMonitorInput::Complete =>  {
                 self.current_count = self.end_count;
-            }
-            ProgressMonitorInput::Idle =>  {
-                self.task_name = TaskName::Idle;
-                self.end_count = 0;
-                self.current_count = 0;
             }
         }
         true // subscribers only notified if 'true' is returned

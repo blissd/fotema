@@ -11,7 +11,6 @@ use gtk::prelude::OrientableExt;
 use relm4::gtk;
 use relm4::*;
 use relm4::adw::prelude::*;
-use std::path::PathBuf;
 use humansize::{format_size, DECIMAL};
 use glycin::ImageInfo;
 use std::fs;
@@ -460,12 +459,5 @@ impl PhotoInfo {
             row.set_visible(false);
             false
         }
-    }
-
-    fn folder_name(path: &PathBuf) -> Option<String> {
-        path.parent()
-            .and_then(|p| p.file_name())
-            .map(|n| n.to_string_lossy())
-            .map(|n| n.to_string())
     }
 }

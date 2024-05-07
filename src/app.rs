@@ -115,9 +115,6 @@ pub(super) struct App {
     // Stack containing Library, Selfies, Folders, etc.
     main_stack: gtk::Stack,
 
-    // Library pages
-    library_view_stack: adw::ViewStack,
-
     // Switch between library views and single image view.
     picture_navigation_view: adw::NavigationView,
 
@@ -432,8 +429,6 @@ impl SimpleComponent for App {
             video::Repository::open(&pic_base_dir, &cache_dir, con.clone()).unwrap()
         };
 
-        let video_transcoder = video::Transcoder::new(&cache_dir);
-
         let state = SharedState::new(relm4::SharedState::new());
         let active_view = ActiveView::new(relm4::SharedState::new());
 
@@ -533,8 +528,6 @@ impl SimpleComponent for App {
             },
         );
 
-        let library_view_stack = adw::ViewStack::new();
-
         let picture_navigation_view = adw::NavigationView::builder().build();
 
         let main_navigation = adw::OverlaySplitView::builder().build();
@@ -566,7 +559,7 @@ impl SimpleComponent for App {
 
             main_navigation: main_navigation.clone(),
             main_stack: main_stack.clone(),
-            library_view_stack: library_view_stack.clone(),
+
             picture_navigation_view: picture_navigation_view.clone(),
             header_bar: header_bar.clone(),
             spinner: spinner.clone(),
