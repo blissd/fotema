@@ -19,6 +19,7 @@ use relm4::{
     prelude::AsyncController,
     Component, ComponentController, ComponentParts, ComponentSender, Controller, RelmWidgetExt,
     SimpleComponent, WorkerController,
+    shared_state::Reducer,
 };
 
 use relm4;
@@ -53,11 +54,14 @@ use self::background::{
     video_transcode::{VideoTranscode, VideoTranscodeInput, VideoTranscodeOutput},
 };
 
+use self::components::progress_monitor::{ProgressMonitor, TaskName};
+use self::components::progress_panel::ProgressPanel;
+
 // Visual items to be shared between various views.
 // State is loaded by the `load_library` background task.
 type SharedState = Arc<relm4::SharedState<Vec<Arc<fotema_core::Visual>>>>;
 
-
+/// Name of a view that can be displayed
 #[derive(Copy, Clone, Debug, Eq, PartialEq, EnumString, IntoStaticStr)]
 pub enum ViewName {
     Nothing, // no view
@@ -77,6 +81,10 @@ impl Default for ViewName {
 }
 
 /// Currently visible view
+/// This allows a view to know if it is visible or not and to lazily load
+/// images into the photo grids. Without lazy loading Fotema will take too long to
+/// update its views and GNOME will tell the user "Fotema is not responding" and offer
+/// to kill the app :-(
 type ActiveView = Arc<relm4::SharedState<ViewName>>;
 
 pub(super) struct App {
@@ -119,19 +127,7 @@ pub(super) struct App {
     // Activity indicator. Only shown when progress bar is hidden.
     spinner: gtk::Spinner,
 
-    // TODO there are too many progress_* fields. Move to a custom Progress component?
-
-    // Progress indicator.
-    progress_bar: gtk::ProgressBar,
-
-    // Container for related progress bar components
-    progress_box: gtk::Box,
-
-    // Expected number of items we are recording progress for
-    progress_end_count: usize,
-
-    // Number of items processed so far.
-    progress_current_count: usize,
+    thumbnail_progress: Controller<ProgressPanel>,
 
     // Message banner
     banner: adw::Banner,
@@ -281,17 +277,8 @@ impl SimpleComponent for App {
                                         set_stack: &main_stack,
                                         set_vexpand: true,
                                     },
-                                    #[local_ref]
-                                    progress_box -> gtk::Box {
-                                        set_orientation: gtk::Orientation::Vertical,
-                                        set_margin_all: 12,
-                                        set_visible: false,
 
-                                        #[local_ref]
-                                        progress_bar -> gtk::ProgressBar {
-                                            set_show_text: true,
-                                        },
-                                    }
+                                    model.thumbnail_progress.widget(),
                                 }
                             }
                         },
@@ -459,12 +446,16 @@ impl SimpleComponent for App {
         let state = SharedState::new(relm4::SharedState::new());
         let active_view = ActiveView::new(relm4::SharedState::new());
 
+        let progress_monitor: Reducer<ProgressMonitor> = Reducer::new();
+        let progress_monitor = Arc::new(progress_monitor);
+
+        let thumbnail_progress = self::components::progress_panel::ProgressPanel::builder()
+            .launch(progress_monitor.clone())
+            .detach();
+
         let bootstrap = Bootstrap::builder()
-            .detach_worker((con.clone(), state.clone()))
+            .detach_worker((con.clone(), state.clone(), progress_monitor))
             .forward(sender.input_sender(), |msg| match msg {
-                BootstrapOutput::ProgressStarted(count, banner_msg, progress_label) => AppMsg::ProgressStarted(count, banner_msg, progress_label),
-                BootstrapOutput::ProgressAdvanced => AppMsg::ProgressAdvanced,
-                BootstrapOutput::ProgressCompleted => AppMsg::ProgressCompleted,
                 BootstrapOutput::TaskStarted(msg) => AppMsg::TaskStarted(msg),
                 BootstrapOutput::Completed => AppMsg::BootstrapCompleted,
             });
@@ -557,10 +548,6 @@ impl SimpleComponent for App {
 
         let spinner = gtk::Spinner::builder().visible(false).build();
 
-        let progress_bar = gtk::ProgressBar::builder().pulse_step(0.05).build();
-
-        let progress_box = gtk::Box::builder().build();
-
         let banner = adw::Banner::new("-");
 
         let model = Self {
@@ -586,10 +573,9 @@ impl SimpleComponent for App {
             picture_navigation_view: picture_navigation_view.clone(),
             header_bar: header_bar.clone(),
             spinner: spinner.clone(),
-            progress_bar: progress_bar.clone(),
-            progress_box: progress_box.clone(),
-            progress_end_count: 0,
-            progress_current_count: 0,
+
+            thumbnail_progress,
+
             banner: banner.clone(),
         };
 
@@ -701,8 +687,6 @@ impl SimpleComponent for App {
                 self.spinner.start();
                 self.banner.set_title(&msg);
                 self.banner.set_revealed(true);
-                self.progress_box.set_visible(false);
-                self.progress_bar.set_text(None);
             }
             AppMsg::ProgressStarted(count, banner_title, progress_label) => {
                 println!("Progress started: {}", banner_title);
@@ -713,44 +697,19 @@ impl SimpleComponent for App {
 
                 let show = self.main_navigation.shows_sidebar();
                 self.spinner.set_visible(!show);
-
-                self.progress_end_count = count;
-                self.progress_current_count = 0;
-
-                self.progress_box.set_visible(true);
-                self.progress_bar.set_fraction(0.0);
-                self.progress_bar.set_text(Some(&progress_label));
-                self.progress_bar.set_pulse_step(0.25);
             }
             AppMsg::ProgressAdvanced => {
                 println!("Progress advanced");
-                self.progress_current_count += 1;
-
-                // Show pulsing for first 20 items so that it catches the eye, then
-                // switch to fractional view
-                if self.progress_current_count < 20 {
-                    self.progress_bar.pulse();
-                } else {
-                    if self.progress_current_count == 20 {
-                        self.progress_bar.set_text(None);
-                    }
-                    let fraction =
-                        self.progress_current_count as f64 / self.progress_end_count as f64;
-                    self.progress_bar.set_fraction(fraction);
-                }
             }
             AppMsg::ProgressCompleted => {
                 println!("Progress completed.");
                 self.spinner.stop();
                 self.banner.set_revealed(false);
-                self.progress_box.set_visible(false);
             }
             AppMsg::BootstrapCompleted => {
                 println!("Bootstrap completed.");
                 self.spinner.stop();
                 self.banner.set_revealed(false);
-                self.progress_bar.set_text(None);
-                self.progress_box.set_visible(false);
             }
             AppMsg::TranscodeOne(visual_id) => {
                 self.video_transcode.emit(VideoTranscodeInput::One(visual_id));

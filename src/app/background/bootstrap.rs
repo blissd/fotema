@@ -6,7 +6,9 @@ use relm4::{
     WorkerController,
     gtk::glib,
     Worker,
+    shared_state::Reducer,
 };
+
 use crate::config::APP_ID;
 use fotema_core::database;
 use fotema_core::photo;
@@ -30,56 +32,39 @@ use super::{
 
 use crate::app::SharedState;
 
+use crate::app::components::progress_monitor::ProgressMonitor;
+
+/// FIXME copied from progress_monitor. Consolidate?
+#[derive(Debug)]
+pub enum MediaType {
+    Photo,
+    Video,
+}
+
+/// FIXME very similar (but different) to progress_monitor::TaskName.
+/// Any thoughts about this fact?
+#[derive(Debug)]
+pub enum TaskName {
+    Scan(MediaType),
+    Enrich(MediaType),
+    Thumbnail(MediaType),
+    Clean(MediaType),
+}
+
 #[derive(Debug)]
 pub enum BootstrapInput {
     Start,
 
-    // File-system scan events
-    PhotoScanStarted,
-    PhotoScanCompleted,
+    // A background task has started
+    TaskStarted(TaskName),
 
-    VideoScanStarted,
-    VideoScanCompleted,
-
-    // Enrich with metadata
-
-    PhotoEnrichmentStarted(usize),
-    PhotoEnrichmentCompleted,
-
-    VideoEnrichmentStarted(usize),
-    VideoEnrichmentCompleted,
-
-    // Thumbnail generation events
-
-    ThumbnailPhotosStarted(usize),
-    ThumbnailPhotosGenerated,
-    ThumbnailPhotosCompleted,
-
-    ThumbnailVideosStarted(usize),
-    ThumbnailVideosGenerated,
-    ThumbnailVideosCompleted,
-
-    // Cleanup events
-    PhotoCleanStarted,
-    PhotoCleanCompleted,
-
-    VideoCleanStarted,
-    VideoCleanCompleted,
+    // A background task has completed
+    TaskCompleted(TaskName),
 }
 
 #[derive(Debug)]
 pub enum BootstrapOutput {
-    // A task that can make progress has started.
-    // count of items, banner text, progress bar text
-    ProgressStarted(usize, String, String),
-
-    // One item has been processed
-    ProgressAdvanced,
-
-    // Finished processing
-    ProgressCompleted,
-
-    // Show banner message and start spinner
+     // Show banner message and start spinner
     TaskStarted(String),
 
     // Bootstrap process has completed.
@@ -106,11 +91,11 @@ pub struct Bootstrap {
 }
 
 impl Worker for Bootstrap {
-    type Init = (Arc<Mutex<database::Connection>>, SharedState);
+    type Init = (Arc<Mutex<database::Connection>>, SharedState, Arc<Reducer<ProgressMonitor>>);
     type Input = BootstrapInput;
     type Output = BootstrapOutput;
 
-    fn init((con, state): Self::Init, sender: ComponentSender<Self>) -> Self  {
+    fn init((con, state, progress_monitor): Self::Init, sender: ComponentSender<Self>) -> Self  {
         let data_dir = glib::user_data_dir().join(APP_ID);
         let _ = std::fs::create_dir_all(&data_dir);
 
@@ -153,59 +138,57 @@ impl Worker for Bootstrap {
         let scan_photos = ScanPhotos::builder()
             .detach_worker((photo_scan.clone(), photo_repo.clone()))
             .forward(sender.input_sender(), |msg| match msg {
-                ScanPhotosOutput::Started => BootstrapInput::PhotoScanStarted,
-                ScanPhotosOutput::Completed => BootstrapInput::PhotoScanCompleted,
+                ScanPhotosOutput::Started => BootstrapInput::TaskStarted(TaskName::Scan(MediaType::Photo)),
+                ScanPhotosOutput::Completed => BootstrapInput::TaskCompleted(TaskName::Scan(MediaType::Photo)),
             });
 
         let scan_videos = ScanVideos::builder()
             .detach_worker((video_scan.clone(), video_repo.clone()))
             .forward(sender.input_sender(), |msg| match msg {
-                ScanVideosOutput::Started => BootstrapInput::VideoScanStarted,
-                ScanVideosOutput::Completed => BootstrapInput::VideoScanCompleted,
-            });
-
-        let enrich_videos = EnrichVideos::builder()
-            .detach_worker(video_repo.clone())
-            .forward(sender.input_sender(), |msg| match msg {
-                EnrichVideosOutput::Started(count) => BootstrapInput::VideoEnrichmentStarted(count),
-                EnrichVideosOutput::Completed => BootstrapInput::VideoEnrichmentCompleted,
+                ScanVideosOutput::Started => BootstrapInput::TaskStarted(TaskName::Scan(MediaType::Video)),
+                ScanVideosOutput::Completed => BootstrapInput::TaskCompleted(TaskName::Scan(MediaType::Video)),
             });
 
         let enrich_photos = EnrichPhotos::builder()
             .detach_worker(photo_repo.clone())
             .forward(sender.input_sender(), |msg| match msg {
-                EnrichPhotosOutput::Started(count) => BootstrapInput::PhotoEnrichmentStarted(count),
-                EnrichPhotosOutput::Completed => BootstrapInput::PhotoEnrichmentCompleted,
+                EnrichPhotosOutput::Started => BootstrapInput::TaskStarted(TaskName::Enrich(MediaType::Photo)),
+                EnrichPhotosOutput::Completed => BootstrapInput::TaskCompleted(TaskName::Enrich(MediaType::Photo)),
+            });
+
+        let enrich_videos = EnrichVideos::builder()
+            .detach_worker(video_repo.clone())
+            .forward(sender.input_sender(), |msg| match msg {
+                EnrichVideosOutput::Started => BootstrapInput::TaskStarted(TaskName::Enrich(MediaType::Video)),
+                EnrichVideosOutput::Completed => BootstrapInput::TaskCompleted(TaskName::Enrich(MediaType::Video)),
             });
 
         let thumbnail_photos = ThumbnailPhotos::builder()
-            .detach_worker((photo_thumbnailer.clone(), photo_repo.clone()))
+            .detach_worker((photo_thumbnailer.clone(), photo_repo.clone(), progress_monitor.clone()))
             .forward(sender.input_sender(), |msg| match msg {
-                ThumbnailPhotosOutput::Started(count) => BootstrapInput::ThumbnailPhotosStarted(count),
-                ThumbnailPhotosOutput::Generated => BootstrapInput::ThumbnailPhotosGenerated,
-                ThumbnailPhotosOutput::Completed => BootstrapInput::ThumbnailPhotosCompleted,
+                ThumbnailPhotosOutput::Started => BootstrapInput::TaskStarted(TaskName::Thumbnail(MediaType::Photo)),
+                ThumbnailPhotosOutput::Completed => BootstrapInput::TaskCompleted(TaskName::Thumbnail(MediaType::Photo)),
             });
 
         let thumbnail_videos = ThumbnailVideos::builder()
-            .detach_worker((video_thumbnailer.clone(), video_repo.clone()))
+            .detach_worker((video_thumbnailer.clone(), video_repo.clone(), progress_monitor.clone()))
             .forward(sender.input_sender(), |msg| match msg {
-                ThumbnailVideosOutput::Started(count) => BootstrapInput::ThumbnailVideosStarted(count),
-                ThumbnailVideosOutput::Generated => BootstrapInput::ThumbnailVideosGenerated,
-                ThumbnailVideosOutput::Completed => BootstrapInput::ThumbnailVideosCompleted,
+                ThumbnailVideosOutput::Started => BootstrapInput::TaskStarted(TaskName::Thumbnail(MediaType::Video)),
+                ThumbnailVideosOutput::Completed => BootstrapInput::TaskCompleted(TaskName::Thumbnail(MediaType::Video)),
             });
 
         let clean_photos = CleanPhotos::builder()
             .detach_worker(photo_repo.clone())
             .forward(sender.input_sender(), |msg| match msg {
-                CleanPhotosOutput::Started => BootstrapInput::PhotoCleanStarted,
-                CleanPhotosOutput::Completed => BootstrapInput::PhotoCleanCompleted,
+                CleanPhotosOutput::Started => BootstrapInput::TaskStarted(TaskName::Clean(MediaType::Photo)),
+                CleanPhotosOutput::Completed => BootstrapInput::TaskCompleted(TaskName::Scan(MediaType::Video)),
             });
 
         let clean_videos = CleanVideos::builder()
             .detach_worker(video_repo.clone())
             .forward(sender.input_sender(), |msg| match msg {
-                CleanVideosOutput::Started => BootstrapInput::VideoCleanStarted,
-                CleanVideosOutput::Completed => BootstrapInput::VideoCleanCompleted,
+                CleanVideosOutput::Started => BootstrapInput::TaskStarted(TaskName::Clean(MediaType::Video)),
+                CleanVideosOutput::Completed => BootstrapInput::TaskCompleted(TaskName::Clean(MediaType::Video)),
             });
 
         let model = Bootstrap {
@@ -232,89 +215,70 @@ impl Worker for Bootstrap {
                 self.started_at = Some(Instant::now());
                 self.scan_photos.emit(ScanPhotosInput::Start);
             }
-            BootstrapInput::PhotoScanStarted => {
+            BootstrapInput::TaskStarted(TaskName::Scan(MediaType::Photo)) => {
                 println!("bootstrap: scan photos started");
                 let _  = sender.output(BootstrapOutput::TaskStarted(String::from("Scanning file system for photos.")));
             }
-            BootstrapInput::PhotoScanCompleted => {
+            BootstrapInput::TaskCompleted(TaskName::Scan(MediaType::Photo)) => {
                 println!("bootstrap: scan photos completed");
                 self.scan_videos.emit(ScanVideosInput::Start);
             }
-            BootstrapInput::VideoScanStarted => {
+            BootstrapInput::TaskStarted(TaskName::Scan(MediaType::Video)) => {
                 println!("bootstrap: scan videos started");
                 let _  = sender.output(BootstrapOutput::TaskStarted(String::from("Scanning file system for videos.")));
             }
-            BootstrapInput::VideoScanCompleted => {
+            BootstrapInput::TaskCompleted(TaskName::Scan(MediaType::Video)) => {
                 println!("bootstrap: scan videos completed");
                 self.enrich_photos.emit(EnrichPhotosInput::Start);
             }
-            BootstrapInput::PhotoEnrichmentStarted(count) => {
+            BootstrapInput::TaskStarted(TaskName::Enrich(MediaType::Photo)) => {
                 println!("bootstrap: photo enrichment started");
-                let msg = "Processing photo metadata.".to_string();
-                let _ = sender.output(BootstrapOutput::ProgressStarted(count, msg.clone(), msg));
+                let _  = sender.output(BootstrapOutput::TaskStarted(String::from("Processing photo metadata.")));
             }
-            BootstrapInput::PhotoEnrichmentCompleted => {
+            BootstrapInput::TaskCompleted(TaskName::Enrich(MediaType::Photo)) => {
                 println!("bootstrap: photo enrichment completed");
-                let _ = sender.output(BootstrapOutput::ProgressCompleted);
                 self.enrich_videos.emit(EnrichVideosInput::Start);
             }
-            BootstrapInput::VideoEnrichmentStarted(count) => {
+            BootstrapInput::TaskStarted(TaskName::Enrich(MediaType::Video)) => {
                 println!("bootstrap: video enrichment started");
-                let msg = "Processing video metadata.".to_string();
-                let _ = sender.output(BootstrapOutput::ProgressStarted(count, msg.clone(), msg));
+                let _  = sender.output(BootstrapOutput::TaskStarted(String::from("Processing video metadata.")));
             }
-            BootstrapInput::VideoEnrichmentCompleted => {
+            BootstrapInput::TaskCompleted(TaskName::Enrich(MediaType::Video)) => {
                 println!("bootstrap: video enrichment completed");
-                let _ = sender.output(BootstrapOutput::ProgressCompleted);
                 self.load_library.emit(LoadLibraryInput::Refresh);
                 self.thumbnail_photos.emit(ThumbnailPhotosInput::Start);
             }
-            BootstrapInput::ThumbnailPhotosStarted(count) => {
+            BootstrapInput::TaskStarted(TaskName::Thumbnail(MediaType::Photo)) => {
                 println!("bootstrap: photo thumbnails started");
-                let banner = "Generating photo thumbnails. This will take a while.".to_string();
-                let progress_text = "Generating photo thumbnails.".to_string();
-                let _ = sender.output(BootstrapOutput::ProgressStarted(count, banner, progress_text));
+                let _  = sender.output(BootstrapOutput::TaskStarted(String::from("Generating photo thumbnails. This will take a while.")));
             }
-            BootstrapInput::ThumbnailPhotosGenerated => {
-                println!("bootstrap: photo thumbnails advanced");
-                let _ = sender.output(BootstrapOutput::ProgressAdvanced);
-            }
-            BootstrapInput::ThumbnailPhotosCompleted => {
+            BootstrapInput::TaskCompleted(TaskName::Thumbnail(MediaType::Photo)) => {
                 println!("bootstrap: photo thumbnails completed");
-                let _ = sender.output(BootstrapOutput::ProgressCompleted);
                 self.thumbnail_videos.emit(ThumbnailVideosInput::Start);
             }
-            BootstrapInput::ThumbnailVideosStarted(count) => {
+            BootstrapInput::TaskStarted(TaskName::Thumbnail(MediaType::Video)) => {
                 println!("bootstrap: video thumbnails started");
-                let banner = "Generating video thumbnails. This will take a while.".to_string();
-                let progress_text = "Generating video thumbnails.".to_string();
-                let _ = sender.output(BootstrapOutput::ProgressStarted(count, banner, progress_text));
+                let _  = sender.output(BootstrapOutput::TaskStarted(String::from("Generating video thumbnails. This will take a while.")));
             }
-            BootstrapInput::ThumbnailVideosGenerated => {
-                println!("bootstrap: photo thumbnails advanced");
-                let _ = sender.output(BootstrapOutput::ProgressAdvanced);
-            }
-            BootstrapInput::ThumbnailVideosCompleted => {
+            BootstrapInput::TaskCompleted(TaskName::Thumbnail(MediaType::Video)) => {
                 let duration = self.started_at.map(|x| x.elapsed());
                 println!("bootstrap: video thumbnails completed in {:?}", duration);
                 self.clean_photos.emit(CleanPhotosInput::Start);
             }
-            BootstrapInput::PhotoCleanStarted => {
+            BootstrapInput::TaskStarted(TaskName::Clean(MediaType::Photo)) => {
                 println!("bootstrap: photo cleanup started.");
                 let _  = sender.output(BootstrapOutput::TaskStarted(String::from("Photo database maintenance.")));
             }
-            BootstrapInput::PhotoCleanCompleted => {
+            BootstrapInput::TaskCompleted(TaskName::Clean(MediaType::Photo)) => {
                 println!("bootstrap: photo cleanup completed.");
                 self.clean_videos.emit(CleanVideosInput::Start);
             }
-            BootstrapInput::VideoCleanStarted => {
+            BootstrapInput::TaskStarted(TaskName::Clean(MediaType::Video)) => {
                 println!("bootstrap: video cleanup started.");
                 let _  = sender.output(BootstrapOutput::TaskStarted(String::from("Video database maintenance.")));
             }
-            BootstrapInput::VideoCleanCompleted => {
+            BootstrapInput::TaskCompleted(TaskName::Clean(MediaType::Video)) => {
                 println!("bootstrap: video cleanup completed.");
-
-                let _ = sender.output(BootstrapOutput::ProgressCompleted);
                 let _ = sender.output(BootstrapOutput::Completed);
             }
         };

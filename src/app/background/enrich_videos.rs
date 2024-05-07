@@ -14,8 +14,8 @@ pub enum EnrichVideosInput {
 
 #[derive(Debug)]
 pub enum EnrichVideosOutput {
-    // Thumbnail generation has started for a given number of videos.
-    Started(usize),
+    // Thumbnail generation has started.
+    Started,
 
     // Thumbnail generation has completed
     Completed,
@@ -33,12 +33,11 @@ impl EnrichVideos {
      {
         let start = std::time::Instant::now();
 
+        let _ = sender.output(EnrichVideosOutput::Started);
+
         let unprocessed = repo.find_need_metadata_update()?;
 
         let count = unprocessed.len();
-        if let Err(e) = sender.output(EnrichVideosOutput::Started(count)){
-            println!("Failed sending gen started: {:?}", e);
-        }
 
         let metadatas = unprocessed
             //.par_iter() // don't multiprocess until memory usage is better understood.

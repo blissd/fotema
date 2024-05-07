@@ -17,7 +17,7 @@ pub enum EnrichPhotosInput {
 #[derive(Debug)]
 pub enum EnrichPhotosOutput {
     // Metadata enrichment started.
-    Started(usize),
+    Started,
 
     // Metadata enrichment completed
     Completed,
@@ -37,12 +37,11 @@ impl EnrichPhotos {
      {
         let start = std::time::Instant::now();
 
+        let _ = sender.output(EnrichPhotosOutput::Started);
+
         let unprocessed = repo.find_need_metadata_update()?;
 
         let count = unprocessed.len();
-        if let Err(e) = sender.output(EnrichPhotosOutput::Started(count)){
-            println!("Failed sending gen started: {:?}", e);
-        }
 
         let metadatas = unprocessed
             .par_iter() // don't multiprocess until memory usage is better understood.

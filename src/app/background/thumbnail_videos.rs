@@ -4,7 +4,16 @@
 
 use relm4::prelude::*;
 use relm4::Worker;
+use relm4::Reducer;
 use anyhow::*;
+use std::sync::Arc;
+
+use crate::app::components::progress_monitor::{
+    ProgressMonitor,
+    ProgressMonitorInput,
+    TaskName,
+    MediaType
+};
 
 
 #[derive(Debug)]
@@ -14,11 +23,8 @@ pub enum ThumbnailVideosInput {
 
 #[derive(Debug)]
 pub enum ThumbnailVideosOutput {
-    // Thumbnail generation has started for a given number of videos.
-    Started(usize),
-
-    // Thumbnail has been generated for a photo.
-    Generated,
+    // Thumbnail generation has started
+    Started,
 
     // Thumbnail generation has completed
     Completed,
@@ -30,6 +36,8 @@ pub struct ThumbnailVideos {
 
     // Danger! Don't hold the repo mutex for too long as it blocks viewing images.
     repo: fotema_core::video::Repository,
+
+    progress_monitor: Arc<Reducer<ProgressMonitor>>,
 }
 
 impl ThumbnailVideos {
@@ -37,9 +45,12 @@ impl ThumbnailVideos {
     fn enrich(
         repo: fotema_core::video::Repository,
         thumbnailer: fotema_core::video::Thumbnailer,
-        sender: &ComponentSender<ThumbnailVideos>) -> Result<()>
+        progress_monitor: Arc<Reducer<ProgressMonitor>>,
+        sender: ComponentSender<ThumbnailVideos>) -> Result<()>
      {
         let start = std::time::Instant::now();
+
+        let _ = sender.output(ThumbnailVideosOutput::Started);
 
         let mut unprocessed: Vec<fotema_core::video::model::Video> = repo
             .all()?
@@ -51,9 +62,8 @@ impl ThumbnailVideos {
         unprocessed.reverse();
 
         let count = unprocessed.len();
-        if let Err(e) = sender.output(ThumbnailVideosOutput::Started(count)){
-            println!("Failed sending gen started: {:?}", e);
-        }
+
+        progress_monitor.emit(ProgressMonitorInput::Start(TaskName::Thumbnail(MediaType::Video), count));
 
         unprocessed
             //.par_iter() // don't multiprocess until memory usage is better understood.
@@ -64,30 +74,31 @@ impl ThumbnailVideos {
 
                 if let Err(e) = result {
                     println!("Failed add_thumbnail: {:?}", e);
-                } else if let Err(e) = sender.output(ThumbnailVideosOutput::Generated) {
-                    println!("Failed sending ThumbnailVideosOutput::Generated: {:?}", e);
                 }
+
+                progress_monitor.emit(ProgressMonitorInput::Advance);
             });
 
         println!("Generated {} video thumbnails in {} seconds.", count, start.elapsed().as_secs());
 
-        if let Err(e) = sender.output(ThumbnailVideosOutput::Completed) {
-            println!("Failed sending ThumbnailVideosOutput::Completed: {:?}", e);
-        }
+        progress_monitor.emit(ProgressMonitorInput::Complete);
+
+        let _ = sender.output(ThumbnailVideosOutput::Completed);
 
         Ok(())
     }
 }
 
 impl Worker for ThumbnailVideos {
-    type Init = (fotema_core::video::Thumbnailer, fotema_core::video::Repository);
+    type Init = (fotema_core::video::Thumbnailer, fotema_core::video::Repository, Arc<Reducer<ProgressMonitor>>);
     type Input = ThumbnailVideosInput;
     type Output = ThumbnailVideosOutput;
 
-    fn init((thumbnailer, repo): Self::Init, _sender: ComponentSender<Self>) -> Self  {
+    fn init((thumbnailer, repo, progress_monitor): Self::Init, _sender: ComponentSender<Self>) -> Self  {
         let model = Self {
             thumbnailer,
             repo,
+            progress_monitor,
         };
         model
     }
@@ -99,10 +110,11 @@ impl Worker for ThumbnailVideos {
                 println!("Generating photo thumbnails...");
                 let repo = self.repo.clone();
                 let thumbnailer = self.thumbnailer.clone();
+                let progress_monitor = self.progress_monitor.clone();
 
                 // Avoid runtime panic from calling block_on
                 rayon::spawn(move || {
-                    if let Err(e) = ThumbnailVideos::enrich(repo, thumbnailer, &sender) {
+                    if let Err(e) = ThumbnailVideos::enrich(repo, thumbnailer, progress_monitor, sender) {
                         println!("Failed to update video thumbnails: {}", e);
                     }
                 });

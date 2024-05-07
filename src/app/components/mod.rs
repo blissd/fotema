@@ -11,3 +11,5 @@ pub mod one_photo;
 pub mod photo_info;
 pub mod folder_photos;
 pub mod library;
+pub mod progress_monitor;
+pub mod progress_panel;
