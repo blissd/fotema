@@ -168,6 +168,8 @@ impl SimpleComponent for FolderPhotos {
             FolderPhotosInput::Refresh => {
                 if *self.active_view.read() == ViewName::Folders {
                     self.refresh();
+                } else {
+                    self.photo_grid.clear();
                 }
             }
             FolderPhotosInput::FolderSelected(index) => {

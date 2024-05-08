@@ -179,6 +179,8 @@ impl SimpleComponent for MonthPhotos {
             MonthPhotosInput::Refresh => {
                 if *self.active_view.read() == ViewName::Month {
                     self.refresh();
+                } else {
+                    self.photo_grid.clear();
                 }
             }
             MonthPhotosInput::MonthSelected(index) => {

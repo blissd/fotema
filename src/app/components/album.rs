@@ -259,6 +259,8 @@ impl SimpleComponent for Album {
             AlbumInput::Refresh => {
                 if *self.active_view.read() == self.view_name {
                     self.refresh();
+                } else {
+                    self.photo_grid.clear();
                 }
             }
             AlbumInput::Filter(filter) => {

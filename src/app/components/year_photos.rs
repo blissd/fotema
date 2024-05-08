@@ -170,6 +170,8 @@ impl SimpleComponent for YearPhotos {
             YearPhotosInput::Refresh => {
                 if *self.active_view.read() == ViewName::Year {
                     self.refresh();
+                } else {
+                    self.photo_grid.clear();
                 }
             }
             YearPhotosInput::YearSelected(index) => {

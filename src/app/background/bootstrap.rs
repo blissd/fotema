@@ -215,6 +215,9 @@ impl Worker for Bootstrap {
             BootstrapInput::Start => {
                 event!(Level::INFO, "bootstrap: start");
                 self.started_at = Some(Instant::now());
+
+                // Initial library load to reduce time from starting app and seeing a photo grid
+                self.load_library.emit(LoadLibraryInput::Refresh);
                 self.scan_photos.emit(ScanPhotosInput::Start);
             }
             BootstrapInput::TaskStarted(TaskName::Scan(MediaType::Photo)) => {
@@ -247,7 +250,12 @@ impl Worker for Bootstrap {
             }
             BootstrapInput::TaskCompleted(TaskName::Enrich(MediaType::Video)) => {
                 event!(Level::INFO, "bootstrap: video enrichment completed");
+
+                // metadata might have changed, so reload library
+                // FIXME only reload if we know new items were found when scanning,
+                // or items had metadata updated
                 self.load_library.emit(LoadLibraryInput::Refresh);
+
                 self.thumbnail_photos.emit(ThumbnailPhotosInput::Start);
             }
             BootstrapInput::TaskStarted(TaskName::Thumbnail(MediaType::Photo)) => {
