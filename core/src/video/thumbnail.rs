@@ -46,6 +46,8 @@ impl Thumbnailer {
             });
         }
 
+        event!(Level::DEBUG, "Standard thumbnail: {:?}", video_path);
+
         self.compute_thumbnail(video_path, &thumbnail_path)
             .map(|_| thumbnail_path)
             .inspect_err(|e| event!(Level::ERROR, "Video thumbnail error: {:?}", e))
