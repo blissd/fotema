@@ -31,9 +31,20 @@ impl Thumbnailer {
     /// into the Repository. Preview image will be written to file system.
     pub fn thumbnail(&self, video_id: &VideoId, video_path: &Path) -> Result<PathBuf> {
         let thumbnail_path = {
+            // Create a directory per 1000 thumbnails
+            let partition = (video_id.id() / 1000) as i32;
+            let partition = format!("{:0>4}", partition);
             let file_name = format!("{}_{}x{}.png", video_id, EDGE, EDGE);
-            self.base_path.join(file_name)
+            self.base_path.join(partition).join(file_name)
         };
+
+        if thumbnail_path.exists() {
+            return Ok(thumbnail_path);
+        } else {
+            thumbnail_path.parent().map(|p| {
+                let _ = std::fs::create_dir_all(p);
+            });
+        }
 
         self.compute_thumbnail(video_path, &thumbnail_path)
             .map(|_| thumbnail_path)
@@ -41,10 +52,6 @@ impl Thumbnailer {
     }
 
     fn compute_thumbnail(&self, video_path: &Path, thumbnail_path: &Path) -> Result<()> {
-        if thumbnail_path.exists() {
-            return Ok(());
-        }
-
         let temporary_png_file = tempfile::Builder::new().suffix(".png").tempfile()?;
 
         // ffmpeg command will extract the first frame and save it as a PNG file.

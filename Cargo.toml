@@ -19,7 +19,7 @@ codegen-units = 1
 [dependencies]
 gettext-rs = { version = "0.7", features = ["gettext-system"] }
 tracing = "0.1.37"
-tracing-subscriber = { version = "0.3.18", features = ["chrono"] }
+tracing-subscriber = { version = "0.3.18", features = ["chrono", "env-filter"] }
 relm4 = { version = "0.8.1", features = ["libadwaita", "gnome_46"] }
 itertools = "0.12.1"
 humansize = "2.1.3"

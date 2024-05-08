@@ -17,11 +17,19 @@ use relm4::{
     gtk, main_application, RelmApp,
 };
 
+use tracing_subscriber::filter::{EnvFilter, LevelFilter};
+
 relm4::new_action_group!(AppActionGroup, "app");
 relm4::new_stateless_action!(QuitAction, AppActionGroup, "quit");
 
 fn main() {
     gtk::init().unwrap();
+
+    let env_filter = EnvFilter::try_from_env("RUST_LOG")
+        .expect("Valid logging config")
+        //.add_directive("fotema=debug".parse().expect("Valid logging config"))
+        // glycin logs giant messages from zbus
+        .add_directive("glycin=warn".parse().expect("Valid logging config"));
 
     // Enable logging
     tracing_subscriber::fmt()
@@ -30,6 +38,7 @@ fn main() {
         .with_timer(tracing_subscriber::fmt::time::ChronoLocal::new(
             "%T%.3f".into(),
         ))
+        .with_env_filter(env_filter)
         .compact()
         .init();
 
