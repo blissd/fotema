@@ -33,8 +33,8 @@ SELECT
   videos.duration_millis as duration_millis,
   COALESCE(
     pictures.exif_created_ts,
-    pictures.exif_modified_ts,
     videos.stream_created_ts,
+    pictures.exif_modified_ts,
     pictures.fs_created_ts,
     videos.fs_created_ts
   ) AS created_ts
