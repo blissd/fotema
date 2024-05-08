@@ -68,9 +68,11 @@ impl ThumbnailPhotos {
 
         progress_monitor.emit(ProgressMonitorInput::Start(TaskName::Thumbnail(MediaType::Photo), count));
 
+        // One thread per CPU core... makes my laptop sluggish and hot... also likes memory.
+        // Might need to consider constraining number of CPUs to use less memory or to
+        // keep the computer more response while thumbnail generation is going on.
         unprocessed
-            //.par_iter() // don't multiprocess until memory usage is better understood.
-            .iter()
+            .par_iter()
             .for_each(|pic| {
                 let result = block_on(async {thumbnailer.thumbnail(&pic.picture_id, &pic.path).await});
 
