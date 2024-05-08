@@ -74,17 +74,11 @@ impl SimpleComponent for ProgressPanel {
                     }
                 }
 
-                // Show pulsing for first 20 items so that it catches the eye, then
-                // switch to fractional view
-                if count < 20 {
-                    self.progress_bar.pulse();
-                } else {
-                    self.progress_bar.set_fraction(fraction);
-                }
-
                 if is_complete {
                     self.progress_bar.set_visible(false);
                     self.progress_bar.set_text(None);
+                } else {
+                    self.progress_bar.set_fraction(fraction);
                 }
             }
         }
