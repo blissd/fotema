@@ -14,7 +14,7 @@ use super::progress_monitor::{ProgressMonitor, TaskName, MediaType};
 
 #[derive(Debug)]
 pub enum ProgressPanelInput {
-    Update(TaskName, f64, usize),
+    Update(TaskName, f64, usize, bool),
 }
 
 /// Shows progress of a background task
@@ -44,7 +44,7 @@ impl SimpleComponent for ProgressPanel {
     ) -> ComponentParts<Self> {
 
         progress_monitor.subscribe(&sender.input_sender(),
-            |data| ProgressPanelInput::Update(data.task_name, data.fraction(), data.current_count));
+            |data| ProgressPanelInput::Update(data.task_name, data.fraction(), data.current_count, data.is_complete()));
 
         let model = ProgressPanel { progress_bar: progress_bar.clone() };
 
@@ -55,7 +55,7 @@ impl SimpleComponent for ProgressPanel {
 
     fn update(&mut self, msg: Self::Input, _sender: ComponentSender<Self>) {
         match msg {
-            ProgressPanelInput::Update(task_name, fraction, count) => {
+            ProgressPanelInput::Update(task_name, fraction, count, is_complete) => {
                 if count == 0 {
                     self.progress_bar.set_visible(true);
                     match task_name {
@@ -82,7 +82,7 @@ impl SimpleComponent for ProgressPanel {
                     self.progress_bar.set_fraction(fraction);
                 }
 
-                if fraction >= 1.0 {
+                if is_complete {
                     self.progress_bar.set_visible(false);
                     self.progress_bar.set_text(None);
                 }

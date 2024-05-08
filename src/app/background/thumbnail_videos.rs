@@ -8,6 +8,9 @@ use relm4::Reducer;
 use anyhow::*;
 use std::sync::Arc;
 use tracing::{event, Level};
+use rayon::prelude::*;
+
+use fotema_core::video::{Video, Thumbnailer, Repository};
 
 use crate::app::components::progress_monitor::{
     ProgressMonitor,
@@ -33,10 +36,10 @@ pub enum ThumbnailVideosOutput {
 }
 
 pub struct ThumbnailVideos {
-    thumbnailer: fotema_core::video::Thumbnailer,
+    thumbnailer: Thumbnailer,
 
     // Danger! Don't hold the repo mutex for too long as it blocks viewing images.
-    repo: fotema_core::video::Repository,
+    repo: Repository,
 
     progress_monitor: Arc<Reducer<ProgressMonitor>>,
 }
@@ -44,8 +47,8 @@ pub struct ThumbnailVideos {
 impl ThumbnailVideos {
 
     fn enrich(
-        repo: fotema_core::video::Repository,
-        thumbnailer: fotema_core::video::Thumbnailer,
+        repo: Repository,
+        thumbnailer: Thumbnailer,
         progress_monitor: Arc<Reducer<ProgressMonitor>>,
         sender: ComponentSender<ThumbnailVideos>) -> Result<()>
      {
@@ -53,7 +56,7 @@ impl ThumbnailVideos {
 
         let _ = sender.output(ThumbnailVideosOutput::Started);
 
-        let mut unprocessed: Vec<fotema_core::video::model::Video> = repo
+        let mut unprocessed: Vec<Video> = repo
             .all()?
             .into_iter()
             .filter(|vid| !vid.thumbnail_path.as_ref().is_some_and(|p| p.exists()))
@@ -67,8 +70,8 @@ impl ThumbnailVideos {
         progress_monitor.emit(ProgressMonitorInput::Start(TaskName::Thumbnail(MediaType::Video), count));
 
         unprocessed
-            //.par_iter() // don't multiprocess until memory usage is better understood.
-            .iter()
+            .par_iter() // don't multiprocess until memory usage is better understood.
+            //.iter()
             .for_each(|vid| {
                 let result = thumbnailer.thumbnail(&vid.video_id, &vid.path);
                 let result = result.and_then(|thumbnail_path| repo.clone().add_thumbnail(&vid.video_id, &thumbnail_path));
@@ -91,7 +94,7 @@ impl ThumbnailVideos {
 }
 
 impl Worker for ThumbnailVideos {
-    type Init = (fotema_core::video::Thumbnailer, fotema_core::video::Repository, Arc<Reducer<ProgressMonitor>>);
+    type Init = (Thumbnailer, Repository, Arc<Reducer<ProgressMonitor>>);
     type Input = ThumbnailVideosInput;
     type Output = ThumbnailVideosOutput;
 

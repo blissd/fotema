@@ -53,7 +53,7 @@ mod background;
 
 use self::background::{
     bootstrap::{Bootstrap, BootstrapInput, BootstrapOutput},
-    video_transcode::{VideoTranscode, VideoTranscodeInput, VideoTranscodeOutput},
+    video_transcode::{VideoTranscode, VideoTranscodeInput},
 };
 
 use self::components::progress_monitor::ProgressMonitor;
@@ -161,9 +161,6 @@ pub(super) enum AppMsg {
     BootstrapCompleted,
 
     TranscodeAll,
-
-    VideoTranscodeStarted,
-    VideoTranscodeCompleted,
 }
 
 relm4::new_action_group!(pub(super) WindowActionGroup, "win");
@@ -465,10 +462,7 @@ impl SimpleComponent for App {
 
         let video_transcode = VideoTranscode::builder()
             .detach_worker((state.clone(), video_repo, transcoder.clone(), transcode_progress_monitor.clone()))
-            .forward(sender.input_sender(), |msg| match msg {
-                VideoTranscodeOutput::Started => AppMsg::VideoTranscodeStarted,
-                VideoTranscodeOutput::Completed => AppMsg::VideoTranscodeCompleted,
-            });
+            .detach();
 
         let one_photo = OnePhoto::builder()
             .launch((state.clone(), transcode_progress_monitor.clone()))
@@ -690,12 +684,7 @@ impl SimpleComponent for App {
                 event!(Level::INFO, "Transcode all");
                 self.video_transcode.emit(VideoTranscodeInput::All);
             },
-            AppMsg::VideoTranscodeStarted => {
-                event!(Level::INFO, "Video transcode started");
-            },
-            AppMsg::VideoTranscodeCompleted => {
-                event!(Level::INFO, "Video transcode completed");
-            },
+
             AppMsg::PreferencesUpdated => {
                 event!(Level::INFO, "Preferences updated.");
                 // TODO create a Preferences struct to hold preferences and send with update message.

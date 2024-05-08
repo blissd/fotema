@@ -43,7 +43,15 @@ pub struct ProgressMonitor {
 
 impl ProgressMonitor {
     pub fn fraction(&self) -> f64 {
-        self.current_count as f64 / self.end_count as f64
+        if self.end_count == 0 {
+            0.0
+        } else {
+            self.current_count as f64 / self.end_count as f64
+        }
+    }
+
+    pub fn is_complete(&self) -> bool {
+        self.current_count == self.end_count
     }
 }
 
@@ -62,7 +70,9 @@ impl Reducible for ProgressMonitor {
                 self.current_count = 0;
             }
             ProgressMonitorInput::Advance =>  {
-                self.current_count += 1;
+                if self.current_count < self.end_count {
+                    self.current_count += 1;
+                }
             }
             ProgressMonitorInput::Complete =>  {
                 self.current_count = self.end_count;
