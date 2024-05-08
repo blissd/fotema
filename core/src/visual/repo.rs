@@ -159,17 +159,8 @@ impl Repository {
         let video_transcoded_path: Option<PathBuf> = row
             .get("video_transcoded_path")
             .ok()
-            .map(|x: String| PathBuf::from(x));
-
-        let video_transcoded_path = if let Some(ref video_id) = video_id {
-            video_transcoded_path.or_else(|| {
-                Some(path::Path::new("video_transcodes").join(format!("{}.mkv", video_id)))
-            })
-        } else {
-            video_transcoded_path
-        };
-
-        let video_transcoded_path = video_transcoded_path.map(|x| self.thumbnail_base_path.join(x));
+            .map(|x: String| PathBuf::from(x))
+            .map(|x| self.thumbnail_base_path.join(x));
 
         let is_transcode_required: Option<bool> = row.get("is_transcode_required").ok();
 
