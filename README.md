@@ -9,7 +9,7 @@ __fotema__ (___adj. Esperanto___) "fond of taking photos"
 
 A photo gallery for Linux.
 
-![All Photos View](/build-aux/screenshots/all-photos.png?raw=true "All Photos View")
+![All Photos View](/data/resources/screenshots/all-photos.png?raw=true "All Photos View")
 
 ## Building the project
 
