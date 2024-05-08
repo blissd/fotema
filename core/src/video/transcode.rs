@@ -36,10 +36,11 @@ impl Transcoder {
 
         event!(Level::DEBUG, "Transcoding video: {:?}", video_path);
 
-        let temporary_transcoded_path = transcoded_path.with_extension("tmp");
+        let temporary_transcoded_path = transcoded_path.with_extension("tmp.mkv");
 
         // FIXME can transcoding be reliably hardware accelerated?
         Command::new("ffmpeg")
+            .arg("-y")
             .arg("-loglevel")
             .arg("error")
             .arg("-i")
