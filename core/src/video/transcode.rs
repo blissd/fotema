@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+use anyhow::*;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -15,10 +16,6 @@ pub struct Transcoder {
     base_path: PathBuf,
 }
 
-pub enum Error {
-    Invalid(String),
-}
-
 impl Transcoder {
     pub fn new(base_path: &Path) -> Self {
         let base_path = PathBuf::from(base_path).join("video_transcodes");
@@ -27,7 +24,7 @@ impl Transcoder {
     }
 
     /// Transcodes the video at 'path' and returns a path to the transcoded video.
-    pub fn transcode(&self, video_id: VideoId, video_path: &Path) -> Result<PathBuf, Error> {
+    pub fn transcode(&self, video_id: VideoId, video_path: &Path) -> Result<PathBuf> {
         let transcoded_path = {
             let file_name = format!("{}.mkv", video_id);
             self.base_path.join(file_name)
@@ -39,6 +36,8 @@ impl Transcoder {
 
         event!(Level::DEBUG, "Transcoding video: {:?}", video_path);
 
+        let temporary_transcoded_path = transcoded_path.with_extension("tmp");
+
         // FIXME can transcoding be reliably hardware accelerated?
         Command::new("ffmpeg")
             .arg("-loglevel")
@@ -49,9 +48,10 @@ impl Transcoder {
             .arg("copy")
             .arg("-c:v")
             .arg("h264")
-            .arg(transcoded_path.as_os_str())
-            .status()
-            .map_err(|e| Error::Invalid(format!("ffmpeg transcode result: {}", e)))?;
+            .arg(temporary_transcoded_path.as_os_str())
+            .status()?;
+
+        std::fs::rename(&temporary_transcoded_path, &transcoded_path)?;
 
         Ok(PathBuf::from(transcoded_path))
     }

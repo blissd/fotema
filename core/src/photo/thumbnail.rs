@@ -12,8 +12,10 @@ use image::io::Reader as ImageReader;
 use image::ExtendedColorType;
 use image::ImageEncoder;
 use std::io::BufWriter;
+use std::io::Write;
 use std::num::NonZeroU32;
 use std::path::{Path, PathBuf};
+use tracing::{event, Level};
 
 use tempfile;
 
@@ -52,9 +54,11 @@ impl Thumbnailer {
             });
         }
 
+        event!(Level::DEBUG, "Standard thumbnail: {:?}", picture_path);
         let thumbnail = Self::fast_thumbnail(picture_path, &thumbnail_path);
 
         if thumbnail.is_err() {
+            event!(Level::DEBUG, "Fallback thumbnail: {:?}", picture_path);
             Self::fallback_thumbnail(picture_path, &thumbnail_path).await?
         }
 
@@ -109,8 +113,12 @@ impl Thumbnailer {
         //     .divide_alpha_inplace(&mut dst_view)?;
 
         // Write destination image as PNG-file
+        // Write to temporary file first and then move so that an interrupted write
+        // doesn't result in a corrupt thumbnail
 
-        let file = std::fs::File::create(thumbnail_path)?;
+        let temporary_png_file = thumbnail_path.with_extension("tmp");
+
+        let file = std::fs::File::create(&temporary_png_file)?;
         let mut file = BufWriter::new(file);
 
         PngEncoder::new(&mut file).write_image(
@@ -119,6 +127,10 @@ impl Thumbnailer {
             dst_height.get(),
             ExtendedColorType::Rgba8,
         )?;
+
+        file.flush()?;
+
+        std::fs::rename(temporary_png_file, thumbnail_path)?;
 
         Ok(())
     }
