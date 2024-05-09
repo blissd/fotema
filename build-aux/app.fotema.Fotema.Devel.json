@@ -10,6 +10,7 @@
   "command": "fotema",
   "finish-args": [
     "--device=dri",
+    "--share=ipc",
     "--socket=wayland",
     "--socket=fallback-x11",
     "--socket=pulseaudio",
@@ -36,6 +37,25 @@
     ]
   },
 
+    "cleanup": [
+        "include",
+        "lib/pkgconfig",
+        "man",
+        "share/doc",
+        "share/gtk-doc",
+        "share/man",
+        "share/pkgconfig",
+        "*.la",
+        "*.a"
+    ],
+    "add-extensions": {
+        "app.fotema.Fotema.Devel.HEIC": {
+            "directory": "lib/libheif-heic",
+            "add-ld-path": "lib",
+            "bundle": true,
+            "autodelete": true
+        }
+    },
 
   "modules": [
     "modules/libde265.json",
@@ -58,3 +78,4 @@
     }
   ]
 }
+

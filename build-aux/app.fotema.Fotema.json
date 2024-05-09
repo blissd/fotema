@@ -10,6 +10,7 @@
   "command": "fotema",
   "finish-args": [
     "--device=dri",
+    "--share=ipc",
     "--socket=wayland",
     "--socket=fallback-x11",
     "--socket=pulseaudio",
