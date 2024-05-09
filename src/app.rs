@@ -672,6 +672,7 @@ impl SimpleComponent for App {
             }
             AppMsg::TaskStarted(msg) => {
                 self.spinner.start();
+                self.spinner.set_visible(!self.main_navigation.shows_sidebar());
                 self.banner.set_title(&msg);
                 self.banner.set_revealed(true);
             }
