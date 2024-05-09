@@ -9,6 +9,10 @@ default:
 # Run linters, such as the licence linter
 lint:
     reuse lint
+    flatpak run --command=flatpak-builder-lint org.flatpak.Builder manifest build-aux/app.fotema.Fotema.Devel.json
+    flatpak run --command=flatpak-builder-lint org.flatpak.Builder manifest build-aux/app.fotema.Fotema.json
+    #flatpak run --command=flatpak-builder-lint org.flatpak.Builder appstream flatpak_app/files/share/metainfo/app.fotema.Fotema.Devel.metainfo.xml
+    #flatpak run --command=flatpak-builder-lint org.flatpak.Builder repo fotema-origin
 
 # Add licence information to all supported files
 license:
