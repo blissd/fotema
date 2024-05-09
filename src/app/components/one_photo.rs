@@ -88,7 +88,7 @@ impl SimpleAsyncComponent for OnePhoto {
             #[wrap(Some)]
             #[local_ref]
             set_content = &split_view -> adw::OverlaySplitView {
-                set_collapsed: true,
+                set_collapsed: false,
 
                 #[wrap(Some)]
                 set_sidebar = model.photo_info.widget(),
