@@ -43,6 +43,8 @@ impl Transcoder {
             .arg("-y")
             .arg("-loglevel")
             .arg("error")
+            .arg("-hwaccel")
+            .arg("auto")
             .arg("-i")
             .arg(video_path.as_os_str())
             .arg("-c:a")
