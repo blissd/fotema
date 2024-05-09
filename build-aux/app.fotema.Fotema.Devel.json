@@ -38,13 +38,13 @@
   },
 
     "cleanup": [
-        "include",
-        "lib/pkgconfig",
-        "man",
-        "share/doc",
-        "share/gtk-doc",
-        "share/man",
-        "share/pkgconfig",
+        "/include",
+        "/lib/pkgconfig",
+        "/lib/cmake",
+        "/share/doc",
+        "/share/gtk-doc",
+        "/share/man",
+        "/share/pkgconfig",
         "*.la",
         "*.a"
     ],

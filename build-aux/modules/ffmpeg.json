@@ -9,7 +9,8 @@
       "config-opts": [
         "-DCMAKE_BUILD_TYPE=RelWithDebInfo",
         "-DBUILD_SHARED_LIBS=ON",
-        "-DCMAKE_POSITION_INDEPENDENT_CODE=ON"
+        "-DCMAKE_POSITION_INDEPENDENT_CODE=ON",
+        "-DENABLE_CLI=OFF"
       ],
       "sources": [
         {
@@ -28,7 +29,8 @@
       "name": "x264",
       "config-opts": [
         "--enable-pic",
-        "--enable-shared"
+        "--enable-shared",
+        "--disable-cli"
       ],
       "sources": [
         {
@@ -41,17 +43,24 @@
     {
       "name": "ffmpeg",
       "config-opts": [
+        "--disable-ffplay",
+        "--disable-ffprobe",
+        "--disable-doc",
         "--enable-pic",
         "--enable-shared",
         "--disable-doc",
         "--disable-static",
         "--enable-gpl",
+        "--enable-version3",
+        "--enable-optimizations",
+        "--enable-vaapi",
         "--enable-libx264",
-        "--enable-libx265",
-        "--enable-libvpx",
-        "--enable-libmp3lame",
-        "--enable-libvorbis",
-        "--enable-libopus"
+        "--enable-libx265"
+      ],
+      "cleanup": [
+        "/include",
+        "/lib/pkgconfig",
+        "/share/ffmpeg/examples"
       ],
       "sources": [
         {

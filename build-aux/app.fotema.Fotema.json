@@ -37,7 +37,7 @@
     "cleanup": [
         "/include",
         "/lib/pkgconfig",
-        "/man",
+        "/lib/cmake",
         "/share/doc",
         "/share/gtk-doc",
         "/share/man",
