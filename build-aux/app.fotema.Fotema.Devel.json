@@ -1,5 +1,5 @@
 {
-  "id": "dev.romantics.Fotema",
+  "id": "app.fotema.Fotema.Devel",
   "runtime": "org.gnome.Platform",
   "runtime-version": "46",
   "sdk": "org.gnome.Sdk",
@@ -14,6 +14,8 @@
     "--socket=fallback-x11",
     "--socket=pulseaudio",
     "--filesystem=xdg-pictures:ro",
+    "--env=RUST_LOG=fotema=debug",
+    "--env=G_MESSAGES_DEBUG=none",
     "--env=RUST_BACKTRACE=1"
   ],
   "build-options": {
@@ -33,6 +35,8 @@
       "--share=network"
     ]
   },
+
+
   "modules": [
     "modules/libde265.json",
     "modules/libheif.json",
@@ -41,9 +45,9 @@
     {
       "name": "fotema",
       "buildsystem": "meson",
-      "run-tests": false,
+      "run-tests": true,
       "config-opts": [
-        "-Dprofile=default"
+        "-Dprofile=development"
       ],
       "sources": [
         {

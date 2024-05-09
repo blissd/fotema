@@ -37,7 +37,7 @@ jobs:
     - uses: bilelmoussaoui/flatpak-github-actions/flatpak-builder@v6
       with:
         bundle: fotema.flatpak
-        manifest-path: build-aux/dev.romantics.Fotema.Devel.json
+        manifest-path: build-aux/app.fotema.Fotema.Devel.json
         run-tests: true
         cache-key: flatpak-builder-${{ github.sha }}
         upload-artifact: false

@@ -1,30 +1,30 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: Photo Romantic
-Upstream-Contact: David Bliss <david@romantics.dev>
+Upstream-Contact: David Bliss <david@fotema.app>
 Source: https://github.com/blissd/photo-romantic
 
 Files: build-aux/*.json
-Copyright: © 2024 David Bliss <david@romantics.dev>
+Copyright: © 2024 David Bliss <david@fotema.app>
 License: GPL-3.0-or-later
 
 Files: core/migrations/*.sql
-Copyright: © 2024 David Bliss <david@romantics.dev>
+Copyright: © 2024 David Bliss <david@fotema.app>
 License: GPL-3.0-or-later
 
 Files: Cargo.lock
-Copyright: © 2024 David Bliss <david@romantics.dev>
+Copyright: © 2024 David Bliss <david@fotema.app>
 License: GPL-3.0-or-later
 
 Files: data/*.in
-Copyright: © 2024 David Bliss <david@romantics.dev>
+Copyright: © 2024 David Bliss <david@fotema.app>
 License: GPL-3.0-or-later
 
 Files: data/icons/*.svg
-Copyright: © 2024 David Bliss <david@romantics.dev>
+Copyright: © 2024 David Bliss <david@fotema.app>
 License: GPL-3.0-or-later
 
 Files: data/icons/*.svg
-Copyright: © 2024 David Bliss <david@romantics.dev>
+Copyright: © 2024 David Bliss <david@fotema.app>
 License: CC0-1.0
 
 # NOTE attribution is unclear. Icons are from the GNOME Icon Library
@@ -35,9 +35,9 @@ Copyright: © 2024 Bilal Elmoussaoui <bilal.elmoussaoui@gnome.org>
 License: CC0-1.0
 
 Files: hooks/*
-Copyright: © 2024 David Bliss <david@romantics.dev>
+Copyright: © 2024 David Bliss <david@fotema.app>
 License: GPL-3.0-or-later
 
 Files: po/*.in
-Copyright: © 2024 David Bliss <david@romantics.dev>
+Copyright: © 2024 David Bliss <david@fotema.app>
 License: GPL-3.0-or-later

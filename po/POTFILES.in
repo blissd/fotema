@@ -1,6 +1,6 @@
-data/dev.romantics.Fotema.desktop.in.in
-data/dev.romantics.Fotema.gschema.xml.in
-data/dev.romantics.Fotema.metainfo.xml.in.in
+data/app.fotema.Fotema.desktop.in.in
+data/app.fotema.Fotema.gschema.xml.in
+data/app.fotema.Fotema.metainfo.xml.in.in
 data/resources/ui/shortcuts.ui
 data/resources/ui/window.ui
 src/application.rs

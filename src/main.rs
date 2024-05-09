@@ -57,7 +57,7 @@ fn main() {
     gtk::Window::set_default_icon_name(APP_ID);
 
     let app = main_application();
-    app.set_resource_base_path(Some("/dev/romantics/Fotema/"));
+    app.set_resource_base_path(Some("/app/fotema/Fotema/"));
 
     let mut actions = RelmActionGroup::<AppActionGroup>::new();
 
@@ -76,7 +76,7 @@ fn main() {
 
     let data = res
         .lookup_data(
-            "/dev/romantics/Fotema/style.css",
+            "/app/fotema/Fotema/style.css",
             gio::ResourceLookupFlags::NONE,
         )
         .unwrap();

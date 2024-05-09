@@ -24,7 +24,10 @@ license:
 
 # Build and install a flatpak release
 release:
-    flatpak-builder --user --install --force-clean flatpak_app build-aux/dev.romantics.Fotema.json
+    flatpak-builder --user --install --force-clean flatpak_app build-aux/app.fotema.Fotema.json
+
+devel:
+    flatpak-builder --user --install --force-clean flatpak_app build-aux/app.fotema.Fotema.Devel.json
 
 # Install Fedora development dependencies
 setup:

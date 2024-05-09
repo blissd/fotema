@@ -198,7 +198,7 @@ impl SimpleComponent for App {
 
             #[wrap(Some)]
             set_help_overlay: shortcuts = &gtk::Builder::from_resource(
-                    "/dev/romantics/Fotema/gtk/help-overlay.ui"
+                    "/app/fotema/Fotema/gtk/help-overlay.ui"
                 )
                 .object::<gtk::ShortcutsWindow>("help_overlay")
                 .unwrap() -> gtk::ShortcutsWindow {
