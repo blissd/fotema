@@ -18,6 +18,7 @@ use relm4::{
 };
 
 use tracing_subscriber::filter::EnvFilter;
+use tracing_subscriber::filter::LevelFilter;
 
 relm4::new_action_group!(AppActionGroup, "app");
 relm4::new_stateless_action!(QuitAction, AppActionGroup, "quit");
@@ -25,12 +26,12 @@ relm4::new_stateless_action!(QuitAction, AppActionGroup, "quit");
 fn main() {
     gtk::init().unwrap();
 
-    let env_filter = EnvFilter::try_from_env("RUST_LOG")
-        .expect("Valid logging config")
-        //.add_directive("fotema=debug".parse().expect("Valid logging config"))
-        .add_directive("relm4=info".parse().expect("Valid logging config"))
-        // glycin logs giant messages from zbus
-        .add_directive("glycin=warn".parse().expect("Valid logging config"));
+    let env_filter = EnvFilter::builder()
+        .with_default_directive(LevelFilter::ERROR.into())
+        .from_env_lossy() // picks up RUST_LOG
+        .add_directive("fotema=debug".parse().expect("Valid logging directive"))
+        .add_directive("relm4=info".parse().expect("Valid logging directive"))
+        .add_directive("glycin=warn".parse().expect("Valid logging directive"));
 
     // Enable logging
     tracing_subscriber::fmt()
