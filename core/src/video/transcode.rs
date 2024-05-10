@@ -26,12 +26,19 @@ impl Transcoder {
     /// Transcodes the video at 'path' and returns a path to the transcoded video.
     pub fn transcode(&self, video_id: VideoId, video_path: &Path) -> Result<PathBuf> {
         let transcoded_path = {
+            // Create a directory per 1000 videos
+            let partition = (video_id.id() / 1000) as i32;
+            let partition = format!("{:0>4}", partition);
             let file_name = format!("{}.mkv", video_id);
-            self.base_path.join(file_name)
+            self.base_path.join(partition).join(file_name)
         };
 
         if transcoded_path.exists() {
             return Ok(PathBuf::from(transcoded_path));
+        } else {
+            transcoded_path.parent().map(|p| {
+                let _ = std::fs::create_dir_all(p);
+            });
         }
 
         event!(Level::DEBUG, "Transcoding video: {:?}", video_path);
