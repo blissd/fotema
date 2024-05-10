@@ -2,9 +2,10 @@ CREATE VIEW visual AS
 SELECT
   -- Unique ID
   COALESCE(pictures.picture_id, 'x') || '_' || COALESCE(videos.video_id, 'x') AS visual_id,
-  COALESCE(pictures.link_path, videos.link_path) as link_path,
+  COALESCE(pictures.link_path_b64, videos.link_path_b64) as link_path_b64,
   pictures.picture_id,
-  pictures.picture_path,
+  pictures.picture_path_b64,
+  pictures.picture_path_lossy, -- for debug only. Never read in Fotema.
 
 -- If the thumbnail path is absent in the database, then compute the path we know it
 -- will have. Eventually the thumbnail generation background process will create the file
@@ -16,7 +17,8 @@ SELECT
 
   pictures.is_selfie,
   videos.video_id,
-  videos.video_path,
+  videos.video_path_b64,
+  videos.video_path_lossy, -- for debug only. Never read in Fotema.
 
 -- If the thumbnail path is absent in the database, then compute the path we know it
 -- will have. Eventually the thumbnail generation background process will create the file
@@ -49,7 +51,7 @@ SELECT
   ) AS created_ts
 FROM
   pictures
-  FULL OUTER JOIN videos USING (link_path, content_id)
+  FULL OUTER JOIN videos USING (link_path_b64, content_id)
 ORDER BY
   created_ts ASC
 

@@ -11,6 +11,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.83"
+base64 = "0.22.1"
 chrono = "0.4.37"
 fast_image_resize = "3.0.4"
 ffmpeg-next = "7.0.0"

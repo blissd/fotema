@@ -74,7 +74,7 @@ mod tests {
 
         let dir = env!("CARGO_MANIFEST_DIR");
         let file = Path::new(dir).join("/var/home/david/Pictures/Test/raw_heic/IMG_9835.MOV");
-        let metadata = from_path(&file).unwrap();
+        let _metadata = from_path(&file).unwrap();
         //let file = fs::File::open(file).unwrap();
         //let file = &mut BufReader::new(file);
     }

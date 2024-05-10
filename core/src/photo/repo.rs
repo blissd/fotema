@@ -6,6 +6,7 @@ use crate::photo::model::{Picture, PictureId, ScannedFile};
 
 use super::metadata;
 use super::Metadata;
+use crate::path_encoding;
 use anyhow::*;
 use rusqlite;
 use rusqlite::params;
@@ -117,31 +118,38 @@ impl Repository {
         {
             let mut pic_insert_stmt = tx.prepare_cached(
                 "INSERT INTO pictures (
-                    picture_path,
                     fs_created_ts,
-                    link_path
+                    picture_path_b64,
+                    picture_path_lossy,
+                    link_path_b64,
+                    link_path_lossy
                 ) VALUES (
-                    ?1, ?2, $3
-                ) ON CONFLICT (picture_path) DO UPDATE SET
-                    fs_created_ts=?2
+                    ?1, ?2, $3, $4, $5
+                ) ON CONFLICT (picture_path_b64) DO UPDATE SET
+                    fs_created_ts=?1
                 ",
             )?;
 
             for pic in pics {
                 // convert to relative path before saving to database
-                let path = pic.path.strip_prefix(&self.library_base_path)?;
+                let picture_path = pic.path.strip_prefix(&self.library_base_path)?;
+                let picture_path_b64 = path_encoding::to_base64(&picture_path);
 
                 // Path without suffix so sibling pictures and videos can be related
-                let file_stem = path
+                let link_path = picture_path
                     .file_stem()
                     .and_then(|x| x.to_str())
                     .expect("Must exist");
-                let stem_path = path.with_file_name(file_stem);
+
+                let link_path = picture_path.with_file_name(link_path);
+                let link_path_b64 = path_encoding::to_base64(&link_path);
 
                 pic_insert_stmt.execute(params![
-                    path.to_str(),
                     pic.fs_created_at,
-                    stem_path.to_str()
+                    picture_path_b64,
+                    picture_path.to_string_lossy(),
+                    link_path_b64,
+                    link_path.to_string_lossy(),
                 ])?;
             }
         }
@@ -156,7 +164,7 @@ impl Repository {
         let mut stmt = con.prepare(
             "SELECT
                     pictures.picture_id,
-                    pictures.picture_path,
+                    pictures.picture_path_b64,
                     pictures.thumbnail_path,
                     pictures.fs_created_ts,
                     pictures.exif_created_ts,
@@ -180,7 +188,7 @@ impl Repository {
         let mut stmt = con.prepare(
             "SELECT
                     pictures.picture_id,
-                    pictures.picture_path,
+                    pictures.picture_path_b64,
                     pictures.thumbnail_path,
                     pictures.fs_created_ts,
                     pictures.exif_created_ts,
@@ -204,7 +212,7 @@ impl Repository {
         let mut stmt = con.prepare(
             "SELECT
                     pictures.picture_id,
-                    pictures.picture_path,
+                    pictures.picture_path_b64,
                     pictures.thumbnail_path,
                     pictures.fs_created_ts,
                     pictures.exif_created_ts,
@@ -223,7 +231,9 @@ impl Repository {
     fn to_picture(&self, row: &Row<'_>) -> rusqlite::Result<Picture> {
         let picture_id = row.get("picture_id").map(|x| PictureId::new(x))?;
 
-        let picture_path: String = row.get("picture_path")?;
+        let picture_path: String = row.get("picture_path_b64")?;
+        let picture_path =
+            path_encoding::from_base64(&picture_path).map_err(|_| rusqlite::Error::InvalidQuery)?;
         let picture_path = self.library_base_path.join(picture_path);
 
         let thumbnail_path = row

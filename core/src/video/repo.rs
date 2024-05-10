@@ -4,6 +4,7 @@
 
 use super::metadata;
 use super::Metadata;
+use crate::path_encoding;
 use crate::video::model::{ScannedFile, Video, VideoId};
 use anyhow::*;
 use chrono::*;
@@ -136,33 +137,38 @@ impl Repository {
         {
             let mut vid_stmt = tx.prepare_cached(
                 "INSERT INTO videos (
-                        video_path,
                         fs_created_ts,
-                        link_path
+                        video_path_b64,
+                        video_path_lossy,
+                        link_path_b64,
+                        link_path_lossy
                     ) VALUES (
-                        ?1, ?2, ?3
-                    ) ON CONFLICT (video_path) DO UPDATE SET
-                        fs_created_ts=?2
+                        ?1, ?2, ?3, $4, $5
+                    ) ON CONFLICT (video_path_b64) DO UPDATE SET
+                        fs_created_ts=?1
                     ",
             )?;
 
             for vid in vids {
                 // convert to relative path before saving to database
-                let path = vid.path.strip_prefix(&self.library_base_path)?;
+                let video_path = vid.path.strip_prefix(&self.library_base_path)?;
+                let video_path_b64 = path_encoding::to_base64(&video_path);
 
                 // Path without suffix so sibling pictures and videos can be related
-                let stem_path = {
-                    let file_stem = path
-                        .file_stem()
-                        .and_then(|x| x.to_str())
-                        .expect("Must exist");
-                    path.with_file_name(file_stem)
-                };
+                let link_path = video_path
+                    .file_stem()
+                    .and_then(|x| x.to_str())
+                    .expect("Must exist");
+
+                let link_path = video_path.with_file_name(link_path);
+                let link_path_b64 = path_encoding::to_base64(&link_path);
 
                 vid_stmt.execute(params![
-                    path.to_str(),
                     vid.fs_created_at,
-                    stem_path.to_str(),
+                    video_path_b64,
+                    video_path.to_string_lossy(),
+                    link_path_b64,
+                    link_path.to_string_lossy(),
                 ])?;
             }
         }
@@ -177,7 +183,7 @@ impl Repository {
         let mut stmt = con.prepare(
             "SELECT
                     video_id,
-                    video_path,
+                    video_path_b64,
                     thumbnail_path,
                     fs_created_ts,
                     stream_created_ts,
@@ -199,7 +205,7 @@ impl Repository {
         let mut stmt = con.prepare(
             "SELECT
                     video_id,
-                    video_path,
+                    video_path_b64,
                     thumbnail_path,
                     fs_created_ts,
                     stream_created_ts,
@@ -219,7 +225,9 @@ impl Repository {
     fn to_video(&self, row: &Row<'_>) -> rusqlite::Result<Video> {
         let video_id = row.get("video_id").map(|x| VideoId::new(x))?;
 
-        let video_path: String = row.get("video_path")?;
+        let video_path: String = row.get("video_path_b64")?;
+        let video_path =
+            path_encoding::from_base64(&video_path).map_err(|_| rusqlite::Error::InvalidQuery)?;
         let video_path = self.library_base_path.join(video_path);
 
         let thumbnail_path = row

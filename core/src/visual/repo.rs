@@ -6,6 +6,7 @@ use crate::photo::PictureId;
 use crate::video::VideoId;
 use crate::visual::model::{Visual, VisualId};
 
+use crate::path_encoding;
 use anyhow::*;
 use chrono::*;
 use rusqlite;
@@ -50,15 +51,15 @@ impl Repository {
         let mut stmt = con.prepare(
             "SELECT
                     visual_id,
-                    link_path AS stem_path,
+                    link_path_b64,
 
                     picture_id,
-                    picture_path,
+                    picture_path_b64,
                     picture_thumbnail,
                     is_selfie,
 
                     video_id,
-                    video_path,
+                    video_path_b64,
                     video_thumbnail,
 
                     created_ts,
@@ -81,15 +82,15 @@ impl Repository {
         let mut stmt = con.prepare(
             "SELECT
                     visual_id,
-                    link_path AS stem_path,
+                    link_path_b64,
 
                     picture_id,
-                    picture_path,
+                    picture_path_b64,
                     picture_thumbnail,
                     is_selfie,
 
                     video_id,
-                    video_path,
+                    video_path_b64,
                     video_thumbnail,
 
                     created_ts,
@@ -113,17 +114,16 @@ impl Repository {
             .map(|x| VisualId::new(x))
             .expect("Must have visual_id");
 
-        let stem_path: PathBuf = row
-            .get("stem_path")
-            .map(|x: String| PathBuf::from(x))
-            .expect("Stem path");
+        let link_path: String = row.get("link_path_b64")?;
+        let link_path =
+            path_encoding::from_base64(&link_path).map_err(|_| rusqlite::Error::InvalidQuery)?;
 
         let picture_id: Option<PictureId> = row.get("picture_id").map(|x| PictureId::new(x)).ok();
 
         let picture_path: Option<PathBuf> = row
-            .get("picture_path")
-            .map(|x: String| PathBuf::from(x))
-            .ok();
+            .get("picture_path_b64")
+            .ok()
+            .and_then(|x: String| path_encoding::from_base64(&x).ok());
 
         let picture_path = picture_path.map(|x| self.library_base_path.join(x));
 
@@ -137,8 +137,10 @@ impl Repository {
 
         let video_id: Option<VideoId> = row.get("video_id").map(|x| VideoId::new(x)).ok();
 
-        let video_path: Option<PathBuf> =
-            row.get("video_path").map(|x: String| PathBuf::from(x)).ok();
+        let video_path: Option<PathBuf> = row
+            .get("video_path_b64")
+            .ok()
+            .and_then(|x: String| path_encoding::from_base64(&x).ok());
 
         let video_path = video_path.map(|x| self.library_base_path.join(x));
 
@@ -171,7 +173,7 @@ impl Repository {
 
         let v = Visual {
             visual_id,
-            parent_path: stem_path
+            parent_path: link_path
                 .parent()
                 .map(|x| PathBuf::from(x))
                 .expect("Parent path"),

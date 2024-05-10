@@ -53,7 +53,7 @@ mod tests {
         let one_minute = TimeDelta::try_seconds(60).unwrap();
         assert_eq!("1:00", &format_hhmmss(&one_minute));
 
-        let one_hour = TimeDelta::try_seconds(6000).unwrap();
+        let one_hour = TimeDelta::try_seconds(3600).unwrap();
         assert_eq!("1:00:00", &format_hhmmss(&one_hour));
     }
 }
