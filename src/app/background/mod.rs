@@ -10,6 +10,6 @@ pub mod video_enrich;
 pub mod load_library;
 pub mod photo_scan;
 pub mod video_scan;
-pub mod thumbnail_photos;
+pub mod photo_thumbnail;
 pub mod thumbnail_videos;
 pub mod video_transcode;

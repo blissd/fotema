@@ -20,12 +20,12 @@ use crate::app::components::progress_monitor::{
 
 
 #[derive(Debug)]
-pub enum ThumbnailPhotosInput {
+pub enum PhotoThumbnailInput {
     Start,
 }
 
 #[derive(Debug)]
-pub enum ThumbnailPhotosOutput {
+pub enum PhotoThumbnailOutput {
     // Thumbnail generation has started.
     Started,
 
@@ -34,7 +34,7 @@ pub enum ThumbnailPhotosOutput {
 
 }
 
-pub struct ThumbnailPhotos {
+pub struct PhotoThumbnail {
     thumbnailer: fotema_core::photo::Thumbnailer,
 
     // Danger! Don't hold the repo mutex for too long as it blocks viewing images.
@@ -43,7 +43,7 @@ pub struct ThumbnailPhotos {
     progress_monitor: Arc<Reducer<ProgressMonitor>>,
 }
 
-impl ThumbnailPhotos {
+impl PhotoThumbnail {
 
     fn enrich(
         repo: fotema_core::photo::Repository,
@@ -53,7 +53,7 @@ impl ThumbnailPhotos {
      {
         let start = std::time::Instant::now();
 
-        let _ = sender.output(ThumbnailPhotosOutput::Started);
+        let _ = sender.output(PhotoThumbnailOutput::Started);
 
         let mut unprocessed: Vec<fotema_core::photo::model::Picture> = repo
             .all()?
@@ -91,19 +91,19 @@ impl ThumbnailPhotos {
 
         progress_monitor.emit(ProgressMonitorInput::Complete);
 
-        let _ = sender.output(ThumbnailPhotosOutput::Completed);
+        let _ = sender.output(PhotoThumbnailOutput::Completed);
 
         Ok(())
     }
 }
 
-impl Worker for ThumbnailPhotos {
+impl Worker for PhotoThumbnail {
     type Init = (fotema_core::photo::Thumbnailer, fotema_core::photo::Repository, Arc<Reducer<ProgressMonitor>>);
-    type Input = ThumbnailPhotosInput;
-    type Output = ThumbnailPhotosOutput;
+    type Input = PhotoThumbnailInput;
+    type Output = PhotoThumbnailOutput;
 
     fn init((thumbnailer, repo, progress_monitor): Self::Init, _sender: ComponentSender<Self>) -> Self  {
-        let model = ThumbnailPhotos {
+        let model = PhotoThumbnail {
             thumbnailer,
             repo,
             progress_monitor,
@@ -114,7 +114,7 @@ impl Worker for ThumbnailPhotos {
 
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
-            ThumbnailPhotosInput::Start => {
+            PhotoThumbnailInput::Start => {
                 event!(Level::INFO, "Generating photo thumbnails...");
                 let repo = self.repo.clone();
                 let thumbnailer = self.thumbnailer.clone();
@@ -122,7 +122,7 @@ impl Worker for ThumbnailPhotos {
 
                 // Avoid runtime panic from calling block_on
                 rayon::spawn(move || {
-                    if let Err(e) = ThumbnailPhotos::enrich(repo, thumbnailer, progress_monitor, sender) {
+                    if let Err(e) = PhotoThumbnail::enrich(repo, thumbnailer, progress_monitor, sender) {
                         event!(Level::ERROR, "Failed to update previews: {}", e);
                     }
                 });

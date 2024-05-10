@@ -28,7 +28,7 @@ use super::{
     load_library::{LoadLibrary, LoadLibraryInput},
     photo_scan::{PhotoScan, PhotoScanInput, PhotoScanOutput},
     video_scan::{VideoScan, VideoScanInput, VideoScanOutput},
-    thumbnail_photos::{ThumbnailPhotos, ThumbnailPhotosInput, ThumbnailPhotosOutput},
+    photo_thumbnail::{PhotoThumbnail, PhotoThumbnailInput, PhotoThumbnailOutput},
     thumbnail_videos::{ThumbnailVideos, ThumbnailVideosInput, ThumbnailVideosOutput},
 };
 
@@ -88,7 +88,7 @@ pub struct Bootstrap {
     photo_clean: WorkerController<PhotoClean>,
     video_clean: WorkerController<VideoClean>,
 
-    thumbnail_photos: WorkerController<ThumbnailPhotos>,
+    photo_thumbnail: WorkerController<PhotoThumbnail>,
     thumbnail_videos: WorkerController<ThumbnailVideos>,
 }
 
@@ -165,11 +165,11 @@ impl Worker for Bootstrap {
                 VideoEnrichOutput::Completed => BootstrapInput::TaskCompleted(TaskName::Enrich(MediaType::Video)),
             });
 
-        let thumbnail_photos = ThumbnailPhotos::builder()
+        let photo_thumbnail = PhotoThumbnail::builder()
             .detach_worker((photo_thumbnailer.clone(), photo_repo.clone(), progress_monitor.clone()))
             .forward(sender.input_sender(), |msg| match msg {
-                ThumbnailPhotosOutput::Started => BootstrapInput::TaskStarted(TaskName::Thumbnail(MediaType::Photo)),
-                ThumbnailPhotosOutput::Completed => BootstrapInput::TaskCompleted(TaskName::Thumbnail(MediaType::Photo)),
+                PhotoThumbnailOutput::Started => BootstrapInput::TaskStarted(TaskName::Thumbnail(MediaType::Photo)),
+                PhotoThumbnailOutput::Completed => BootstrapInput::TaskCompleted(TaskName::Thumbnail(MediaType::Photo)),
             });
 
         let thumbnail_videos = ThumbnailVideos::builder()
@@ -202,7 +202,7 @@ impl Worker for Bootstrap {
             video_enrich,
             photo_clean,
             video_clean,
-            thumbnail_photos,
+            photo_thumbnail,
             thumbnail_videos,
         };
         model
@@ -256,7 +256,7 @@ impl Worker for Bootstrap {
                 // or items had metadata updated
                 self.load_library.emit(LoadLibraryInput::Refresh);
 
-                self.thumbnail_photos.emit(ThumbnailPhotosInput::Start);
+                self.photo_thumbnail.emit(PhotoThumbnailInput::Start);
             }
             BootstrapInput::TaskStarted(TaskName::Thumbnail(MediaType::Photo)) => {
                 event!(Level::INFO, "bootstrap: photo thumbnails started");
