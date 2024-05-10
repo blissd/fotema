@@ -152,9 +152,9 @@ impl Repository {
 
         let created_at: DateTime<Utc> = row.get("created_ts").ok().expect("Must have created_ts");
 
-        let is_ios_live_photo: bool = row
-            .get("is_ios_live_photo")
-            .expect("must have is_ios_live_photo");
+        let is_ios_live_photo: Option<bool> = row.get("is_ios_live_photo").ok();
+
+        let is_ios_live_photo = is_ios_live_photo.is_some_and(|x| x);
 
         let video_transcoded_path: Option<PathBuf> = row
             .get("video_transcoded_path")

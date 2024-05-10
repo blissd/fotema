@@ -29,7 +29,16 @@ SELECT
   videos.video_codec,
   videos.transcoded_path AS video_transcoded_path,
   videos.video_codec IN ('hevc') AS is_transcode_required,
-  videos.content_id IS NOT NULL AS is_ios_live_photo,
+
+  -- An iOS live photo is a photo and a video linked with a content ID.
+  -- However, we only really need the video part, and short (<3 seconds)
+  -- videos are possibly live photos that have a missing or misnamed photo.
+  CASE
+        WHEN videos.content_id IS NOT NULL THEN true
+        WHEN videos.duration_millis <= 3000 THEN true
+        ELSE false
+  END AS is_ios_live_photo,
+
   videos.duration_millis as duration_millis,
   COALESCE(
     pictures.exif_created_ts,
