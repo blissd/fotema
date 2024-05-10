@@ -9,7 +9,7 @@ pub mod enrich_photos;
 pub mod enrich_videos;
 pub mod load_library;
 pub mod photo_scan;
-pub mod scan_videos;
+pub mod video_scan;
 pub mod thumbnail_photos;
 pub mod thumbnail_videos;
 pub mod video_transcode;

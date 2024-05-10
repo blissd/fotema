@@ -27,7 +27,7 @@ use super::{
     enrich_videos::{EnrichVideos, EnrichVideosInput, EnrichVideosOutput},
     load_library::{LoadLibrary, LoadLibraryInput},
     photo_scan::{PhotoScan, PhotoScanInput, PhotoScanOutput},
-    scan_videos::{ScanVideos, ScanVideosInput, ScanVideosOutput},
+    video_scan::{VideoScan, VideoScanInput, VideoScanOutput},
     thumbnail_photos::{ThumbnailPhotos, ThumbnailPhotosInput, ThumbnailPhotosOutput},
     thumbnail_videos::{ThumbnailVideos, ThumbnailVideosInput, ThumbnailVideosOutput},
 };
@@ -80,7 +80,7 @@ pub struct Bootstrap {
     load_library: WorkerController<LoadLibrary>,
 
     photo_scan: WorkerController<PhotoScan>,
-    scan_videos: WorkerController<ScanVideos>,
+    video_scan: WorkerController<VideoScan>,
 
     enrich_photos: WorkerController<EnrichPhotos>,
     enrich_videos: WorkerController<EnrichVideos>,
@@ -118,7 +118,7 @@ impl Worker for Bootstrap {
 
         let photo_thumbnailer = photo::Thumbnailer::build(&cache_dir).unwrap();
 
-        let video_scan = video::Scanner::build(&pic_base_dir).unwrap();
+        let video_scanner = video::Scanner::build(&pic_base_dir).unwrap();
 
         let video_repo = {
             video::Repository::open(&pic_base_dir, &cache_dir, con.clone()).unwrap()
@@ -144,11 +144,11 @@ impl Worker for Bootstrap {
                 PhotoScanOutput::Completed => BootstrapInput::TaskCompleted(TaskName::Scan(MediaType::Photo)),
             });
 
-        let scan_videos = ScanVideos::builder()
-            .detach_worker((video_scan.clone(), video_repo.clone()))
+        let video_scan = VideoScan::builder()
+            .detach_worker((video_scanner.clone(), video_repo.clone()))
             .forward(sender.input_sender(), |msg| match msg {
-                ScanVideosOutput::Started => BootstrapInput::TaskStarted(TaskName::Scan(MediaType::Video)),
-                ScanVideosOutput::Completed => BootstrapInput::TaskCompleted(TaskName::Scan(MediaType::Video)),
+                VideoScanOutput::Started => BootstrapInput::TaskStarted(TaskName::Scan(MediaType::Video)),
+                VideoScanOutput::Completed => BootstrapInput::TaskCompleted(TaskName::Scan(MediaType::Video)),
             });
 
         let enrich_photos = EnrichPhotos::builder()
@@ -197,7 +197,7 @@ impl Worker for Bootstrap {
             started_at: None,
             load_library,
             photo_scan,
-            scan_videos,
+            video_scan,
             enrich_photos,
             enrich_videos,
             photo_clean,
@@ -226,7 +226,7 @@ impl Worker for Bootstrap {
             }
             BootstrapInput::TaskCompleted(TaskName::Scan(MediaType::Photo)) => {
                 event!(Level::INFO, "bootstrap: scan photos completed");
-                self.scan_videos.emit(ScanVideosInput::Start);
+                self.video_scan.emit(VideoScanInput::Start);
             }
             BootstrapInput::TaskStarted(TaskName::Scan(MediaType::Video)) => {
                 event!(Level::INFO, "bootstrap: scan videos started");
