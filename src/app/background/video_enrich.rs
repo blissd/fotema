@@ -10,12 +10,12 @@ use fotema_core::video::metadata;
 use tracing::{event, Level};
 
 #[derive(Debug)]
-pub enum EnrichVideosInput {
+pub enum VideoEnrichInput {
     Start,
 }
 
 #[derive(Debug)]
-pub enum EnrichVideosOutput {
+pub enum VideoEnrichOutput {
     // Thumbnail generation has started.
     Started,
 
@@ -23,19 +23,19 @@ pub enum EnrichVideosOutput {
     Completed,
 }
 
-pub struct EnrichVideos {
+pub struct VideoEnrich {
     repo: fotema_core::video::Repository,
 }
 
-impl EnrichVideos {
+impl VideoEnrich {
 
     fn enrich(
         mut repo: fotema_core::video::Repository,
-        sender: &ComponentSender<EnrichVideos>) -> Result<()>
+        sender: &ComponentSender<VideoEnrich>) -> Result<()>
      {
         let start = std::time::Instant::now();
 
-        let _ = sender.output(EnrichVideosOutput::Started);
+        let _ = sender.output(VideoEnrichOutput::Started);
 
         let unprocessed = repo.find_need_metadata_update()?;
 
@@ -54,21 +54,21 @@ impl EnrichVideos {
 
         event!(Level::INFO, "Enriched {} videos in {} seconds.", count, start.elapsed().as_secs());
 
-        if let Err(e) = sender.output(EnrichVideosOutput::Completed) {
-            event!(Level::ERROR, "Failed sending EnrichVideosOutput::Completed: {:?}", e);
+        if let Err(e) = sender.output(VideoEnrichOutput::Completed) {
+            event!(Level::ERROR, "Failed sending VideoEnrichOutput::Completed: {:?}", e);
         }
 
         Ok(())
     }
 }
 
-impl Worker for EnrichVideos {
+impl Worker for VideoEnrich {
     type Init = fotema_core::video::Repository;
-    type Input = EnrichVideosInput;
-    type Output = EnrichVideosOutput;
+    type Input = VideoEnrichInput;
+    type Output = VideoEnrichOutput;
 
     fn init(repo: Self::Init, _sender: ComponentSender<Self>) -> Self  {
-        let model = EnrichVideos {
+        let model = VideoEnrich {
             repo,
         };
         model
@@ -77,13 +77,13 @@ impl Worker for EnrichVideos {
 
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
-            EnrichVideosInput::Start => {
+            VideoEnrichInput::Start => {
                 event!(Level::INFO, "Enriching videos...");
                 let repo = self.repo.clone();
 
                 // Avoid runtime panic from calling block_on
                 rayon::spawn(move || {
-                    if let Err(e) = EnrichVideos::enrich(repo, &sender) {
+                    if let Err(e) = VideoEnrich::enrich(repo, &sender) {
                         event!(Level::ERROR, "Failed to enrich videos: {}", e);
                     }
                 });

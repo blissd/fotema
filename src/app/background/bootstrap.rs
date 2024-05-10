@@ -24,7 +24,7 @@ use super::{
     photo_clean::{PhotoClean, PhotoCleanInput, PhotoCleanOutput},
     video_clean::{VideoClean, VideoCleanInput, VideoCleanOutput},
     photo_enrich::{PhotoEnrich, PhotoEnrichInput, PhotoEnrichOutput},
-    enrich_videos::{EnrichVideos, EnrichVideosInput, EnrichVideosOutput},
+    video_enrich::{VideoEnrich, VideoEnrichInput, VideoEnrichOutput},
     load_library::{LoadLibrary, LoadLibraryInput},
     photo_scan::{PhotoScan, PhotoScanInput, PhotoScanOutput},
     video_scan::{VideoScan, VideoScanInput, VideoScanOutput},
@@ -83,7 +83,7 @@ pub struct Bootstrap {
     video_scan: WorkerController<VideoScan>,
 
     photo_enrich: WorkerController<PhotoEnrich>,
-    enrich_videos: WorkerController<EnrichVideos>,
+    video_enrich: WorkerController<VideoEnrich>,
 
     photo_clean: WorkerController<PhotoClean>,
     video_clean: WorkerController<VideoClean>,
@@ -158,11 +158,11 @@ impl Worker for Bootstrap {
                 PhotoEnrichOutput::Completed => BootstrapInput::TaskCompleted(TaskName::Enrich(MediaType::Photo)),
             });
 
-        let enrich_videos = EnrichVideos::builder()
+        let video_enrich = VideoEnrich::builder()
             .detach_worker(video_repo.clone())
             .forward(sender.input_sender(), |msg| match msg {
-                EnrichVideosOutput::Started => BootstrapInput::TaskStarted(TaskName::Enrich(MediaType::Video)),
-                EnrichVideosOutput::Completed => BootstrapInput::TaskCompleted(TaskName::Enrich(MediaType::Video)),
+                VideoEnrichOutput::Started => BootstrapInput::TaskStarted(TaskName::Enrich(MediaType::Video)),
+                VideoEnrichOutput::Completed => BootstrapInput::TaskCompleted(TaskName::Enrich(MediaType::Video)),
             });
 
         let thumbnail_photos = ThumbnailPhotos::builder()
@@ -199,7 +199,7 @@ impl Worker for Bootstrap {
             photo_scan,
             video_scan,
             photo_enrich,
-            enrich_videos,
+            video_enrich,
             photo_clean,
             video_clean,
             thumbnail_photos,
@@ -242,7 +242,7 @@ impl Worker for Bootstrap {
             }
             BootstrapInput::TaskCompleted(TaskName::Enrich(MediaType::Photo)) => {
                 event!(Level::INFO, "bootstrap: photo enrichment completed");
-                self.enrich_videos.emit(EnrichVideosInput::Start);
+                self.video_enrich.emit(VideoEnrichInput::Start);
             }
             BootstrapInput::TaskStarted(TaskName::Enrich(MediaType::Video)) => {
                 event!(Level::INFO, "bootstrap: video enrichment started");
