@@ -26,7 +26,7 @@ use super::{
     enrich_photos::{EnrichPhotos, EnrichPhotosInput, EnrichPhotosOutput},
     enrich_videos::{EnrichVideos, EnrichVideosInput, EnrichVideosOutput},
     load_library::{LoadLibrary, LoadLibraryInput},
-    scan_photos::{ScanPhotos, ScanPhotosInput, ScanPhotosOutput},
+    photo_scan::{PhotoScan, PhotoScanInput, PhotoScanOutput},
     scan_videos::{ScanVideos, ScanVideosInput, ScanVideosOutput},
     thumbnail_photos::{ThumbnailPhotos, ThumbnailPhotosInput, ThumbnailPhotosOutput},
     thumbnail_videos::{ThumbnailVideos, ThumbnailVideosInput, ThumbnailVideosOutput},
@@ -79,7 +79,7 @@ pub struct Bootstrap {
 
     load_library: WorkerController<LoadLibrary>,
 
-    scan_photos: WorkerController<ScanPhotos>,
+    photo_scan: WorkerController<PhotoScan>,
     scan_videos: WorkerController<ScanVideos>,
 
     enrich_photos: WorkerController<EnrichPhotos>,
@@ -107,7 +107,7 @@ impl Worker for Bootstrap {
         let pic_base_dir = glib::user_special_dir(glib::enums::UserDirectory::Pictures)
             .expect("Expect XDG_PICTURES_DIR");
 
-        let photo_scan = photo::Scanner::build(&pic_base_dir).unwrap();
+        let photo_scanner = photo::Scanner::build(&pic_base_dir).unwrap();
 
         let photo_repo = photo::Repository::open(
             &pic_base_dir,
@@ -137,11 +137,11 @@ impl Worker for Bootstrap {
             .detach_worker((visual_repo.clone(), state))
             .detach();
 
-        let scan_photos = ScanPhotos::builder()
-            .detach_worker((photo_scan.clone(), photo_repo.clone()))
+        let photo_scan = PhotoScan::builder()
+            .detach_worker((photo_scanner.clone(), photo_repo.clone()))
             .forward(sender.input_sender(), |msg| match msg {
-                ScanPhotosOutput::Started => BootstrapInput::TaskStarted(TaskName::Scan(MediaType::Photo)),
-                ScanPhotosOutput::Completed => BootstrapInput::TaskCompleted(TaskName::Scan(MediaType::Photo)),
+                PhotoScanOutput::Started => BootstrapInput::TaskStarted(TaskName::Scan(MediaType::Photo)),
+                PhotoScanOutput::Completed => BootstrapInput::TaskCompleted(TaskName::Scan(MediaType::Photo)),
             });
 
         let scan_videos = ScanVideos::builder()
@@ -196,7 +196,7 @@ impl Worker for Bootstrap {
         let model = Bootstrap {
             started_at: None,
             load_library,
-            scan_photos,
+            photo_scan,
             scan_videos,
             enrich_photos,
             enrich_videos,
@@ -218,7 +218,7 @@ impl Worker for Bootstrap {
 
                 // Initial library load to reduce time from starting app and seeing a photo grid
                 self.load_library.emit(LoadLibraryInput::Refresh);
-                self.scan_photos.emit(ScanPhotosInput::Start);
+                self.photo_scan.emit(PhotoScanInput::Start);
             }
             BootstrapInput::TaskStarted(TaskName::Scan(MediaType::Photo)) => {
                 event!(Level::INFO, "bootstrap: scan photos started");

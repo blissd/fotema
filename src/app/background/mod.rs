@@ -8,7 +8,7 @@ pub mod video_clean;
 pub mod enrich_photos;
 pub mod enrich_videos;
 pub mod load_library;
-pub mod scan_photos;
+pub mod photo_scan;
 pub mod scan_videos;
 pub mod thumbnail_photos;
 pub mod thumbnail_videos;
