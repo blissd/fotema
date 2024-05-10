@@ -29,7 +29,7 @@ use super::{
     photo_scan::{PhotoScan, PhotoScanInput, PhotoScanOutput},
     video_scan::{VideoScan, VideoScanInput, VideoScanOutput},
     photo_thumbnail::{PhotoThumbnail, PhotoThumbnailInput, PhotoThumbnailOutput},
-    thumbnail_videos::{ThumbnailVideos, ThumbnailVideosInput, ThumbnailVideosOutput},
+    video_thumbnail::{VideoThumbnail, VideoThumbnailInput, VideoThumbnailOutput},
 };
 
 use crate::app::SharedState;
@@ -89,7 +89,7 @@ pub struct Bootstrap {
     video_clean: WorkerController<VideoClean>,
 
     photo_thumbnail: WorkerController<PhotoThumbnail>,
-    thumbnail_videos: WorkerController<ThumbnailVideos>,
+    video_thumbnail: WorkerController<VideoThumbnail>,
 }
 
 impl Worker for Bootstrap {
@@ -172,11 +172,11 @@ impl Worker for Bootstrap {
                 PhotoThumbnailOutput::Completed => BootstrapInput::TaskCompleted(TaskName::Thumbnail(MediaType::Photo)),
             });
 
-        let thumbnail_videos = ThumbnailVideos::builder()
+        let video_thumbnail = VideoThumbnail::builder()
             .detach_worker((video_thumbnailer.clone(), video_repo.clone(), progress_monitor.clone()))
             .forward(sender.input_sender(), |msg| match msg {
-                ThumbnailVideosOutput::Started => BootstrapInput::TaskStarted(TaskName::Thumbnail(MediaType::Video)),
-                ThumbnailVideosOutput::Completed => BootstrapInput::TaskCompleted(TaskName::Thumbnail(MediaType::Video)),
+                VideoThumbnailOutput::Started => BootstrapInput::TaskStarted(TaskName::Thumbnail(MediaType::Video)),
+                VideoThumbnailOutput::Completed => BootstrapInput::TaskCompleted(TaskName::Thumbnail(MediaType::Video)),
             });
 
         let photo_clean = PhotoClean::builder()
@@ -203,7 +203,7 @@ impl Worker for Bootstrap {
             photo_clean,
             video_clean,
             photo_thumbnail,
-            thumbnail_videos,
+            video_thumbnail,
         };
         model
     }
@@ -264,7 +264,7 @@ impl Worker for Bootstrap {
             }
             BootstrapInput::TaskCompleted(TaskName::Thumbnail(MediaType::Photo)) => {
                 event!(Level::INFO, "bootstrap: photo thumbnails completed");
-                self.thumbnail_videos.emit(ThumbnailVideosInput::Start);
+                self.video_thumbnail.emit(VideoThumbnailInput::Start);
             }
             BootstrapInput::TaskStarted(TaskName::Thumbnail(MediaType::Video)) => {
                 event!(Level::INFO, "bootstrap: video thumbnails started");

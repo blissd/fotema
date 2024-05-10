@@ -21,12 +21,12 @@ use crate::app::components::progress_monitor::{
 
 
 #[derive(Debug)]
-pub enum ThumbnailVideosInput {
+pub enum VideoThumbnailInput {
     Start,
 }
 
 #[derive(Debug)]
-pub enum ThumbnailVideosOutput {
+pub enum VideoThumbnailOutput {
     // Thumbnail generation has started
     Started,
 
@@ -35,7 +35,7 @@ pub enum ThumbnailVideosOutput {
 
 }
 
-pub struct ThumbnailVideos {
+pub struct VideoThumbnail {
     thumbnailer: Thumbnailer,
 
     // Danger! Don't hold the repo mutex for too long as it blocks viewing images.
@@ -44,17 +44,17 @@ pub struct ThumbnailVideos {
     progress_monitor: Arc<Reducer<ProgressMonitor>>,
 }
 
-impl ThumbnailVideos {
+impl VideoThumbnail {
 
     fn enrich(
         repo: Repository,
         thumbnailer: Thumbnailer,
         progress_monitor: Arc<Reducer<ProgressMonitor>>,
-        sender: ComponentSender<ThumbnailVideos>) -> Result<()>
+        sender: ComponentSender<VideoThumbnail>) -> Result<()>
      {
         let start = std::time::Instant::now();
 
-        let _ = sender.output(ThumbnailVideosOutput::Started);
+        let _ = sender.output(VideoThumbnailOutput::Started);
 
         let mut unprocessed: Vec<Video> = repo
             .all()?
@@ -87,16 +87,16 @@ impl ThumbnailVideos {
 
         progress_monitor.emit(ProgressMonitorInput::Complete);
 
-        let _ = sender.output(ThumbnailVideosOutput::Completed);
+        let _ = sender.output(VideoThumbnailOutput::Completed);
 
         Ok(())
     }
 }
 
-impl Worker for ThumbnailVideos {
+impl Worker for VideoThumbnail {
     type Init = (Thumbnailer, Repository, Arc<Reducer<ProgressMonitor>>);
-    type Input = ThumbnailVideosInput;
-    type Output = ThumbnailVideosOutput;
+    type Input = VideoThumbnailInput;
+    type Output = VideoThumbnailOutput;
 
     fn init((thumbnailer, repo, progress_monitor): Self::Init, _sender: ComponentSender<Self>) -> Self  {
         let model = Self {
@@ -110,15 +110,15 @@ impl Worker for ThumbnailVideos {
 
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
-            ThumbnailVideosInput::Start => {
-                event!(Level::INFO, "Generating photo thumbnails...");
+            VideoThumbnailInput::Start => {
+                event!(Level::INFO, "Generating video thumbnails...");
                 let repo = self.repo.clone();
                 let thumbnailer = self.thumbnailer.clone();
                 let progress_monitor = self.progress_monitor.clone();
 
                 // Avoid runtime panic from calling block_on
                 rayon::spawn(move || {
-                    if let Err(e) = ThumbnailVideos::enrich(repo, thumbnailer, progress_monitor, sender) {
+                    if let Err(e) = VideoThumbnail::enrich(repo, thumbnailer, progress_monitor, sender) {
                         event!(Level::ERROR, "Failed to update video thumbnails: {}", e);
                     }
                 });

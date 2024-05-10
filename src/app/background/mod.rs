@@ -11,5 +11,5 @@ pub mod load_library;
 pub mod photo_scan;
 pub mod video_scan;
 pub mod photo_thumbnail;
-pub mod thumbnail_videos;
+pub mod video_thumbnail;
 pub mod video_transcode;
