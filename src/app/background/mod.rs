@@ -4,7 +4,7 @@
 
 pub mod bootstrap;
 pub mod photo_clean;
-pub mod clean_videos;
+pub mod video_clean;
 pub mod enrich_photos;
 pub mod enrich_videos;
 pub mod load_library;

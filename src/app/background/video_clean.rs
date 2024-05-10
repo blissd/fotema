@@ -10,12 +10,12 @@ use anyhow::*;
 use tracing::{event, Level};
 
 #[derive(Debug)]
-pub enum CleanVideosInput {
+pub enum VideoCleanInput {
     Start,
 }
 
 #[derive(Debug)]
-pub enum CleanVideosOutput {
+pub enum VideoCleanOutput {
     // Thumbnail generation has started for a given number of images.
     Started,
 
@@ -24,12 +24,12 @@ pub enum CleanVideosOutput {
 
 }
 
-pub struct CleanVideos {
+pub struct VideoClean {
     // Danger! Don't hold the repo mutex for too long as it blocks viewing images.
     repo: fotema_core::video::Repository,
 }
 
-impl CleanVideos {
+impl VideoClean {
 
     fn cleanup(&mut self, sender: &ComponentSender<Self>) -> Result<()> {
 
@@ -40,7 +40,7 @@ impl CleanVideos {
 
         let vids_count = vids.len();
 
-        if let Err(e) = sender.output(CleanVideosOutput::Started){
+        if let Err(e) = sender.output(VideoCleanOutput::Started){
             event!(Level::ERROR, "Failed sending cleanup started: {:?}", e);
         }
 
@@ -58,18 +58,18 @@ impl CleanVideos {
 
         event!(Level::INFO, "Cleaned {} videos in {} seconds.", vids_count, start.elapsed().as_secs());
 
-        if let Err(e) = sender.output(CleanVideosOutput::Completed) {
-            event!(Level::ERROR, "Failed sending CleanVideosOutput::Completed: {:?}", e);
+        if let Err(e) = sender.output(VideoCleanOutput::Completed) {
+            event!(Level::ERROR, "Failed sending VideoCleanOutput::Completed: {:?}", e);
         }
 
         Ok(())
     }
 }
 
-impl Worker for CleanVideos {
+impl Worker for VideoClean {
     type Init = fotema_core::video::Repository;
-    type Input = CleanVideosInput;
-    type Output = CleanVideosOutput;
+    type Input = VideoCleanInput;
+    type Output = VideoCleanOutput;
 
     fn init(repo: Self::Init, _sender: ComponentSender<Self>) -> Self {
         Self { repo }
@@ -77,7 +77,7 @@ impl Worker for CleanVideos {
 
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
-            CleanVideosInput::Start => {
+            VideoCleanInput::Start => {
                 event!(Level::INFO, "Cleaning videos...");
 
                 if let Err(e) = self.cleanup(&sender) {

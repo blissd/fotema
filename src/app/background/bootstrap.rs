@@ -22,7 +22,7 @@ use tracing::{event, Level};
 
 use super::{
     photo_clean::{PhotoClean, PhotoCleanInput, PhotoCleanOutput},
-    clean_videos::{CleanVideos, CleanVideosInput, CleanVideosOutput},
+    video_clean::{VideoClean, VideoCleanInput, VideoCleanOutput},
     enrich_photos::{EnrichPhotos, EnrichPhotosInput, EnrichPhotosOutput},
     enrich_videos::{EnrichVideos, EnrichVideosInput, EnrichVideosOutput},
     load_library::{LoadLibrary, LoadLibraryInput},
@@ -86,7 +86,7 @@ pub struct Bootstrap {
     enrich_videos: WorkerController<EnrichVideos>,
 
     photo_clean: WorkerController<PhotoClean>,
-    clean_videos: WorkerController<CleanVideos>,
+    video_clean: WorkerController<VideoClean>,
 
     thumbnail_photos: WorkerController<ThumbnailPhotos>,
     thumbnail_videos: WorkerController<ThumbnailVideos>,
@@ -186,11 +186,11 @@ impl Worker for Bootstrap {
                 PhotoCleanOutput::Completed => BootstrapInput::TaskCompleted(TaskName::Clean(MediaType::Video)),
             });
 
-        let clean_videos = CleanVideos::builder()
+        let video_clean = VideoClean::builder()
             .detach_worker(video_repo.clone())
             .forward(sender.input_sender(), |msg| match msg {
-                CleanVideosOutput::Started => BootstrapInput::TaskStarted(TaskName::Clean(MediaType::Video)),
-                CleanVideosOutput::Completed => BootstrapInput::TaskCompleted(TaskName::Clean(MediaType::Video)),
+                VideoCleanOutput::Started => BootstrapInput::TaskStarted(TaskName::Clean(MediaType::Video)),
+                VideoCleanOutput::Completed => BootstrapInput::TaskCompleted(TaskName::Clean(MediaType::Video)),
             });
 
         let model = Bootstrap {
@@ -201,7 +201,7 @@ impl Worker for Bootstrap {
             enrich_photos,
             enrich_videos,
             photo_clean,
-            clean_videos,
+            video_clean,
             thumbnail_photos,
             thumbnail_videos,
         };
@@ -281,7 +281,7 @@ impl Worker for Bootstrap {
             }
             BootstrapInput::TaskCompleted(TaskName::Clean(MediaType::Photo)) => {
                 event!(Level::INFO, "bootstrap: photo cleanup completed.");
-                self.clean_videos.emit(CleanVideosInput::Start);
+                self.video_clean.emit(VideoCleanInput::Start);
             }
             BootstrapInput::TaskStarted(TaskName::Clean(MediaType::Video)) => {
                 event!(Level::INFO, "bootstrap: video cleanup started.");
