@@ -33,6 +33,9 @@ release:
 devel:
     flatpak-builder --user --install --force-clean flatpak_app/devel build-aux/app.fotema.Fotema.Devel.json
 
+flathub:
+    flatpak run org.flatpak.Builder --force-clean --sandbox --user --install --ccache --mirror-screenshots-url=https://dl.flathub.org/media/ --repo=repo builddir build-aux/app.fotema.Fotema.json
+
 # Install Fedora development dependencies
 setup:
     sudo dnf install -y libavformat-free-devel
