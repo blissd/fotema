@@ -21,7 +21,7 @@ use std::time::Instant;
 use tracing::{event, Level};
 
 use super::{
-    clean_photos::{CleanPhotos, CleanPhotosInput, CleanPhotosOutput},
+    photo_clean::{PhotoClean, PhotoCleanInput, PhotoCleanOutput},
     clean_videos::{CleanVideos, CleanVideosInput, CleanVideosOutput},
     enrich_photos::{EnrichPhotos, EnrichPhotosInput, EnrichPhotosOutput},
     enrich_videos::{EnrichVideos, EnrichVideosInput, EnrichVideosOutput},
@@ -85,7 +85,7 @@ pub struct Bootstrap {
     enrich_photos: WorkerController<EnrichPhotos>,
     enrich_videos: WorkerController<EnrichVideos>,
 
-    clean_photos: WorkerController<CleanPhotos>,
+    photo_clean: WorkerController<PhotoClean>,
     clean_videos: WorkerController<CleanVideos>,
 
     thumbnail_photos: WorkerController<ThumbnailPhotos>,
@@ -179,11 +179,11 @@ impl Worker for Bootstrap {
                 ThumbnailVideosOutput::Completed => BootstrapInput::TaskCompleted(TaskName::Thumbnail(MediaType::Video)),
             });
 
-        let clean_photos = CleanPhotos::builder()
+        let photo_clean = PhotoClean::builder()
             .detach_worker(photo_repo.clone())
             .forward(sender.input_sender(), |msg| match msg {
-                CleanPhotosOutput::Started => BootstrapInput::TaskStarted(TaskName::Clean(MediaType::Photo)),
-                CleanPhotosOutput::Completed => BootstrapInput::TaskCompleted(TaskName::Clean(MediaType::Video)),
+                PhotoCleanOutput::Started => BootstrapInput::TaskStarted(TaskName::Clean(MediaType::Photo)),
+                PhotoCleanOutput::Completed => BootstrapInput::TaskCompleted(TaskName::Clean(MediaType::Video)),
             });
 
         let clean_videos = CleanVideos::builder()
@@ -200,7 +200,7 @@ impl Worker for Bootstrap {
             scan_videos,
             enrich_photos,
             enrich_videos,
-            clean_photos,
+            photo_clean,
             clean_videos,
             thumbnail_photos,
             thumbnail_videos,
@@ -273,7 +273,7 @@ impl Worker for Bootstrap {
             BootstrapInput::TaskCompleted(TaskName::Thumbnail(MediaType::Video)) => {
                 let duration = self.started_at.map(|x| x.elapsed());
                 event!(Level::INFO, "bootstrap: video thumbnails completed in {:?}", duration);
-                self.clean_photos.emit(CleanPhotosInput::Start);
+                self.photo_clean.emit(PhotoCleanInput::Start);
             }
             BootstrapInput::TaskStarted(TaskName::Clean(MediaType::Photo)) => {
                 event!(Level::INFO, "bootstrap: photo cleanup started.");

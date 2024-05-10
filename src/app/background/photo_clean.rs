@@ -10,12 +10,12 @@ use anyhow::*;
 use tracing::{event, Level};
 
 #[derive(Debug)]
-pub enum CleanPhotosInput {
+pub enum PhotoCleanInput {
     Start,
 }
 
 #[derive(Debug)]
-pub enum CleanPhotosOutput {
+pub enum PhotoCleanOutput {
     // Thumbnail generation has started for a given number of images.
     Started,
 
@@ -24,12 +24,12 @@ pub enum CleanPhotosOutput {
 
 }
 
-pub struct CleanPhotos {
+pub struct PhotoClean {
     // Danger! Don't hold the repo mutex for too long as it blocks viewing images.
     repo: fotema_core::photo::Repository,
 }
 
-impl CleanPhotos {
+impl PhotoClean {
 
     fn cleanup(&mut self, sender: &ComponentSender<Self>) -> Result<()> {
 
@@ -40,7 +40,7 @@ impl CleanPhotos {
 
         let pics_count = pics.len();
 
-        if let Err(e) = sender.output(CleanPhotosOutput::Started){
+        if let Err(e) = sender.output(PhotoCleanOutput::Started){
             event!(Level::ERROR, "Failed sending cleanup started: {:?}", e);
         }
 
@@ -58,18 +58,18 @@ impl CleanPhotos {
 
         event!(Level::INFO, "Cleaned {} photos in {} seconds.", pics_count, start.elapsed().as_secs());
 
-        if let Err(e) = sender.output(CleanPhotosOutput::Completed) {
-            event!(Level::ERROR, "Failed sending CleanPhotosOutput::Completed: {:?}", e);
+        if let Err(e) = sender.output(PhotoCleanOutput::Completed) {
+            event!(Level::ERROR, "Failed sending PhotoCleanOutput::Completed: {:?}", e);
         }
 
         Ok(())
     }
 }
 
-impl Worker for CleanPhotos {
+impl Worker for PhotoClean {
     type Init = fotema_core::photo::Repository;
-    type Input = CleanPhotosInput;
-    type Output = CleanPhotosOutput;
+    type Input = PhotoCleanInput;
+    type Output = PhotoCleanOutput;
 
     fn init(repo: Self::Init, _sender: ComponentSender<Self>) -> Self {
         Self { repo }
@@ -77,7 +77,7 @@ impl Worker for CleanPhotos {
 
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
-            CleanPhotosInput::Start => {
+            PhotoCleanInput::Start => {
                 event!(Level::INFO, "Cleaning photos...");
 
                 if let Err(e) = self.cleanup(&sender) {
