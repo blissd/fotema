@@ -21,14 +21,16 @@ use std::time::Instant;
 use tracing::{event, Level};
 
 use super::{
-    photo_clean::{PhotoClean, PhotoCleanInput, PhotoCleanOutput},
-    video_clean::{VideoClean, VideoCleanInput, VideoCleanOutput},
-    photo_enrich::{PhotoEnrich, PhotoEnrichInput, PhotoEnrichOutput},
-    video_enrich::{VideoEnrich, VideoEnrichInput, VideoEnrichOutput},
     load_library::{LoadLibrary, LoadLibraryInput},
+
+    photo_clean::{PhotoClean, PhotoCleanInput, PhotoCleanOutput},
+    photo_enrich::{PhotoEnrich, PhotoEnrichInput, PhotoEnrichOutput},
     photo_scan::{PhotoScan, PhotoScanInput, PhotoScanOutput},
-    video_scan::{VideoScan, VideoScanInput, VideoScanOutput},
     photo_thumbnail::{PhotoThumbnail, PhotoThumbnailInput, PhotoThumbnailOutput},
+
+    video_clean::{VideoClean, VideoCleanInput, VideoCleanOutput},
+    video_enrich::{VideoEnrich, VideoEnrichInput, VideoEnrichOutput},
+    video_scan::{VideoScan, VideoScanInput, VideoScanOutput},
     video_thumbnail::{VideoThumbnail, VideoThumbnailInput, VideoThumbnailOutput},
 };
 
