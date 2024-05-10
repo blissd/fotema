@@ -31,10 +31,10 @@ pub enum VideoTranscodeInput {
 
 #[derive(Debug)]
 pub enum VideoTranscodeOutput {
-    // Thumbnail generation has started for a given number of images.
+    // Video transcoding has started
     Started,
 
-    // Thumbnail generation has completed
+    // Video transcoding has completed
     Completed,
 
 }
