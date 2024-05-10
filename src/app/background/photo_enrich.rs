@@ -11,12 +11,12 @@ use fotema_core::photo::metadata;
 use tracing::{event, Level};
 
 #[derive(Debug)]
-pub enum EnrichPhotosInput {
+pub enum PhotoEnrichInput {
     Start,
 }
 
 #[derive(Debug)]
-pub enum EnrichPhotosOutput {
+pub enum PhotoEnrichOutput {
     // Metadata enrichment started.
     Started,
 
@@ -25,28 +25,27 @@ pub enum EnrichPhotosOutput {
 
 }
 
-pub struct EnrichPhotos {
+pub struct PhotoEnrich {
     // Danger! Don't hold the repo mutex for too long as it blocks viewing images.
     repo: fotema_core::photo::Repository,
 }
 
-impl EnrichPhotos {
+impl PhotoEnrich {
 
     fn enrich(
         mut repo: fotema_core::photo::Repository,
-        sender: &ComponentSender<EnrichPhotos>) -> Result<()>
+        sender: &ComponentSender<PhotoEnrich>) -> Result<()>
      {
         let start = std::time::Instant::now();
 
-        let _ = sender.output(EnrichPhotosOutput::Started);
+        let _ = sender.output(PhotoEnrichOutput::Started);
 
         let unprocessed = repo.find_need_metadata_update()?;
 
         let count = unprocessed.len();
 
         let metadatas = unprocessed
-            .par_iter() // don't multiprocess until memory usage is better understood.
-            //.iter()
+            .par_iter()
             .flat_map(|pic| {
                 let result = metadata::from_path(&pic.path);
                 result.map(|m| (pic.picture_id, m))
@@ -57,21 +56,21 @@ impl EnrichPhotos {
 
         event!(Level::INFO, "Extracted {} photo metadatas in {} seconds.", count, start.elapsed().as_secs());
 
-        if let Err(e) = sender.output(EnrichPhotosOutput::Completed) {
-            event!(Level::ERROR, "Failed sending EnrichPhotosOutput::Completed: {:?}", e);
+        if let Err(e) = sender.output(PhotoEnrichOutput::Completed) {
+            event!(Level::ERROR, "Failed sending PhotoEnrichOutput::Completed: {:?}", e);
         }
 
         Ok(())
     }
 }
 
-impl Worker for EnrichPhotos {
+impl Worker for PhotoEnrich {
     type Init = fotema_core::photo::Repository;
-    type Input = EnrichPhotosInput;
-    type Output = EnrichPhotosOutput;
+    type Input = PhotoEnrichInput;
+    type Output = PhotoEnrichOutput;
 
     fn init(repo: Self::Init, _sender: ComponentSender<Self>) -> Self  {
-        let model = EnrichPhotos {
+        let model = PhotoEnrich {
             repo,
         };
         model
@@ -80,13 +79,13 @@ impl Worker for EnrichPhotos {
 
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
-            EnrichPhotosInput::Start => {
+            PhotoEnrichInput::Start => {
                 event!(Level::INFO, "Enriching photos...");
                 let repo = self.repo.clone();
 
                 // Avoid runtime panic from calling block_on
                 rayon::spawn(move || {
-                    if let Err(e) = EnrichPhotos::enrich(repo, &sender) {
+                    if let Err(e) = PhotoEnrich::enrich(repo, &sender) {
                         event!(Level::ERROR, "Failed to update previews: {}", e);
                     }
                 });
