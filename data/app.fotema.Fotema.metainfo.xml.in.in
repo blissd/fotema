@@ -20,11 +20,11 @@
 
   <screenshots>
     <screenshot type="default" environment="gnome">
-      <image>https://github.com/blissd/fotema/blob/main/data/resources/screenshots/all-photos.png?raw=true</image>
+      <image>https://github.com/blissd/fotema/blob/v1.0.0/data/resources/screenshots/all-photos.png?raw=true</image>
       <caption>All photos view</caption>
     </screenshot>
     <screenshot environment="gnome">
-      <image>https://github.com/blissd/fotema/blob/main/build-aux/data/resources/screenshots/folders-view.png?raw=true</image>
+      <image>https://github.com/blissd/fotema/blob/v1.0.0/data/resources/screenshots/folders-view.png?raw=true</image>
       <caption>Folders view</caption>
     </screenshot>
   </screenshots>
