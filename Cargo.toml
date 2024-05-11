@@ -4,7 +4,7 @@
 
 [package]
 name = "fotema"
-version = "0.1.0"
+version = "1.0.0"
 authors = ["David Bliss <david@fotema.app>"]
 edition = "2021"
 publish = false
