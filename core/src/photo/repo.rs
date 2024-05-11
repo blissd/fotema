@@ -62,8 +62,7 @@ impl Repository {
                     exif_created_ts = ?3,
                     exif_modified_ts = ?4,
                     is_selfie = ?5,
-                    link_date = ?6,
-                    content_id = ?7
+                    content_id = ?6
                 WHERE picture_id = ?1",
             )?;
 
@@ -74,7 +73,6 @@ impl Repository {
                     metadata.created_at,
                     metadata.modified_at,
                     metadata.is_selfie(),
-                    metadata.created_at.map(|x| x.naive_utc().date()),
                     metadata.content_id,
                 ])?;
             }

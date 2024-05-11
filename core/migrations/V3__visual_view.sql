@@ -3,6 +3,7 @@ SELECT
   -- Unique ID
   COALESCE(pictures.picture_id, 'x') || '_' || COALESCE(videos.video_id, 'x') AS visual_id,
   COALESCE(pictures.link_path_b64, videos.link_path_b64) as link_path_b64,
+
   pictures.picture_id,
   pictures.picture_path_b64,
   pictures.picture_path_lossy, -- for debug only. Never read in Fotema.
@@ -16,6 +17,7 @@ SELECT
   END AS picture_thumbnail,
 
   pictures.is_selfie,
+
   videos.video_id,
   videos.video_path_b64,
   videos.video_path_lossy, -- for debug only. Never read in Fotema.
@@ -29,8 +31,8 @@ SELECT
   END AS video_thumbnail,
 
   videos.video_codec,
-  videos.transcoded_path AS video_transcoded_path,
   videos.video_codec IN ('hevc') AS is_transcode_required,
+  videos.transcoded_path AS video_transcoded_path,
 
   -- An iOS live photo is a photo and a video linked with a content ID.
   -- However, we only really need the video part, and short (<3 seconds)
@@ -42,6 +44,8 @@ SELECT
   END AS is_ios_live_photo,
 
   videos.duration_millis as duration_millis,
+
+  -- Prefer embedded metadata over file system metadata
   COALESCE(
     pictures.exif_created_ts,
     videos.stream_created_ts,
