@@ -26,15 +26,22 @@ license:
         --copyright-style spdx-symbol \
         .
 
-# Build and install a flatpak release
+# Build and install a flatpak release version
 release:
-    flatpak-builder --user --install --force-clean flatpak_app/release build-aux/app.fotema.Fotema.json
+    flatpak run org.flatpak.Builder --user --install --force-clean flatpak_app/release build-aux/app.fotema.Fotema.json
 
+
+# Build and install flatpak development version
 devel:
-    flatpak-builder --user --install --force-clean flatpak_app/devel build-aux/app.fotema.Fotema.Devel.json
+    flatpak run org.flatpak.Builder --user --install --force-clean flatpak_app/devel build-aux/app.fotema.Fotema.Devel.json
 
-flathub:
-    flatpak run org.flatpak.Builder --force-clean --sandbox --user --install --ccache --mirror-screenshots-url=https://dl.flathub.org/media/ --repo=repo builddir build-aux/app.fotema.Fotema.json
+
+# Created a vendors package that will be used by the flatpak-builder build for flathub.
+# Use a separate _build_flathub directory because the meson version used by GNOME Builder
+# clashes with the meson version installed natively.
+dist:
+    meson setup _build_flathub
+    meson dist -C _build_flathub
 
 # Install Fedora development dependencies
 setup:
