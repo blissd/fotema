@@ -47,6 +47,11 @@
   </branding>
 
   <releases>
+    <release version="1.0.1" date="2024-05-13">
+      <description>
+        <p>Reduce logging noise. Logging level can now be configured throught RUST_LOG environment variable.</p>
+      </description>
+    </release>
     <release version="1.0.0" date="2024-05-11">
       <description>
         <p>First release with the following features:</p>
