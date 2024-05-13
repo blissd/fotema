@@ -40,6 +40,7 @@ devel:
 # Use a separate _build_flathub directory because the meson version used by GNOME Builder
 # clashes with the meson version installed natively.
 dist:
+    rm -rf _build_flathub
     meson setup _build_flathub
     meson dist -C _build_flathub
 
