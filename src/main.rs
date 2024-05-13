@@ -28,10 +28,7 @@ fn main() {
 
     let env_filter = EnvFilter::builder()
         .with_default_directive(LevelFilter::ERROR.into())
-        .from_env_lossy() // picks up RUST_LOG
-        .add_directive("fotema=debug".parse().expect("Valid logging directive"))
-        .add_directive("relm4=info".parse().expect("Valid logging directive"))
-        .add_directive("glycin=warn".parse().expect("Valid logging directive"));
+        .from_env_lossy(); // picks up RUST_LOG
 
     // Enable logging
     tracing_subscriber::fmt()
