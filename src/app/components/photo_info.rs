@@ -9,12 +9,14 @@ use fotema_core::VisualId;
 use gtk::prelude::OrientableExt;
 
 use relm4::gtk;
+use relm4::gtk::gio;
 use relm4::*;
 use relm4::adw::prelude::*;
 use humansize::{format_size, DECIMAL};
 use glycin::ImageInfo;
 use std::fs;
 use std::sync::Arc;
+use std::path::PathBuf;
 use chrono::{DateTime, Utc};
 
 use crate::app::SharedState;
@@ -25,11 +27,13 @@ use tracing::{event, Level};
 pub enum PhotoInfoInput {
     Photo(VisualId, ImageInfo),
     Video(VisualId),
+    OpenFolder,
 }
 
 pub struct PhotoInfo {
     state: SharedState,
 
+    path: Option<PathBuf>,
     folder: adw::ActionRow,
 
     // FIXME what timestamps to show for live photos that have an image an a video?
@@ -77,7 +81,15 @@ impl SimpleComponent for PhotoInfo {
                         set_title: "Folder",
                         add_css_class: "property",
                         set_subtitle_selectable: true,
-                    },
+
+                        add_suffix = &gtk::Button {
+                            set_valign: gtk::Align::Center,
+                            set_icon_name: "folder-open-symbolic",
+                            set_tooltip_text: Some("Open Containing Folder"),
+                            add_css_class: "flat",
+                            connect_clicked => PhotoInfoInput::OpenFolder,
+                        }
+                    }
                 },
 
                 #[local_ref]
@@ -226,7 +238,9 @@ impl SimpleComponent for PhotoInfo {
 
         let model = PhotoInfo {
             state,
+
             folder: folder.clone(),
+            path: None,
 
             date_time_details: date_time_details.clone(),
             created_at: created_at.clone(),
@@ -258,6 +272,15 @@ impl SimpleComponent for PhotoInfo {
 
     fn update(&mut self, msg: Self::Input, _sender: ComponentSender<Self>) {
         match msg {
+            PhotoInfoInput::OpenFolder => {
+                println!("open folder!");
+                let Some(ref path) = self.path else {
+                    return;
+                };
+                let file = gtk::gio::File::for_path(path);
+                let launcher = gtk::FileLauncher::new(Some(&file));
+                launcher.open_containing_folder(None::<&adw::ApplicationWindow>, None::<&gio::Cancellable>, |_| ());
+            },
             PhotoInfoInput::Photo(ref visual_id, ref image_info) => {
                 let result = {
                     let data = self.state.read();
@@ -276,7 +299,7 @@ impl SimpleComponent for PhotoInfo {
                 if vis.picture_id.is_some() {
                     let _ = self.update_photo_details(vis.clone(), image_info);
                 }
-            }
+            },
             PhotoInfoInput::Video(ref visual_id) => {
                 let result = {
                     let data = self.state.read();
@@ -296,7 +319,7 @@ impl SimpleComponent for PhotoInfo {
                 if vis.video_id.is_some() {
                     let _ = self.update_video_details(vis.clone());
                 }
-            }
+            },
         }
     }
 }
@@ -312,6 +335,7 @@ impl PhotoInfo {
         };
 
         Self::update_row(&self.folder, vis.folder_name());
+        self.path = Some(path.to_path_buf());
 
         // FIXME duplicated from Scanner
         let file = fs::File::open(path).map_err(|e| e.to_string())?;
