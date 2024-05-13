@@ -273,7 +273,6 @@ impl SimpleComponent for PhotoInfo {
     fn update(&mut self, msg: Self::Input, _sender: ComponentSender<Self>) {
         match msg {
             PhotoInfoInput::OpenFolder => {
-                println!("open folder!");
                 let Some(ref path) = self.path else {
                     return;
                 };

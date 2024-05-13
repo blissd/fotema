@@ -14,7 +14,8 @@ use crate::app::SharedState;
 use crate::app::ActiveView;
 use crate::app::ViewName;
 
-use super::album::{Album, AlbumFilter, AlbumInput, AlbumOutput};
+use super::album::{Album, AlbumInput, AlbumOutput};
+use super::album_filter::AlbumFilter;
 use super::month_photos::{MonthPhotos, MonthPhotosInput, MonthPhotosOutput};
 use super::year_photos::{YearPhotos, YearPhotosInput, YearPhotosOutput};
 

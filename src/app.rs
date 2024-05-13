@@ -42,7 +42,8 @@ mod components;
 
 use self::components::{
     about::AboutDialog,
-    album::{Album, AlbumFilter, AlbumInput, AlbumOutput},
+    album::{Album, AlbumInput, AlbumOutput},
+    album_filter::AlbumFilter,
     folder_photos::{FolderPhotos, FolderPhotosInput, FolderPhotosOutput},
     library::{Library, LibraryInput, LibraryOutput},
     one_photo::{OnePhoto, OnePhotoInput, OnePhotoOutput},

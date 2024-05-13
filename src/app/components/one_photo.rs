@@ -32,6 +32,12 @@ pub enum OnePhotoInput {
 
     // Transcode all incompatible videos
     TranscodeAll,
+
+    // Go to the previous photo
+    GoLeft,
+
+    // Go to the next photo
+    GoRight,
 }
 
 #[derive(Debug)]
@@ -99,8 +105,32 @@ impl SimpleAsyncComponent for OnePhoto {
                 set_content = &gtk::Box {
                     set_orientation: gtk::Orientation::Vertical,
 
-                    #[local_ref]
-                    picture -> gtk::Picture {
+                    gtk::Overlay {
+                        add_overlay =  &gtk::Box {
+                            set_halign: gtk::Align::Start,
+                            set_valign: gtk::Align::End,
+                            set_orientation: gtk::Orientation::Horizontal,
+                            set_margin_all: 18,
+                            set_spacing: 12,
+
+                            gtk::Button {
+                                set_icon_name: "left-symbolic",
+                                add_css_class: "osd",
+                                add_css_class: "circular",
+                                connect_clicked => OnePhotoInput::GoLeft,
+                            },
+                            gtk::Button {
+                                set_icon_name: "right-symbolic",
+                                add_css_class: "osd",
+                                add_css_class: "circular",
+                                connect_clicked => OnePhotoInput::GoRight,
+                            },
+                        },
+
+                        #[wrap(Some)]
+                        #[local_ref]
+                        set_child = &picture -> gtk::Picture {
+                        },
                     },
 
                     #[local_ref]
@@ -273,7 +303,39 @@ impl SimpleAsyncComponent for OnePhoto {
                 event!(Level::INFO, "Transcode all");
                 self.transcode_button.set_visible(false);
                 let _ = sender.output(OnePhotoOutput::TranscodeAll);
-            }
+            },
+            OnePhotoInput::GoLeft => {
+                let Some(ref visual_id) = self.visual_id else {
+                    return;
+                };
+
+                let data = self.state.read();
+                let cur_index = data.iter().position(|ref x| x.visual_id == *visual_id);
+                let Some(cur_index) = cur_index else {
+                    return;
+                };
+
+                if cur_index > 0 {
+                    let visual_id = data[cur_index-1].visual_id.clone();
+                    sender.input(OnePhotoInput::ViewPhoto(visual_id));
+                }
+            },
+            OnePhotoInput::GoRight => {
+                let Some(ref visual_id) = self.visual_id else {
+                    return;
+                };
+
+                let data = self.state.read();
+                let cur_index = data.iter().position(|ref x| x.visual_id == *visual_id);
+                let Some(cur_index) = cur_index else {
+                    return;
+                };
+
+                if cur_index+1 < data.len() {
+                    let visual_id = data[cur_index+1].visual_id.clone();
+                    sender.input(OnePhotoInput::ViewPhoto(visual_id));
+                }
+            },
         }
     }
 }

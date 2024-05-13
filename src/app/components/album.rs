@@ -17,29 +17,10 @@ use std::sync::Arc;
 use crate::app::SharedState;
 use crate::app::ActiveView;
 use crate::app::ViewName;
+use super::album_filter::AlbumFilter;
 
 use tracing::{event, Level};
 
-#[derive(Debug)]
-pub enum AlbumFilter {
-    // Show no photos
-    None,
-
-    // Show all photos
-    All,
-
-    // Show only selfies
-    Selfies,
-
-    // Show only videos
-    Videos,
-
-    // Show only motion photos (live photos)
-    Motion,
-
-    // Show photos only for folder
-    Folder(PathBuf),
-}
 
 #[derive(Debug)]
 pub enum AlbumInput {
