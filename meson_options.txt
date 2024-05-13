@@ -10,5 +10,5 @@ option(
     'development'
   ],
   value: 'default',
-  description: 'The build profile for Photo Romantic. One of "default" or "development".'
+  description: 'The build profile for Fotema. One of "default" or "development".'
 )

@@ -17,7 +17,8 @@
     "--filesystem=xdg-pictures:ro",
     "--env=RUST_LOG=fotema=debug",
     "--env=G_MESSAGES_DEBUG=none",
-    "--env=RUST_BACKTRACE=1"
+    "--env=RUST_BACKTRACE=1",
+    "--env=RUST_LOG=fotema=debug,relm4=info,glycin=warn"
   ],
   "build-options": {
     "append-path": "/usr/lib/sdk/rust-stable/bin:/usr/lib/sdk/llvm18/bin",
