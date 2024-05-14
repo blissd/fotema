@@ -145,7 +145,7 @@ pub(super) enum AppMsg {
     SwitchView,
 
     // Show item.
-    ViewPhoto(VisualId),
+    View(VisualId, AlbumFilter),
 
     // Shown item is dismissed.
     ViewHidden,
@@ -456,7 +456,7 @@ impl SimpleComponent for App {
         let library = Library::builder()
             .launch((state.clone(), active_view.clone()))
             .forward(sender.input_sender(), |msg| match msg {
-                LibraryOutput::ViewPhoto(id) => AppMsg::ViewPhoto(id),
+                LibraryOutput::View(id) => AppMsg::View(id, AlbumFilter::All),
             });
 
         let transcoder = video::Transcoder::new(&cache_dir);
@@ -474,7 +474,7 @@ impl SimpleComponent for App {
         let selfies_page = Album::builder()
             .launch((state.clone(), active_view.clone(), ViewName::Selfies, AlbumFilter::Selfies))
             .forward(sender.input_sender(), |msg| match msg {
-                AlbumOutput::Selected(id) => AppMsg::ViewPhoto(id),
+                AlbumOutput::Selected(id, filter) => AppMsg::View(id, filter),
             });
 
         state.subscribe(selfies_page.sender(), |_| AlbumInput::Refresh);
@@ -484,7 +484,7 @@ impl SimpleComponent for App {
         let motion_page = Album::builder()
             .launch((state.clone(), active_view.clone(), ViewName::Animated, AlbumFilter::Motion))
             .forward(sender.input_sender(), |msg| match msg {
-                AlbumOutput::Selected(id) => AppMsg::ViewPhoto(id),
+                AlbumOutput::Selected(id, filter) => AppMsg::View(id, filter),
             });
 
         state.subscribe(motion_page.sender(), |_| AlbumInput::Refresh);
@@ -492,7 +492,7 @@ impl SimpleComponent for App {
         let videos_page = Album::builder()
             .launch((state.clone(), active_view.clone(), ViewName::Videos, AlbumFilter::Videos))
             .forward(sender.input_sender(), |msg| match msg {
-                AlbumOutput::Selected(id) => AppMsg::ViewPhoto(id),
+                AlbumOutput::Selected(id, filter) => AppMsg::View(id, filter),
             });
 
         state.subscribe(videos_page.sender(), |_| AlbumInput::Refresh);
@@ -511,7 +511,7 @@ impl SimpleComponent for App {
         let folder_album = Album::builder()
             .launch((state.clone(), active_view.clone(), ViewName::Folder, AlbumFilter::None))
             .forward(sender.input_sender(), |msg| match msg {
-                AlbumOutput::Selected(id) => AppMsg::ViewPhoto(id),
+                AlbumOutput::Selected(id, filter) => AppMsg::View(id, filter),
             });
 
         state.subscribe(folder_album.sender(), |_| AlbumInput::Refresh);
@@ -655,9 +655,9 @@ impl SimpleComponent for App {
                     ViewName::Nothing => event!(Level::WARN, "Nothing activated... which should not happen"),
                 }
             }
-            AppMsg::ViewPhoto(visual_id) => {
+            AppMsg::View(visual_id, filter) => {
                 // Send message to OnePhoto to show image
-                self.one_photo.emit(OnePhotoInput::ViewPhoto(visual_id));
+                self.one_photo.emit(OnePhotoInput::View(visual_id, filter));
 
                 // Display navigation page for viewing an individual photo.
                 self.picture_navigation_view.push_by_tag("picture");

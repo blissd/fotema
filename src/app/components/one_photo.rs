@@ -11,11 +11,13 @@ use relm4::*;
 use relm4::prelude::*;
 use glycin;
 
+use crate::app::components::album_filter::AlbumFilter;
 use crate::app::components::photo_info::PhotoInfo;
 use crate::app::components::photo_info::PhotoInfoInput;
 use crate::app::components::progress_monitor::ProgressMonitor;
 use crate::app::components::progress_panel::ProgressPanel;
 use crate::app::SharedState;
+use fotema_core::Visual;
 
 use std::sync::Arc;
 
@@ -23,7 +25,8 @@ use tracing::{event, Level};
 
 #[derive(Debug)]
 pub enum OnePhotoInput {
-    ViewPhoto(VisualId),
+    // View an item after applying an album filter.
+    View(VisualId, AlbumFilter),
 
     ToggleInfo,
 
@@ -68,6 +71,13 @@ pub struct OnePhoto {
 
     // Visual ID of currently displayed item
     visual_id: Option<VisualId>,
+
+    // Album currently displayed item is a member of
+    filter: AlbumFilter,
+
+    // Visual items filtered by album filter.
+    // This is to support the next and previous buttons.
+    filtered_items: Vec<Arc<Visual>>,
 }
 
 #[relm4::component(pub async)]
@@ -197,6 +207,8 @@ impl SimpleAsyncComponent for OnePhoto {
             split_view: split_view.clone(),
             title: String::from("-"),
             visual_id: None,
+            filter: AlbumFilter::None,
+            filtered_items: Vec::new(),
         };
 
         let widgets = view_output!();
@@ -210,9 +222,22 @@ impl SimpleAsyncComponent for OnePhoto {
                 self.picture.set_paintable(None::<&gdk::Paintable>);
                 self.title = String::from("-");
             },
-            OnePhotoInput::ViewPhoto(visual_id) => {
+            OnePhotoInput::View(visual_id, filter) => {
                 event!(Level::INFO, "Showing item for {}", visual_id);
                 self.visual_id = None;
+
+                // To support next/previous navigation we must have a view of the visual
+                // items filtered with the same album filter as the album the user is currently
+                // looking at.
+                if self.filter != filter {
+                    println!("FILTERING");
+                    self.filter = filter.clone();
+                    let items = self.state.read();
+                    self.filtered_items = items.iter()
+                        .filter(|v| filter.clone().filter(&v))
+                        .map(|v| v.clone())
+                        .collect();
+                }
 
                 let result = {
                     let data = self.state.read();
@@ -309,15 +334,17 @@ impl SimpleAsyncComponent for OnePhoto {
                     return;
                 };
 
-                let data = self.state.read();
-                let cur_index = data.iter().position(|ref x| x.visual_id == *visual_id);
+                let cur_index = self.filtered_items
+                    .iter()
+                    .position(|ref x| x.visual_id == *visual_id);
+
                 let Some(cur_index) = cur_index else {
                     return;
                 };
 
                 if cur_index > 0 {
-                    let visual_id = data[cur_index-1].visual_id.clone();
-                    sender.input(OnePhotoInput::ViewPhoto(visual_id));
+                    let visual_id = self.filtered_items[cur_index-1].visual_id.clone();
+                    sender.input(OnePhotoInput::View(visual_id, self.filter.clone()));
                 }
             },
             OnePhotoInput::GoRight => {
@@ -325,15 +352,17 @@ impl SimpleAsyncComponent for OnePhoto {
                     return;
                 };
 
-                let data = self.state.read();
-                let cur_index = data.iter().position(|ref x| x.visual_id == *visual_id);
+                let cur_index = self.filtered_items
+                    .iter()
+                    .position(|ref x| x.visual_id == *visual_id);
+
                 let Some(cur_index) = cur_index else {
                     return;
                 };
 
-                if cur_index+1 < data.len() {
-                    let visual_id = data[cur_index+1].visual_id.clone();
-                    sender.input(OnePhotoInput::ViewPhoto(visual_id));
+                if cur_index + 1 < self.filtered_items.len() {
+                    let visual_id = self.filtered_items[cur_index + 1].visual_id.clone();
+                    sender.input(OnePhotoInput::View(visual_id, self.filter.clone()));
                 }
             },
         }
