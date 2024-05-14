@@ -74,7 +74,7 @@ impl Thumbnailer {
         let src_image = ImageReader::open(path)?.decode()?.into_rgb8();
 
         // WARNING src_image, dst_image, and the PngEncoder must all
-        // use the _same_ pixel type or the PngEncoder will through errors
+        // use the _same_ pixel type or the PngEncoder will throw errors
         // about having an unexpected number of bytes.
         // PixelType::U8x3 == RGB8
         // PixelType::U8x4 == RGBA8
