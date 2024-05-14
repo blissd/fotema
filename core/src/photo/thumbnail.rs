@@ -4,16 +4,20 @@
 
 use crate::photo::model::PictureId;
 use anyhow::*;
-use fast_image_resize as fr;
-use gdk4::prelude::TextureExt;
-use glycin;
+
 use image::codecs::png::PngEncoder;
 use image::io::Reader as ImageReader;
 use image::ExtendedColorType;
 use image::ImageEncoder;
+
+use fast_image_resize as fr;
+use fr::images::Image;
+use fr::{IntoImageView, ResizeOptions, Resizer};
+
+use gdk4::prelude::TextureExt;
+use glycin;
 use std::io::BufWriter;
 use std::io::Write;
-use std::num::NonZeroU32;
 use std::path::{Path, PathBuf};
 use tracing::{event, Level};
 
@@ -66,51 +70,20 @@ impl Thumbnailer {
     }
 
     pub fn fast_thumbnail(path: &Path, thumbnail_path: &Path) -> Result<()> {
-        let img = ImageReader::open(path)?.decode()?;
+        let src_image = ImageReader::open(path)?.decode()?;
+        let Some(pixel_type) = src_image.pixel_type() else {
+            return Err(anyhow!("No pixel_type for source image"));
+        };
 
-        let width = NonZeroU32::new(img.width()).unwrap();
+        let mut dst_image = Image::new(EDGE, EDGE, pixel_type);
 
-        let height = NonZeroU32::new(img.height()).unwrap();
+        let mut resizer = Resizer::new();
 
-        let src_image = fr::Image::from_vec_u8(
-            width,
-            height,
-            img.to_rgba8().into_raw(),
-            fr::PixelType::U8x4,
+        resizer.resize(
+            &src_image,
+            &mut dst_image,
+            &ResizeOptions::new().fit_into_destination(Some((0.5, 0.5))),
         )?;
-
-        let mut src_view = src_image.view();
-
-        // A square box centred on the image.
-        src_view.set_crop_box_to_fit_dst_size(
-            NonZeroU32::new(EDGE).expect("Must be EDGE"),
-            NonZeroU32::new(EDGE).expect("Must be EDGE"),
-            Some((0.5, 0.5)),
-        );
-
-        // Multiple RGB channels of source image by alpha channel
-        // (not required for the Nearest algorithm)
-        //let alpha_mul_div = fr::MulDiv::default();
-        //alpha_mul_div
-        //    .multiply_alpha_inplace(&mut src_view)
-        //    .map_err(|e| PreviewError(format!("fast thumbnail: {}", e)))?;
-
-        // Create container for data of destination image
-        let dst_width = NonZeroU32::new(EDGE).expect("Must be EDGE");
-        let dst_height = NonZeroU32::new(EDGE).expect("Must be EDGE");
-        let mut dst_image = fr::Image::new(dst_width, dst_height, src_image.pixel_type());
-
-        // Get mutable view of destination image data
-        let mut dst_view = dst_image.view_mut();
-
-        // Create Resizer instance and resize source image
-        // into buffer of destination image
-        let mut resizer = fr::Resizer::new(fr::ResizeAlg::Convolution(fr::FilterType::Lanczos3));
-        resizer.resize(&src_view, &mut dst_view)?;
-
-        // Divide RGB channels of destination image by alpha
-        // alpha_mul_div
-        //     .divide_alpha_inplace(&mut dst_view)?;
 
         // Write destination image as PNG-file
         // Write to temporary file first and then move so that an interrupted write
@@ -123,9 +96,9 @@ impl Thumbnailer {
 
         PngEncoder::new(&mut file).write_image(
             dst_image.buffer(),
-            dst_width.get(),
-            dst_height.get(),
-            ExtendedColorType::Rgba8,
+            EDGE,
+            EDGE,
+            ExtendedColorType::Rgb8,
         )?;
 
         file.flush()?;
