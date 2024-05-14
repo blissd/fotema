@@ -14,7 +14,8 @@ use crate::app::SharedState;
 use crate::app::ActiveView;
 use crate::app::ViewName;
 
-use super::album::{Album, AlbumFilter, AlbumInput, AlbumOutput};
+use super::album::{Album, AlbumInput, AlbumOutput};
+use super::album_filter::AlbumFilter;
 use super::month_photos::{MonthPhotos, MonthPhotosInput, MonthPhotosOutput};
 use super::year_photos::{YearPhotos, YearPhotosInput, YearPhotosOutput};
 
@@ -34,12 +35,12 @@ pub enum LibraryInput {
     // Scroll to first photo in year
     GoToYear(i32),
 
-    ViewPhoto(VisualId),
+    View(VisualId),
 }
 
 #[derive(Debug)]
 pub enum LibraryOutput {
-    ViewPhoto(VisualId),
+    View(VisualId),
 }
 
 
@@ -85,7 +86,7 @@ impl SimpleComponent for Library {
         let all_photos = Album::builder()
             .launch((state.clone(), active_view.clone(), ViewName::All, AlbumFilter::All))
             .forward(sender.input_sender(), |msg| match msg {
-                AlbumOutput::Selected(id) => LibraryInput::ViewPhoto(id),
+                AlbumOutput::Selected(id, _) => LibraryInput::View(id),
             });
 
         state.subscribe(all_photos.sender(), |_| AlbumInput::Refresh);
@@ -146,8 +147,8 @@ impl SimpleComponent for Library {
                 self.month_photos.emit(MonthPhotosInput::Activate);
                 self.month_photos.emit(MonthPhotosInput::GoToYear(year));
             },
-            LibraryInput::ViewPhoto(id) => {
-                let _ = sender.output(LibraryOutput::ViewPhoto(id));
+            LibraryInput::View(id) => {
+                let _ = sender.output(LibraryOutput::View(id));
             },
         }
     }

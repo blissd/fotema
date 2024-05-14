@@ -11,11 +11,13 @@ use relm4::*;
 use relm4::prelude::*;
 use glycin;
 
+use crate::app::components::album_filter::AlbumFilter;
 use crate::app::components::photo_info::PhotoInfo;
 use crate::app::components::photo_info::PhotoInfoInput;
 use crate::app::components::progress_monitor::ProgressMonitor;
 use crate::app::components::progress_panel::ProgressPanel;
 use crate::app::SharedState;
+use fotema_core::Visual;
 
 use std::sync::Arc;
 
@@ -23,7 +25,8 @@ use tracing::{event, Level};
 
 #[derive(Debug)]
 pub enum OnePhotoInput {
-    ViewPhoto(VisualId),
+    // View an item after applying an album filter.
+    View(VisualId, AlbumFilter),
 
     ToggleInfo,
 
@@ -32,6 +35,12 @@ pub enum OnePhotoInput {
 
     // Transcode all incompatible videos
     TranscodeAll,
+
+    // Go to the previous photo
+    GoLeft,
+
+    // Go to the next photo
+    GoRight,
 }
 
 #[derive(Debug)]
@@ -62,6 +71,13 @@ pub struct OnePhoto {
 
     // Visual ID of currently displayed item
     visual_id: Option<VisualId>,
+
+    // Album currently displayed item is a member of
+    filter: AlbumFilter,
+
+    // Visual items filtered by album filter.
+    // This is to support the next and previous buttons.
+    filtered_items: Vec<Arc<Visual>>,
 }
 
 #[relm4::component(pub async)]
@@ -96,41 +112,65 @@ impl SimpleAsyncComponent for OnePhoto {
                 set_sidebar_position: gtk::PackType::End,
 
                 #[wrap(Some)]
-                set_content = &gtk::Box {
-                    set_orientation: gtk::Orientation::Vertical,
+                set_content = &gtk::Overlay {
+                    add_overlay =  &gtk::Box {
+                        set_halign: gtk::Align::Start,
+                        set_valign: gtk::Align::End,
+                        set_orientation: gtk::Orientation::Horizontal,
+                        set_margin_all: 18,
+                        set_spacing: 12,
 
-                    #[local_ref]
-                    picture -> gtk::Picture {
+                        gtk::Button {
+                            set_icon_name: "left-symbolic",
+                            add_css_class: "osd",
+                            add_css_class: "circular",
+                            connect_clicked => OnePhotoInput::GoLeft,
+                        },
+                        gtk::Button {
+                            set_icon_name: "right-symbolic",
+                            add_css_class: "osd",
+                            add_css_class: "circular",
+                            connect_clicked => OnePhotoInput::GoRight,
+                        },
                     },
 
-                    #[local_ref]
-                    transcode_status -> adw::StatusPage {
-                        set_visible: false,
-                        set_icon_name: Some("playback-error-symbolic"),
-                        set_description: Some("This video must be converted before it can be played.\nThis only needs to happen once, but it takes a while to convert a video."),
+                    #[wrap(Some)]
+                    set_child = &gtk::Box {
+                        set_orientation: gtk::Orientation::Vertical,
 
-                        #[wrap(Some)]
-                        set_child = &adw::Clamp {
-                            set_orientation: gtk::Orientation::Horizontal,
-                            set_maximum_size: 400,
+                        #[local_ref]
+                        picture -> gtk::Picture {
+                        },
+
+                        #[local_ref]
+                        transcode_status -> adw::StatusPage {
+                            set_visible: false,
+                            set_icon_name: Some("playback-error-symbolic"),
+                            set_description: Some("This video must be converted before it can be played.\nThis only needs to happen once, but it takes a while to convert a video."),
 
                             #[wrap(Some)]
-                            set_child = &gtk::Box {
-                                set_orientation: gtk::Orientation::Vertical,
+                            set_child = &adw::Clamp {
+                                set_orientation: gtk::Orientation::Horizontal,
+                                set_maximum_size: 400,
 
-                                #[local_ref]
-                                transcode_button -> gtk::Button {
-                                    set_label: "Convert all incompatible videos",
-                                    add_css_class: "suggested-action",
-                                    add_css_class: "pill",
-                                    connect_clicked => OnePhotoInput::TranscodeAll,
-                                },
+                                #[wrap(Some)]
+                                set_child = &gtk::Box {
+                                    set_orientation: gtk::Orientation::Vertical,
 
-                                model.transcode_progress.widget(),
+                                    #[local_ref]
+                                    transcode_button -> gtk::Button {
+                                        set_label: "Convert all incompatible videos",
+                                        add_css_class: "suggested-action",
+                                        add_css_class: "pill",
+                                        connect_clicked => OnePhotoInput::TranscodeAll,
+                                    },
+
+                                    model.transcode_progress.widget(),
+                                }
                             }
                         }
                     }
-                }
+                },
             }
         }
     }
@@ -167,6 +207,8 @@ impl SimpleAsyncComponent for OnePhoto {
             split_view: split_view.clone(),
             title: String::from("-"),
             visual_id: None,
+            filter: AlbumFilter::None,
+            filtered_items: Vec::new(),
         };
 
         let widgets = view_output!();
@@ -180,9 +222,22 @@ impl SimpleAsyncComponent for OnePhoto {
                 self.picture.set_paintable(None::<&gdk::Paintable>);
                 self.title = String::from("-");
             },
-            OnePhotoInput::ViewPhoto(visual_id) => {
+            OnePhotoInput::View(visual_id, filter) => {
                 event!(Level::INFO, "Showing item for {}", visual_id);
                 self.visual_id = None;
+
+                // To support next/previous navigation we must have a view of the visual
+                // items filtered with the same album filter as the album the user is currently
+                // looking at.
+                if self.filter != filter {
+                    println!("FILTERING");
+                    self.filter = filter.clone();
+                    let items = self.state.read();
+                    self.filtered_items = items.iter()
+                        .filter(|v| filter.clone().filter(&v))
+                        .map(|v| v.clone())
+                        .collect();
+                }
 
                 let result = {
                     let data = self.state.read();
@@ -273,7 +328,43 @@ impl SimpleAsyncComponent for OnePhoto {
                 event!(Level::INFO, "Transcode all");
                 self.transcode_button.set_visible(false);
                 let _ = sender.output(OnePhotoOutput::TranscodeAll);
-            }
+            },
+            OnePhotoInput::GoLeft => {
+                let Some(ref visual_id) = self.visual_id else {
+                    return;
+                };
+
+                let cur_index = self.filtered_items
+                    .iter()
+                    .position(|ref x| x.visual_id == *visual_id);
+
+                let Some(cur_index) = cur_index else {
+                    return;
+                };
+
+                if cur_index > 0 {
+                    let visual_id = self.filtered_items[cur_index-1].visual_id.clone();
+                    sender.input(OnePhotoInput::View(visual_id, self.filter.clone()));
+                }
+            },
+            OnePhotoInput::GoRight => {
+                let Some(ref visual_id) = self.visual_id else {
+                    return;
+                };
+
+                let cur_index = self.filtered_items
+                    .iter()
+                    .position(|ref x| x.visual_id == *visual_id);
+
+                let Some(cur_index) = cur_index else {
+                    return;
+                };
+
+                if cur_index + 1 < self.filtered_items.len() {
+                    let visual_id = self.filtered_items[cur_index + 1].visual_id.clone();
+                    sender.input(OnePhotoInput::View(visual_id, self.filter.clone()));
+                }
+            },
         }
     }
 }

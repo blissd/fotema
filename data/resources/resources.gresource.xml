@@ -29,5 +29,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
     <file alias="play-symbolic.svg" preprocess="xml-stripblanks">icons/play-symbolic.svg</file>
     <file alias="broken-playback-symbolic.svg" preprocess="xml-stripblanks">icons/broken-playback-symbolic.svg</file>
     <file alias="playback-error-symbolic.svg" preprocess="xml-stripblanks">icons/playback-error-symbolic.svg</file>
+    <file alias="left-symbolic.svg" preprocess="xml-stripblanks">icons/left-symbolic.svg</file>
+    <file alias="right-symbolic.svg" preprocess="xml-stripblanks">icons/right-symbolic.svg</file>
   </gresource>
 </gresources>

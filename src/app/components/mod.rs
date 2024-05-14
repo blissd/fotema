@@ -5,6 +5,7 @@
 pub mod about;
 pub mod preferences;
 pub mod album;
+pub mod album_filter;
 pub mod month_photos;
 pub mod year_photos;
 pub mod one_photo;

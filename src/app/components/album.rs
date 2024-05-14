@@ -11,35 +11,16 @@ use relm4::gtk::prelude::*;
 use relm4::gtk::gdk_pixbuf;
 use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
 use relm4::*;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::Arc;
 
 use crate::app::SharedState;
 use crate::app::ActiveView;
 use crate::app::ViewName;
+use super::album_filter::AlbumFilter;
 
 use tracing::{event, Level};
 
-#[derive(Debug)]
-pub enum AlbumFilter {
-    // Show no photos
-    None,
-
-    // Show all photos
-    All,
-
-    // Show only selfies
-    Selfies,
-
-    // Show only videos
-    Videos,
-
-    // Show only motion photos (live photos)
-    Motion,
-
-    // Show photos only for folder
-    Folder(PathBuf),
-}
 
 #[derive(Debug)]
 pub enum AlbumInput {
@@ -66,7 +47,7 @@ pub enum AlbumInput {
 #[derive(Debug)]
 pub enum AlbumOutput {
     /// User has selected photo or video in grid view
-    Selected(VisualId),
+    Selected(VisualId, AlbumFilter),
 }
 
 #[derive(Debug)]
@@ -206,6 +187,7 @@ pub struct Album {
     active_view: ActiveView,
     view_name: ViewName,
     photo_grid: TypedGridView<PhotoGridItem, gtk::SingleSelection>,
+    filter: AlbumFilter,
 }
 
 #[relm4::component(pub)]
@@ -232,15 +214,15 @@ impl SimpleComponent for Album {
     }
 
     fn init(
-        (state, active_view, view_name, initial_filter): Self::Init,
+        (state, active_view, view_name, filter): Self::Init,
         _root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
         let photo_grid = TypedGridView::new();
 
-        let mut model = Album { state, active_view, view_name, photo_grid };
+        let mut model = Album { state, active_view, view_name, photo_grid, filter };
 
-        model.update_filter(initial_filter);
+        model.update_filter();
 
         let grid_view = &model.photo_grid.view;
 
@@ -264,7 +246,8 @@ impl SimpleComponent for Album {
                 }
             }
             AlbumInput::Filter(filter) => {
-                self.update_filter(filter);
+                self.filter = filter;
+                self.update_filter();
             }
             AlbumInput::Selected(index) => {
                 // Photos are filters so must use get_visible(...) over get(...), otherwise
@@ -272,7 +255,7 @@ impl SimpleComponent for Album {
                 if let Some(item) = self.photo_grid.get_visible(index) {
                     let visual_id = item.borrow().visual.visual_id.clone();
                     event!(Level::DEBUG, "index {} has visual_id {}", index, visual_id);
-                    let _ = sender.output(AlbumOutput::Selected(visual_id));
+                    let _ = sender.output(AlbumOutput::Selected(visual_id, self.filter.clone()));
                 }
             }
             AlbumInput::GoToMonth(ym) => {
@@ -334,49 +317,9 @@ impl Album {
         }
     }
 
-    fn update_filter(&mut self, filter: AlbumFilter) {
+    fn update_filter(&mut self) {
         self.photo_grid.clear_filters();
-        //self.photo_grid.add_filter(Album::filter_has_thumbnail);
-
-        match filter {
-            AlbumFilter::All => {
-                // If there are no filters, then all photos will be displayed.
-            }
-            AlbumFilter::None => {
-                self.photo_grid.add_filter(Album::filter_none);
-            }
-            AlbumFilter::Videos => {
-                self.photo_grid.add_filter(Album::filter_videos);
-            }
-            AlbumFilter::Motion => {
-                self.photo_grid.add_filter(Album::filter_motion_photos);
-            }
-            AlbumFilter::Selfies => {
-                self.photo_grid.add_filter(Album::filter_selfie);
-            }
-            AlbumFilter::Folder(path) => {
-                self.photo_grid.add_filter(Album::filter_folder(path));
-            }
-        }
-    }
-
-    fn filter_none(_item: &PhotoGridItem) -> bool {
-        false
-    }
-
-    fn filter_selfie(item: &PhotoGridItem) -> bool {
-        item.visual.is_selfie()
-    }
-
-    fn filter_videos(item: &PhotoGridItem) -> bool {
-        item.visual.is_video_only() && !item.visual.is_motion_photo()
-    }
-
-    fn filter_motion_photos(item: &PhotoGridItem) -> bool {
-        item.visual.is_motion_photo()
-    }
-
-    fn filter_folder(path: PathBuf) -> impl Fn(&PhotoGridItem) -> bool {
-        move |item: &PhotoGridItem| item.visual.parent_path  == path
+        let filter = self.filter.clone();
+        self.photo_grid.add_filter(move |item| filter.clone().filter(&item.visual));
     }
 }
