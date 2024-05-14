@@ -7,12 +7,13 @@ use anyhow::*;
 
 use image::codecs::png::PngEncoder;
 use image::io::Reader as ImageReader;
+use image::DynamicImage;
 use image::ExtendedColorType;
 use image::ImageEncoder;
 
 use fast_image_resize as fr;
 use fr::images::Image;
-use fr::{IntoImageView, ResizeOptions, Resizer};
+use fr::{ResizeOptions, Resizer};
 
 use gdk4::prelude::TextureExt;
 use glycin;
@@ -70,12 +71,11 @@ impl Thumbnailer {
     }
 
     pub fn fast_thumbnail(path: &Path, thumbnail_path: &Path) -> Result<()> {
-        let src_image = ImageReader::open(path)?.decode()?;
-        let Some(pixel_type) = src_image.pixel_type() else {
-            return Err(anyhow!("No pixel_type for source image"));
-        };
+        let src_image = ImageReader::open(path)?.decode()?.into_rgba8();
 
-        let mut dst_image = Image::new(EDGE, EDGE, pixel_type);
+        let src_image = DynamicImage::ImageRgba8(src_image);
+
+        let mut dst_image = Image::new(EDGE, EDGE, fr::PixelType::U8x4);
 
         let mut resizer = Resizer::new();
 
@@ -98,7 +98,7 @@ impl Thumbnailer {
             dst_image.buffer(),
             EDGE,
             EDGE,
-            ExtendedColorType::Rgb8,
+            ExtendedColorType::Rgba8,
         )?;
 
         file.flush()?;
