@@ -112,65 +112,65 @@ impl SimpleAsyncComponent for OnePhoto {
                 set_sidebar_position: gtk::PackType::End,
 
                 #[wrap(Some)]
-                set_content = &gtk::Box {
-                    set_orientation: gtk::Orientation::Vertical,
+                set_content = &gtk::Overlay {
+                    add_overlay =  &gtk::Box {
+                        set_halign: gtk::Align::Start,
+                        set_valign: gtk::Align::End,
+                        set_orientation: gtk::Orientation::Horizontal,
+                        set_margin_all: 18,
+                        set_spacing: 12,
 
-                    gtk::Overlay {
-                        add_overlay =  &gtk::Box {
-                            set_halign: gtk::Align::Start,
-                            set_valign: gtk::Align::End,
-                            set_orientation: gtk::Orientation::Horizontal,
-                            set_margin_all: 18,
-                            set_spacing: 12,
-
-                            gtk::Button {
-                                set_icon_name: "left-symbolic",
-                                add_css_class: "osd",
-                                add_css_class: "circular",
-                                connect_clicked => OnePhotoInput::GoLeft,
-                            },
-                            gtk::Button {
-                                set_icon_name: "right-symbolic",
-                                add_css_class: "osd",
-                                add_css_class: "circular",
-                                connect_clicked => OnePhotoInput::GoRight,
-                            },
+                        gtk::Button {
+                            set_icon_name: "left-symbolic",
+                            add_css_class: "osd",
+                            add_css_class: "circular",
+                            connect_clicked => OnePhotoInput::GoLeft,
                         },
-
-                        #[wrap(Some)]
-                        #[local_ref]
-                        set_child = &picture -> gtk::Picture {
+                        gtk::Button {
+                            set_icon_name: "right-symbolic",
+                            add_css_class: "osd",
+                            add_css_class: "circular",
+                            connect_clicked => OnePhotoInput::GoRight,
                         },
                     },
 
-                    #[local_ref]
-                    transcode_status -> adw::StatusPage {
-                        set_visible: false,
-                        set_icon_name: Some("playback-error-symbolic"),
-                        set_description: Some("This video must be converted before it can be played.\nThis only needs to happen once, but it takes a while to convert a video."),
+                    #[wrap(Some)]
+                    set_child = &gtk::Box {
+                        set_orientation: gtk::Orientation::Vertical,
 
-                        #[wrap(Some)]
-                        set_child = &adw::Clamp {
-                            set_orientation: gtk::Orientation::Horizontal,
-                            set_maximum_size: 400,
+                        #[local_ref]
+                        picture -> gtk::Picture {
+                        },
+
+                        #[local_ref]
+                        transcode_status -> adw::StatusPage {
+                            set_visible: false,
+                            set_icon_name: Some("playback-error-symbolic"),
+                            set_description: Some("This video must be converted before it can be played.\nThis only needs to happen once, but it takes a while to convert a video."),
 
                             #[wrap(Some)]
-                            set_child = &gtk::Box {
-                                set_orientation: gtk::Orientation::Vertical,
+                            set_child = &adw::Clamp {
+                                set_orientation: gtk::Orientation::Horizontal,
+                                set_maximum_size: 400,
 
-                                #[local_ref]
-                                transcode_button -> gtk::Button {
-                                    set_label: "Convert all incompatible videos",
-                                    add_css_class: "suggested-action",
-                                    add_css_class: "pill",
-                                    connect_clicked => OnePhotoInput::TranscodeAll,
-                                },
+                                #[wrap(Some)]
+                                set_child = &gtk::Box {
+                                    set_orientation: gtk::Orientation::Vertical,
 
-                                model.transcode_progress.widget(),
+                                    #[local_ref]
+                                    transcode_button -> gtk::Button {
+                                        set_label: "Convert all incompatible videos",
+                                        add_css_class: "suggested-action",
+                                        add_css_class: "pill",
+                                        connect_clicked => OnePhotoInput::TranscodeAll,
+                                    },
+
+                                    model.transcode_progress.widget(),
+                                }
                             }
                         }
                     }
-                }
+                },
             }
         }
     }
