@@ -38,15 +38,5 @@ impl AlbumFilter {
             AlbumFilter::Selfies => v.is_selfie(),
             AlbumFilter::Videos => v.is_video_only() && !v.is_motion_photo(),
         }
-    /*
-        match self {
-            AlbumFilter::None => Box::new(|_| false),
-            AlbumFilter::All => Box::new(|_| true),
-            AlbumFilter::Folder(path) => Box::new(move |v| v.parent_path == path),
-            AlbumFilter::Motion => Box::new(|v| v.is_motion_photo()),
-            AlbumFilter::Selfies => Box::new(|v| v.is_selfie()),
-            AlbumFilter::Videos => Box::new(|v| v.is_video_only() && !v.is_motion_photo()),
-        }
-        */
     }
 }
