@@ -71,11 +71,20 @@ impl Thumbnailer {
     }
 
     pub fn fast_thumbnail(path: &Path, thumbnail_path: &Path) -> Result<()> {
-        let src_image = ImageReader::open(path)?.decode()?.into_rgba8();
+        let src_image = ImageReader::open(path)?.decode()?.into_rgb8();
 
-        let src_image = DynamicImage::ImageRgba8(src_image);
+        // WARNING src_image, dst_image, and the PngEncoder must all
+        // use the _same_ pixel type or the PngEncoder will through errors
+        // about having an unexpected number of bytes.
+        // PixelType::U8x3 == RGB8
+        // PixelType::U8x4 == RGBA8
+        //
+        // For now I'm using RGB, not RGBA, because I don't think an alpha channel
+        // makes sense for thumbnails.
 
-        let mut dst_image = Image::new(EDGE, EDGE, fr::PixelType::U8x4);
+        let src_image = DynamicImage::ImageRgb8(src_image);
+
+        let mut dst_image = Image::new(EDGE, EDGE, fr::PixelType::U8x3);
 
         let mut resizer = Resizer::new();
 
@@ -98,7 +107,7 @@ impl Thumbnailer {
             dst_image.buffer(),
             EDGE,
             EDGE,
-            ExtendedColorType::Rgba8,
+            ExtendedColorType::Rgb8,
         )?;
 
         file.flush()?;
