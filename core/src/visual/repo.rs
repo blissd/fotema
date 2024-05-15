@@ -68,7 +68,8 @@ impl Repository {
 
                     video_transcoded_path,
                     is_transcode_required,
-                    duration_millis
+                    duration_millis,
+                    video_rotation
                 FROM visual
                 ORDER BY created_ts ASC",
         )?;
@@ -76,38 +77,6 @@ impl Repository {
         let result = stmt.query_map([], |row| self.to_visual(row))?;
         let visuals = result.flatten().collect();
         Ok(visuals)
-    }
-
-    pub fn get(&mut self, visual_id: VisualId) -> Result<Option<Visual>> {
-        let con = self.con.lock().unwrap();
-        let mut stmt = con.prepare(
-            "SELECT
-                    visual_id,
-                    link_path_b64,
-
-                    picture_id,
-                    picture_path_b64,
-                    picture_thumbnail,
-                    picture_orientation,
-                    is_selfie,
-
-                    video_id,
-                    video_path_b64,
-                    video_thumbnail,
-
-                    created_ts,
-                    is_ios_live_photo
-
-                    video_transcoded_path,
-                    is_transcode_required,
-                    video_duration
-                FROM visual
-                AND visual.visual_id = ?1",
-        )?;
-
-        let iter = stmt.query_map([visual_id.id()], |row| self.to_visual(row))?;
-        let head = iter.flatten().nth(0);
-        Ok(head)
     }
 
     fn to_visual(&self, row: &Row<'_>) -> rusqlite::Result<Visual> {
@@ -157,6 +126,11 @@ impl Repository {
             .map(|x| self.thumbnail_base_path.join(x))
             .ok();
 
+        let video_orientation: Option<PictureOrientation> = row
+            .get("video_rotation")
+            .map(|x: i32| PictureOrientation::from_degrees(x))
+            .ok();
+
         let thumbnail_path: Option<PathBuf> = picture_thumbnail.or(video_thumbnail);
 
         let created_at: DateTime<Utc> = row.get("created_ts").ok().expect("Must have created_ts");
@@ -194,6 +168,7 @@ impl Repository {
             is_selfie,
             is_ios_live_photo,
             video_transcoded_path,
+            video_orientation,
             is_transcode_required,
             video_duration,
         };

@@ -109,7 +109,8 @@ impl Repository {
                     stream_created_ts = ?3,
                     duration_millis = ?4,
                     video_codec = ?5,
-                    content_id = ?6
+                    content_id = ?6,
+                    rotation = ?7
                 WHERE video_id = ?1",
             )?;
 
@@ -121,6 +122,7 @@ impl Repository {
                     metadata.duration.map(|x| x.num_milliseconds()),
                     metadata.video_codec,
                     metadata.content_id,
+                    metadata.rotation,
                 ])?;
             }
         }

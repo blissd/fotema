@@ -121,6 +121,8 @@ pub struct ScannedFile {
 // it should be mirrored (flipped on the X axis).
 //
 // NOTE: these enum names will be used in style.css to apply the rotation and mirroring.
+//
+// TODO this is also used by videos so move to a common place.
 
 #[derive(Debug, Clone, Copy, AsRefStr, EnumIter)]
 pub enum Orientation {
@@ -147,6 +149,18 @@ pub enum Orientation {
 
     // Rotate 90 clock-wise, no flip
     East = 8,
+}
+
+impl Orientation {
+    pub fn from_degrees(degrees: i32) -> Self {
+        match degrees {
+            0 => Orientation::North,
+            90 | -270 => Orientation::East,
+            180 | -180 => Orientation::South,
+            -90 | 270 => Orientation::West,
+            _ => Self::default(),
+        }
+    }
 }
 
 impl Default for Orientation {

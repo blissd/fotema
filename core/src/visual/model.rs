@@ -55,6 +55,9 @@ pub struct Visual {
     // Duration of video content
     pub video_duration: Option<TimeDelta>,
 
+    // Rotation of video content. Derived from degrees.
+    pub video_orientation: Option<Orientation>,
+
     pub picture_id: Option<PictureId>,
 
     pub picture_path: Option<PathBuf>,

@@ -311,6 +311,16 @@ impl SimpleAsyncComponent for OnePhoto {
                         self.picture.set_visible(true);
                         self.transcode_status.set_visible(false);
 
+
+                        // if a video is transcoded then the rotation transformation will
+                        // already have been applied.
+                        if !is_transcoded {
+                            // Apply a CSS transformation to respect the display matrix rotation
+                            let orientation = visual.video_orientation
+                                .unwrap_or(PictureOrientation::North);
+                            self.picture.add_css_class(orientation.as_ref());
+                        }
+
                         let video_path = visual.video_transcoded_path.clone()
                             .filter(|x| x.exists())
                             .or_else(|| visual.video_path.clone())

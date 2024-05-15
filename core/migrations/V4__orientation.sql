@@ -1,6 +1,8 @@
-ALTER TABLE pictures ADD COLUMN orientation INTEGER; -- EXIF orientation
+ALTER TABLE pictures ADD COLUMN orientation INTEGER; -- EXIF orientation (1..8)
 
-DROP VIEW visual;
+ALTER TABLE videos ADD COLUMN rotation INTEGER; -- display matrix rotation in degrees
+
+DROP VIEW IF EXISTS visual;
 
 CREATE VIEW visual AS
 SELECT
@@ -38,6 +40,7 @@ SELECT
   videos.video_codec,
   videos.video_codec IN ('hevc') AS is_transcode_required,
   videos.transcoded_path AS video_transcoded_path,
+  videos.rotation AS video_rotation,
 
   -- An iOS live photo is a photo and a video linked with a content ID.
   -- However, we only really need the video part, and short (<3 seconds)
