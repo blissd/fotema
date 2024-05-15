@@ -4,7 +4,7 @@
 
 use crate::photo::PictureId;
 use crate::video::VideoId;
-use crate::visual::model::{Visual, VisualId};
+use crate::visual::model::{PictureOrientation, Visual, VisualId};
 
 use crate::path_encoding;
 use anyhow::*;
@@ -56,6 +56,7 @@ impl Repository {
                     picture_id,
                     picture_path_b64,
                     picture_thumbnail,
+                    picture_orientation,
                     is_selfie,
 
                     video_id,
@@ -87,6 +88,7 @@ impl Repository {
                     picture_id,
                     picture_path_b64,
                     picture_thumbnail,
+                    picture_orientation,
                     is_selfie,
 
                     video_id,
@@ -131,6 +133,11 @@ impl Repository {
             .get("picture_thumbnail")
             .map(|x: String| PathBuf::from(x))
             .map(|x| self.thumbnail_base_path.join(x))
+            .ok();
+
+        let picture_orientation: Option<PictureOrientation> = row
+            .get("picture_orientation")
+            .map(|x: u32| PictureOrientation::from(x))
             .ok();
 
         let is_selfie: Option<bool> = row.get("is_selfie").ok();
@@ -180,6 +187,7 @@ impl Repository {
             thumbnail_path,
             picture_id,
             picture_path,
+            picture_orientation,
             video_id,
             video_path,
             created_at,

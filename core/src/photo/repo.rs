@@ -62,7 +62,8 @@ impl Repository {
                     exif_created_ts = ?3,
                     exif_modified_ts = ?4,
                     is_selfie = ?5,
-                    content_id = ?6
+                    content_id = ?6,
+                    orientation = ?7
                 WHERE picture_id = ?1",
             )?;
 
@@ -74,6 +75,7 @@ impl Repository {
                     metadata.modified_at,
                     metadata.is_selfie(),
                     metadata.content_id,
+                    metadata.orientation.map(|x| x as u8),
                 ])?;
             }
         }

@@ -7,6 +7,7 @@ use chrono::prelude::*;
 use chrono::{DateTime, FixedOffset, Utc};
 use std::fmt::Display;
 use std::path::PathBuf;
+use strum::AsRefStr;
 
 /// Database ID of picture
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -104,6 +105,72 @@ pub struct ScannedFile {
 
 /// Extra (non-filesystem) metadata for videos
 
+// EXIF data can include an orientation, which is a number from 1 to 8 that describes
+// the rotation/flipping to apply.
+//
+// 1 = 0 degrees: the correct orientation, no adjustment is required.
+// 2 = 0 degrees, mirrored: image has been flipped back-to-front.
+// 3 = 180 degrees: image is upside down.
+// 4 = 180 degrees, mirrored: image has been flipped back-to-front and is upside down.
+// 5 = 90 degrees: image has been flipped back-to-front and is on its side.
+// 6 = 90 degrees, mirrored: image is on its side.
+// 7 = 270 degrees: image has been flipped back-to-front and is on its far side.
+// 8 = 270 degrees, mirrored: image is on its far side.
+//
+// The Orientation enum describes where the top of the image should point and if
+// it should be mirrored (flipped on the X axis).
+//
+// NOTE: these enum names will be used in style.css to apply the rotation and mirroring.
+
+#[derive(Debug, Clone, Copy, AsRefStr)]
+pub enum Orientation {
+    // no rotation, no flip
+    North = 1,
+
+    // no rotation, flip on X axis
+    NorthMirrored = 2,
+
+    // Rotate 180, no flip
+    South = 3,
+
+    // Rotate 180, flip X axis
+    SouthMirrored = 4,
+
+    // Rotate 270 (90 anti-clockwise), flip X axis,
+    WestMirrored = 5,
+
+    // Rotate 270 clock-wise (90 anti-clockwise), no flip
+    West = 6,
+
+    // Rotate 90 clock-wise, flip X axis
+    EastMirrored = 7,
+
+    // Rotate 90 clock-wise, no flip
+    East = 8,
+}
+
+impl Default for Orientation {
+    fn default() -> Self {
+        Self::North
+    }
+}
+
+impl From<u32> for Orientation {
+    fn from(number: u32) -> Self {
+        match number {
+            1 => Orientation::North,
+            2 => Orientation::NorthMirrored,
+            3 => Orientation::South,
+            4 => Orientation::SouthMirrored,
+            5 => Orientation::WestMirrored,
+            6 => Orientation::West,
+            7 => Orientation::EastMirrored,
+            8 => Orientation::East,
+            _ => Self::default(),
+        }
+    }
+}
+
 #[derive(Debug, Default, Clone)]
 pub struct Metadata {
     pub created_at: Option<DateTime<FixedOffset>>,
@@ -115,6 +182,11 @@ pub struct Metadata {
 
     // iOS id for linking a video with a photo
     pub content_id: Option<String>,
+
+    // EXIF orientation.
+    // Some images... annoyingly... needs a rotation and mirror transformation applied
+    // to display correctly.
+    pub orientation: Option<Orientation>,
 }
 
 impl Metadata {

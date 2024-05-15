@@ -938,6 +938,7 @@ dependencies = [
  "rayon",
  "refinery",
  "rusqlite",
+ "strum",
  "tempfile",
  "tracing",
  "walkdir",
