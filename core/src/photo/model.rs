@@ -7,7 +7,7 @@ use chrono::prelude::*;
 use chrono::{DateTime, FixedOffset, Utc};
 use std::fmt::Display;
 use std::path::PathBuf;
-use strum::AsRefStr;
+use strum::{AsRefStr, EnumIter};
 
 /// Database ID of picture
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -122,7 +122,7 @@ pub struct ScannedFile {
 //
 // NOTE: these enum names will be used in style.css to apply the rotation and mirroring.
 
-#[derive(Debug, Clone, Copy, AsRefStr)]
+#[derive(Debug, Clone, Copy, AsRefStr, EnumIter)]
 pub enum Orientation {
     // no rotation, no flip
     North = 1,

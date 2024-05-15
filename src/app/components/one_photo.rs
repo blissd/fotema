@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use fotema_core::VisualId;
+use fotema_core::visual::model::PictureOrientation;
+use strum::IntoEnumIterator;
 use relm4::gtk;
 use relm4::adw::gdk;
 use relm4::gtk::gio;
@@ -261,9 +263,19 @@ impl SimpleAsyncComponent for OnePhoto {
 
                 self.picture.set_paintable(None::<&gdk::Paintable>);
 
+                // clear orientation transformation css classes
+                for orient in PictureOrientation::iter() {
+                    self.picture.remove_css_class(orient.as_ref());
+                }
+
                 if visual.is_photo_only() {
                     self.picture.set_visible(true);
                     self.transcode_status.set_visible(false);
+
+                    // Apply a CSS transformation to respect the EXIF orientation
+                    let orientation = visual.picture_orientation
+                        .unwrap_or(PictureOrientation::North);
+                    self.picture.add_css_class(orientation.as_ref());
 
                     let file = gio::File::for_path(visual_path.clone());
                     let image_result = glycin::Loader::new(file).load().await;
