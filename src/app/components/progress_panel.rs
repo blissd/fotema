@@ -59,6 +59,12 @@ impl SimpleComponent for ProgressPanel {
                 if count == 0 {
                     self.progress_bar.set_visible(true);
                     match task_name {
+                        TaskName::Enrich(MediaType::Photo) => {
+                            self.progress_bar.set_text(Some("Processing photo metadata."));
+                        },
+                        TaskName::Enrich(MediaType::Video) => {
+                            self.progress_bar.set_text(Some("Processing video metadata."));
+                        },
                         TaskName::Thumbnail(MediaType::Photo) => {
                             self.progress_bar.set_text(Some("Generating photo thumbnails."));
                         },

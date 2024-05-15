@@ -4,10 +4,19 @@
 
 use relm4::prelude::*;
 use relm4::Worker;
+use relm4::shared_state::Reducer;
 use anyhow::*;
 use fotema_core::video::metadata;
 
 use tracing::{event, Level};
+use std::sync::Arc;
+
+use crate::app::components::progress_monitor::{
+    ProgressMonitor,
+    ProgressMonitorInput,
+    TaskName,
+    MediaType
+};
 
 #[derive(Debug)]
 pub enum VideoEnrichInput {
@@ -25,12 +34,14 @@ pub enum VideoEnrichOutput {
 
 pub struct VideoEnrich {
     repo: fotema_core::video::Repository,
+    progress_monitor: Arc<Reducer<ProgressMonitor>>,
 }
 
 impl VideoEnrich {
 
     fn enrich(
         mut repo: fotema_core::video::Repository,
+        progress_monitor: Arc<Reducer<ProgressMonitor>>,
         sender: &ComponentSender<VideoEnrich>) -> Result<()>
      {
         let start = std::time::Instant::now();
@@ -41,16 +52,21 @@ impl VideoEnrich {
 
         let count = unprocessed.len();
 
+        progress_monitor.emit(ProgressMonitorInput::Start(TaskName::Enrich(MediaType::Video), count));
+
         let metadatas = unprocessed
             //.par_iter() // don't multiprocess until memory usage is better understood.
             .iter()
             .flat_map(|vid| {
                 let result = metadata::from_path(&vid.path);
+                progress_monitor.emit(ProgressMonitorInput::Advance);
                 result.map(|m| (vid.video_id, m))
             })
             .collect();
 
         repo.add_metadata(metadatas)?;
+
+        progress_monitor.emit(ProgressMonitorInput::Complete);
 
         event!(Level::INFO, "Enriched {} videos in {} seconds.", count, start.elapsed().as_secs());
 
@@ -63,13 +79,14 @@ impl VideoEnrich {
 }
 
 impl Worker for VideoEnrich {
-    type Init = fotema_core::video::Repository;
+    type Init = (fotema_core::video::Repository, Arc<Reducer<ProgressMonitor>>);
     type Input = VideoEnrichInput;
     type Output = VideoEnrichOutput;
 
-    fn init(repo: Self::Init, _sender: ComponentSender<Self>) -> Self  {
+    fn init((repo, progress_monitor): Self::Init, _sender: ComponentSender<Self>) -> Self  {
         let model = VideoEnrich {
             repo,
+            progress_monitor,
         };
         model
     }
@@ -80,10 +97,11 @@ impl Worker for VideoEnrich {
             VideoEnrichInput::Start => {
                 event!(Level::INFO, "Enriching videos...");
                 let repo = self.repo.clone();
+                let progress_monitor = self.progress_monitor.clone();
 
                 // Avoid runtime panic from calling block_on
                 rayon::spawn(move || {
-                    if let Err(e) = VideoEnrich::enrich(repo, &sender) {
+                    if let Err(e) = VideoEnrich::enrich(repo, progress_monitor, &sender) {
                         event!(Level::ERROR, "Failed to enrich videos: {}", e);
                     }
                 });

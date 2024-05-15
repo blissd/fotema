@@ -161,7 +161,7 @@ impl Worker for Bootstrap {
             });
 
         let video_enrich = VideoEnrich::builder()
-            .detach_worker(video_repo.clone())
+            .detach_worker((video_repo.clone(), progress_monitor.clone()))
             .forward(sender.input_sender(), |msg| match msg {
                 VideoEnrichOutput::Started => BootstrapInput::TaskStarted(TaskName::Enrich(MediaType::Video)),
                 VideoEnrichOutput::Completed => BootstrapInput::TaskCompleted(TaskName::Enrich(MediaType::Video)),
