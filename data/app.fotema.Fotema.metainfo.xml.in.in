@@ -47,6 +47,11 @@
   </branding>
 
   <releases>
+    <release version="1.2.0" date="2024-05-15">
+      <description>
+        <p>Photos and videos should now display the right way up if they contain the appropriate orientation metadata.</p>
+      </description>
+    </release>
     <release version="1.1.0" date="2024-05-14">
       <description>
         <p>Quality of life improvements:</p>
@@ -94,10 +99,5 @@
     <control>touch</control>
     <memory>2048</memory>
   </recommends>
-
-  <requires>
-    <!-- Minimum width defined in src/app.rs -->
-    <display_length compare="ge">360</display_length>
-  </requires>
 
 </component>

@@ -5,8 +5,12 @@
 use std::fmt::Display;
 use std::path::PathBuf;
 
+use crate::photo::model::Orientation;
 use crate::{PictureId, VideoId, YearMonth};
+
 use chrono::*;
+
+pub use crate::photo::model::Orientation as PictureOrientation;
 
 /// Database ID of a visual item
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -51,9 +55,14 @@ pub struct Visual {
     // Duration of video content
     pub video_duration: Option<TimeDelta>,
 
+    // Rotation of video content. Derived from degrees.
+    pub video_orientation: Option<Orientation>,
+
     pub picture_id: Option<PictureId>,
 
     pub picture_path: Option<PathBuf>,
+
+    pub picture_orientation: Option<Orientation>,
 
     /// EXIF or file system creation timestamp
     pub created_at: DateTime<Utc>,

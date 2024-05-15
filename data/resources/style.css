@@ -44,3 +44,35 @@
   font-weight: bold;
   font-size: 14px;
 }
+
+/* No transformations for north */
+.North {}
+
+.NorthMirrored {
+  transform: scaleX(-1);
+}
+
+.East {
+  transform: rotate(-90deg);
+}
+
+.EastMirrored {
+  transform: rotate(-90deg) scaleX(-1);
+}
+
+.South {
+  transform: rotate(180deg);
+}
+
+.SouthMirrored {
+  transform: rotate(180deg) scaleX(-1);
+}
+
+.West {
+  transform: rotate(90deg)
+}
+
+.WestMirrored {
+  transform: rotate(90deg) scaleX(-1);
+}
+

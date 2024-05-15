@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+use super::model::Orientation;
 use super::Metadata;
 use anyhow::*;
 use chrono::prelude::*;
@@ -18,7 +19,7 @@ use std::result::Result::Ok;
 /// Each photo will be saved with a metadata scan version which will allow for
 /// easy selection of photos when there metadata can be updated.
 
-pub const VERSION: u32 = 1;
+pub const VERSION: u32 = 2;
 
 /// Extract EXIF metadata from file
 pub fn from_path(path: &Path) -> Result<Metadata> {
@@ -34,7 +35,29 @@ pub fn from_path(path: &Path) -> Result<Metadata> {
         }
     };
 
-    let metadata = from_exif(exif_data)?;
+    let mut metadata = from_exif(exif_data)?;
+
+    // FIXME what is a better way of doing this?
+    //
+    // libheif applies the orientation transformation when loading the image,
+    // so we must not re-apply the transformation when displaying the image, otherwise
+    // we will double transform and show the image incorrectly.
+    //
+    // To fix that, I'm removing the orientation metadata if the file extension is 'heic'...
+    // but it doesn't seem right.
+    //
+    // Note that this means from_file(...) and from_raw(...) will
+    // return inconsistent metadata... again :-(
+
+    let ext = path
+        .extension()
+        .and_then(|s| s.to_str())
+        .map(|s| s.to_lowercase());
+
+    if ext.is_some_and(|x| x == "heic") {
+        metadata.orientation = None;
+    }
+
     Ok(metadata)
 }
 
@@ -104,6 +127,14 @@ fn from_exif(exif_data: Exif) -> Result<Metadata> {
     metadata.lens_model = exif_data
         .get_field(exif::Tag::LensModel, exif::In::PRIMARY)
         .map(|e| e.display_value().to_string());
+
+    // How to orient and flip the image.
+    // Note that libheif will automatically apply the transformations when loading the image
+    // so must be aware of file format before transforming to avoid a double transformation.
+    metadata.orientation = exif_data
+        .get_field(exif::Tag::Orientation, exif::In::PRIMARY)
+        .and_then(|e| e.value.get_uint(0))
+        .map(|e| Orientation::from(e));
 
     metadata.content_id = ios_content_id(&exif_data);
 

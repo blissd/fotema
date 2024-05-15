@@ -91,4 +91,8 @@ pub struct Metadata {
     pub audio_codec: Option<String>,
 
     pub content_id: Option<String>, // TODO make this a non-string type
+
+    // Rotation of video in degrees.
+    // Should be 90, 180, 270, or the negative of those.
+    pub rotation: Option<i32>,
 }

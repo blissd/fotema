@@ -4,7 +4,7 @@
 
 use crate::photo::PictureId;
 use crate::video::VideoId;
-use crate::visual::model::{Visual, VisualId};
+use crate::visual::model::{PictureOrientation, Visual, VisualId};
 
 use crate::path_encoding;
 use anyhow::*;
@@ -56,6 +56,7 @@ impl Repository {
                     picture_id,
                     picture_path_b64,
                     picture_thumbnail,
+                    picture_orientation,
                     is_selfie,
 
                     video_id,
@@ -67,7 +68,8 @@ impl Repository {
 
                     video_transcoded_path,
                     is_transcode_required,
-                    duration_millis
+                    duration_millis,
+                    video_rotation
                 FROM visual
                 ORDER BY created_ts ASC",
         )?;
@@ -75,37 +77,6 @@ impl Repository {
         let result = stmt.query_map([], |row| self.to_visual(row))?;
         let visuals = result.flatten().collect();
         Ok(visuals)
-    }
-
-    pub fn get(&mut self, visual_id: VisualId) -> Result<Option<Visual>> {
-        let con = self.con.lock().unwrap();
-        let mut stmt = con.prepare(
-            "SELECT
-                    visual_id,
-                    link_path_b64,
-
-                    picture_id,
-                    picture_path_b64,
-                    picture_thumbnail,
-                    is_selfie,
-
-                    video_id,
-                    video_path_b64,
-                    video_thumbnail,
-
-                    created_ts,
-                    is_ios_live_photo
-
-                    video_transcoded_path,
-                    is_transcode_required,
-                    video_duration
-                FROM visual
-                AND visual.visual_id = ?1",
-        )?;
-
-        let iter = stmt.query_map([visual_id.id()], |row| self.to_visual(row))?;
-        let head = iter.flatten().nth(0);
-        Ok(head)
     }
 
     fn to_visual(&self, row: &Row<'_>) -> rusqlite::Result<Visual> {
@@ -133,6 +104,11 @@ impl Repository {
             .map(|x| self.thumbnail_base_path.join(x))
             .ok();
 
+        let picture_orientation: Option<PictureOrientation> = row
+            .get("picture_orientation")
+            .map(|x: u32| PictureOrientation::from(x))
+            .ok();
+
         let is_selfie: Option<bool> = row.get("is_selfie").ok();
 
         let video_id: Option<VideoId> = row.get("video_id").map(|x| VideoId::new(x)).ok();
@@ -148,6 +124,11 @@ impl Repository {
             .get("video_thumbnail")
             .map(|x: String| PathBuf::from(x))
             .map(|x| self.thumbnail_base_path.join(x))
+            .ok();
+
+        let video_orientation: Option<PictureOrientation> = row
+            .get("video_rotation")
+            .map(|x: i32| PictureOrientation::from_degrees(x))
             .ok();
 
         let thumbnail_path: Option<PathBuf> = picture_thumbnail.or(video_thumbnail);
@@ -180,12 +161,14 @@ impl Repository {
             thumbnail_path,
             picture_id,
             picture_path,
+            picture_orientation,
             video_id,
             video_path,
             created_at,
             is_selfie,
             is_ios_live_photo,
             video_transcoded_path,
+            video_orientation,
             is_transcode_required,
             video_duration,
         };

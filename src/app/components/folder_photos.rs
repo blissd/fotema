@@ -4,6 +4,9 @@
 
 use gtk::prelude::OrientableExt;
 
+use fotema_core::visual::model::PictureOrientation;
+use strum::IntoEnumIterator;
+
 use itertools::Itertools;
 use relm4::gtk;
 use relm4::gtk::gdk;
@@ -95,6 +98,9 @@ impl RelmGridItem for PhotoGridItem {
             widgets
                 .picture
                 .set_filename(self.picture.thumbnail_path.clone());
+            // Add CSS class for orientation
+            let orientation = self.picture.picture_orientation.unwrap_or(PictureOrientation::North);
+            widgets.picture.add_css_class(orientation.as_ref());
         } else {
             let pb = gdk_pixbuf::Pixbuf::from_resource_at_scale(
                 "/app/fotema/Fotema/icons/scalable/actions/image-missing-symbolic.svg",
@@ -107,6 +113,10 @@ impl RelmGridItem for PhotoGridItem {
 
     fn unbind(&mut self, widgets: &mut Self::Widgets, _root: &mut Self::Root) {
         widgets.picture.set_filename(None::<&path::Path>);
+        // clear orientation transformation css classes
+        for orient in PictureOrientation::iter() {
+            widgets.picture.remove_css_class(orient.as_ref());
+        }
     }
 }
 

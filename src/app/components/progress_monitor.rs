@@ -15,6 +15,7 @@ pub enum MediaType {
 /// Note that some background tasks just have the banner and spinner.
 #[derive(Debug, Clone, Copy)]
 pub enum TaskName {
+    Enrich(MediaType),
     Thumbnail(MediaType),
     Transcode,
 
