@@ -40,8 +40,8 @@ pub fn from_path(path: &Path) -> Result<Metadata> {
     // FIXME what is a better way of doing this?
     //
     // libheif applies the orientation transformation when loading the image,
-    // so we must not re-apply the transformation when displaying the image otherwise will
-    // double transform and show the image incorrectly.
+    // so we must not re-apply the transformation when displaying the image, otherwise
+    // we will double transform and show the image incorrectly.
     //
     // To fix that, I'm removing the orientation metadata if the file extension is 'heic'...
     // but it doesn't seem right.

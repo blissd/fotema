@@ -6,6 +6,7 @@ use gtk::prelude::OrientableExt;
 use fotema_core::VisualId;
 use fotema_core::YearMonth;
 use fotema_core::visual::model::PictureOrientation;
+use strum::IntoEnumIterator;
 use relm4::gtk;
 use relm4::gtk::gdk;
 use relm4::gtk::prelude::*;
@@ -186,8 +187,10 @@ impl RelmGridItem for PhotoGridItem {
         widgets.duration_overlay.set_visible(false);
         widgets.duration_label.set_label("");
 
-        let orientation = self.visual.picture_orientation.unwrap_or(PictureOrientation::North);
-        widgets.picture.add_css_class(orientation.as_ref());
+        // clear orientation transformation css classes
+        for orient in PictureOrientation::iter() {
+            widgets.picture.remove_css_class(orient.as_ref());
+        }
     }
 }
 
