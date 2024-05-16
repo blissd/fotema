@@ -55,7 +55,8 @@ impl Repository {
             let mut stmt = tx.prepare(
                 "UPDATE videos
                 SET
-                    thumbnail_path = ?2
+                    thumbnail_path = ?2,
+                    is_broken = FALSE
                 WHERE video_id = ?1",
             )?;
 
@@ -66,6 +67,25 @@ impl Repository {
                 video_id.id(),
                 thumbnail_path.as_ref().map(|p| p.to_str()),
             ])?;
+        }
+
+        tx.commit()?;
+        Ok(())
+    }
+
+    pub fn mark_broken(&mut self, video_id: &VideoId) -> Result<()> {
+        let mut con = self.con.lock().unwrap();
+        let tx = con.transaction()?;
+
+        {
+            let mut stmt = tx.prepare(
+                "UPDATE videos
+                SET
+                    is_broken = TRUE
+                WHERE video_id = ?1",
+            )?;
+
+            stmt.execute(params![video_id.id(),])?;
         }
 
         tx.commit()?;
@@ -193,6 +213,7 @@ impl Repository {
                     video_codec,
                     transcoded_path
                 FROM videos
+                WHERE COALESCE(is_broken, FALSE) IS FALSE
                 ORDER BY COALESCE(stream_created_ts, fs_created_ts) ASC",
         )?;
 
@@ -216,6 +237,7 @@ impl Repository {
                     transcoded_path
                 FROM videos
                 WHERE metadata_version < ?1
+                AND COALESCE(is_broken, FALSE) IS FALSE
                 ORDER BY COALESCE(stream_created_ts, fs_created_ts) ASC",
         )?;
 

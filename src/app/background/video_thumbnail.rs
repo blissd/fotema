@@ -70,14 +70,14 @@ impl VideoThumbnail {
         progress_monitor.emit(ProgressMonitorInput::Start(TaskName::Thumbnail(MediaType::Video), count));
 
         unprocessed
-            .par_iter() // don't multiprocess until memory usage is better understood.
-            //.iter()
+            .par_iter()
             .for_each(|vid| {
-                let result = thumbnailer.thumbnail(&vid.video_id, &vid.path);
-                let result = result.and_then(|thumbnail_path| repo.clone().add_thumbnail(&vid.video_id, &thumbnail_path));
+                let result = thumbnailer.thumbnail(&vid.video_id, &vid.path)
+                    .and_then(|thumbnail_path| repo.clone().add_thumbnail(&vid.video_id, &thumbnail_path));
 
                 if let Err(e) = result {
                     event!(Level::ERROR, "Failed add_thumbnail: {:?}", e);
+                    let _ = repo.clone().mark_broken(&vid.video_id);
                 }
 
                 progress_monitor.emit(ProgressMonitorInput::Advance);
