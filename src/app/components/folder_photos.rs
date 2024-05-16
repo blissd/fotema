@@ -98,8 +98,9 @@ impl RelmGridItem for PhotoGridItem {
             widgets
                 .picture
                 .set_filename(self.picture.thumbnail_path.clone());
+
             // Add CSS class for orientation
-            let orientation = self.picture.picture_orientation.unwrap_or(PictureOrientation::North);
+            let orientation = self.picture.thumbnail_orientation();
             widgets.picture.add_css_class(orientation.as_ref());
         } else {
             let pb = gdk_pixbuf::Pixbuf::from_resource_at_scale(
