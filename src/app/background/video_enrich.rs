@@ -7,6 +7,7 @@ use relm4::Worker;
 use relm4::shared_state::Reducer;
 use anyhow::*;
 use fotema_core::video::metadata;
+use rayon::prelude::*;
 
 use tracing::{event, Level};
 use std::sync::Arc;
@@ -55,8 +56,7 @@ impl VideoEnrich {
         progress_monitor.emit(ProgressMonitorInput::Start(TaskName::Enrich(MediaType::Video), count));
 
         let metadatas = unprocessed
-            //.par_iter() // don't multiprocess until memory usage is better understood.
-            .iter()
+            .par_iter()
             .flat_map(|vid| {
                 let result = metadata::from_path(&vid.path);
                 progress_monitor.emit(ProgressMonitorInput::Advance);
