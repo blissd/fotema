@@ -73,7 +73,8 @@ impl VideoThumbnail {
             .par_iter()
             .for_each(|vid| {
                 let result = thumbnailer.thumbnail(&vid.video_id, &vid.path)
-                    .and_then(|thumbnail_path| repo.clone().add_thumbnail(&vid.video_id, &thumbnail_path));
+                    .and_then(|thumbnail_path| repo.clone().add_thumbnail(&vid.video_id, &thumbnail_path))
+                    .with_context(|| format!("Video path: {:?}", vid.path));
 
                 if let Err(e) = result {
                     event!(Level::ERROR, "Failed add_thumbnail: {:?}", e);
