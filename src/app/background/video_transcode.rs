@@ -75,12 +75,15 @@ impl VideoTranscode {
                 let video_id = visual.video_id.expect("Must have video_id");
                 let video_path = visual.video_path.as_ref().expect("Must have video_path");
 
-                let result = self.transcoder.transcode(video_id, &video_path);
+                let result = self.transcoder.transcode(video_id, &video_path)
+                    .with_context(|| format!("Video path: {:?}", video_path));
 
                 if let std::result::Result::Ok(ref transcode_path) = result {
                     if let Err(e) = self.repo.add_transcode(video_id, transcode_path) {
                         event!(Level::ERROR, "Failed adding transcode path: {:?}", e);
                     }
+                } else if let Err(ref e) = result {
+                    event!(Level::ERROR, "Failed transcoding: {:?}", e);
                 }
 
                 self.progress_monitor.emit(ProgressMonitorInput::Advance);

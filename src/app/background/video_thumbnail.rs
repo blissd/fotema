@@ -7,6 +7,8 @@ use relm4::Worker;
 use relm4::Reducer;
 use anyhow::*;
 use std::sync::Arc;
+use std::panic;
+use std::result::Result::Ok;
 use tracing::{event, Level};
 use rayon::prelude::*;
 
@@ -70,14 +72,23 @@ impl VideoThumbnail {
         progress_monitor.emit(ProgressMonitorInput::Start(TaskName::Thumbnail(MediaType::Video), count));
 
         unprocessed
-            .par_iter() // don't multiprocess until memory usage is better understood.
-            //.iter()
+            .par_iter()
             .for_each(|vid| {
-                let result = thumbnailer.thumbnail(&vid.video_id, &vid.path);
-                let result = result.and_then(|thumbnail_path| repo.clone().add_thumbnail(&vid.video_id, &thumbnail_path));
+                // Careful! panic::catch_unwind returns Ok(Err) if the evaluated expression returns
+                // an error but doesn't panic.
+                let result = panic::catch_unwind(|| {
+                    thumbnailer.thumbnail(&vid.video_id, &vid.path)
+                        .and_then(|thumbnail_path| repo.clone().add_thumbnail(&vid.video_id, &thumbnail_path))
+                });
 
-                if let Err(e) = result {
-                    event!(Level::ERROR, "Failed add_thumbnail: {:?}", e);
+                // If we got an err, then there was a panic.
+                // If we got Ok(Err(e)) there wasn't a panic, but we still failed.
+                if let Ok(Err(e)) = result {
+                    event!(Level::ERROR, "Failed generate or add thumbnail: {:?}: Video path: {:?}", e, vid.path);
+                    let _ = repo.clone().mark_broken(&vid.video_id);
+                } else if let Err(_) = result {
+                    event!(Level::ERROR, "Panicked generate or add thumbnail: Video path: {:?}", vid.path);
+                    let _ = repo.clone().mark_broken(&vid.video_id);
                 }
 
                 progress_monitor.emit(ProgressMonitorInput::Advance);

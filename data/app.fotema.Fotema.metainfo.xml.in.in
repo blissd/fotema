@@ -47,6 +47,17 @@
   </branding>
 
   <releases>
+    <release version="1.3.0" date="2024-05-17">
+      <description>
+        <p>Reliability and performance improvements:</p>
+        <ul>
+          <li>Mark photos and videos as broken if thumbnail generation fails and exclude them from future processing and from being displayed.</li>
+          <li>Gracefully handle fatal errors instead of aborting when generating thumbnails.</li>
+          <li>Don't rotate video thumbnails as they are already rotated.</li>
+          <li>Improve video metadata processing performance.</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.2.0" date="2024-05-15">
       <description>
         <p>Photos and videos should now display the right way up if they contain the appropriate orientation metadata.</p>
@@ -96,7 +107,6 @@
   <recommends>
     <control>keyboard</control>
     <control>pointing</control>
-    <control>touch</control>
     <memory>2048</memory>
   </recommends>
 

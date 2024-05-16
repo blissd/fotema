@@ -92,7 +92,8 @@ impl Repository {
             let mut stmt = tx.prepare(
                 "UPDATE pictures
                 SET
-                    thumbnail_path = ?2
+                    thumbnail_path = ?2,
+                    is_broken = FALSE
                 WHERE picture_id = ?1",
             )?;
 
@@ -103,6 +104,25 @@ impl Repository {
                 picture_id.id(),
                 thumbnail_path.as_ref().map(|p| p.to_str()),
             ])?;
+        }
+
+        tx.commit()?;
+        Ok(())
+    }
+
+    pub fn mark_broken(&mut self, picture_id: &PictureId) -> Result<()> {
+        let mut con = self.con.lock().unwrap();
+        let tx = con.transaction()?;
+
+        {
+            let mut stmt = tx.prepare(
+                "UPDATE pictures
+                SET
+                    is_broken = TRUE
+                WHERE picture_id = ?1",
+            )?;
+
+            stmt.execute(params![picture_id.id(),])?;
         }
 
         tx.commit()?;
@@ -171,6 +191,7 @@ impl Repository {
                     pictures.exif_modified_ts,
                     pictures.is_selfie
                 FROM pictures
+                WHERE COALESCE(is_broken, FALSE) IS FALSE
                 ORDER BY COALESCE(exif_created_ts, fs_created_ts) ASC",
         )?;
 
@@ -196,6 +217,7 @@ impl Repository {
                     pictures.is_selfie
                 FROM pictures
                 WHERE metadata_version < ?1
+                AND COALESCE(is_broken, FALSE) IS FALSE
                 ORDER BY COALESCE(exif_created_ts, fs_created_ts) ASC",
         )?;
 
@@ -205,27 +227,6 @@ impl Repository {
             .collect();
 
         Ok(result)
-    }
-
-    pub fn get(&mut self, picture_id: PictureId) -> Result<Option<Picture>> {
-        let con = self.con.lock().unwrap();
-        let mut stmt = con.prepare(
-            "SELECT
-                    pictures.picture_id,
-                    pictures.picture_path_b64,
-                    pictures.thumbnail_path,
-                    pictures.fs_created_ts,
-                    pictures.exif_created_ts,
-                    pictures.exif_modified_ts,
-                    pictures.is_selfie
-                FROM pictures
-                WHERE pictures.picture_id = ?1",
-        )?;
-
-        let iter = stmt.query_map([picture_id.id()], |row| self.to_picture(row))?;
-
-        let head = iter.flatten().nth(0);
-        Ok(head)
     }
 
     fn to_picture(&self, row: &Row<'_>) -> rusqlite::Result<Picture> {

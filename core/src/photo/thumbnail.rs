@@ -64,7 +64,7 @@ impl Thumbnailer {
 
         if thumbnail.is_err() {
             event!(Level::DEBUG, "Fallback thumbnail: {:?}", picture_path);
-            Self::fallback_thumbnail(picture_path, &thumbnail_path).await?
+            Self::fallback_thumbnail(picture_path, &thumbnail_path).await?;
         }
 
         Ok(thumbnail_path)
