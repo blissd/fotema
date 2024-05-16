@@ -9,7 +9,10 @@ use rayon::prelude::*;
 use futures::executor::block_on;
 use anyhow::*;
 use std::sync::Arc;
+use std::result::Result::Ok;
 use tracing::{event, Level};
+
+use std::panic;
 
 use crate::app::components::progress_monitor::{
     ProgressMonitor,
@@ -74,13 +77,22 @@ impl PhotoThumbnail {
         unprocessed
             .par_iter()
             .for_each(|pic| {
-                let result = block_on(async {thumbnailer.thumbnail(&pic.picture_id, &pic.path).await})
-                    .and_then(|thumbnail_path| repo.clone().add_thumbnail(&pic.picture_id, &thumbnail_path))
-                    .with_context(|| format!("Photo path: {:?}", pic.path));
 
-                if let Err(e) = result {
-                    event!(Level::ERROR, "Failed add_thumbnail: {:?}", e);
+                // Careful! panic::catch_unwind returns Ok(Err) if the evaluated expression returns
+                // an error but doesn't panic.
+                let result = panic::catch_unwind(|| {
+                    block_on(async {thumbnailer.thumbnail(&pic.picture_id, &pic.path).await})
+                        .and_then(|thumbnail_path| repo.clone().add_thumbnail(&pic.picture_id, &thumbnail_path))
+                });
+
+                // If we got an err, then there was a panic.
+                // If we got Ok(Err(e)) there wasn't a panic, but we still failed.
+                if let Ok(Err(e)) = result {
+                    event!(Level::ERROR, "Failed generate or add thumbnail: {:?}: Photo path: {:?}", e, pic.path);
                     let _ = repo.clone().mark_broken(&pic.picture_id);
+                } else if let Err(_) = result {
+                    event!(Level::ERROR, "Panicked generate or add thumbnail: Photo path: {:?}", pic.path);
+                    let _ = repo.clone().mark_broken(&&pic.picture_id);
                 }
 
                 progress_monitor.emit(ProgressMonitorInput::Advance);
