@@ -205,7 +205,7 @@ impl FolderPhotos {
                 .into_iter()
                // .filter(|x| x.thumbnail_path.exists())
                 .sorted_by_key(|pic| pic.parent_path.clone())
-                .group_by(|pic| pic.parent_path.clone())
+                .chunk_by(|pic| pic.parent_path.clone())
                 //.collect::<Vec<Arc<Visual>>>()
         };
 
