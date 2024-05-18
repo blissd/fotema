@@ -396,7 +396,10 @@ impl SimpleAsyncComponent for OnePhoto {
                 if let Some(ref video) = self.video {
                     let ts = video.timestamp();
                     if video.is_ended() {
-                        video.seek(ts - TEN_SECS_IN_MICROS);
+                        //video.seek(0);
+                        //video.play();
+                        video.seek(video.duration() - TEN_SECS_IN_MICROS);
+                        video.play();
                         video.pause();
                         sender.input(OnePhotoInput::PlayToggle);
                         return;
