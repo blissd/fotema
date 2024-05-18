@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use fotema_core::VisualId;
+use fotema_core::Visual;
 use fotema_core::visual::model::PictureOrientation;
 use strum::IntoEnumIterator;
 use relm4::gtk;
@@ -15,7 +16,6 @@ use glycin;
 
 use crate::app::components::progress_monitor::ProgressMonitor;
 use crate::app::components::progress_panel::ProgressPanel;
-use crate::app::SharedState;
 
 use std::sync::Arc;
 
@@ -24,7 +24,7 @@ use tracing::{event, Level};
 #[derive(Debug)]
 pub enum OnePhotoInput {
     // View an item.
-    View(VisualId),
+    View(Arc<Visual>),
 
     // The photo/video page has been hidden so any playing media should stop.
     Hidden,
@@ -43,8 +43,6 @@ pub enum OnePhotoOutput {
 }
 
 pub struct OnePhoto {
-    state: SharedState,
-
     picture: gtk::Picture,
 
     transcode_button: gtk::Button,
@@ -56,7 +54,7 @@ pub struct OnePhoto {
 
 #[relm4::component(pub async)]
 impl SimpleAsyncComponent for OnePhoto {
-    type Init = (SharedState, Arc<Reducer<ProgressMonitor>>);
+    type Init = Arc<Reducer<ProgressMonitor>>;
     type Input = OnePhotoInput;
     type Output = OnePhotoOutput;
 
@@ -101,7 +99,7 @@ impl SimpleAsyncComponent for OnePhoto {
     }
 
     async fn init(
-        (state, transcode_progress_monitor): Self::Init,
+        transcode_progress_monitor: Self::Init,
         root: Self::Root,
         _sender: AsyncComponentSender<Self>,
     ) -> AsyncComponentParts<Self>  {
@@ -118,7 +116,6 @@ impl SimpleAsyncComponent for OnePhoto {
 
 
         let model = OnePhoto {
-            state,
             picture: picture.clone(),
             transcode_button: transcode_button.clone(),
             transcode_status: transcode_status.clone(),
@@ -135,20 +132,8 @@ impl SimpleAsyncComponent for OnePhoto {
             OnePhotoInput::Hidden => {
                 self.picture.set_paintable(None::<&gdk::Paintable>);
             },
-            OnePhotoInput::View(visual_id) => {
-                event!(Level::INFO, "Showing item for {}", visual_id);
-
-                let result = {
-                    let data = self.state.read();
-                    data.iter().find(|&x| x.visual_id == visual_id).cloned()
-                };
-
-                let visual = if let Some(v) = result {
-                    v
-                } else {
-                    event!(Level::ERROR, "Failed loading visual item: {:?}", result);
-                    return;
-                };
+            OnePhotoInput::View(visual) => {
+                event!(Level::INFO, "Showing item for {}", visual.visual_id);
 
                 let visual_path = visual.picture_path.clone()
                     .or_else(|| visual.video_path.clone())
@@ -191,7 +176,7 @@ impl SimpleAsyncComponent for OnePhoto {
 
                     self.picture.set_paintable(Some(&texture));
 
-                    let _ = sender.output(OnePhotoOutput::PhotoShown(visual_id, image.info().clone()));
+                    let _ = sender.output(OnePhotoOutput::PhotoShown(visual.visual_id.clone(), image.info().clone()));
                 } else { // video or motion photo
                     let is_transcoded = visual.video_transcoded_path.as_ref().is_some_and(|x| x.exists());
 
@@ -229,7 +214,7 @@ impl SimpleAsyncComponent for OnePhoto {
                         }
 
                         media_file.play();
-                        let _ = sender.output(OnePhotoOutput::VideoShown(visual_id));
+                        let _ = sender.output(OnePhotoOutput::VideoShown(visual.visual_id.clone()));
                     }
                 }
             },

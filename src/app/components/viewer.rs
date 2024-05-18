@@ -144,7 +144,7 @@ impl SimpleAsyncComponent for Viewer {
         let split_view = adw::OverlaySplitView::new();
 
         let one_photo = OnePhoto::builder()
-            .launch((state.clone(), transcode_progress_monitor))
+            .launch(transcode_progress_monitor)
             .forward(sender.input_sender(), |msg| match msg {
                 OnePhotoOutput::PhotoShown(id, info) => ViewerInput::ShowPhotoInfo(id, info),
                 OnePhotoOutput::VideoShown(id) => ViewerInput::ShowVideoInfo(id),
@@ -205,7 +205,7 @@ impl SimpleAsyncComponent for Viewer {
                     return;
                 };
 
-                self.one_photo.emit(OnePhotoInput::View(visual_id.clone()));
+                self.one_photo.emit(OnePhotoInput::View(visual.clone()));
 
                 let visual_path = visual.picture_path.clone()
                     .or_else(|| visual.video_path.clone())
