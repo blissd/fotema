@@ -31,6 +31,10 @@ pub enum OnePhotoInput {
 
     // Transcode all incompatible videos
     TranscodeAll,
+
+    PlayOrPause,
+
+    VideoEnded,
 }
 
 #[derive(Debug)]
@@ -44,6 +48,12 @@ pub enum OnePhotoOutput {
 
 pub struct OnePhoto {
     picture: gtk::Picture,
+
+    video: Option<gtk::MediaFile>,
+
+    video_controls: gtk::Box,
+
+    play_button: gtk::Button,
 
     transcode_button: gtk::Button,
 
@@ -64,8 +74,34 @@ impl SimpleAsyncComponent for OnePhoto {
         gtk::Box {
             set_orientation: gtk::Orientation::Vertical,
 
-            #[local_ref]
-            picture -> gtk::Picture {
+            gtk::Overlay {
+                set_vexpand: true,
+                set_halign: gtk::Align::Center,
+
+                #[local_ref]
+                add_overlay =  &video_controls -> gtk::Box {
+                    set_halign: gtk::Align::Center,
+                    set_valign: gtk::Align::End,
+                    set_orientation: gtk::Orientation::Horizontal,
+                    set_margin_all: 18,
+                    set_spacing: 12,
+
+                    #[local_ref]
+                    play_button -> gtk::Button {
+                        set_icon_name: "play-symbolic",
+                        add_css_class: "circular",
+                        add_css_class: "osd",
+                        connect_clicked => OnePhotoInput::PlayOrPause,
+                    },
+                },
+
+                #[wrap(Some)]
+                //#[local_ref]
+                set_child = &gtk::Box {
+                    #[local_ref]
+                    picture -> gtk::Picture {
+                    }
+                },
             },
 
             #[local_ref]
@@ -106,6 +142,10 @@ impl SimpleAsyncComponent for OnePhoto {
 
         let picture = gtk::Picture::new();
 
+        let video_controls = gtk::Box::new(gtk::Orientation::Horizontal, 18);
+
+        let play_button = gtk::Button::new();
+
         let transcode_button = gtk::Button::new();
 
         let transcode_progress = ProgressPanel::builder()
@@ -117,6 +157,9 @@ impl SimpleAsyncComponent for OnePhoto {
 
         let model = OnePhoto {
             picture: picture.clone(),
+            video: None,
+            video_controls: video_controls.clone(),
+            play_button: play_button.clone(),
             transcode_button: transcode_button.clone(),
             transcode_status: transcode_status.clone(),
             transcode_progress,
@@ -130,6 +173,7 @@ impl SimpleAsyncComponent for OnePhoto {
     async fn update(&mut self, msg: Self::Input, sender: AsyncComponentSender<Self>) {
         match msg {
             OnePhotoInput::Hidden => {
+                self.video = None;
                 self.picture.set_paintable(None::<&gdk::Paintable>);
             },
             OnePhotoInput::View(visual) => {
@@ -140,6 +184,7 @@ impl SimpleAsyncComponent for OnePhoto {
                     .expect("Must have path");
 
                 self.picture.set_paintable(None::<&gdk::Paintable>);
+                self.video = None;
 
                 // clear orientation transformation css classes
                 for orient in PictureOrientation::iter() {
@@ -149,6 +194,7 @@ impl SimpleAsyncComponent for OnePhoto {
                 if visual.is_photo_only() {
                     self.picture.set_visible(true);
                     self.transcode_status.set_visible(false);
+                    self.video_controls.set_visible(false);
 
                     // Apply a CSS transformation to respect the EXIF orientation
                     let orientation = visual.picture_orientation
@@ -183,10 +229,11 @@ impl SimpleAsyncComponent for OnePhoto {
                     if visual.is_transcode_required.is_some_and(|x| x) && !is_transcoded {
                         self.picture.set_visible(false);
                         self.transcode_status.set_visible(true);
+                        self.video_controls.set_visible(false);
                     } else {
                         self.picture.set_visible(true);
                         self.transcode_status.set_visible(false);
-
+                        self.video_controls.set_visible(true);
 
                         // if a video is transcoded then the rotation transformation will
                         // already have been applied.
@@ -202,21 +249,51 @@ impl SimpleAsyncComponent for OnePhoto {
                             .or_else(|| visual.video_path.clone())
                             .expect("must have video path");
 
-                        let media_file = gtk::MediaFile::for_filename(video_path);
-                        self.picture.set_paintable(Some(&media_file));
-
+                        let video = gtk::MediaFile::for_filename(video_path);
                         if visual.is_motion_photo() {
                            //media_file.set_muted(true);
-                           media_file.set_loop(true);
+                           video.set_loop(true);
                         } else {
                            //media_file.set_muted(false);
-                           media_file.set_loop(false);
+                           video.set_loop(false);
+                           let sender = sender.clone();
+                           video.connect_ended_notify(move |_| sender.input(OnePhotoInput::VideoEnded));
                         }
 
-                        media_file.play();
+                        video.play();
+                        self.play_button.set_icon_name("pause-symbolic");
+
+                        self.video = Some(video);
+                        self.picture.set_paintable(self.video.as_ref());
                         let _ = sender.output(OnePhotoOutput::VideoShown(visual.visual_id.clone()));
                     }
                 }
+            },
+            OnePhotoInput::PlayOrPause => {
+                if let Some(ref video) = self.video {
+                    if video.is_ended() {
+                        video.seek(0);
+
+                        // I'd like to just set the play_button icon to pause-symbolic and
+                        // play the video. However, if we just call play, then the play button icon
+                        // doesn't update and stays as the replay icon.
+                        //
+                        // Playing, pausing, and sending a new message seems
+                        // to work around that.
+                        video.play();
+                        video.pause();
+                        sender.input(OnePhotoInput::PlayOrPause);
+                    } else if video.is_playing() {
+                        video.pause();
+                        self.play_button.set_icon_name("play-symbolic");
+                    } else { // is paused
+                        video.play();
+                        self.play_button.set_icon_name("pause-symbolic");
+                    }
+                }
+            },
+            OnePhotoInput::VideoEnded => {
+                self.play_button.set_icon_name("arrow-circular-top-left-symbolic");
             },
             OnePhotoInput::TranscodeAll => {
                 event!(Level::INFO, "Transcode all");
