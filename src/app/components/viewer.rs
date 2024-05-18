@@ -24,6 +24,8 @@ pub enum ViewerInput {
     // View an item after applying an album filter.
     View(VisualId, AlbumFilter),
 
+    ViewByIndex(usize),
+
     ToggleInfo,
 
     // The photo/video page has been hidden so any playing media should stop.
@@ -63,8 +65,10 @@ pub struct Viewer {
     // Window title, which should be the image/video name.
     title: String,
 
-    // Visual ID of currently displayed item
-    visual_id: Option<VisualId>,
+    left_button: gtk::Button,
+    right_button: gtk::Button,
+
+    current_index: Option<usize>,
 
     // Album currently displayed item is a member of
     filter: AlbumFilter,
@@ -114,13 +118,16 @@ impl SimpleAsyncComponent for Viewer {
                         set_margin_all: 18,
                         set_spacing: 12,
 
-                        gtk::Button {
+                        #[local_ref]
+                        left_button -> gtk::Button {
                             set_icon_name: "left-symbolic",
                             add_css_class: "osd",
                             add_css_class: "circular",
                             connect_clicked => ViewerInput::GoLeft,
                         },
-                        gtk::Button {
+
+                        #[local_ref]
+                        right_button -> gtk::Button {
                             set_icon_name: "right-symbolic",
                             add_css_class: "osd",
                             add_css_class: "circular",
@@ -155,13 +162,18 @@ impl SimpleAsyncComponent for Viewer {
             .launch(state.clone())
             .detach();
 
+        let left_button = gtk::Button::new();
+        let right_button = gtk::Button::new();
+
         let model = Viewer {
             state,
             one_photo,
             photo_info,
+            current_index: None,
+            left_button: left_button.clone(),
+            right_button: right_button.clone(),
             split_view: split_view.clone(),
             title: String::from("-"),
-            visual_id: None,
             filter: AlbumFilter::None,
             filtered_items: Vec::new(),
         };
@@ -179,12 +191,11 @@ impl SimpleAsyncComponent for Viewer {
             },
             ViewerInput::View(visual_id, filter) => {
                 event!(Level::INFO, "Showing item for {}", visual_id);
-                self.visual_id = None;
 
                 // To support next/previous navigation we must have a view of the visual
                 // items filtered with the same album filter as the album the user is currently
                 // looking at.
-                if self.filter != filter {
+               if self.filter != filter {
                     self.filter = filter.clone();
                     let items = self.state.read();
                     self.filtered_items = items.iter()
@@ -193,17 +204,25 @@ impl SimpleAsyncComponent for Viewer {
                         .collect();
                 }
 
-                let result = {
-                    let data = self.state.read();
-                    data.iter().find(|&x| x.visual_id == visual_id).cloned()
-                };
+                self.current_index = self.filtered_items
+                    .iter()
+                    .position(|x| x.visual_id == visual_id);
 
-                let visual = if let Some(v) = result {
-                    v
-                } else {
-                    event!(Level::ERROR, "Failed loading visual item: {:?}", result);
+                if let Some(index) = self.current_index {
+                    sender.input(ViewerInput::ViewByIndex(index));
+                }
+            },
+            ViewerInput::ViewByIndex(index) => {
+
+                if index >= self.filtered_items.len() || self.filtered_items.is_empty() {
+                    event!(Level::ERROR, "Cannot view at index {}. Number of filtered_items is {}", index, self.filtered_items.len());
                     return;
-                };
+                }
+
+                let visual = &self.filtered_items[index];
+                self.current_index = Some(index);
+
+                self.update_nav_buttons();
 
                 self.one_photo.emit(OnePhotoInput::View(visual.clone()));
 
@@ -214,8 +233,6 @@ impl SimpleAsyncComponent for Viewer {
                 self.title = visual_path.file_name()
                     .map(|x| x.to_string_lossy().to_string())
                     .unwrap_or(String::from("-"));
-
-                self.visual_id = Some(visual_id);
             },
             ViewerInput::ToggleInfo => {
                 let show = self.split_view.shows_sidebar();
@@ -234,41 +251,51 @@ impl SimpleAsyncComponent for Viewer {
                 let _ = sender.output(ViewerOutput::TranscodeAll);
             },
             ViewerInput::GoLeft => {
-                let Some(ref visual_id) = self.visual_id else {
+                let Some(index) = self.current_index else {
                     return;
                 };
 
-                let cur_index = self.filtered_items
-                    .iter()
-                    .position(|ref x| x.visual_id == *visual_id);
-
-                let Some(cur_index) = cur_index else {
+                if index == 0 {
                     return;
-                };
-
-                if cur_index > 0 {
-                    let visual_id = self.filtered_items[cur_index-1].visual_id.clone();
-                    sender.input(ViewerInput::View(visual_id, self.filter.clone()));
                 }
+
+                sender.input(ViewerInput::ViewByIndex(index - 1));
             },
             ViewerInput::GoRight => {
-                let Some(ref visual_id) = self.visual_id else {
+                let Some(index) = self.current_index else {
                     return;
                 };
 
-                let cur_index = self.filtered_items
-                    .iter()
-                    .position(|ref x| x.visual_id == *visual_id);
-
-                let Some(cur_index) = cur_index else {
+                if index + 1 >= self.filtered_items.len() {
                     return;
-                };
-
-                if cur_index + 1 < self.filtered_items.len() {
-                    let visual_id = self.filtered_items[cur_index + 1].visual_id.clone();
-                    sender.input(ViewerInput::View(visual_id, self.filter.clone()));
                 }
+
+                sender.input(ViewerInput::ViewByIndex(index + 1));
             },
+        }
+    }
+}
+
+impl Viewer {
+    fn update_nav_buttons(&self) {
+        if self.filtered_items.is_empty() {
+            self.left_button.set_sensitive(false);
+            self.right_button.set_sensitive(false);
+        }
+
+        let Some(index) = self.current_index else {
+            return;
+        };
+
+        if index == 0 {
+            self.left_button.set_sensitive(false);
+            self.right_button.set_sensitive(true);
+        } else if index == self.filtered_items.len() -1 {
+            self.left_button.set_sensitive(true);
+            self.right_button.set_sensitive(false);
+        } else {
+            self.left_button.set_sensitive(true);
+            self.right_button.set_sensitive(true);
         }
     }
 }
