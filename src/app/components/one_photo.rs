@@ -13,6 +13,7 @@ use relm4::gtk::prelude::*;
 use relm4::*;
 use relm4::prelude::*;
 use glycin;
+use std::time::Duration;
 
 use crate::app::components::progress_monitor::ProgressMonitor;
 use crate::app::components::progress_panel::ProgressPanel;
@@ -20,6 +21,8 @@ use crate::app::components::progress_panel::ProgressPanel;
 use std::sync::Arc;
 
 use tracing::{event, Level};
+
+const TEN_SECS_IN_MICROS: i64 = 10_000_000;
 
 #[derive(Debug)]
 pub enum OnePhotoInput {
@@ -37,6 +40,10 @@ pub enum OnePhotoInput {
     PlayToggle,
 
     VideoEnded,
+
+    SkipBackwards,
+
+    SkipForward,
 }
 
 #[derive(Debug)]
@@ -58,6 +65,10 @@ pub struct OnePhoto {
     play_button: gtk::Button,
 
     mute_button: gtk::Button,
+
+    skip_backwards: gtk::Button,
+
+    skip_forward: gtk::Button,
 
     transcode_button: gtk::Button,
 
@@ -91,6 +102,14 @@ impl SimpleAsyncComponent for OnePhoto {
                     set_spacing: 12,
 
                     #[local_ref]
+                    skip_backwards -> gtk::Button {
+                        set_icon_name: "skip-backwards-10-symbolic",
+                        add_css_class: "circular",
+                        add_css_class: "osd",
+                        connect_clicked => OnePhotoInput::SkipBackwards,
+                    },
+
+                    #[local_ref]
                     play_button -> gtk::Button {
                         set_icon_name: "play-symbolic",
                         add_css_class: "circular",
@@ -99,8 +118,17 @@ impl SimpleAsyncComponent for OnePhoto {
                     },
 
                     #[local_ref]
+                    skip_forward -> gtk::Button {
+                        set_icon_name: "skip-forward-10-symbolic",
+                        add_css_class: "circular",
+                        add_css_class: "osd",
+                        connect_clicked => OnePhotoInput::SkipForward,
+                    },
+
+                    #[local_ref]
                     mute_button -> gtk::Button {
                         set_icon_name: "audio-volume-muted-symbolic",
+                        set_margin_start: 36,
                         add_css_class: "circular",
                         add_css_class: "osd",
                         connect_clicked => OnePhotoInput::MuteToggle,
@@ -160,6 +188,10 @@ impl SimpleAsyncComponent for OnePhoto {
 
         let mute_button = gtk::Button::new();
 
+        let skip_backwards = gtk::Button::new();
+
+        let skip_forward = gtk::Button::new();
+
         let transcode_button = gtk::Button::new();
 
         let transcode_progress = ProgressPanel::builder()
@@ -175,6 +207,8 @@ impl SimpleAsyncComponent for OnePhoto {
             video_controls: video_controls.clone(),
             play_button: play_button.clone(),
             mute_button: mute_button.clone(),
+            skip_backwards: skip_backwards.clone(),
+            skip_forward: skip_forward.clone(),
             transcode_button: transcode_button.clone(),
             transcode_status: transcode_status.clone(),
             transcode_progress,
@@ -267,10 +301,14 @@ impl SimpleAsyncComponent for OnePhoto {
                         let video = gtk::MediaFile::for_filename(video_path);
                         if visual.is_motion_photo() {
                            self.mute_button.set_icon_name("audio-volume-muted-symbolic");
+                           self.skip_backwards.set_visible(false);
+                           self.skip_forward.set_visible(false);
                            video.set_muted(true);
                            video.set_loop(true);
                         } else {
                            self.mute_button.set_icon_name("multimedia-volume-control-symbolic");
+                           self.skip_backwards.set_visible(true);
+                           self.skip_forward.set_visible(true);
                            video.set_muted(false);
                            video.set_loop(false);
                            let sender = sender.clone();
@@ -320,11 +358,43 @@ impl SimpleAsyncComponent for OnePhoto {
                     } else { // is paused
                         video.play();
                         self.play_button.set_icon_name("pause-symbolic");
+                        self.skip_forward.set_sensitive(true);
                     }
+                }
+            },
+            OnePhotoInput::SkipBackwards => {
+                if let Some(ref video) = self.video {
+                    let mut ts = video.timestamp();
+                    if video.is_ended() {
+                        video.seek(ts - TEN_SECS_IN_MICROS);
+                        video.pause();
+                        sender.input(OnePhotoInput::PlayToggle);
+                        return;
+                    } else if ts < TEN_SECS_IN_MICROS {
+                        ts = 0;
+                        video.seek(0);
+                    } else {
+                        ts -= TEN_SECS_IN_MICROS;
+                        video.seek(ts);
+                    }
+                }
+            },
+            OnePhotoInput::SkipForward => {
+                if let Some(ref video) = self.video {
+                    let mut ts = video.timestamp();
+                    if ts + TEN_SECS_IN_MICROS >= video.duration() {
+                        ts = video.duration();
+                        //video.seek(ts);
+                        video.stream_ended();
+                    } else {
+                        ts += TEN_SECS_IN_MICROS;
+                    }
+                    video.seek(ts);
                 }
             },
             OnePhotoInput::VideoEnded => {
                 self.play_button.set_icon_name("arrow-circular-top-left-symbolic");
+                self.skip_forward.set_sensitive(false);
             },
             OnePhotoInput::TranscodeAll => {
                 event!(Level::INFO, "Transcode all");
