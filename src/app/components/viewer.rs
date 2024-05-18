@@ -185,7 +185,6 @@ impl SimpleAsyncComponent for Viewer {
                 // items filtered with the same album filter as the album the user is currently
                 // looking at.
                 if self.filter != filter {
-                    println!("FILTERING");
                     self.filter = filter.clone();
                     let items = self.state.read();
                     self.filtered_items = items.iter()
