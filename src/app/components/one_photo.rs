@@ -23,6 +23,7 @@ use std::sync::Arc;
 use tracing::{event, Level};
 
 const TEN_SECS_IN_MICROS: i64 = 10_000_000;
+const FIFTEEN_SECS_IN_MICROS: i64 = 15_000_000;
 
 #[derive(Debug)]
 pub enum OnePhotoInput {
@@ -47,6 +48,9 @@ pub enum OnePhotoInput {
 
     // Constantly sent during video playback so we can update the timestamp.
     Timestamp,
+
+    // Video has been "prepared", so duration should be available
+    Prepared,
 }
 
 #[derive(Debug)]
@@ -333,16 +337,20 @@ impl SimpleAsyncComponent for OnePhoto {
                            video.set_muted(true);
                            video.set_loop(true);
                         } else {
-                           self.mute_button.set_icon_name("multimedia-volume-control-symbolic");
-                           self.skip_backwards.set_visible(true);
-                           self.skip_forward.set_visible(true);
-                           self.video_timestamp.set_visible(true);
-                           video.set_muted(false);
-                           video.set_loop(false);
-                           let sender1 = sender.clone();
-                           let sender2 = sender.clone();
-                           video.connect_ended_notify(move |_| sender1.input(OnePhotoInput::VideoEnded));
-                           video.connect_timestamp_notify(move |_| sender2.input(OnePhotoInput::Timestamp));
+                            self.mute_button.set_icon_name("multimedia-volume-control-symbolic");
+                            self.skip_backwards.set_visible(true);
+                            self.skip_forward.set_visible(true);
+                            self.video_timestamp.set_visible(true);
+
+                            video.set_muted(false);
+                            video.set_loop(false);
+
+                            let sender1 = sender.clone();
+                            let sender2 = sender.clone();
+                            let sender3 = sender.clone();
+                            video.connect_ended_notify(move |_| sender1.input(OnePhotoInput::VideoEnded));
+                            video.connect_timestamp_notify(move |_| sender2.input(OnePhotoInput::Timestamp));
+                            video.connect_prepared_notify(move |_| sender3.input(OnePhotoInput::Prepared));
                         }
                         // Always set volume to 1 because muting sometimes seems to disable
                         // the volume permanently even when set to false.
@@ -354,6 +362,19 @@ impl SimpleAsyncComponent for OnePhoto {
                         self.video = Some(video);
                         self.picture.set_paintable(self.video.as_ref());
                         let _ = sender.output(OnePhotoOutput::VideoShown(visual.visual_id.clone()));
+                    }
+                }
+            },
+            OnePhotoInput::Prepared => {
+                // Video details, like duration, aren't available until the video
+                // has been prepared.
+                if let Some(ref video) = self.video {
+                    if video.duration() < FIFTEEN_SECS_IN_MICROS {
+                        self.skip_backwards.set_visible(false);
+                        self.skip_forward.set_visible(false);
+                    } else {
+                        self.skip_backwards.set_visible(true);
+                        self.skip_forward.set_visible(true);
                     }
                 }
             },
@@ -396,11 +417,10 @@ impl SimpleAsyncComponent for OnePhoto {
                 if let Some(ref video) = self.video {
                     let ts = video.timestamp();
                     if video.is_ended() {
-                        //video.seek(0);
-                        //video.play();
                         video.seek(video.duration() - TEN_SECS_IN_MICROS);
                         video.play();
                         video.pause();
+                        self.play_button.set_icon_name("play-symbolic");
                         sender.input(OnePhotoInput::PlayToggle);
                         return;
                     } else if ts < TEN_SECS_IN_MICROS {
