@@ -157,15 +157,11 @@ impl RelmGridItem for PhotoGridItem {
             widgets.status_overlay.set_visible(false);
             widgets.duration_overlay.set_visible(true);
 
-            let total_seconds = self.visual.video_duration.expect("must have video duration").num_seconds();
-            let seconds = total_seconds % 60;
-            let minutes = (total_seconds / 60) % 60;
-            let hours = (total_seconds / 60) / 60;
-            let hhmmss = if hours == 0 {
-                format!("{}:{:0>2}", minutes, seconds)
-            } else {
-                format!("{}:{:0>2}:{:0>2}", hours, minutes, seconds)
-            };
+            let hhmmss = self.visual
+                .video_duration
+                .map(|ref x| fotema_core::time::format_hhmmss(x))
+                .unwrap_or(String::from("—"));
+
             widgets.duration_label.set_label(&hhmmss);
         } else if self.visual.is_video_only() {
             widgets.status_overlay.set_visible(true);
