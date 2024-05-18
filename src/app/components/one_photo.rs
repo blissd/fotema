@@ -32,7 +32,9 @@ pub enum OnePhotoInput {
     // Transcode all incompatible videos
     TranscodeAll,
 
-    PlayOrPause,
+    MuteToggle,
+
+    PlayToggle,
 
     VideoEnded,
 }
@@ -54,6 +56,8 @@ pub struct OnePhoto {
     video_controls: gtk::Box,
 
     play_button: gtk::Button,
+
+    mute_button: gtk::Button,
 
     transcode_button: gtk::Button,
 
@@ -91,7 +95,15 @@ impl SimpleAsyncComponent for OnePhoto {
                         set_icon_name: "play-symbolic",
                         add_css_class: "circular",
                         add_css_class: "osd",
-                        connect_clicked => OnePhotoInput::PlayOrPause,
+                        connect_clicked => OnePhotoInput::PlayToggle,
+                    },
+
+                    #[local_ref]
+                    mute_button -> gtk::Button {
+                        set_icon_name: "audio-volume-muted-symbolic",
+                        add_css_class: "circular",
+                        add_css_class: "osd",
+                        connect_clicked => OnePhotoInput::MuteToggle,
                     },
                 },
 
@@ -146,6 +158,8 @@ impl SimpleAsyncComponent for OnePhoto {
 
         let play_button = gtk::Button::new();
 
+        let mute_button = gtk::Button::new();
+
         let transcode_button = gtk::Button::new();
 
         let transcode_progress = ProgressPanel::builder()
@@ -160,6 +174,7 @@ impl SimpleAsyncComponent for OnePhoto {
             video: None,
             video_controls: video_controls.clone(),
             play_button: play_button.clone(),
+            mute_button: mute_button.clone(),
             transcode_button: transcode_button.clone(),
             transcode_status: transcode_status.clone(),
             transcode_progress,
@@ -251,14 +266,19 @@ impl SimpleAsyncComponent for OnePhoto {
 
                         let video = gtk::MediaFile::for_filename(video_path);
                         if visual.is_motion_photo() {
-                           //media_file.set_muted(true);
+                           self.mute_button.set_icon_name("audio-volume-muted-symbolic");
+                           video.set_muted(true);
                            video.set_loop(true);
                         } else {
-                           //media_file.set_muted(false);
+                           self.mute_button.set_icon_name("multimedia-volume-control-symbolic");
+                           video.set_muted(false);
                            video.set_loop(false);
                            let sender = sender.clone();
                            video.connect_ended_notify(move |_| sender.input(OnePhotoInput::VideoEnded));
                         }
+                        // Always set volume to 1 because muting sometimes seems to disable
+                        // the volume permanently even when set to false.
+                        video.set_volume(1.0);
 
                         video.play();
                         self.play_button.set_icon_name("pause-symbolic");
@@ -269,7 +289,18 @@ impl SimpleAsyncComponent for OnePhoto {
                     }
                 }
             },
-            OnePhotoInput::PlayOrPause => {
+            OnePhotoInput::MuteToggle => {
+                if let Some(ref video) = self.video {
+                    if video.is_muted() {
+                        self.mute_button.set_icon_name("multimedia-volume-control-symbolic");
+                        video.set_muted(false);
+                    } else {
+                        self.mute_button.set_icon_name("audio-volume-muted-symbolic");
+                        video.set_muted(true);
+                    }
+                }
+            },
+            OnePhotoInput::PlayToggle => {
                 if let Some(ref video) = self.video {
                     if video.is_ended() {
                         video.seek(0);
@@ -282,7 +313,7 @@ impl SimpleAsyncComponent for OnePhoto {
                         // to work around that.
                         video.play();
                         video.pause();
-                        sender.input(OnePhotoInput::PlayOrPause);
+                        sender.input(OnePhotoInput::PlayToggle);
                     } else if video.is_playing() {
                         video.pause();
                         self.play_button.set_icon_name("play-symbolic");
