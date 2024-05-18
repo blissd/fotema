@@ -14,3 +14,4 @@ pub mod folder_photos;
 pub mod library;
 pub mod progress_monitor;
 pub mod progress_panel;
+pub mod viewer;

@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use fotema_core::VisualId;
+use fotema_core::Visual;
 use fotema_core::visual::model::PictureOrientation;
 use strum::IntoEnumIterator;
 use relm4::gtk;
@@ -12,25 +13,22 @@ use relm4::gtk::prelude::*;
 use relm4::*;
 use relm4::prelude::*;
 use glycin;
+use chrono::TimeDelta;
 
-use crate::app::components::album_filter::AlbumFilter;
-use crate::app::components::photo_info::PhotoInfo;
-use crate::app::components::photo_info::PhotoInfoInput;
 use crate::app::components::progress_monitor::ProgressMonitor;
 use crate::app::components::progress_panel::ProgressPanel;
-use crate::app::SharedState;
-use fotema_core::Visual;
 
 use std::sync::Arc;
 
 use tracing::{event, Level};
 
+const TEN_SECS_IN_MICROS: i64 = 10_000_000;
+const FIFTEEN_SECS_IN_MICROS: i64 = 15_000_000;
+
 #[derive(Debug)]
 pub enum OnePhotoInput {
-    // View an item after applying an album filter.
-    View(VisualId, AlbumFilter),
-
-    ToggleInfo,
+    // View an item.
+    View(Arc<Visual>),
 
     // The photo/video page has been hidden so any playing media should stop.
     Hidden,
@@ -38,154 +36,190 @@ pub enum OnePhotoInput {
     // Transcode all incompatible videos
     TranscodeAll,
 
-    // Go to the previous photo
-    GoLeft,
+    MuteToggle,
 
-    // Go to the next photo
-    GoRight,
+    PlayToggle,
+
+    VideoEnded,
+
+    SkipBackwards,
+
+    SkipForward,
+
+    // Constantly sent during video playback so we can update the timestamp.
+    Timestamp,
+
+    // Video has been "prepared", so duration should be available
+    Prepared,
 }
 
 #[derive(Debug)]
 pub enum OnePhotoOutput {
     TranscodeAll,
+
+    PhotoShown(VisualId, glycin::ImageInfo),
+
+    VideoShown(VisualId),
 }
 
 pub struct OnePhoto {
-    state: SharedState,
-
-    // Photo to show
     picture: gtk::Picture,
+
+    video: Option<gtk::MediaFile>,
+
+    video_controls: gtk::Box,
+
+    play_button: gtk::Button,
+
+    mute_button: gtk::Button,
+
+    skip_backwards: gtk::Button,
+
+    skip_forward: gtk::Button,
+
+    video_timestamp: gtk::Label,
 
     transcode_button: gtk::Button,
 
     transcode_status: adw::StatusPage,
 
     transcode_progress: Controller<ProgressPanel>,
-
-    // Info for photo
-    photo_info: Controller<PhotoInfo>,
-
-    // Photo and photo info views
-    split_view: adw::OverlaySplitView,
-
-    // Window title, which should be the image/video name.
-    title: String,
-
-    // Visual ID of currently displayed item
-    visual_id: Option<VisualId>,
-
-    // Album currently displayed item is a member of
-    filter: AlbumFilter,
-
-    // Visual items filtered by album filter.
-    // This is to support the next and previous buttons.
-    filtered_items: Vec<Arc<Visual>>,
 }
 
 #[relm4::component(pub async)]
 impl SimpleAsyncComponent for OnePhoto {
-    type Init = (SharedState, Arc<Reducer<ProgressMonitor>>);
+    type Init = Arc<Reducer<ProgressMonitor>>;
     type Input = OnePhotoInput;
     type Output = OnePhotoOutput;
 
     view! {
-        adw::ToolbarView {
-            add_top_bar = &adw::HeaderBar {
-                #[wrap(Some)]
-                set_title_widget = &gtk::Label {
-                    #[watch]
-                    set_label: model.title.as_ref(),
-                    add_css_class: "title",
-                },
-                pack_end = &gtk::Button {
-                    set_icon_name: "info-outline-symbolic",
-                    connect_clicked => OnePhotoInput::ToggleInfo,
-                }
-            },
+        // FIXME should probably be a gtk::Stack because visibility of picture and transcode_status
+        // is mutually exclusive.
+        gtk::Box {
+            set_orientation: gtk::Orientation::Vertical,
 
-            #[wrap(Some)]
-            #[local_ref]
-            set_content = &split_view -> adw::OverlaySplitView {
-                set_collapsed: false,
+            gtk::Overlay {
+                set_vexpand: true,
+                set_halign: gtk::Align::Center,
 
-                #[wrap(Some)]
-                set_sidebar = model.photo_info.widget(),
+                #[local_ref]
+                add_overlay =  &video_controls -> gtk::Box {
+                    set_orientation: gtk::Orientation::Vertical,
+                    set_halign: gtk::Align::Center,
+                    set_valign: gtk::Align::End,
 
-                set_sidebar_position: gtk::PackType::End,
+                    gtk::Frame {
+                        set_halign: gtk::Align::Center,
+                        add_css_class: "osd",
 
-                #[wrap(Some)]
-                set_content = &gtk::Overlay {
-                    add_overlay =  &gtk::Box {
-                        set_halign: gtk::Align::Start,
-                        set_valign: gtk::Align::End,
-                        set_orientation: gtk::Orientation::Horizontal,
-                        set_margin_all: 18,
-                        set_spacing: 12,
-
-                        gtk::Button {
-                            set_icon_name: "left-symbolic",
-                            add_css_class: "osd",
-                            add_css_class: "circular",
-                            connect_clicked => OnePhotoInput::GoLeft,
-                        },
-                        gtk::Button {
-                            set_icon_name: "right-symbolic",
-                            add_css_class: "osd",
-                            add_css_class: "circular",
-                            connect_clicked => OnePhotoInput::GoRight,
+                        #[wrap(Some)]
+                        #[local_ref]
+                        set_child = &video_timestamp -> gtk::Label{
+                            set_halign: gtk::Align::Center,
+                            add_css_class: "photo-grid-month-label",
                         },
                     },
+                    gtk::Box {
+                        set_halign: gtk::Align::Center,
+                        set_valign: gtk::Align::End,
+                        set_orientation: gtk::Orientation::Horizontal,
+                        set_margin_start: 18,
+                        set_margin_end: 18,
+                        set_margin_bottom: 18,
+                        set_spacing: 12,
+
+                        #[local_ref]
+                        skip_backwards -> gtk::Button {
+                            set_icon_name: "skip-backwards-10-symbolic",
+                            add_css_class: "circular",
+                            add_css_class: "osd",
+                            connect_clicked => OnePhotoInput::SkipBackwards,
+                        },
+
+                        #[local_ref]
+                        play_button -> gtk::Button {
+                            set_icon_name: "play-symbolic",
+                            add_css_class: "circular",
+                            add_css_class: "osd",
+                            connect_clicked => OnePhotoInput::PlayToggle,
+                        },
+
+                        #[local_ref]
+                        skip_forward -> gtk::Button {
+                            set_icon_name: "skip-forward-10-symbolic",
+                            add_css_class: "circular",
+                            add_css_class: "osd",
+                            connect_clicked => OnePhotoInput::SkipForward,
+                        },
+
+                        #[local_ref]
+                        mute_button -> gtk::Button {
+                            set_icon_name: "audio-volume-muted-symbolic",
+                            set_margin_start: 36,
+                            add_css_class: "circular",
+                            add_css_class: "osd",
+                            connect_clicked => OnePhotoInput::MuteToggle,
+                        },
+                    },
+                },
+
+                #[wrap(Some)]
+                set_child = &gtk::Box {
+                    #[local_ref]
+                    picture -> gtk::Picture {
+                    }
+                },
+            },
+
+            #[local_ref]
+            transcode_status -> adw::StatusPage {
+                set_visible: false,
+                set_icon_name: Some("playback-error-symbolic"),
+                set_description: Some("This video must be converted before it can be played.\nThis only needs to happen once, but it takes a while to convert a video."),
+
+                #[wrap(Some)]
+                set_child = &adw::Clamp {
+                    set_orientation: gtk::Orientation::Horizontal,
+                    set_maximum_size: 400,
 
                     #[wrap(Some)]
                     set_child = &gtk::Box {
                         set_orientation: gtk::Orientation::Vertical,
 
                         #[local_ref]
-                        picture -> gtk::Picture {
+                        transcode_button -> gtk::Button {
+                            set_label: "Convert all incompatible videos",
+                            add_css_class: "suggested-action",
+                            add_css_class: "pill",
+                            connect_clicked => OnePhotoInput::TranscodeAll,
                         },
 
-                        #[local_ref]
-                        transcode_status -> adw::StatusPage {
-                            set_visible: false,
-                            set_icon_name: Some("playback-error-symbolic"),
-                            set_description: Some("This video must be converted before it can be played.\nThis only needs to happen once, but it takes a while to convert a video."),
-
-                            #[wrap(Some)]
-                            set_child = &adw::Clamp {
-                                set_orientation: gtk::Orientation::Horizontal,
-                                set_maximum_size: 400,
-
-                                #[wrap(Some)]
-                                set_child = &gtk::Box {
-                                    set_orientation: gtk::Orientation::Vertical,
-
-                                    #[local_ref]
-                                    transcode_button -> gtk::Button {
-                                        set_label: "Convert all incompatible videos",
-                                        add_css_class: "suggested-action",
-                                        add_css_class: "pill",
-                                        connect_clicked => OnePhotoInput::TranscodeAll,
-                                    },
-
-                                    model.transcode_progress.widget(),
-                                }
-                            }
-                        }
+                        model.transcode_progress.widget(),
                     }
-                },
+                }
             }
         }
     }
 
     async fn init(
-        (state, transcode_progress_monitor): Self::Init,
+        transcode_progress_monitor: Self::Init,
         root: Self::Root,
         _sender: AsyncComponentSender<Self>,
     ) -> AsyncComponentParts<Self>  {
 
         let picture = gtk::Picture::new();
 
-        let split_view = adw::OverlaySplitView::new();
+        let video_controls = gtk::Box::new(gtk::Orientation::Horizontal, 12);
+
+        let play_button = gtk::Button::new();
+
+        let mute_button = gtk::Button::new();
+
+        let skip_backwards = gtk::Button::new();
+
+        let skip_forward = gtk::Button::new();
+
+        let video_timestamp = gtk::Label::new(None);
 
         let transcode_button = gtk::Button::new();
 
@@ -195,22 +229,19 @@ impl SimpleAsyncComponent for OnePhoto {
 
         let transcode_status = adw::StatusPage::new();
 
-        let photo_info = PhotoInfo::builder()
-            .launch(state.clone())
-            .detach();
 
         let model = OnePhoto {
-            state,
             picture: picture.clone(),
+            video: None,
+            video_controls: video_controls.clone(),
+            play_button: play_button.clone(),
+            mute_button: mute_button.clone(),
+            skip_backwards: skip_backwards.clone(),
+            skip_forward: skip_forward.clone(),
+            video_timestamp: video_timestamp.clone(),
             transcode_button: transcode_button.clone(),
             transcode_status: transcode_status.clone(),
             transcode_progress,
-            photo_info,
-            split_view: split_view.clone(),
-            title: String::from("-"),
-            visual_id: None,
-            filter: AlbumFilter::None,
-            filtered_items: Vec::new(),
         };
 
         let widgets = view_output!();
@@ -221,47 +252,18 @@ impl SimpleAsyncComponent for OnePhoto {
     async fn update(&mut self, msg: Self::Input, sender: AsyncComponentSender<Self>) {
         match msg {
             OnePhotoInput::Hidden => {
+                self.video = None;
                 self.picture.set_paintable(None::<&gdk::Paintable>);
-                self.title = String::from("-");
             },
-            OnePhotoInput::View(visual_id, filter) => {
-                event!(Level::INFO, "Showing item for {}", visual_id);
-                self.visual_id = None;
-
-                // To support next/previous navigation we must have a view of the visual
-                // items filtered with the same album filter as the album the user is currently
-                // looking at.
-                if self.filter != filter {
-                    println!("FILTERING");
-                    self.filter = filter.clone();
-                    let items = self.state.read();
-                    self.filtered_items = items.iter()
-                        .filter(|v| filter.clone().filter(&v))
-                        .map(|v| v.clone())
-                        .collect();
-                }
-
-                let result = {
-                    let data = self.state.read();
-                    data.iter().find(|&x| x.visual_id == visual_id).cloned()
-                };
-
-                let visual = if let Some(v) = result {
-                    v
-                } else {
-                    event!(Level::ERROR, "Failed loading visual item: {:?}", result);
-                    return;
-                };
+            OnePhotoInput::View(visual) => {
+                event!(Level::INFO, "Showing item for {}", visual.visual_id);
 
                 let visual_path = visual.picture_path.clone()
                     .or_else(|| visual.video_path.clone())
                     .expect("Must have path");
 
-                self.title = visual_path.file_name()
-                    .map(|x| x.to_string_lossy().to_string())
-                    .unwrap_or(String::from("-"));
-
                 self.picture.set_paintable(None::<&gdk::Paintable>);
+                self.video = None;
 
                 // clear orientation transformation css classes
                 for orient in PictureOrientation::iter() {
@@ -271,6 +273,7 @@ impl SimpleAsyncComponent for OnePhoto {
                 if visual.is_photo_only() {
                     self.picture.set_visible(true);
                     self.transcode_status.set_visible(false);
+                    self.video_controls.set_visible(false);
 
                     // Apply a CSS transformation to respect the EXIF orientation
                     let orientation = visual.picture_orientation
@@ -297,20 +300,19 @@ impl SimpleAsyncComponent for OnePhoto {
                     let texture = frame.texture;
 
                     self.picture.set_paintable(Some(&texture));
-                    self.photo_info.emit(PhotoInfoInput::Photo(visual_id.clone(), image.info().clone()));
-                } else { // video or motion photo
-                    self.photo_info.emit(PhotoInfoInput::Video(visual_id.clone()));
 
+                    let _ = sender.output(OnePhotoOutput::PhotoShown(visual.visual_id.clone(), image.info().clone()));
+                } else { // video or motion photo
                     let is_transcoded = visual.video_transcoded_path.as_ref().is_some_and(|x| x.exists());
 
                     if visual.is_transcode_required.is_some_and(|x| x) && !is_transcoded {
                         self.picture.set_visible(false);
                         self.transcode_status.set_visible(true);
-                        self.split_view.set_collapsed(true);
+                        self.video_controls.set_visible(false);
                     } else {
                         self.picture.set_visible(true);
                         self.transcode_status.set_visible(false);
-
+                        self.video_controls.set_visible(true);
 
                         // if a video is transcoded then the rotation transformation will
                         // already have been applied.
@@ -326,66 +328,136 @@ impl SimpleAsyncComponent for OnePhoto {
                             .or_else(|| visual.video_path.clone())
                             .expect("must have video path");
 
-                        let media_file = gtk::MediaFile::for_filename(video_path);
-                        self.picture.set_paintable(Some(&media_file));
-
+                        let video = gtk::MediaFile::for_filename(video_path);
                         if visual.is_motion_photo() {
-                           //media_file.set_muted(true);
-                           media_file.set_loop(true);
+                           self.mute_button.set_icon_name("audio-volume-muted-symbolic");
+                           self.skip_backwards.set_visible(false);
+                           self.skip_forward.set_visible(false);
+                           self.video_timestamp.set_visible(false);
+                           video.set_muted(true);
+                           video.set_loop(true);
                         } else {
-                           //media_file.set_muted(false);
-                           media_file.set_loop(false);
-                        }
+                            self.mute_button.set_icon_name("multimedia-volume-control-symbolic");
+                            self.skip_backwards.set_visible(true);
+                            self.skip_forward.set_visible(true);
+                            self.video_timestamp.set_visible(true);
 
-                        media_file.play();
+                            video.set_muted(false);
+                            video.set_loop(false);
+
+                            let sender1 = sender.clone();
+                            let sender2 = sender.clone();
+                            let sender3 = sender.clone();
+                            video.connect_ended_notify(move |_| sender1.input(OnePhotoInput::VideoEnded));
+                            video.connect_timestamp_notify(move |_| sender2.input(OnePhotoInput::Timestamp));
+                            video.connect_prepared_notify(move |_| sender3.input(OnePhotoInput::Prepared));
+                        }
+                        // Always set volume to 1 because muting sometimes seems to disable
+                        // the volume permanently even when set to false.
+                        video.set_volume(1.0);
+
+                        video.play();
+                        self.play_button.set_icon_name("pause-symbolic");
+
+                        self.video = Some(video);
+                        self.picture.set_paintable(self.video.as_ref());
+                        let _ = sender.output(OnePhotoOutput::VideoShown(visual.visual_id.clone()));
                     }
                 }
-                self.visual_id = Some(visual_id);
             },
-            OnePhotoInput::ToggleInfo => {
-                let show = self.split_view.shows_sidebar();
-                self.split_view.set_show_sidebar(!show);
+            OnePhotoInput::Prepared => {
+                // Video details, like duration, aren't available until the video
+                // has been prepared.
+                if let Some(ref video) = self.video {
+                    if video.duration() < FIFTEEN_SECS_IN_MICROS {
+                        self.skip_backwards.set_visible(false);
+                        self.skip_forward.set_visible(false);
+                    } else {
+                        self.skip_backwards.set_visible(true);
+                        self.skip_forward.set_visible(true);
+                    }
+                }
+            },
+            OnePhotoInput::MuteToggle => {
+                if let Some(ref video) = self.video {
+                    if video.is_muted() {
+                        self.mute_button.set_icon_name("multimedia-volume-control-symbolic");
+                        video.set_muted(false);
+                    } else {
+                        self.mute_button.set_icon_name("audio-volume-muted-symbolic");
+                        video.set_muted(true);
+                    }
+                }
+            },
+            OnePhotoInput::PlayToggle => {
+                if let Some(ref video) = self.video {
+                    if video.is_ended() {
+                        video.seek(0);
+
+                        // I'd like to just set the play_button icon to pause-symbolic and
+                        // play the video. However, if we just call play, then the play button icon
+                        // doesn't update and stays as the replay icon.
+                        //
+                        // Playing, pausing, and sending a new message seems
+                        // to work around that.
+                        video.play();
+                        video.pause();
+                        sender.input(OnePhotoInput::PlayToggle);
+                    } else if video.is_playing() {
+                        video.pause();
+                        self.play_button.set_icon_name("play-symbolic");
+                    } else { // is paused
+                        video.play();
+                        self.play_button.set_icon_name("pause-symbolic");
+                        self.skip_forward.set_sensitive(true);
+                    }
+                }
+            },
+            OnePhotoInput::SkipBackwards => {
+                if let Some(ref video) = self.video {
+                    let ts = video.timestamp();
+                    if video.is_ended() {
+                        video.seek(video.duration() - TEN_SECS_IN_MICROS);
+                        video.play();
+                        video.pause();
+                        self.play_button.set_icon_name("play-symbolic");
+                        sender.input(OnePhotoInput::PlayToggle);
+                        return;
+                    } else if ts < TEN_SECS_IN_MICROS {
+                        video.seek(0);
+                    } else {
+                        video.seek(ts - TEN_SECS_IN_MICROS);
+                    }
+                }
+            },
+            OnePhotoInput::SkipForward => {
+                if let Some(ref video) = self.video {
+                    let mut ts = video.timestamp();
+                    if ts + TEN_SECS_IN_MICROS >= video.duration() {
+                        ts = video.duration();
+                        //video.seek(ts);
+                        video.stream_ended();
+                    } else {
+                        ts += TEN_SECS_IN_MICROS;
+                    }
+                    video.seek(ts);
+                }
+            },
+            OnePhotoInput::VideoEnded => {
+                self.play_button.set_icon_name("arrow-circular-top-left-symbolic");
+                self.skip_forward.set_sensitive(false);
+            },
+            OnePhotoInput::Timestamp => {
+                if let Some(ref video) = self.video {
+                    let current_ts = fotema_core::time::format_hhmmss(&TimeDelta::microseconds(video.timestamp()));
+                    let total_ts = fotema_core::time::format_hhmmss(&TimeDelta::microseconds(video.duration()));
+                    self.video_timestamp.set_text(&format!("{}/{}", current_ts, total_ts));
+                }
             },
             OnePhotoInput::TranscodeAll => {
                 event!(Level::INFO, "Transcode all");
                 self.transcode_button.set_visible(false);
                 let _ = sender.output(OnePhotoOutput::TranscodeAll);
-            },
-            OnePhotoInput::GoLeft => {
-                let Some(ref visual_id) = self.visual_id else {
-                    return;
-                };
-
-                let cur_index = self.filtered_items
-                    .iter()
-                    .position(|ref x| x.visual_id == *visual_id);
-
-                let Some(cur_index) = cur_index else {
-                    return;
-                };
-
-                if cur_index > 0 {
-                    let visual_id = self.filtered_items[cur_index-1].visual_id.clone();
-                    sender.input(OnePhotoInput::View(visual_id, self.filter.clone()));
-                }
-            },
-            OnePhotoInput::GoRight => {
-                let Some(ref visual_id) = self.visual_id else {
-                    return;
-                };
-
-                let cur_index = self.filtered_items
-                    .iter()
-                    .position(|ref x| x.visual_id == *visual_id);
-
-                let Some(cur_index) = cur_index else {
-                    return;
-                };
-
-                if cur_index + 1 < self.filtered_items.len() {
-                    let visual_id = self.filtered_items[cur_index + 1].visual_id.clone();
-                    sender.input(OnePhotoInput::View(visual_id, self.filter.clone()));
-                }
             },
         }
     }

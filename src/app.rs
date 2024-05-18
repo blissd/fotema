@@ -46,7 +46,7 @@ use self::components::{
     album_filter::AlbumFilter,
     folder_photos::{FolderPhotos, FolderPhotosInput, FolderPhotosOutput},
     library::{Library, LibraryInput, LibraryOutput},
-    one_photo::{OnePhoto, OnePhotoInput, OnePhotoOutput},
+    viewer::{Viewer, ViewerInput, ViewerOutput},
     preferences::{PreferencesDialog, PreferencesInput, PreferencesOutput},
 };
 
@@ -99,7 +99,7 @@ pub(super) struct App {
 
     library: Controller<Library>,
 
-    one_photo: AsyncController<OnePhoto>,
+    viewer: AsyncController<Viewer>,
 
     show_selfies: bool,
     selfies_page: Controller<Album>,
@@ -400,7 +400,7 @@ impl SimpleComponent for App {
                 adw::NavigationPage {
                     set_tag: Some("picture"),
                     set_title: "-",
-                    model.one_photo.widget(),
+                    model.viewer.widget(),
                 },
             },
         }
@@ -465,10 +465,10 @@ impl SimpleComponent for App {
             .detach_worker((state.clone(), video_repo, transcoder.clone(), transcode_progress_monitor.clone()))
             .detach();
 
-        let one_photo = OnePhoto::builder()
+        let viewer = Viewer::builder()
             .launch((state.clone(), transcode_progress_monitor.clone()))
             .forward(sender.input_sender(), |msg| match msg {
-                OnePhotoOutput::TranscodeAll => AppMsg::TranscodeAll,
+                ViewerOutput::TranscodeAll => AppMsg::TranscodeAll,
             });
 
         let selfies_page = Album::builder()
@@ -546,7 +546,7 @@ impl SimpleComponent for App {
 
             library,
 
-            one_photo,
+            viewer,
             motion_page,
             videos_page,
             selfies_page,
@@ -656,14 +656,14 @@ impl SimpleComponent for App {
                 }
             }
             AppMsg::View(visual_id, filter) => {
-                // Send message to OnePhoto to show image
-                self.one_photo.emit(OnePhotoInput::View(visual_id, filter));
+                // Send message to show image
+                self.viewer.emit(ViewerInput::View(visual_id, filter));
 
                 // Display navigation page for viewing an individual photo.
                 self.picture_navigation_view.push_by_tag("picture");
             }
             AppMsg::ViewHidden => {
-                self.one_photo.emit(OnePhotoInput::Hidden);
+                self.viewer.emit(ViewerInput::Hidden);
             }
             AppMsg::ViewFolder(path) => {
                 self.folder_album.emit(AlbumInput::Activate);
