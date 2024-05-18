@@ -442,7 +442,7 @@ impl PhotoInfo {
 
         let duration = metadata
             .duration
-            .map(|x| x.to_string());
+            .map(|ref x| fotema_core::time::format_hhmmss(x));
 
         let dimensions = if let (Some(width), Some(height)) = (metadata.width, metadata.height) {
             Some(format!("{} ⨉ {}", width, height))
