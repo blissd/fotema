@@ -64,7 +64,7 @@ impl SimpleAsyncComponent for OnePhoto {
         // FIXME should probably be a gtk::Stack because visibility of picture and transcode_status
         // is mutually exclusive.
         gtk::Box {
-            set_halign: gtk::Align::Center,
+            set_orientation: gtk::Orientation::Vertical,
 
             #[local_ref]
             picture -> gtk::Picture {
