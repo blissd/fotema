@@ -342,7 +342,6 @@ impl SimpleAsyncComponent for OnePhoto {
                             self.skip_forward.set_visible(true);
                             self.video_timestamp.set_visible(true);
 
-
                             // Instead of video.set_muted(false), we must mute and then
                             // send a message to unmute. This seems to work around the problem
                             // of videos staying muted after viewing muting and unmuting.
@@ -386,10 +385,6 @@ impl SimpleAsyncComponent for OnePhoto {
                     if video.is_muted() {
                         self.mute_button.set_icon_name("multimedia-volume-control-symbolic");
                         video.set_muted(false);
-
-                        // Always set volume to 1 because muting sometimes seems to disable
-                        // the volume permanently even when set to false.
-                        //video.set_volume(1.0);
                     } else {
                         self.mute_button.set_icon_name("audio-volume-muted-symbolic");
                         video.set_muted(true);
