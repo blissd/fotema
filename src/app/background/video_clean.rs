@@ -38,7 +38,14 @@ impl VideoClean {
         // Scrub vids from database if they no longer exist on the file system.
         let vids: Vec<fotema_core::video::model::Video> = self.repo.all()?;
 
-        let vids_count = vids.len();
+        let count = vids.len();
+
+        // Short-circuit before sending progress messages to stop
+        // banner from appearing and disappearing.
+        if count == 0 {
+            let _ = sender.output(VideoCleanOutput::Completed);
+            return Ok(());
+        }
 
         if let Err(e) = sender.output(VideoCleanOutput::Started){
             event!(Level::ERROR, "Failed sending cleanup started: {:?}", e);
@@ -56,7 +63,7 @@ impl VideoClean {
                 }
             });
 
-        event!(Level::INFO, "Cleaned {} videos in {} seconds.", vids_count, start.elapsed().as_secs());
+        event!(Level::INFO, "Cleaned {} videos in {} seconds.", count, start.elapsed().as_secs());
 
         if let Err(e) = sender.output(VideoCleanOutput::Completed) {
             event!(Level::ERROR, "Failed sending VideoCleanOutput::Completed: {:?}", e);

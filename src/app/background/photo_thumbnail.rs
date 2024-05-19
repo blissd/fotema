@@ -56,8 +56,6 @@ impl PhotoThumbnail {
      {
         let start = std::time::Instant::now();
 
-        let _ = sender.output(PhotoThumbnailOutput::Started);
-
         let mut unprocessed: Vec<fotema_core::photo::model::Picture> = repo
             .all()?
             .into_iter()
@@ -68,6 +66,15 @@ impl PhotoThumbnail {
         unprocessed.reverse();
 
         let count = unprocessed.len();
+
+        // Short-circuit before sending progress messages to stop
+        // banner from appearing and disappearing.
+        if count == 0 {
+            let _ = sender.output(PhotoThumbnailOutput::Completed);
+            return Ok(());
+        }
+
+        let _ = sender.output(PhotoThumbnailOutput::Started);
 
         progress_monitor.emit(ProgressMonitorInput::Start(TaskName::Thumbnail(MediaType::Photo), count));
 

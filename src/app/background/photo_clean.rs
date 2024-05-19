@@ -38,7 +38,14 @@ impl PhotoClean {
         // Scrub pics from database if they no longer exist on the file system.
         let pics: Vec<fotema_core::photo::model::Picture> = self.repo.all()?;
 
-        let pics_count = pics.len();
+        let count = pics.len();
+
+        // Short-circuit before sending progress messages to stop
+        // banner from appearing and disappearing.
+        if count == 0 {
+            let _ = sender.output(PhotoCleanOutput::Completed);
+            return Ok(());
+        }
 
         if let Err(e) = sender.output(PhotoCleanOutput::Started){
             event!(Level::ERROR, "Failed sending cleanup started: {:?}", e);
@@ -56,7 +63,7 @@ impl PhotoClean {
                 }
             });
 
-        event!(Level::INFO, "Cleaned {} photos in {} seconds.", pics_count, start.elapsed().as_secs());
+        event!(Level::INFO, "Cleaned {} photos in {} seconds.", count, start.elapsed().as_secs());
 
         if let Err(e) = sender.output(PhotoCleanOutput::Completed) {
             event!(Level::ERROR, "Failed sending PhotoCleanOutput::Completed: {:?}", e);

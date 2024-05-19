@@ -38,11 +38,18 @@ impl PhotoEnrich {
      {
         let start = std::time::Instant::now();
 
-        let _ = sender.output(PhotoEnrichOutput::Started);
-
         let unprocessed = repo.find_need_metadata_update()?;
 
         let count = unprocessed.len();
+
+        // Short-circuit before sending progress messages to stop
+        // banner from appearing and disappearing.
+        if count == 0 {
+            let _ = sender.output(PhotoEnrichOutput::Completed);
+            return Ok(());
+        }
+
+        let _ = sender.output(PhotoEnrichOutput::Started);
 
         let metadatas = unprocessed
             .par_iter()
