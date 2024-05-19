@@ -189,8 +189,10 @@ impl SimpleComponent for App {
     view! {
         main_window = adw::ApplicationWindow::new(&main_application()) {
             set_visible: true,
-            set_width_request: 400,
-            set_height_request: 400,
+
+            // See https://linuxphoneapps.org/docs/resources/developer-information/#hardware-specs-to-consider
+            set_width_request: 360,
+            set_height_request: 294,
 
             connect_close_request[sender] => move |_| {
                 sender.input(AppMsg::Quit);
