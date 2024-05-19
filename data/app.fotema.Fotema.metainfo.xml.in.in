@@ -49,9 +49,12 @@
   <releases>
     <release version="1.4.0" date="2024-05-20">
       <description>
-        <p>Video controls:</p>
+        <p>What's new?</p>
         <ul>
           <li>Add basic video playback controls.</li>
+        </ul>
+        <p>What's fixed?</p>
+        <ul>
           <li>Human readable formatting of video duration in photo info bar.</li>
           <li>Less notification banner flicker when there is no work to do.</li>
         </ul>
