@@ -56,8 +56,6 @@ impl VideoThumbnail {
      {
         let start = std::time::Instant::now();
 
-        let _ = sender.output(VideoThumbnailOutput::Started);
-
         let mut unprocessed: Vec<Video> = repo
             .all()?
             .into_iter()
@@ -68,6 +66,15 @@ impl VideoThumbnail {
         unprocessed.reverse();
 
         let count = unprocessed.len();
+
+        // Short-circuit before sending progress messages to stop
+        // banner from appearing and disappearing.
+        if count == 0 {
+            let _ = sender.output(VideoThumbnailOutput::Completed);
+            return Ok(());
+        }
+
+        let _ = sender.output(VideoThumbnailOutput::Started);
 
         progress_monitor.emit(ProgressMonitorInput::Start(TaskName::Thumbnail(MediaType::Video), count));
 

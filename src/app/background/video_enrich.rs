@@ -47,11 +47,18 @@ impl VideoEnrich {
      {
         let start = std::time::Instant::now();
 
-        let _ = sender.output(VideoEnrichOutput::Started);
-
         let unprocessed = repo.find_need_metadata_update()?;
 
         let count = unprocessed.len();
+
+        // Short-circuit before sending progress messages to stop
+        // banner from appearing and disappearing.
+        if count == 0 {
+            let _ = sender.output(VideoEnrichOutput::Completed);
+            return Ok(());
+        }
+
+        let _ = sender.output(VideoEnrichOutput::Started);
 
         progress_monitor.emit(ProgressMonitorInput::Start(TaskName::Enrich(MediaType::Video), count));
 
