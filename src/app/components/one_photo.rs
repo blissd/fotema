@@ -93,10 +93,11 @@ impl SimpleAsyncComponent for OnePhoto {
     type Output = OnePhotoOutput;
 
     view! {
-        // FIXME should probably be a gtk::Stack because visibility of picture and transcode_status
-        // is mutually exclusive.
         gtk::Box {
             set_orientation: gtk::Orientation::Vertical,
+            //set_valign: gtk::Align::Start,
+            set_vexpand: true,
+            set_hexpand: true,
 
             gtk::Overlay {
                 set_vexpand: true,
@@ -173,6 +174,9 @@ impl SimpleAsyncComponent for OnePhoto {
 
             #[local_ref]
             transcode_status -> adw::StatusPage {
+                set_valign: gtk::Align::Start,
+                set_vexpand: true,
+
                 set_visible: false,
                 set_icon_name: Some("playback-error-symbolic"),
                 set_description: Some("This video must be converted before it can be played.\nThis only needs to happen once, but it takes a while to convert a video."),
