@@ -13,6 +13,8 @@ use crate::app::components::one_photo::{OnePhoto, OnePhotoInput, OnePhotoOutput}
 use crate::app::components::photo_info::{PhotoInfo, PhotoInfoInput};
 use crate::app::components::progress_monitor::ProgressMonitor;
 use crate::app::SharedState;
+use crate::adaptive;
+
 use fotema_core::Visual;
 
 use std::sync::Arc;
@@ -43,6 +45,9 @@ pub enum ViewerInput {
 
     // Go to the next photo
     GoRight,
+
+    // Adapt to layout
+    Adapt(adaptive::Layout),
 }
 
 #[derive(Debug)]
@@ -77,7 +82,7 @@ pub struct Viewer {
 
 #[relm4::component(pub async)]
 impl SimpleAsyncComponent for Viewer {
-    type Init = (SharedState, Arc<Reducer<ProgressMonitor>>);
+    type Init = (SharedState, Arc<Reducer<ProgressMonitor>>, Arc<adaptive::LayoutState>);
     type Input = ViewerInput;
     type Output = ViewerOutput;
 
@@ -135,7 +140,7 @@ impl SimpleAsyncComponent for Viewer {
     }
 
     async fn init(
-        (state, transcode_progress_monitor): Self::Init,
+        (state, transcode_progress_monitor, layout_state): Self::Init,
         root: Self::Root,
         sender: AsyncComponentSender<Self>,
     ) -> AsyncComponentParts<Self>  {
@@ -153,6 +158,8 @@ impl SimpleAsyncComponent for Viewer {
         let photo_info = PhotoInfo::builder()
             .launch(state.clone())
             .detach();
+
+        layout_state.subscribe(sender.input_sender(), |layout| ViewerInput::Adapt(layout.clone()));
 
         let left_button = gtk::Button::new();
         let right_button = gtk::Button::new();
@@ -253,6 +260,12 @@ impl SimpleAsyncComponent for Viewer {
                 }
 
                 sender.input(ViewerInput::ViewByIndex(index + 1));
+            },
+            ViewerInput::Adapt(adaptive::Layout::Narrow) => {
+                self.split_view.set_collapsed(true);
+            },
+            ViewerInput::Adapt(adaptive::Layout::Wide) => {
+                self.split_view.set_collapsed(false);
             },
         }
     }

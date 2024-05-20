@@ -25,6 +25,8 @@ use relm4::{
 use relm4;
 
 use crate::config::{APP_ID, PROFILE};
+use crate::adaptive;
+
 use fotema_core::database;
 use fotema_core::video;
 use fotema_core::VisualId;
@@ -91,6 +93,8 @@ impl Default for ViewName {
 type ActiveView = Arc<relm4::SharedState<ViewName>>;
 
 pub(super) struct App {
+    adaptive_layout: Arc<adaptive::LayoutState>,
+
     about_dialog: Controller<AboutDialog>,
     preferences_dialog: Controller<PreferencesDialog>,
 
@@ -162,6 +166,9 @@ pub(super) enum AppMsg {
     BootstrapCompleted,
 
     TranscodeAll,
+
+    // Adapt to layout change
+    Adapt(adaptive::Layout),
 }
 
 relm4::new_action_group!(pub(super) WindowActionGroup, "win");
@@ -225,6 +232,9 @@ impl SimpleComponent for App {
                 add_setter: (&main_navigation, "collapsed", &true.into()),
                 //add_setter: (&main_navigation, "show-sidebar", &false.into()),
                 add_setter: (&spinner, "visible", &true.into()),
+
+                connect_apply => AppMsg::Adapt(adaptive::Layout::Narrow),
+                connect_unapply => AppMsg::Adapt(adaptive::Layout::Wide),
             },
 
             // Top-level navigation view containing:
@@ -430,6 +440,7 @@ impl SimpleComponent for App {
 
         let state = SharedState::new(relm4::SharedState::new());
         let active_view = ActiveView::new(relm4::SharedState::new());
+        let adaptive_layout = Arc::new(adaptive::LayoutState::new());
 
         let bootstrap_progress_monitor: Reducer<ProgressMonitor> = Reducer::new();
         let bootstrap_progress_monitor = Arc::new(bootstrap_progress_monitor);
@@ -465,7 +476,7 @@ impl SimpleComponent for App {
             .detach();
 
         let viewer = Viewer::builder()
-            .launch((state.clone(), transcode_progress_monitor.clone()))
+            .launch((state.clone(), transcode_progress_monitor.clone(), adaptive_layout.clone()))
             .forward(sender.input_sender(), |msg| match msg {
                 ViewerOutput::TranscodeAll => AppMsg::TranscodeAll,
             });
@@ -537,6 +548,7 @@ impl SimpleComponent for App {
         let banner = adw::Banner::new("-");
 
         let model = Self {
+            adaptive_layout,
             bootstrap,
             video_transcode,
 
@@ -687,12 +699,15 @@ impl SimpleComponent for App {
                 event!(Level::INFO, "Transcode all");
                 self.video_transcode.emit(VideoTranscodeInput::All);
             },
-
             AppMsg::PreferencesUpdated => {
                 event!(Level::INFO, "Preferences updated.");
                 // TODO create a Preferences struct to hold preferences and send with update message.
                 self.show_selfies = AppWidgets::show_selfies();
-            }
+            },
+            AppMsg::Adapt(layout) => {
+                // Notify of a change of layout.
+                *self.adaptive_layout.write() = layout;
+            },
         }
     }
 
