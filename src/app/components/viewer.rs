@@ -110,7 +110,7 @@ impl SimpleAsyncComponent for Viewer {
                 set_content = &gtk::Overlay {
                     add_overlay =  &gtk::Box {
                         set_halign: gtk::Align::Start,
-                        set_valign: gtk::Align::End,
+                        set_valign: gtk::Align::Center,
                         set_orientation: gtk::Orientation::Horizontal,
                         set_margin_all: 18,
                         set_spacing: 12,
@@ -122,6 +122,14 @@ impl SimpleAsyncComponent for Viewer {
                             add_css_class: "circular",
                             connect_clicked => ViewerInput::GoLeft,
                         },
+                    },
+
+                    add_overlay =  &gtk::Box {
+                        set_halign: gtk::Align::End,
+                        set_valign: gtk::Align::Center,
+                        set_orientation: gtk::Orientation::Horizontal,
+                        set_margin_all: 18,
+                        set_spacing: 12,
 
                         #[local_ref]
                         right_button -> gtk::Button {
