@@ -13,6 +13,8 @@ use crate::app::components::one_photo::{OnePhoto, OnePhotoInput, OnePhotoOutput}
 use crate::app::components::photo_info::{PhotoInfo, PhotoInfoInput};
 use crate::app::components::progress_monitor::ProgressMonitor;
 use crate::app::SharedState;
+use crate::adaptive;
+
 use fotema_core::Visual;
 
 use std::sync::Arc;
@@ -43,6 +45,9 @@ pub enum ViewerInput {
 
     // Go to the next photo
     GoRight,
+
+    // Adapt to layout
+    Adapt(adaptive::Layout),
 }
 
 #[derive(Debug)]
@@ -62,9 +67,6 @@ pub struct Viewer {
     // Photo and photo info views
     split_view: adw::OverlaySplitView,
 
-    // Window title, which should be the image/video name.
-    title: String,
-
     left_button: gtk::Button,
     right_button: gtk::Button,
 
@@ -80,19 +82,13 @@ pub struct Viewer {
 
 #[relm4::component(pub async)]
 impl SimpleAsyncComponent for Viewer {
-    type Init = (SharedState, Arc<Reducer<ProgressMonitor>>);
+    type Init = (SharedState, Arc<Reducer<ProgressMonitor>>, Arc<adaptive::LayoutState>);
     type Input = ViewerInput;
     type Output = ViewerOutput;
 
     view! {
         adw::ToolbarView {
             add_top_bar = &adw::HeaderBar {
-                #[wrap(Some)]
-                set_title_widget = &gtk::Label {
-                    #[watch]
-                    set_label: model.title.as_ref(),
-                    add_css_class: "title",
-                },
                 pack_end = &gtk::Button {
                     set_icon_name: "info-outline-symbolic",
                     connect_clicked => ViewerInput::ToggleInfo,
@@ -103,6 +99,7 @@ impl SimpleAsyncComponent for Viewer {
             #[local_ref]
             set_content = &split_view -> adw::OverlaySplitView {
                 set_collapsed: false,
+                set_show_sidebar: false,
 
                 #[wrap(Some)]
                 set_sidebar = model.photo_info.widget(),
@@ -113,7 +110,7 @@ impl SimpleAsyncComponent for Viewer {
                 set_content = &gtk::Overlay {
                     add_overlay =  &gtk::Box {
                         set_halign: gtk::Align::Start,
-                        set_valign: gtk::Align::End,
+                        set_valign: gtk::Align::Center,
                         set_orientation: gtk::Orientation::Horizontal,
                         set_margin_all: 18,
                         set_spacing: 12,
@@ -125,6 +122,14 @@ impl SimpleAsyncComponent for Viewer {
                             add_css_class: "circular",
                             connect_clicked => ViewerInput::GoLeft,
                         },
+                    },
+
+                    add_overlay =  &gtk::Box {
+                        set_halign: gtk::Align::End,
+                        set_valign: gtk::Align::Center,
+                        set_orientation: gtk::Orientation::Horizontal,
+                        set_margin_all: 18,
+                        set_spacing: 12,
 
                         #[local_ref]
                         right_button -> gtk::Button {
@@ -143,7 +148,7 @@ impl SimpleAsyncComponent for Viewer {
     }
 
     async fn init(
-        (state, transcode_progress_monitor): Self::Init,
+        (state, transcode_progress_monitor, layout_state): Self::Init,
         root: Self::Root,
         sender: AsyncComponentSender<Self>,
     ) -> AsyncComponentParts<Self>  {
@@ -162,6 +167,8 @@ impl SimpleAsyncComponent for Viewer {
             .launch(state.clone())
             .detach();
 
+        layout_state.subscribe(sender.input_sender(), |layout| ViewerInput::Adapt(layout.clone()));
+
         let left_button = gtk::Button::new();
         let right_button = gtk::Button::new();
 
@@ -173,7 +180,6 @@ impl SimpleAsyncComponent for Viewer {
             left_button: left_button.clone(),
             right_button: right_button.clone(),
             split_view: split_view.clone(),
-            title: String::from("-"),
             filter: AlbumFilter::None,
             filtered_items: Vec::new(),
         };
@@ -187,7 +193,6 @@ impl SimpleAsyncComponent for Viewer {
         match msg {
             ViewerInput::Hidden => {
                 self.one_photo.emit(OnePhotoInput::Hidden);
-                self.title = String::from("-");
             },
             ViewerInput::View(visual_id, filter) => {
                 event!(Level::INFO, "Showing item for {}", visual_id);
@@ -225,14 +230,6 @@ impl SimpleAsyncComponent for Viewer {
                 self.update_nav_buttons();
 
                 self.one_photo.emit(OnePhotoInput::View(visual.clone()));
-
-                let visual_path = visual.picture_path.clone()
-                    .or_else(|| visual.video_path.clone())
-                    .expect("Must have path");
-
-                self.title = visual_path.file_name()
-                    .map(|x| x.to_string_lossy().to_string())
-                    .unwrap_or(String::from("-"));
             },
             ViewerInput::ToggleInfo => {
                 let show = self.split_view.shows_sidebar();
@@ -271,6 +268,12 @@ impl SimpleAsyncComponent for Viewer {
                 }
 
                 sender.input(ViewerInput::ViewByIndex(index + 1));
+            },
+            ViewerInput::Adapt(adaptive::Layout::Narrow) => {
+                self.split_view.set_collapsed(true);
+            },
+            ViewerInput::Adapt(adaptive::Layout::Wide) => {
+                self.split_view.set_collapsed(false);
             },
         }
     }

@@ -4,6 +4,7 @@
 
 #[rustfmt::skip]
 mod app;
+mod adaptive;
 mod config;
 
 use app::App;
