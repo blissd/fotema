@@ -94,6 +94,7 @@ impl SimpleAsyncComponent for Viewer {
             #[local_ref]
             set_content = &split_view -> adw::OverlaySplitView {
                 set_collapsed: false,
+                set_show_sidebar: false,
 
                 #[wrap(Some)]
                 set_sidebar = model.photo_info.widget(),
