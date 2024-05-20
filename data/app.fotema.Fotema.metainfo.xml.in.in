@@ -47,6 +47,17 @@
   </branding>
 
   <releases>
+    <release version="1.5.0" date="2024-05-21">
+      <description>
+        <p>Fixes for narrow display.</p>
+        <ul>
+          <li>Use GNOME suggested minimum window width and height.</li>
+          <li>Collapse photo info bar when display is narrow.</li>
+          <li>Move file name from title to photo info bar.</li>
+          <li>Move next/previous buttons so they don't overlap with video controls.</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.4.0" date="2024-05-20">
       <description>
         <p>What's new?</p>
