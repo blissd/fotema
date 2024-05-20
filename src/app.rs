@@ -275,7 +275,6 @@ impl SimpleComponent for App {
 
                         #[wrap(Some)]
                         set_content = &adw::NavigationPage {
-                            set_title: "-",
                             adw::ToolbarView {
                                 #[local_ref]
                                 add_top_bar = &header_bar -> adw::HeaderBar {
@@ -383,12 +382,11 @@ impl SimpleComponent for App {
 
                 adw::NavigationPage {
                     set_tag: Some("album"),
-                    set_title: "-",
                     adw::ToolbarView {
                         add_top_bar = &adw::HeaderBar {
                             #[wrap(Some)]
                             set_title_widget = &gtk::Label {
-                                set_label: "Folder", // TODO set title to folder name
+                                set_label: "Folder",
                                 add_css_class: "title",
                             }
                         },
@@ -401,7 +399,6 @@ impl SimpleComponent for App {
                 // Page for showing a single photo.
                 adw::NavigationPage {
                     set_tag: Some("picture"),
-                    set_title: "-",
                     model.viewer.widget(),
                 },
             },
@@ -634,11 +631,13 @@ impl SimpleComponent for App {
                 } else if let Some(child) = child {
                     let page = self.main_stack.page(&child);
                     let title = page.title().map(|x| x.to_string());
-                    let label = gtk::Label::builder()
-                        .label(title.unwrap_or("-".to_string()))
-                        .css_classes(["title"])
-                        .build();
-                    self.header_bar.set_title_widget(Some(&label));
+                    let title = title.map(|text| {
+                        gtk::Label::builder()
+                            .label(text)
+                            .css_classes(["title"])
+                            .build()
+                    });
+                    self.header_bar.set_title_widget(title.as_ref());
                 }
 
                 // figure out which view to activate

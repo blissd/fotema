@@ -35,6 +35,7 @@ pub struct PhotoInfo {
 
     path: Option<PathBuf>,
     folder: adw::ActionRow,
+    file_name: adw::ActionRow,
 
     // FIXME what timestamps to show for live photos that have an image an a video?
     date_time_details: adw::PreferencesGroup,
@@ -89,7 +90,14 @@ impl SimpleComponent for PhotoInfo {
                             add_css_class: "flat",
                             connect_clicked => PhotoInfoInput::OpenFolder,
                         }
-                    }
+                    },
+
+                    #[local_ref]
+                    file_name -> adw::ActionRow {
+                        set_title: "File Name",
+                        add_css_class: "property",
+                        set_subtitle_selectable: true,
+                    },
                 },
 
                 #[local_ref]
@@ -213,6 +221,7 @@ impl SimpleComponent for PhotoInfo {
     ) -> ComponentParts<Self> {
 
         let folder = adw::ActionRow::new();
+        let file_name = adw::ActionRow::new();
 
         let date_time_details = adw::PreferencesGroup::new();
         let created_at = adw::ActionRow::new();
@@ -240,6 +249,7 @@ impl SimpleComponent for PhotoInfo {
             state,
 
             folder: folder.clone(),
+            file_name: file_name.clone(),
             path: None,
 
             date_time_details: date_time_details.clone(),
@@ -334,6 +344,7 @@ impl PhotoInfo {
         };
 
         Self::update_row(&self.folder, vis.folder_name());
+        Self::update_row(&self.file_name, path.file_name().map(|x| x.to_string_lossy().to_string()));
         self.path = Some(path.to_path_buf());
 
         // FIXME duplicated from Scanner

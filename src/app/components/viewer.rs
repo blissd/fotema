@@ -62,9 +62,6 @@ pub struct Viewer {
     // Photo and photo info views
     split_view: adw::OverlaySplitView,
 
-    // Window title, which should be the image/video name.
-    title: String,
-
     left_button: gtk::Button,
     right_button: gtk::Button,
 
@@ -87,12 +84,6 @@ impl SimpleAsyncComponent for Viewer {
     view! {
         adw::ToolbarView {
             add_top_bar = &adw::HeaderBar {
-                #[wrap(Some)]
-                set_title_widget = &gtk::Label {
-                    #[watch]
-                    set_label: model.title.as_ref(),
-                    add_css_class: "title",
-                },
                 pack_end = &gtk::Button {
                     set_icon_name: "info-outline-symbolic",
                     connect_clicked => ViewerInput::ToggleInfo,
@@ -173,7 +164,6 @@ impl SimpleAsyncComponent for Viewer {
             left_button: left_button.clone(),
             right_button: right_button.clone(),
             split_view: split_view.clone(),
-            title: String::from("-"),
             filter: AlbumFilter::None,
             filtered_items: Vec::new(),
         };
@@ -187,7 +177,6 @@ impl SimpleAsyncComponent for Viewer {
         match msg {
             ViewerInput::Hidden => {
                 self.one_photo.emit(OnePhotoInput::Hidden);
-                self.title = String::from("-");
             },
             ViewerInput::View(visual_id, filter) => {
                 event!(Level::INFO, "Showing item for {}", visual_id);
