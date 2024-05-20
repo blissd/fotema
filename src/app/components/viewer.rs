@@ -225,14 +225,6 @@ impl SimpleAsyncComponent for Viewer {
                 self.update_nav_buttons();
 
                 self.one_photo.emit(OnePhotoInput::View(visual.clone()));
-
-                let visual_path = visual.picture_path.clone()
-                    .or_else(|| visual.video_path.clone())
-                    .expect("Must have path");
-
-                self.title = visual_path.file_name()
-                    .map(|x| x.to_string_lossy().to_string())
-                    .unwrap_or(String::from("-"));
             },
             ViewerInput::ToggleInfo => {
                 let show = self.split_view.shows_sidebar();
