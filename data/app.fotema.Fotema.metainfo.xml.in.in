@@ -49,7 +49,7 @@
   <releases>
     <release version="1.5.0" date="2024-05-21">
       <description>
-        <p>Fixes for narrow display.</p>
+        <p>Fixes for narrow displays.</p>
         <ul>
           <li>Use GNOME suggested minimum window width and height.</li>
           <li>Collapse photo info bar when display is narrow.</li>
