@@ -6,6 +6,7 @@
 mod app;
 mod adaptive;
 mod config;
+mod languages;
 
 use app::App;
 

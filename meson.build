@@ -37,6 +37,9 @@ iconsdir = datadir / 'icons'
 podir = meson.project_source_root() / 'po'
 gettext_package = meson.project_name()
 
+# Copy Fluent FTL localization files to locales directory
+install_subdir('i18n', install_dir: localedir, strip_directory: true)
+
 if get_option('profile') == 'development'
   profile = 'Devel'
   vcs_tag = run_command('git', 'rev-parse', '--short', 'HEAD', check: false).stdout().strip()
@@ -66,6 +69,7 @@ endif
 
 subdir('data')
 subdir('po')
+
 subdir('src')
 
 gnome.post_install(
