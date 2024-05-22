@@ -260,12 +260,6 @@ impl SimpleComponent for App {
                         set_sidebar = &adw::NavigationPage {
                             adw::ToolbarView {
                                 add_top_bar = &adw::HeaderBar {
-                                    #[wrap(Some)]
-                                    set_title_widget = &gtk::Label {
-                                        set_label: "Photos",
-                                        add_css_class: "title",
-                                    },
-
                                     pack_end = &gtk::MenuButton {
                                         set_icon_name: "open-menu-symbolic",
                                         set_menu_model: Some(&primary_menu),
