@@ -103,7 +103,7 @@ impl RelmGridItem for PhotoGridItem {
                             #[wrap(Some)]
                             #[name(duration_label)]
                             set_child = &gtk::Label{
-                                add_css_class: "photo-grid-status-label",
+                                add_css_class: "photo-grid-photo-status-label",
                             },
                         },
 
