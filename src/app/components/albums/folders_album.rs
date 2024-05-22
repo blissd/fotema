@@ -3,17 +3,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use gtk::prelude::OrientableExt;
-use fotema_core;
 
 use fotema_core::visual::model::PictureOrientation;
 use strum::IntoEnumIterator;
 
 use itertools::Itertools;
-use fotema_core::Year;
 use relm4::gtk;
 use relm4::gtk::gdk;
 use relm4::gtk::gdk_pixbuf;
-use relm4::gtk::prelude::FrameExt;
 use relm4::gtk::prelude::WidgetExt;
 use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
 use relm4::*;
@@ -24,80 +21,80 @@ use crate::app::SharedState;
 use crate::app::ActiveView;
 use crate::app::ViewName;
 
+use tracing::{event, Level};
+
 #[derive(Debug)]
 struct PhotoGridItem {
+    folder_name: String,
+
+    // Folder album cover
     picture: Arc<fotema_core::visual::Visual>,
-}
-#[derive(Debug)]
-pub enum YearPhotosInput {
-    Activate,
-
-    /// User has selected year in grid view
-    YearSelected(u32), // WARN this is an index into an Vec, not a year.
-
-    // Reload photos from database
-    Refresh,
-}
-
-#[derive(Debug)]
-pub enum YearPhotosOutput {
-    YearSelected(Year),
 }
 
 struct Widgets {
     picture: gtk::Picture,
     label: gtk::Label,
 }
+#[derive(Debug)]
+pub enum FoldersAlbumInput {
+    Activate,
+
+    // Reload photos from database
+    Refresh,
+
+    FolderSelected(u32), // Index into photo grid vector
+}
+
+#[derive(Debug)]
+pub enum FoldersAlbumOutput {
+    FolderSelected(path::PathBuf),
+}
 
 impl RelmGridItem for PhotoGridItem {
-    type Root = adw::Clamp;
+    type Root = gtk::Box;
     type Widgets = Widgets;
 
-    fn setup(_item: &gtk::ListItem) -> (Self::Root, Self::Widgets) {
+    fn setup(_item: &gtk::ListItem) -> (gtk::Box, Widgets) {
         relm4::view! {
-            root = adw::Clamp {
-                set_maximum_size: 200,
-                gtk::Overlay {
-                    add_overlay =  &gtk::Frame {
-                        set_halign: gtk::Align::Start,
-                        set_valign: gtk::Align::Start,
-                        set_margin_start: 8,
-                        set_margin_top: 8,
-                        add_css_class: "photo-grid-year-frame",
+           my_box = gtk::Box {
+                set_orientation: gtk::Orientation::Vertical,
 
-                        #[wrap(Some)]
-                        #[name(label)]
-                        set_child = &gtk::Label{
-                            add_css_class: "photo-grid-year-label",
-                        },
-                    },
+                adw::Clamp {
+                    set_maximum_size: 200,
+                    set_orientation: gtk::Orientation::Horizontal,
 
-                    #[wrap(Some)]
-                    set_child = &gtk::Frame {
-                            set_width_request: 200,
-                            set_height_request: 200,
-
+                    gtk::Frame {
                         #[name(picture)]
                         gtk::Picture {
                             set_can_shrink: true,
                             set_valign: gtk::Align::Center,
+                            set_width_request: 200,
+                            set_height_request: 200,
                         }
                     }
-                }
+                },
+
+                #[name(label)]
+                gtk::Label {
+                    add_css_class: "caption-heading",
+                    set_margin_top: 4,
+                    set_margin_bottom: 12,
+                },
             }
         }
 
         let widgets = Widgets { picture, label };
 
-        (root, widgets)
+        (my_box, widgets)
     }
 
     fn bind(&mut self, widgets: &mut Self::Widgets, _root: &mut Self::Root) {
         widgets
             .label
-            .set_text(format!("{}", self.picture.year()).as_str());
+            .set_text(format!("{}", self.folder_name).as_str());
 
-        if self.picture.thumbnail_path.as_ref().is_some_and(|x| x.exists()) {
+        if self.picture.thumbnail_path.as_ref().is_some_and(|x| x.exists())
+        {
             widgets
                 .picture
                 .set_filename(self.picture.thumbnail_path.clone());
@@ -124,17 +121,17 @@ impl RelmGridItem for PhotoGridItem {
     }
 }
 
-pub struct YearPhotos {
+pub struct FoldersAlbum {
     state: SharedState,
     active_view: ActiveView,
-    photo_grid: TypedGridView<PhotoGridItem, gtk::NoSelection>,
+    photo_grid: TypedGridView<PhotoGridItem, gtk::SingleSelection>,
 }
 
 #[relm4::component(pub)]
-impl SimpleComponent for YearPhotos {
+impl SimpleComponent for FoldersAlbum {
     type Init = (SharedState, ActiveView);
-    type Input = YearPhotosInput;
-    type Output = YearPhotosOutput;
+    type Input = FoldersAlbumInput;
+    type Output = FoldersAlbumOutput;
 
     view! {
         gtk::ScrolledWindow {
@@ -143,15 +140,15 @@ impl SimpleComponent for YearPhotos {
             set_vexpand: true,
 
             #[local_ref]
-            photo_grid_view -> gtk::GridView {
+            pictures_box -> gtk::GridView {
                 set_orientation: gtk::Orientation::Vertical,
                 set_single_click_activate: true,
                 //set_max_columns: 3,
 
                 connect_activate[sender] => move |_, idx| {
-                    sender.input(YearPhotosInput::YearSelected(idx))
-                },
-            },
+                    sender.input(FoldersAlbumInput::FolderSelected(idx))
+                }
+            }
         }
     }
 
@@ -162,59 +159,72 @@ impl SimpleComponent for YearPhotos {
     ) -> ComponentParts<Self> {
         let photo_grid = TypedGridView::new();
 
-        let model = YearPhotos { state, active_view, photo_grid };
+        let model = FoldersAlbum { state, active_view, photo_grid };
 
-        let photo_grid_view = &model.photo_grid.view;
+        let pictures_box = &model.photo_grid.view;
 
         let widgets = view_output!();
+
         ComponentParts { model, widgets }
     }
 
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
-            YearPhotosInput::Activate => {
-                *self.active_view.write() = ViewName::Year;
+           FoldersAlbumInput::Activate => {
+                *self.active_view.write() = ViewName::Folders;
                 if self.photo_grid.is_empty() {
                     self.refresh();
                 }
             }
-            YearPhotosInput::Refresh => {
-                if *self.active_view.read() == ViewName::Year {
+            FoldersAlbumInput::Refresh => {
+                if *self.active_view.read() == ViewName::Folders {
                     self.refresh();
                 } else {
                     self.photo_grid.clear();
                 }
             }
-            YearPhotosInput::YearSelected(index) => {
-                if let Some(item) = self.photo_grid.get(index) {
-                    let date = item.borrow().picture.year_month();
-                    let _ = sender.output(YearPhotosOutput::YearSelected(date.year));
+            FoldersAlbumInput::FolderSelected(index) => {
+                event!(Level::DEBUG, "Folder selected index: {}", index);
+                if let Some(item) = self.photo_grid.get_visible(index) {
+                    let item = item.borrow();
+                    event!(Level::DEBUG, "Folder selected item: {}", item.folder_name);
+
+                    let _ = sender
+                        .output(FoldersAlbumOutput::FolderSelected(item.picture.parent_path.clone()));
                 }
             }
         }
     }
 }
 
-impl YearPhotos {
+impl FoldersAlbum {
     fn refresh(&mut self) {
-        let all_pictures = {
+        let all = {
             let data = self.state.read();
-            data
-                .iter()
-                .dedup_by(|x, y| x.year() == y.year())
-                .map(|picture| PhotoGridItem { picture: picture.clone() })
-                .collect::<Vec<PhotoGridItem>>()
+            data.clone()
+                .into_iter()
+               // .filter(|x| x.thumbnail_path.exists())
+                .sorted_by_key(|pic| pic.parent_path.clone())
+                .chunk_by(|pic| pic.parent_path.clone())
+                //.collect::<Vec<Arc<Visual>>>()
         };
 
-        self.photo_grid.clear();
-        self.photo_grid.extend_from_iter(all_pictures);
+        let mut pictures = Vec::new();
 
-        if !self.photo_grid.is_empty() {
-            self.photo_grid.view.scroll_to(
-                self.photo_grid.len() - 1,
-                gtk::ListScrollFlags::SELECT,
-                None,
-            );
+        for (_key, mut group) in &all {
+            let first = group.nth(0).expect("Groups can't be empty");
+            let album = PhotoGridItem {
+                folder_name: first.folder_name().unwrap_or("-".to_string()),
+                picture: first.clone(),
+            };
+            pictures.push(album);
         }
+
+        pictures.sort_by_key(|pic| pic.folder_name.clone());
+
+        self.photo_grid.clear();
+        self.photo_grid.extend_from_iter(pictures.into_iter());
+
+        // NOTE folder view is not sorted by a timestamp, so don't scroll to end.
     }
 }

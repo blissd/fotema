@@ -44,9 +44,11 @@ mod components;
 
 use self::components::{
     about::AboutDialog,
-    album::{Album, AlbumInput, AlbumOutput},
-    album_filter::AlbumFilter,
-    folder_photos::{FolderPhotos, FolderPhotosInput, FolderPhotosOutput},
+    albums:: {
+        album::{Album, AlbumInput, AlbumOutput},
+        album_filter::AlbumFilter,
+        folders_album::{FoldersAlbum, FoldersAlbumInput, FoldersAlbumOutput},
+    },
     library::{Library, LibraryInput, LibraryOutput},
     viewer::{Viewer, ViewerInput, ViewerOutput},
     preferences::{PreferencesDialog, PreferencesInput, PreferencesOutput},
@@ -111,7 +113,7 @@ pub(super) struct App {
     motion_page: Controller<Album>,
 
     // Grid of folders of photos
-    folder_photos: Controller<FolderPhotos>,
+    folders_album: Controller<FoldersAlbum>,
 
     // Folder album currently being viewed
     folder_album: Controller<Album>,
@@ -375,7 +377,7 @@ impl SimpleComponent for App {
                                             adw::NavigationPage {
                                                 //set_tag: Some("folders"),
                                                 //set_title: "Folder",
-                                                model.folder_photos.widget(),
+                                                model.folders_album.widget(),
                                             },
                                         } -> {
                                             set_title: "Folders",
@@ -507,16 +509,16 @@ impl SimpleComponent for App {
 
         state.subscribe(videos_page.sender(), |_| AlbumInput::Refresh);
 
-        let folder_photos = FolderPhotos::builder()
+        let folders_album = FoldersAlbum::builder()
             .launch((state.clone(), active_view.clone()))
             .forward(
             sender.input_sender(),
             |msg| match msg {
-                FolderPhotosOutput::FolderSelected(path) => AppMsg::ViewFolder(path),
+                FoldersAlbumOutput::FolderSelected(path) => AppMsg::ViewFolder(path),
             },
         );
 
-        state.subscribe(folder_photos.sender(), |_| FolderPhotosInput::Refresh);
+        state.subscribe(folders_album.sender(), |_| FoldersAlbumInput::Refresh);
 
         let folder_album = Album::builder()
             .launch((state.clone(), active_view.clone(), ViewName::Folder, AlbumFilter::None))
@@ -562,7 +564,7 @@ impl SimpleComponent for App {
             videos_page,
             selfies_page,
             show_selfies,
-            folder_photos,
+            folders_album,
             folder_album,
 
             main_navigation: main_navigation.clone(),
@@ -663,7 +665,7 @@ impl SimpleComponent for App {
                     ViewName::Videos => self.videos_page.emit(AlbumInput::Activate),
                     ViewName::Selfies => self.selfies_page.emit(AlbumInput::Activate),
                     ViewName::Animated => self.motion_page.emit(AlbumInput::Activate),
-                    ViewName::Folders => self.folder_photos.emit(FolderPhotosInput::Activate),
+                    ViewName::Folders => self.folders_album.emit(FoldersAlbumInput::Activate),
                     ViewName::Folder => self.folder_album.emit(AlbumInput::Activate),
                     ViewName::Nothing => event!(Level::WARN, "Nothing activated... which should not happen"),
                 }

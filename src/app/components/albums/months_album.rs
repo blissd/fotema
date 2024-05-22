@@ -38,7 +38,7 @@ struct Widgets {
     label: gtk::Label,
 }
 #[derive(Debug)]
-pub enum MonthPhotosInput {
+pub enum MonthsAlbumInput {
     Activate,
 
     /// A month has been selected in the grid view
@@ -52,7 +52,7 @@ pub enum MonthPhotosInput {
 }
 
 #[derive(Debug)]
-pub enum MonthPhotosOutput {
+pub enum MonthsAlbumOutput {
     MonthSelected(YearMonth),
 }
 
@@ -133,17 +133,17 @@ impl RelmGridItem for PhotoGridItem {
     }
 }
 
-pub struct MonthPhotos {
+pub struct MonthsAlbum {
     state: SharedState,
     active_view: ActiveView,
     photo_grid: TypedGridView<PhotoGridItem, gtk::SingleSelection>,
 }
 
 #[relm4::component(pub)]
-impl SimpleComponent for MonthPhotos {
+impl SimpleComponent for MonthsAlbum {
     type Init = (SharedState, ActiveView);
-    type Input = MonthPhotosInput;
-    type Output = MonthPhotosOutput;
+    type Input = MonthsAlbumInput;
+    type Output = MonthsAlbumOutput;
 
     view! {
         gtk::ScrolledWindow {
@@ -158,7 +158,7 @@ impl SimpleComponent for MonthPhotos {
                 //set_max_columns: 3,
 
                 connect_activate[sender] => move |_, idx| {
-                    sender.input(MonthPhotosInput::MonthSelected(idx))
+                    sender.input(MonthsAlbumInput::MonthSelected(idx))
                 },
             },
         }
@@ -171,7 +171,7 @@ impl SimpleComponent for MonthPhotos {
     ) -> ComponentParts<Self> {
         let photo_grid = TypedGridView::new();
 
-        let model = MonthPhotos { state, active_view, photo_grid };
+        let model = MonthsAlbum { state, active_view, photo_grid };
 
         let photo_grid_view = &model.photo_grid.view;
 
@@ -181,27 +181,27 @@ impl SimpleComponent for MonthPhotos {
 
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
-            MonthPhotosInput::Activate => {
+            MonthsAlbumInput::Activate => {
                 *self.active_view.write() = ViewName::Month;
                 if self.photo_grid.is_empty() {
                     self.refresh();
                 }
             }
-            MonthPhotosInput::Refresh => {
+            MonthsAlbumInput::Refresh => {
                 if *self.active_view.read() == ViewName::Month {
                     self.refresh();
                 } else {
                     self.photo_grid.clear();
                 }
             }
-            MonthPhotosInput::MonthSelected(index) => {
+            MonthsAlbumInput::MonthSelected(index) => {
                 if let Some(item) = self.photo_grid.get(index) {
                     let ym = item.borrow().picture.year_month();
                     event!(Level::DEBUG, "index {} has year_month {}", index, ym);
-                    let _ = sender.output(MonthPhotosOutput::MonthSelected(ym));
+                    let _ = sender.output(MonthsAlbumOutput::MonthSelected(ym));
                 }
             }
-            MonthPhotosInput::GoToYear(year) => {
+            MonthsAlbumInput::GoToYear(year) => {
                 event!(Level::INFO, "Showing for year: {}", year);
                 let index_opt = self
                     .photo_grid
@@ -217,7 +217,7 @@ impl SimpleComponent for MonthPhotos {
     }
 }
 
-impl MonthPhotos {
+impl MonthsAlbum {
     fn refresh(&mut self) {
         let all_pictures = {
             let data = self.state.read();
