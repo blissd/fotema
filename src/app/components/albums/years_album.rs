@@ -50,37 +50,36 @@ struct Widgets {
 }
 
 impl RelmGridItem for PhotoGridItem {
-    type Root = adw::Clamp;
+    type Root = gtk::AspectFrame;
     type Widgets = Widgets;
 
     fn setup(_item: &gtk::ListItem) -> (Self::Root, Self::Widgets) {
         relm4::view! {
-            root = adw::Clamp {
-                set_maximum_size: 200,
-                gtk::Overlay {
-                    add_overlay =  &gtk::Frame {
-                        set_halign: gtk::Align::Start,
-                        set_valign: gtk::Align::Start,
-                        set_margin_start: 8,
-                        set_margin_top: 8,
-                        add_css_class: "photo-grid-year-frame",
+            root = gtk::AspectFrame {
+                set_ratio: 1.0,
+
+                gtk::Frame {
+                    gtk::Overlay {
+                        add_overlay =  &gtk::Frame {
+                            set_halign: gtk::Align::Start,
+                            set_valign: gtk::Align::Start,
+                            set_margin_start: 8,
+                            set_margin_top: 8,
+                            add_css_class: "photo-grid-year-frame",
+
+                            #[wrap(Some)]
+                            #[name(label)]
+                            set_child = &gtk::Label{
+                                add_css_class: "photo-grid-year-label",
+                            },
+                        },
 
                         #[wrap(Some)]
-                        #[name(label)]
-                        set_child = &gtk::Label{
-                            add_css_class: "photo-grid-year-label",
-                        },
-                    },
-
-                    #[wrap(Some)]
-                    set_child = &gtk::Frame {
+                        #[name(picture)]
+                        set_child = &gtk::Picture {
                             set_width_request: 200,
                             set_height_request: 200,
-
-                        #[name(picture)]
-                        gtk::Picture {
                             set_can_shrink: true,
-                            set_valign: gtk::Align::Center,
                         }
                     }
                 }

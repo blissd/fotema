@@ -59,15 +59,12 @@ impl RelmGridItem for PhotoGridItem {
            my_box = gtk::Box {
                 set_orientation: gtk::Orientation::Vertical,
 
-                adw::Clamp {
-                    set_maximum_size: 200,
-                    set_orientation: gtk::Orientation::Horizontal,
-
+                gtk::AspectFrame {
+                    set_ratio: 1.0,
                     gtk::Frame {
                         #[name(picture)]
                         gtk::Picture {
                             set_can_shrink: true,
-                            set_valign: gtk::Align::Center,
                             set_width_request: 200,
                             set_height_request: 200,
                         }
