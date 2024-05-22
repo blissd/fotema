@@ -231,7 +231,7 @@ impl SimpleComponent for App {
             )) {
                 add_setter: (&header_bar, "show-title", &false.into()),
                 add_setter: (&switcher_bar, "reveal", &true.into()),
-                add_setter: (&main_navigation, "collapsed", &true.into()),
+                //add_setter: (&main_navigation, "collapsed", &true.into()),
                 //add_setter: (&main_navigation, "show-sidebar", &false.into()),
                 add_setter: (&spinner, "visible", &true.into()),
 
@@ -700,9 +700,20 @@ impl SimpleComponent for App {
                 // TODO create a Preferences struct to hold preferences and send with update message.
                 self.show_selfies = AppWidgets::show_selfies();
             },
-            AppMsg::Adapt(layout) => {
+            AppMsg::Adapt(adaptive::Layout::Narrow) => {
+                self.main_navigation.set_collapsed(true);
+                self.main_navigation.set_show_sidebar(false);
+
                 // Notify of a change of layout.
-                *self.adaptive_layout.write() = layout;
+                *self.adaptive_layout.write() = adaptive::Layout::Narrow;
+            },
+            AppMsg::Adapt(adaptive::Layout::Wide) => {
+                let show = self.main_navigation.shows_sidebar();
+                self.main_navigation.set_collapsed(false);
+                self.main_navigation.set_show_sidebar(show);
+
+                // Notify of a change of layout.
+                *self.adaptive_layout.write() = adaptive::Layout::Wide;
             },
         }
     }

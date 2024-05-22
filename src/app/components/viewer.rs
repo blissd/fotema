@@ -270,10 +270,14 @@ impl SimpleAsyncComponent for Viewer {
                 sender.input(ViewerInput::ViewByIndex(index + 1));
             },
             ViewerInput::Adapt(adaptive::Layout::Narrow) => {
+                let show = self.split_view.shows_sidebar();
                 self.split_view.set_collapsed(true);
+                self.split_view.set_show_sidebar(show);
             },
             ViewerInput::Adapt(adaptive::Layout::Wide) => {
+                let show = self.split_view.shows_sidebar();
                 self.split_view.set_collapsed(false);
+                self.split_view.set_show_sidebar(show);
             },
         }
     }
