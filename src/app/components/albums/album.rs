@@ -66,55 +66,48 @@ struct PhotoGridItemWidgets {
 }
 
 impl RelmGridItem for PhotoGridItem {
-    type Root = adw::Clamp;
+    type Root = gtk::AspectFrame;
     type Widgets = PhotoGridItemWidgets;
 
     fn setup(_item: &gtk::ListItem) -> (Self::Root, Self::Widgets) {
         relm4::view! {
-            root = adw::Clamp {
-                set_maximum_size: 200,
-                gtk::Overlay {
-                    #[name(status_overlay)]
-                    add_overlay =  &gtk::Frame {
-                        set_halign: gtk::Align::End,
-                        set_valign: gtk::Align::End,
-                        set_margin_all: 8,
-                        add_css_class: "photo-grid-photo-status-frame",
+            root = gtk::AspectFrame {
+                gtk::Frame {
+                    gtk::Overlay {
+                        #[name(status_overlay)]
+                        add_overlay =  &gtk::Frame {
+                            set_halign: gtk::Align::End,
+                            set_valign: gtk::Align::End,
+                            set_margin_all: 8,
+                            add_css_class: "photo-grid-photo-status-frame",
+
+                            #[wrap(Some)]
+                            #[name(motion_type_icon)]
+                            set_child = &gtk::Image {
+                                set_width_request: 16,
+                                set_height_request: 16,
+                                add_css_class: "photo-grid-photo-status-label",
+                            },
+                        },
+
+                        #[name(duration_overlay)]
+                        add_overlay =  &gtk::Frame {
+                            set_halign: gtk::Align::End,
+                            set_valign: gtk::Align::End,
+                            set_margin_all: 8,
+                            add_css_class: "photo-grid-photo-status-frame",
+
+                            #[wrap(Some)]
+                            #[name(duration_label)]
+                            set_child = &gtk::Label{
+                                add_css_class: "photo-grid-photo-status-label",
+                            },
+                        },
 
                         #[wrap(Some)]
-                        #[name(motion_type_icon)]
-                        set_child = &gtk::Image {
-                            set_width_request: 16,
-                            set_height_request: 16,
-                            add_css_class: "photo-grid-photo-status-label",
-                        },
-                    },
-
-                    #[name(duration_overlay)]
-                    add_overlay =  &gtk::Frame {
-                        set_halign: gtk::Align::End,
-                        set_valign: gtk::Align::End,
-                        set_margin_all: 8,
-                        add_css_class: "photo-grid-photo-status-frame",
-
-
-                        #[wrap(Some)]
-                        #[name(duration_label)]
-                        set_child = &gtk::Label{
-                            add_css_class: "photo-grid-month-label",
-                        },
-                    },
-
-
-                    #[wrap(Some)]
-                    set_child = &gtk::Frame {
-                        set_width_request: 200,
-                        set_height_request: 200,
-
                         #[name(picture)]
-                        gtk::Picture {
-                            set_can_shrink: true,
-                            set_valign: gtk::Align::Center,
+                        set_child = &gtk::Picture {
+                            set_can_shrink: false,
                         }
                     }
                 }

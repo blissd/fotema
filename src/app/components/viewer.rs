@@ -8,10 +8,10 @@ use relm4::gtk::prelude::*;
 use relm4::*;
 use relm4::prelude::*;
 
-use crate::app::components::album_filter::AlbumFilter;
-use crate::app::components::one_photo::{OnePhoto, OnePhotoInput, OnePhotoOutput};
-use crate::app::components::photo_info::{PhotoInfo, PhotoInfoInput};
-use crate::app::components::progress_monitor::ProgressMonitor;
+use super::albums::album_filter::AlbumFilter;
+use super::one_photo::{OnePhoto, OnePhotoInput, OnePhotoOutput};
+use super::photo_info::{PhotoInfo, PhotoInfoInput};
+use super::progress_monitor::ProgressMonitor;
 use crate::app::SharedState;
 use crate::adaptive;
 
@@ -270,10 +270,14 @@ impl SimpleAsyncComponent for Viewer {
                 sender.input(ViewerInput::ViewByIndex(index + 1));
             },
             ViewerInput::Adapt(adaptive::Layout::Narrow) => {
+                let show = self.split_view.shows_sidebar();
                 self.split_view.set_collapsed(true);
+                self.split_view.set_show_sidebar(show);
             },
             ViewerInput::Adapt(adaptive::Layout::Wide) => {
+                let show = self.split_view.shows_sidebar();
                 self.split_view.set_collapsed(false);
+                self.split_view.set_show_sidebar(show);
             },
         }
     }

@@ -9,6 +9,7 @@ use fotema_core::visual::model::PictureOrientation;
 use strum::IntoEnumIterator;
 
 use itertools::Itertools;
+use fotema_core::Year;
 use relm4::gtk;
 use relm4::gtk::gdk;
 use relm4::gtk::gdk_pixbuf;
@@ -16,9 +17,6 @@ use relm4::gtk::prelude::FrameExt;
 use relm4::gtk::prelude::WidgetExt;
 use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
 use relm4::*;
-
-use fotema_core::Year;
-use fotema_core::YearMonth;
 use std::path;
 use std::sync::Arc;
 
@@ -26,68 +24,58 @@ use crate::app::SharedState;
 use crate::app::ActiveView;
 use crate::app::ViewName;
 
-use tracing::{event, Level};
-
 #[derive(Debug)]
 struct PhotoGridItem {
     picture: Arc<fotema_core::visual::Visual>,
 }
-
-struct Widgets {
-    picture: gtk::Picture,
-    label: gtk::Label,
-}
 #[derive(Debug)]
-pub enum MonthPhotosInput {
+pub enum YearsAlbumInput {
     Activate,
 
-    /// A month has been selected in the grid view
-    MonthSelected(u32), // WARN this is an index into a Vec, not a month
-
-    /// Scroll to first photo of year
-    GoToYear(Year),
+    /// User has selected year in grid view
+    YearSelected(u32), // WARN this is an index into an Vec, not a year.
 
     // Reload photos from database
     Refresh,
 }
 
 #[derive(Debug)]
-pub enum MonthPhotosOutput {
-    MonthSelected(YearMonth),
+pub enum YearsAlbumOutput {
+    YearSelected(Year),
+}
+
+struct Widgets {
+    picture: gtk::Picture,
+    label: gtk::Label,
 }
 
 impl RelmGridItem for PhotoGridItem {
-    type Root = adw::Clamp;
+    type Root = gtk::AspectFrame;
     type Widgets = Widgets;
 
     fn setup(_item: &gtk::ListItem) -> (Self::Root, Self::Widgets) {
         relm4::view! {
-           root = adw::Clamp {
-                set_maximum_size: 200,
-                gtk::Overlay {
-                    add_overlay =  &gtk::Frame {
-                        set_halign: gtk::Align::Start,
-                        set_valign: gtk::Align::Start,
-                        set_margin_start: 8,
-                        set_margin_top: 8,
-                        add_css_class: "photo-grid-month-frame",
+            root = gtk::AspectFrame {
+                gtk::Frame {
+                    gtk::Overlay {
+                        add_overlay =  &gtk::Frame {
+                            set_halign: gtk::Align::Start,
+                            set_valign: gtk::Align::Start,
+                            set_margin_start: 8,
+                            set_margin_top: 8,
+                            add_css_class: "photo-grid-year-frame",
+
+                            #[wrap(Some)]
+                            #[name(label)]
+                            set_child = &gtk::Label{
+                                add_css_class: "photo-grid-year-label",
+                            },
+                        },
 
                         #[wrap(Some)]
-                        #[name(label)]
-                        set_child = &gtk::Label{
-                            add_css_class: "photo-grid-month-label",
-                        },
-                    },
-
-                    #[wrap(Some)]
-                    set_child = &gtk::Frame {
-                        set_width_request: 200,
-                        set_height_request: 200,
-
                         #[name(picture)]
-                        gtk::Picture {
-                            set_can_shrink: true,
-                            set_valign: gtk::Align::Center,
+                        set_child = &gtk::Picture {
+                            set_can_shrink: false,
                         }
                     }
                 }
@@ -100,11 +88,9 @@ impl RelmGridItem for PhotoGridItem {
     }
 
     fn bind(&mut self, widgets: &mut Self::Widgets, _root: &mut Self::Root) {
-        let ym = self.picture.year_month();
-
         widgets
             .label
-            .set_label(format!("{} {}", ym.month.name(), ym.year).as_str());
+            .set_text(format!("{}", self.picture.year()).as_str());
 
         if self.picture.thumbnail_path.as_ref().is_some_and(|x| x.exists()) {
             widgets
@@ -133,17 +119,17 @@ impl RelmGridItem for PhotoGridItem {
     }
 }
 
-pub struct MonthPhotos {
+pub struct YearsAlbum {
     state: SharedState,
     active_view: ActiveView,
-    photo_grid: TypedGridView<PhotoGridItem, gtk::SingleSelection>,
+    photo_grid: TypedGridView<PhotoGridItem, gtk::NoSelection>,
 }
 
 #[relm4::component(pub)]
-impl SimpleComponent for MonthPhotos {
+impl SimpleComponent for YearsAlbum {
     type Init = (SharedState, ActiveView);
-    type Input = MonthPhotosInput;
-    type Output = MonthPhotosOutput;
+    type Input = YearsAlbumInput;
+    type Output = YearsAlbumOutput;
 
     view! {
         gtk::ScrolledWindow {
@@ -158,7 +144,7 @@ impl SimpleComponent for MonthPhotos {
                 //set_max_columns: 3,
 
                 connect_activate[sender] => move |_, idx| {
-                    sender.input(MonthPhotosInput::MonthSelected(idx))
+                    sender.input(YearsAlbumInput::YearSelected(idx))
                 },
             },
         }
@@ -171,7 +157,7 @@ impl SimpleComponent for MonthPhotos {
     ) -> ComponentParts<Self> {
         let photo_grid = TypedGridView::new();
 
-        let model = MonthPhotos { state, active_view, photo_grid };
+        let model = YearsAlbum { state, active_view, photo_grid };
 
         let photo_grid_view = &model.photo_grid.view;
 
@@ -181,49 +167,36 @@ impl SimpleComponent for MonthPhotos {
 
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
-            MonthPhotosInput::Activate => {
-                *self.active_view.write() = ViewName::Month;
+            YearsAlbumInput::Activate => {
+                *self.active_view.write() = ViewName::Year;
                 if self.photo_grid.is_empty() {
                     self.refresh();
                 }
             }
-            MonthPhotosInput::Refresh => {
-                if *self.active_view.read() == ViewName::Month {
+            YearsAlbumInput::Refresh => {
+                if *self.active_view.read() == ViewName::Year {
                     self.refresh();
                 } else {
                     self.photo_grid.clear();
                 }
             }
-            MonthPhotosInput::MonthSelected(index) => {
+            YearsAlbumInput::YearSelected(index) => {
                 if let Some(item) = self.photo_grid.get(index) {
-                    let ym = item.borrow().picture.year_month();
-                    event!(Level::DEBUG, "index {} has year_month {}", index, ym);
-                    let _ = sender.output(MonthPhotosOutput::MonthSelected(ym));
-                }
-            }
-            MonthPhotosInput::GoToYear(year) => {
-                event!(Level::INFO, "Showing for year: {}", year);
-                let index_opt = self
-                    .photo_grid
-                    .find(|p| p.picture.year_month().year == year);
-                event!(Level::DEBUG, "Found: {:?}", index_opt);
-                if let Some(index) = index_opt {
-                    let flags = gtk::ListScrollFlags::SELECT;
-                    event!(Level::DEBUG, "Scrolling to {}", index);
-                    self.photo_grid.view.scroll_to(index, flags, None);
+                    let date = item.borrow().picture.year_month();
+                    let _ = sender.output(YearsAlbumOutput::YearSelected(date.year));
                 }
             }
         }
     }
 }
 
-impl MonthPhotos {
+impl YearsAlbum {
     fn refresh(&mut self) {
         let all_pictures = {
             let data = self.state.read();
             data
                 .iter()
-                .dedup_by(|x, y| x.year_month() == y.year_month())
+                .dedup_by(|x, y| x.year() == y.year())
                 .map(|picture| PhotoGridItem { picture: picture.clone() })
                 .collect::<Vec<PhotoGridItem>>()
         };

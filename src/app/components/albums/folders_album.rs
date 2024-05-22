@@ -36,7 +36,7 @@ struct Widgets {
     label: gtk::Label,
 }
 #[derive(Debug)]
-pub enum FolderPhotosInput {
+pub enum FoldersAlbumInput {
     Activate,
 
     // Reload photos from database
@@ -46,7 +46,7 @@ pub enum FolderPhotosInput {
 }
 
 #[derive(Debug)]
-pub enum FolderPhotosOutput {
+pub enum FoldersAlbumOutput {
     FolderSelected(path::PathBuf),
 }
 
@@ -58,18 +58,11 @@ impl RelmGridItem for PhotoGridItem {
         relm4::view! {
            my_box = gtk::Box {
                 set_orientation: gtk::Orientation::Vertical,
-
-                adw::Clamp {
-                    set_maximum_size: 200,
-                    set_orientation: gtk::Orientation::Horizontal,
-
+                gtk::AspectFrame {
                     gtk::Frame {
                         #[name(picture)]
                         gtk::Picture {
-                            set_can_shrink: true,
-                            set_valign: gtk::Align::Center,
-                            set_width_request: 200,
-                            set_height_request: 200,
+                            set_can_shrink: false,
                         }
                     }
                 },
@@ -121,17 +114,17 @@ impl RelmGridItem for PhotoGridItem {
     }
 }
 
-pub struct FolderPhotos {
+pub struct FoldersAlbum {
     state: SharedState,
     active_view: ActiveView,
     photo_grid: TypedGridView<PhotoGridItem, gtk::SingleSelection>,
 }
 
 #[relm4::component(pub)]
-impl SimpleComponent for FolderPhotos {
+impl SimpleComponent for FoldersAlbum {
     type Init = (SharedState, ActiveView);
-    type Input = FolderPhotosInput;
-    type Output = FolderPhotosOutput;
+    type Input = FoldersAlbumInput;
+    type Output = FoldersAlbumOutput;
 
     view! {
         gtk::ScrolledWindow {
@@ -146,7 +139,7 @@ impl SimpleComponent for FolderPhotos {
                 //set_max_columns: 3,
 
                 connect_activate[sender] => move |_, idx| {
-                    sender.input(FolderPhotosInput::FolderSelected(idx))
+                    sender.input(FoldersAlbumInput::FolderSelected(idx))
                 }
             }
         }
@@ -159,7 +152,7 @@ impl SimpleComponent for FolderPhotos {
     ) -> ComponentParts<Self> {
         let photo_grid = TypedGridView::new();
 
-        let model = FolderPhotos { state, active_view, photo_grid };
+        let model = FoldersAlbum { state, active_view, photo_grid };
 
         let pictures_box = &model.photo_grid.view;
 
@@ -170,34 +163,34 @@ impl SimpleComponent for FolderPhotos {
 
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
-            FolderPhotosInput::Activate => {
+           FoldersAlbumInput::Activate => {
                 *self.active_view.write() = ViewName::Folders;
                 if self.photo_grid.is_empty() {
                     self.refresh();
                 }
             }
-            FolderPhotosInput::Refresh => {
+            FoldersAlbumInput::Refresh => {
                 if *self.active_view.read() == ViewName::Folders {
                     self.refresh();
                 } else {
                     self.photo_grid.clear();
                 }
             }
-            FolderPhotosInput::FolderSelected(index) => {
+            FoldersAlbumInput::FolderSelected(index) => {
                 event!(Level::DEBUG, "Folder selected index: {}", index);
                 if let Some(item) = self.photo_grid.get_visible(index) {
                     let item = item.borrow();
                     event!(Level::DEBUG, "Folder selected item: {}", item.folder_name);
 
                     let _ = sender
-                        .output(FolderPhotosOutput::FolderSelected(item.picture.parent_path.clone()));
+                        .output(FoldersAlbumOutput::FolderSelected(item.picture.parent_path.clone()));
                 }
             }
         }
     }
 }
 
-impl FolderPhotos {
+impl FoldersAlbum {
     fn refresh(&mut self) {
         let all = {
             let data = self.state.read();
