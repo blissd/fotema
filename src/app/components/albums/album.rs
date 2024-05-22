@@ -72,8 +72,6 @@ impl RelmGridItem for PhotoGridItem {
     fn setup(_item: &gtk::ListItem) -> (Self::Root, Self::Widgets) {
         relm4::view! {
             root = gtk::AspectFrame {
-                set_ratio: 1.0,
-
                 gtk::Frame {
                     gtk::Overlay {
                         #[name(status_overlay)]
@@ -99,7 +97,6 @@ impl RelmGridItem for PhotoGridItem {
                             set_margin_all: 8,
                             add_css_class: "photo-grid-photo-status-frame",
 
-
                             #[wrap(Some)]
                             #[name(duration_label)]
                             set_child = &gtk::Label{
@@ -110,9 +107,7 @@ impl RelmGridItem for PhotoGridItem {
                         #[wrap(Some)]
                         #[name(picture)]
                         set_child = &gtk::Picture {
-                            set_width_request: 200,
-                            set_height_request: 200,
-                            set_can_shrink: true,
+                            set_can_shrink: false,
                         }
                     }
                 }

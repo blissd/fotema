@@ -56,8 +56,6 @@ impl RelmGridItem for PhotoGridItem {
     fn setup(_item: &gtk::ListItem) -> (Self::Root, Self::Widgets) {
         relm4::view! {
             root = gtk::AspectFrame {
-                set_ratio: 1.0,
-
                 gtk::Frame {
                     gtk::Overlay {
                         add_overlay =  &gtk::Frame {
@@ -77,9 +75,7 @@ impl RelmGridItem for PhotoGridItem {
                         #[wrap(Some)]
                         #[name(picture)]
                         set_child = &gtk::Picture {
-                            set_width_request: 200,
-                            set_height_request: 200,
-                            set_can_shrink: true,
+                            set_can_shrink: false,
                         }
                     }
                 }

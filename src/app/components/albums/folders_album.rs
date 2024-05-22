@@ -58,15 +58,11 @@ impl RelmGridItem for PhotoGridItem {
         relm4::view! {
            my_box = gtk::Box {
                 set_orientation: gtk::Orientation::Vertical,
-
                 gtk::AspectFrame {
-                    set_ratio: 1.0,
                     gtk::Frame {
                         #[name(picture)]
                         gtk::Picture {
-                            set_can_shrink: true,
-                            set_width_request: 200,
-                            set_height_request: 200,
+                            set_can_shrink: false,
                         }
                     }
                 },
