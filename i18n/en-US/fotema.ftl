@@ -137,3 +137,29 @@ progress-convert-videos = Converting videos.
 # Not doing any background work
 progress-idle = Idle.
 
+## Notification banner for background tasks
+# Similar to the progress bar, but allows for longer messages.
+
+# Scanning file system for new photos
+banner-scan-photos = Scanning file system for photos.
+
+# Scanning file system for new videos
+banner-scan-videos = Scanning file system for videos.
+
+# Processing new photos to extract metadata from EXIF tags.
+banner-metadata-photos = Processing photo metadata.
+
+# Processing new videos to extract metadata from video container.
+banner-metadata-videos = Processing video metadata.
+
+# Generating thumbnails for all photos.
+banner-thumbnails-photos = Generating photo thumbnails. This will take a while.
+
+# Generating thumbnails for all videos.
+banner-thumbnails-videos = Generating video thumbnails. This will take a while.
+
+# Updating the database to remove details of absent photos.
+banner-clean-photos = Photo database maintenance.
+
+# Updating the database to remove details of absent videos.
+banner-clean-videos = Video database maintenance.

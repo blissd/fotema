@@ -58,7 +58,7 @@ use self::components::{
 mod background;
 
 use self::background::{
-    bootstrap::{Bootstrap, BootstrapInput, BootstrapOutput},
+    bootstrap::{Bootstrap, BootstrapInput, BootstrapOutput, TaskName, MediaType},
     video_transcode::{VideoTranscode, VideoTranscodeInput},
 };
 
@@ -159,8 +159,8 @@ pub(super) enum AppMsg {
 
     ViewFolder(PathBuf),
 
-    // A task has started.
-    TaskStarted(String),
+    // A background task has started.
+    TaskStarted(TaskName),
 
     // Preferences
     PreferencesUpdated,
@@ -674,11 +674,37 @@ impl SimpleComponent for App {
                 self.picture_navigation_view.push_by_tag("album");
 
             }
-            AppMsg::TaskStarted(msg) => {
+            AppMsg::TaskStarted(task_name) => {
                 self.spinner.start();
                 self.spinner.set_visible(!self.main_navigation.shows_sidebar());
-                self.banner.set_title(&msg);
                 self.banner.set_revealed(true);
+
+                match task_name {
+                    TaskName::Scan(MediaType::Photo) => {
+                        self.banner.set_title(&fl!("banner-scan-photos"));
+                    },
+                    TaskName::Scan(MediaType::Video) => {
+                        self.banner.set_title(&fl!("banner-scan-videos"));
+                    },
+                    TaskName::Enrich(MediaType::Photo) => {
+                        self.banner.set_title(&fl!("banner-metadata-photos"));
+                    },
+                    TaskName::Enrich(MediaType::Video) => {
+                        self.banner.set_title(&fl!("banner-metadata-videos"));
+                    },
+                    TaskName::Thumbnail(MediaType::Photo) => {
+                        self.banner.set_title(&fl!("banner-thumbnails-photos"));
+                    },
+                    TaskName::Thumbnail(MediaType::Video) => {
+                        self.banner.set_title(&fl!("banner-thumbnails-videos"));
+                    },
+                    TaskName::Clean(MediaType::Photo) => {
+                        self.banner.set_title(&fl!("banner-clean-photos"));
+                    },
+                    TaskName::Clean(MediaType::Video) => {
+                        self.banner.set_title(&fl!("banner-clean-videos"));
+                    },
+                };
             }
             AppMsg::BootstrapCompleted => {
                 event!(Level::INFO, "Bootstrap completed.");
