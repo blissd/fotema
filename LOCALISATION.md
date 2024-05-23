@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: © 2024 David Bliss
+
+SPDX-License-Identifier: GFDL-1.3-or-later
+-->
 # Localisation
 
 Fotema is internationalised with the [Fluent](https://projectfluent.org/)
