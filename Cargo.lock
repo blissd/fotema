@@ -998,6 +998,7 @@ dependencies = [
  "i18n-embed",
  "i18n-embed-fl",
  "itertools 0.13.0",
+ "lazy_static",
  "rayon",
  "relm4",
  "rust-embed",

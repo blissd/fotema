@@ -10,7 +10,7 @@ use relm4::*;
 use std::sync::Arc;
 
 use super::progress_monitor::{ProgressMonitor, TaskName, MediaType};
-
+use crate::fl;
 
 #[derive(Debug)]
 pub enum ProgressPanelInput {
@@ -60,22 +60,22 @@ impl SimpleComponent for ProgressPanel {
                     self.progress_bar.set_visible(true);
                     match task_name {
                         TaskName::Enrich(MediaType::Photo) => {
-                            self.progress_bar.set_text(Some("Processing photo metadata."));
+                            self.progress_bar.set_text(Some(&fl!("progress-metadata-photos")));
                         },
                         TaskName::Enrich(MediaType::Video) => {
-                            self.progress_bar.set_text(Some("Processing video metadata."));
+                            self.progress_bar.set_text(Some(&fl!("progress-metadata-videos")));
                         },
                         TaskName::Thumbnail(MediaType::Photo) => {
-                            self.progress_bar.set_text(Some("Generating photo thumbnails."));
+                            self.progress_bar.set_text(Some(&fl!("progress-thumbnails-photos")));
                         },
                         TaskName::Thumbnail(MediaType::Video) => {
-                            self.progress_bar.set_text(Some("Generating video thumbnails."));
+                            self.progress_bar.set_text(Some(&fl!("progress-thumbnails-videos")));
                         },
                         TaskName::Transcode => {
-                            self.progress_bar.set_text(Some("Converting videos."));
+                            self.progress_bar.set_text(Some(&fl!("progress-convert-videos")));
                         },
                         TaskName::Idle => {
-                            self.progress_bar.set_text(Some("Idle."));
+                            self.progress_bar.set_text(Some(&fl!("progress-idle")));
                         },
                     }
                 }

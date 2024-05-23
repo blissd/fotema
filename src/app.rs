@@ -26,8 +26,7 @@ use relm4;
 
 use crate::config::{APP_ID, PROFILE};
 use crate::adaptive;
-use crate::languages;
-use i18n_embed_fl::fl;
+use crate::fl;
 
 use fotema_core::database;
 use fotema_core::video;
@@ -322,7 +321,7 @@ impl SimpleComponent for App {
                                                 set_stack: Some(model.library.widget()),
                                             },
                                         } -> {
-                                            set_title: &fl!(lang, "library-page"),
+                                            set_title: &fl!("library-page"),
                                             set_name: ViewName::Library.into(),
 
                                             // NOTE gtk::StackSidebar doesn't show icon :-/
@@ -333,7 +332,7 @@ impl SimpleComponent for App {
                                             set_orientation: gtk::Orientation::Vertical,
                                             container_add: model.videos_page.widget(),
                                         } -> {
-                                            set_title: &fl!(lang, "videos-album"),
+                                            set_title: &fl!("videos-album"),
                                             set_name: ViewName::Videos.into(),
                                             // NOTE gtk::StackSidebar doesn't show icon :-/
                                             set_icon_name: "video-reel-symbolic",
@@ -343,7 +342,7 @@ impl SimpleComponent for App {
                                             set_orientation: gtk::Orientation::Vertical,
                                             container_add: model.motion_page.widget(),
                                         } -> {
-                                            set_title: &fl!(lang, "animated-album"),
+                                            set_title: &fl!("animated-album"),
                                             set_name: ViewName::Animated.into(),
                                             // NOTE gtk::StackSidebar doesn't show icon :-/
                                             set_icon_name: "sonar-symbolic",
@@ -354,7 +353,7 @@ impl SimpleComponent for App {
                                             container_add: model.selfies_page.widget(),
                                         } -> {
                                             set_visible: model.show_selfies,
-                                            set_title: &fl!(lang, "selfies-album"),
+                                            set_title: &fl!("selfies-album"),
                                             set_name: ViewName::Selfies.into(),
                                             // NOTE gtk::StackSidebar doesn't show icon :-/
                                             set_icon_name: "sentiment-very-satisfied-symbolic",
@@ -369,7 +368,7 @@ impl SimpleComponent for App {
                                                 model.folders_album.widget(),
                                             },
                                         } -> {
-                                            set_title: &fl!(lang, "folders-album"),
+                                            set_title: &fl!("folders-album"),
                                             set_name: ViewName::Folders.into(),
                                             // NOTE gtk::StackSidebar doesn't show icon :-/
                                             set_icon_name: "folder-symbolic",
@@ -387,7 +386,7 @@ impl SimpleComponent for App {
                         add_top_bar = &adw::HeaderBar {
                             #[wrap(Some)]
                             set_title_widget = &gtk::Label {
-                                set_label: &fl!(lang, "folder-album"),
+                                set_label: &fl!("folder-album"),
                                 add_css_class: "title",
                             }
                         },
@@ -411,9 +410,6 @@ impl SimpleComponent for App {
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-
-        let lang = languages::loader();
-
         let data_dir = glib::user_data_dir().join(APP_ID);
         let _ = std::fs::create_dir_all(&data_dir);
 

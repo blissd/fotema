@@ -5,8 +5,8 @@
 use relm4::{adw, gtk, ComponentParts, ComponentSender, SimpleComponent};
 use relm4::adw::prelude::AdwDialogExt;
 
-
 use crate::config::{APP_ID, VERSION};
+use crate::fl;
 
 pub struct AboutDialog {
     parent: adw::ApplicationWindow,
@@ -36,7 +36,7 @@ impl SimpleComponent for AboutDialog {
             .can_close(true)
             .build();
 
-        about.add_acknowledgement_section(Some("Open Source Projects"), &[
+        about.add_acknowledgement_section(Some(&fl!("about-opensource")), &[
             "Relm 4 https://relm4.org/",
             "Glycin https://gitlab.gnome.org/sophie-h/glycin",
             "FFmpeg https://ffmpeg.org/",

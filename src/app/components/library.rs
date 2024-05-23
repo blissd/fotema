@@ -13,6 +13,7 @@ use strum::IntoStaticStr;
 use crate::app::SharedState;
 use crate::app::ActiveView;
 use crate::app::ViewName;
+use crate::fl;
 
 use super::albums::album::{Album, AlbumInput, AlbumOutput};
 use super::albums::album_filter::AlbumFilter;
@@ -70,9 +71,9 @@ impl SimpleComponent for Library {
 
     view! {
         adw::ViewStack {
-            add_titled_with_icon[Some(LibraryViewName::All.into()), "All", "playlist-infinite-symbolic"] = all_album.widget(),
-            add_titled_with_icon[Some(LibraryViewName::Month.into()), "Month", "month-symbolic"] = months_album.widget(),
-            add_titled_with_icon[Some(LibraryViewName::Year.into()), "Year", "year-symbolic"] = years_album.widget(),
+            add_titled_with_icon[Some(LibraryViewName::All.into()), &fl!("all-album"), "playlist-infinite-symbolic"] = all_album.widget(),
+            add_titled_with_icon[Some(LibraryViewName::Month.into()), &fl!("months-album"), "month-symbolic"] = months_album.widget(),
+            add_titled_with_icon[Some(LibraryViewName::Year.into()), &fl!("years-album"), "year-symbolic"] = years_album.widget(),
             connect_visible_child_notify => LibraryInput::Activate,
         },
     }

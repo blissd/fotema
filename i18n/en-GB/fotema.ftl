@@ -1,8 +1,8 @@
 
 library-page = Library GB
-year-album = Year
-month-album = Month
-day-album = Day
+years-album = Year
+months-album = Month
+all-album = Day
 videos-album = Videos
 selfies-album = Selfies
 animated-album = Animated

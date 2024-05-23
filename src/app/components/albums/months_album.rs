@@ -25,6 +25,7 @@ use std::sync::Arc;
 use crate::app::SharedState;
 use crate::app::ActiveView;
 use crate::app::ViewName;
+use crate::fl;
 
 use tracing::{event, Level};
 
@@ -99,7 +100,10 @@ impl RelmGridItem for PhotoGridItem {
 
         widgets
             .label
-            .set_label(format!("{} {}", ym.month.name(), ym.year).as_str());
+            .set_label(&fl!("month-thumbnail-label",
+                month = ym.month.number_from_month(),
+                year = ym.year.to_string()) // Should we convert to string?
+            );
 
         if self.picture.thumbnail_path.as_ref().is_some_and(|x| x.exists()) {
             widgets
