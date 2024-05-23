@@ -40,20 +40,20 @@ folder-album = Folder
 #   $month - month number (1 through 12).
 #   $year - year e.g., 2024
 month-thumbnail-label = { $month ->
-  [1] January
-  [2] February
-  [3] March
-  [4] April
-  [5] May
-  [6] June
-  [7] July
-  [8] August
-  [9] September
-  [10] October
-  [11] November
-  [12] December
-  *[other] Other
-  } {$year}
+   [1] January {$year}
+   [2] February {$year}
+   [3] March {$year}
+   [4] April {$year}
+   [5] May {$year}
+   [6] June {$year}
+   [7] July {$year}
+   [8] August {$year}
+   [9] September {$year}
+   [10] October {$year}
+   [11] November {$year}
+   [12] December {$year}
+  *[other] {$year}
+  }
 }
 
 ## About Dialog
@@ -66,13 +66,54 @@ about-opensource = Open Source Projects
 # Tooltip for (i) button to show photo/video information sidebar
 viewer-info-tooltip = Show properties
 
+# Go to next button when viewing photo or video.
+# Attributes:
+#  .tooltip - Tooltip on mouse hover.
+viewer-next =
+  .tooltip = Next
+
+# Go to previous button when viewing photo or video.
+# Attributes:
+#  .tooltip - Tooltip on mouse hover.
+viewer-previous =
+  .tooltip = Previous
+
+# Play or pause a video button.
+# Attributes:
+#  .tooltip - Tooltip on mouse hover.
+viewer-play =
+  .tooltip = Play/Pause
+
+# Skip video forwards 10 seconds button.
+# Attributes:
+#  .tooltip - Tooltip on mouse hover.
+viewer-skip-forward-10-seconds =
+  .tooltip = Skip Forward 10 Seconds
+
+# Skip video backwards 10 seconds button.
+# Attributes:
+#  .tooltip - Tooltip on mouse hover.
+viewer-skip-backwards-10-seconds =
+  .tooltip = Skip Backwards 10 Seconds
+
+# Mute or unmute audio of a video.
+# Attributes:
+#  .tooltip - Tooltip on mouse hover.
+viewer-mute =
+  .tooltip = Mute/Unmute
+
+# Convert all incompatible videos description
+viewer-convert-all-description = This video must be converted before it can be played. This only needs to happen once, but it takes a while to convert a video.
+
+viewer-convert-all-button = xConvert all incompatible videos
+
 ## Photo/Video Information Sidebar
 
 # Name of containing folder of photo or video being viewed.
 # Attributes:
-#  .open - tooltip text for open folder action button.
+#  .tooltip - tooltip text for open folder action button.
 infobar-folder = Folder
-  .open = Open Containing Folder
+  .tooltip = Open Containing Folder
 
 # File name of photo or video
 infobar-file-name = File Name

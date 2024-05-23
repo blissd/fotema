@@ -17,6 +17,7 @@ use chrono::TimeDelta;
 
 use crate::app::components::progress_monitor::ProgressMonitor;
 use crate::app::components::progress_panel::ProgressPanel;
+use crate::fl;
 
 use std::sync::Arc;
 
@@ -95,7 +96,6 @@ impl SimpleAsyncComponent for OnePhoto {
     view! {
         gtk::Box {
             set_orientation: gtk::Orientation::Vertical,
-            //set_valign: gtk::Align::Start,
             set_vexpand: true,
             set_hexpand: true,
 
@@ -134,6 +134,7 @@ impl SimpleAsyncComponent for OnePhoto {
                             set_icon_name: "skip-backwards-10-symbolic",
                             add_css_class: "circular",
                             add_css_class: "osd",
+                            set_tooltip_text: Some(&fl!("viewer-skip-backwards-10-seconds", "tooltip")),
                             connect_clicked => OnePhotoInput::SkipBackwards,
                         },
 
@@ -142,6 +143,7 @@ impl SimpleAsyncComponent for OnePhoto {
                             set_icon_name: "play-symbolic",
                             add_css_class: "circular",
                             add_css_class: "osd",
+                            set_tooltip_text: Some(&fl!("viewer-play", "tooltip")),
                             connect_clicked => OnePhotoInput::PlayToggle,
                         },
 
@@ -150,6 +152,7 @@ impl SimpleAsyncComponent for OnePhoto {
                             set_icon_name: "skip-forward-10-symbolic",
                             add_css_class: "circular",
                             add_css_class: "osd",
+                            set_tooltip_text: Some(&fl!("viewer-skip-forward-10-seconds", "tooltip")),
                             connect_clicked => OnePhotoInput::SkipForward,
                         },
 
@@ -159,6 +162,7 @@ impl SimpleAsyncComponent for OnePhoto {
                             set_margin_start: 36,
                             add_css_class: "circular",
                             add_css_class: "osd",
+                            set_tooltip_text: Some(&fl!("viewer-mute", "tooltip")),
                             connect_clicked => OnePhotoInput::MuteToggle,
                         },
                     },
@@ -179,7 +183,7 @@ impl SimpleAsyncComponent for OnePhoto {
 
                 set_visible: false,
                 set_icon_name: Some("playback-error-symbolic"),
-                set_description: Some("This video must be converted before it can be played.\nThis only needs to happen once, but it takes a while to convert a video."),
+                set_description: Some(&fl!("viewer-convert-all-description")),
 
                 #[wrap(Some)]
                 set_child = &adw::Clamp {
@@ -192,7 +196,7 @@ impl SimpleAsyncComponent for OnePhoto {
 
                         #[local_ref]
                         transcode_button -> gtk::Button {
-                            set_label: "Convert all incompatible videos",
+                            set_label: &fl!("viewer-convert-all-button"),
                             add_css_class: "suggested-action",
                             add_css_class: "pill",
                             connect_clicked => OnePhotoInput::TranscodeAll,

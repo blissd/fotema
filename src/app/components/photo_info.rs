@@ -87,7 +87,7 @@ impl SimpleComponent for PhotoInfo {
                         add_suffix = &gtk::Button {
                             set_valign: gtk::Align::Center,
                             set_icon_name: "folder-open-symbolic",
-                            set_tooltip_text: Some(&fl!("infobar-folder", "open")),
+                            set_tooltip_text: Some(&fl!("infobar-folder", "tooltip")),
                             add_css_class: "flat",
                             connect_clicked => PhotoInfoInput::OpenFolder,
                         }
