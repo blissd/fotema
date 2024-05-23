@@ -11,7 +11,7 @@ use relm4::{
     gtk::{
         gio, glib,
         prelude::{
-            ApplicationExt, ApplicationWindowExt, ButtonExt, GtkWindowExt, OrientableExt,
+            ApplicationExt, ButtonExt, GtkWindowExt, OrientableExt,
             SettingsExt, WidgetExt,
         },
     },
@@ -176,7 +176,6 @@ pub(super) enum AppMsg {
 
 relm4::new_action_group!(pub(super) WindowActionGroup, "win");
 relm4::new_stateless_action!(PreferencesAction, WindowActionGroup, "preferences");
-relm4::new_stateless_action!(pub(super) ShortcutsAction, WindowActionGroup, "show-help-overlay");
 relm4::new_stateless_action!(AboutAction, WindowActionGroup, "about");
 
 #[relm4::component(pub)]
@@ -190,7 +189,6 @@ impl SimpleComponent for App {
         primary_menu: {
             section! {
                 &fl!("primary-menu-preferences") => PreferencesAction,
-                &fl!("primary-menu-keyboard") => ShortcutsAction,
                 &fl!("primary-menu-about") => AboutAction,
             }
         }
@@ -207,16 +205,6 @@ impl SimpleComponent for App {
             connect_close_request[sender] => move |_| {
                 sender.input(AppMsg::Quit);
                 glib::Propagation::Stop
-            },
-
-            #[wrap(Some)]
-            set_help_overlay: shortcuts = &gtk::Builder::from_resource(
-                    "/app/fotema/Fotema/gtk/help-overlay.ui"
-                )
-                .object::<gtk::ShortcutsWindow>("help_overlay")
-                .unwrap() -> gtk::ShortcutsWindow {
-                    set_transient_for: Some(&main_window),
-                    set_application: Some(&main_application()),
             },
 
             add_css_class?: if PROFILE == "Devel" {
@@ -572,13 +560,6 @@ impl SimpleComponent for App {
 
         let mut actions = RelmActionGroup::<WindowActionGroup>::new();
 
-        let shortcuts_action = {
-            let shortcuts = widgets.shortcuts.clone();
-            RelmAction::<ShortcutsAction>::new_stateless(move |_| {
-                shortcuts.present();
-            })
-        };
-
         let about_action = {
             let sender = model.about_dialog.sender().clone();
             RelmAction::<AboutAction>::new_stateless(move |_| {
@@ -593,7 +574,6 @@ impl SimpleComponent for App {
             })
         };
 
-        actions.add_action(shortcuts_action);
         actions.add_action(about_action);
         actions.add_action(preferences_action);
 

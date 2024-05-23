@@ -175,8 +175,5 @@ banner-clean-videos = Video database maintenance.
 # Menu item to show preferences dialog
 primary-menu-preferences = Preferences
 
-# Menu item to show keyboard shortcuts pop-over
-primary-menu-keyboard = Keyboard
-
 # Menu item to show "about" dialog
 primary-menu-about = About {-app-name}
