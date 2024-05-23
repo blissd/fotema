@@ -14,6 +14,8 @@ To add a new language localisation, create a directory with the appropriate
 language code, such as `i18n/fr` and copy the contents of `i18n/en-US` to
 bootstrap your translation.
 
+All localisations must be licensed as GPL 3.0 or later.
+
 ## Local Testing
 
 When Fotema builds it checks that message identifiers exist, but _only_
