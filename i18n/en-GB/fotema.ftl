@@ -1,2 +1,0 @@
-
-library-page = Library GB
