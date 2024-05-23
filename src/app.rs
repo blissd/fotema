@@ -189,9 +189,9 @@ impl SimpleComponent for App {
     menu! {
         primary_menu: {
             section! {
-                "_Preferences" => PreferencesAction,
-                "_Keyboard" => ShortcutsAction,
-                "_About Fotema" => AboutAction,
+                &fl!("primary-menu-preferences") => PreferencesAction,
+                &fl!("primary-menu-keyboard") => ShortcutsAction,
+                &fl!("primary-menu-about") => AboutAction,
             }
         }
     }

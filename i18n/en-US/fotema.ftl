@@ -61,6 +61,11 @@ month-thumbnail-label = { $month ->
 # Section header for open source projects acknowledgements.
 about-opensource = Open Source Projects
 
+## Photo/Video Viewer
+
+# Tooltip for (i) button to show photo/video information sidebar
+viewer-info-tooltip = Show properties
+
 ## Photo/Video Information Sidebar
 
 # Name of containing folder of photo or video being viewed.
@@ -163,3 +168,15 @@ banner-clean-photos = Photo database maintenance.
 
 # Updating the database to remove details of absent videos.
 banner-clean-videos = Video database maintenance.
+
+## Primary menu
+# The "hamburger" menu on the main app navigation sidebar.
+
+# Menu item to show preferences dialog
+primary-menu-preferences = Preferences
+
+# Menu item to show keyboard shortcuts pop-over
+primary-menu-keyboard = Keyboard
+
+# Menu item to show "about" dialog
+primary-menu-about = About {-app-name}
