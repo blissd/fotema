@@ -20,6 +20,7 @@ use std::path::PathBuf;
 use chrono::{DateTime, Utc};
 
 use crate::app::SharedState;
+use crate::fl;
 
 use tracing::{event, Level};
 
@@ -79,14 +80,14 @@ impl SimpleComponent for PhotoInfo {
                 adw::PreferencesGroup {
                     #[local_ref]
                     folder -> adw::ActionRow {
-                        set_title: "Folder",
+                        set_title: &fl!("infobar-folder"),
                         add_css_class: "property",
                         set_subtitle_selectable: true,
 
                         add_suffix = &gtk::Button {
                             set_valign: gtk::Align::Center,
                             set_icon_name: "folder-open-symbolic",
-                            set_tooltip_text: Some("Open Containing Folder"),
+                            set_tooltip_text: Some(&fl!("infobar-folder", "tooltip")),
                             add_css_class: "flat",
                             connect_clicked => PhotoInfoInput::OpenFolder,
                         }
@@ -94,7 +95,7 @@ impl SimpleComponent for PhotoInfo {
 
                     #[local_ref]
                     file_name -> adw::ActionRow {
-                        set_title: "File Name",
+                        set_title: &fl!("infobar-file-name"),
                         add_css_class: "property",
                         set_subtitle_selectable: true,
                     },
@@ -104,14 +105,14 @@ impl SimpleComponent for PhotoInfo {
                 date_time_details -> adw::PreferencesGroup {
                     #[local_ref]
                     created_at -> adw::ActionRow {
-                        set_title: "File Created",
+                        set_title: &fl!("infobar-file-created"),
                         add_css_class: "property",
                         set_subtitle_selectable: true,
                     },
 
                     #[local_ref]
                     modified_at -> adw::ActionRow {
-                        set_title: "File Modified",
+                        set_title: &fl!("infobar-file-modified"),
                         add_css_class: "property",
                         set_subtitle_selectable: true,
                     },
@@ -121,21 +122,21 @@ impl SimpleComponent for PhotoInfo {
                 image_details -> adw::PreferencesGroup {
                     #[local_ref]
                     image_size -> adw::ActionRow {
-                        set_title: "Dimensions",
+                        set_title: &fl!("infobar-dimensions"),
                         add_css_class: "property",
                         set_subtitle_selectable: true,
                     },
 
                     #[local_ref]
                     image_format -> adw::ActionRow {
-                        set_title: "Format",
+                        set_title: &fl!("infobar-file-format"),
                         add_css_class: "property",
                         set_subtitle_selectable: true,
                     },
 
                     #[local_ref]
                     image_file_size -> adw::ActionRow {
-                        set_title: "File Size",
+                        set_title: &fl!("infobar-file-size"),
                         add_css_class: "property",
                         set_subtitle_selectable: true,
                     },
@@ -145,14 +146,14 @@ impl SimpleComponent for PhotoInfo {
                 exif_details -> adw::PreferencesGroup {
                     #[local_ref]
                     exif_originally_created_at -> adw::ActionRow {
-                        set_title: "Originally Created",
+                        set_title: &fl!("infobar-originally-created"),
                         add_css_class: "property",
                         set_subtitle_selectable: true,
                     },
 
                     #[local_ref]
                     exif_originally_modified_at -> adw::ActionRow {
-                        set_title: "Originally Modified",
+                        set_title: &fl!("infobar-originally-modified"),
                         add_css_class: "property",
                         set_subtitle_selectable: true,
                     },
@@ -163,49 +164,49 @@ impl SimpleComponent for PhotoInfo {
                 video_details -> adw::PreferencesGroup {
                     #[local_ref]
                     video_duration -> adw::ActionRow {
-                        set_title: "Duration",
+                        set_title: &fl!("infobar-video-duration"),
                         add_css_class: "property",
                         set_subtitle_selectable: true,
                     },
 
                     #[local_ref]
                     video_dimensions -> adw::ActionRow {
-                        set_title: "Dimensions",
+                        set_title: &fl!("infobar-dimensions"),
                         add_css_class: "property",
                         set_subtitle_selectable: true,
                     },
 
                     #[local_ref]
                     video_file_size -> adw::ActionRow {
-                        set_title: "File Size",
+                        set_title: &fl!("infobar-file-size"),
                         add_css_class: "property",
                         set_subtitle_selectable: true,
                     },
 
                     #[local_ref]
                     video_originally_created_at -> adw::ActionRow {
-                        set_title: "Originally Created",
+                        set_title: &fl!("infobar-originally-created"),
                         add_css_class: "property",
                         set_subtitle_selectable: true,
                     },
 
                     #[local_ref]
                     video_container_format -> adw::ActionRow {
-                        set_title: "Container Format",
+                        set_title: &fl!("infobar-video-container-format"),
                         add_css_class: "property",
                         set_subtitle_selectable: true,
                     },
 
                     #[local_ref]
                     video_codec -> adw::ActionRow {
-                        set_title: "Video Codec",
+                        set_title: &fl!("infobar-video-codec"),
                         add_css_class: "property",
                         set_subtitle_selectable: true,
                     },
 
                     #[local_ref]
                     video_audio_codec -> adw::ActionRow {
-                        set_title: "Audio Codec",
+                        set_title: &fl!("infobar-audio-codec"),
                         add_css_class: "property",
                         set_subtitle_selectable: true,
                     },

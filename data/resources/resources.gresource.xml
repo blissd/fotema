@@ -8,8 +8,6 @@ SPDX-License-Identifier: GPL-3.0-or-later
 
 <gresources>
   <gresource prefix="/app/fotema/Fotema/">
-    <!-- see https://gtk-rs.org/gtk4-rs/git/docs/gtk4/struct.Application.html#automatic-resources -->
-    <file compressed="true" preprocess="xml-stripblanks" alias="gtk/help-overlay.ui">ui/shortcuts.ui</file>
     <file compressed="true">style.css</file>
   </gresource>
   <gresource prefix="/app/fotema/Fotema/icons/scalable/actions">

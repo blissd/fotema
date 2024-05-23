@@ -14,6 +14,7 @@ use super::photo_info::{PhotoInfo, PhotoInfoInput};
 use super::progress_monitor::ProgressMonitor;
 use crate::app::SharedState;
 use crate::adaptive;
+use crate::fl;
 
 use fotema_core::Visual;
 
@@ -91,6 +92,7 @@ impl SimpleAsyncComponent for Viewer {
             add_top_bar = &adw::HeaderBar {
                 pack_end = &gtk::Button {
                     set_icon_name: "info-outline-symbolic",
+                    set_tooltip_text: Some(&fl!("viewer-info-tooltip")),
                     connect_clicked => ViewerInput::ToggleInfo,
                 }
             },
@@ -120,6 +122,7 @@ impl SimpleAsyncComponent for Viewer {
                             set_icon_name: "left-symbolic",
                             add_css_class: "osd",
                             add_css_class: "circular",
+                            set_tooltip_text: Some(&fl!("viewer-previous", "tooltip")),
                             connect_clicked => ViewerInput::GoLeft,
                         },
                     },
@@ -136,6 +139,7 @@ impl SimpleAsyncComponent for Viewer {
                             set_icon_name: "right-symbolic",
                             add_css_class: "osd",
                             add_css_class: "circular",
+                            set_tooltip_text: Some(&fl!("viewer-next", "tooltip")),
                             connect_clicked => ViewerInput::GoRight,
                         },
                     },

@@ -13,7 +13,7 @@ use relm4::adw::prelude::ActionRowExt;
 use relm4::adw::prelude::PreferencesRowExt;
 
 use crate::config::APP_ID;
-
+use crate::fl;
 
 pub struct PreferencesDialog {
     parent: adw::ApplicationWindow,
@@ -44,12 +44,12 @@ impl SimpleComponent for PreferencesDialog {
         adw::PreferencesDialog {
             add = &adw::PreferencesPage {
                 add = &adw::PreferencesGroup {
-                    set_title: "Views",
-                    set_description: Some("Show or hide sidebar views"),
+                    set_title: &fl!("prefs-views-section"),
+                    set_description: Some(&fl!("prefs-views-section", "description")),
 
                     adw::SwitchRow {
-                        set_title: "Selfies",
-                        set_subtitle: "Shows a separate view for selfies taken on iOS devices. Restart Fotema to apply.",
+                        set_title: &fl!("prefs-views-selfies"),
+                        set_subtitle: &fl!("prefs-views-selfies", "subtitle"),
 
                         #[watch]
                         set_active: model.show_selfies,

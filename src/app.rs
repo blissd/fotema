@@ -11,7 +11,7 @@ use relm4::{
     gtk::{
         gio, glib,
         prelude::{
-            ApplicationExt, ApplicationWindowExt, ButtonExt, GtkWindowExt, OrientableExt,
+            ApplicationExt, ButtonExt, GtkWindowExt, OrientableExt,
             SettingsExt, WidgetExt,
         },
     },
@@ -26,6 +26,7 @@ use relm4;
 
 use crate::config::{APP_ID, PROFILE};
 use crate::adaptive;
+use crate::fl;
 
 use fotema_core::database;
 use fotema_core::video;
@@ -57,7 +58,7 @@ use self::components::{
 mod background;
 
 use self::background::{
-    bootstrap::{Bootstrap, BootstrapInput, BootstrapOutput},
+    bootstrap::{Bootstrap, BootstrapInput, BootstrapOutput, TaskName, MediaType},
     video_transcode::{VideoTranscode, VideoTranscodeInput},
 };
 
@@ -158,8 +159,8 @@ pub(super) enum AppMsg {
 
     ViewFolder(PathBuf),
 
-    // A task has started.
-    TaskStarted(String),
+    // A background task has started.
+    TaskStarted(TaskName),
 
     // Preferences
     PreferencesUpdated,
@@ -175,7 +176,6 @@ pub(super) enum AppMsg {
 
 relm4::new_action_group!(pub(super) WindowActionGroup, "win");
 relm4::new_stateless_action!(PreferencesAction, WindowActionGroup, "preferences");
-relm4::new_stateless_action!(pub(super) ShortcutsAction, WindowActionGroup, "show-help-overlay");
 relm4::new_stateless_action!(AboutAction, WindowActionGroup, "about");
 
 #[relm4::component(pub)]
@@ -188,9 +188,8 @@ impl SimpleComponent for App {
     menu! {
         primary_menu: {
             section! {
-                "_Preferences" => PreferencesAction,
-                "_Keyboard" => ShortcutsAction,
-                "_About Fotema" => AboutAction,
+                &fl!("primary-menu-preferences") => PreferencesAction,
+                &fl!("primary-menu-about") => AboutAction,
             }
         }
     }
@@ -206,16 +205,6 @@ impl SimpleComponent for App {
             connect_close_request[sender] => move |_| {
                 sender.input(AppMsg::Quit);
                 glib::Propagation::Stop
-            },
-
-            #[wrap(Some)]
-            set_help_overlay: shortcuts = &gtk::Builder::from_resource(
-                    "/app/fotema/Fotema/gtk/help-overlay.ui"
-                )
-                .object::<gtk::ShortcutsWindow>("help_overlay")
-                .unwrap() -> gtk::ShortcutsWindow {
-                    set_transient_for: Some(&main_window),
-                    set_application: Some(&main_application()),
             },
 
             add_css_class?: if PROFILE == "Devel" {
@@ -249,7 +238,6 @@ impl SimpleComponent for App {
 
                 // Page for showing main navigation. Such as "Library", "Selfies", etc.
                 adw::NavigationPage {
-                    set_title: "Main Navigation",
 
                     #[local_ref]
                     main_navigation -> adw::OverlaySplitView {
@@ -290,12 +278,6 @@ impl SimpleComponent for App {
                                         connect_clicked => AppMsg::ToggleSidebar,
                                     },
 
-                                    //#[wrap(Some)]
-                                    //set_title_widget = &adw::ViewSwitcher {
-                                    //   set_stack: Some(model.library.widget()),
-                                    //    set_policy: adw::ViewSwitcherPolicy::Wide,
-                                    //},
-
                                     #[local_ref]
                                     pack_end = &spinner -> gtk::Spinner,
                                 },
@@ -327,7 +309,7 @@ impl SimpleComponent for App {
                                                 set_stack: Some(model.library.widget()),
                                             },
                                         } -> {
-                                            set_title: "Library",
+                                            set_title: &fl!("library-page"),
                                             set_name: ViewName::Library.into(),
 
                                             // NOTE gtk::StackSidebar doesn't show icon :-/
@@ -338,7 +320,7 @@ impl SimpleComponent for App {
                                             set_orientation: gtk::Orientation::Vertical,
                                             container_add: model.videos_page.widget(),
                                         } -> {
-                                            set_title: "Videos",
+                                            set_title: &fl!("videos-album"),
                                             set_name: ViewName::Videos.into(),
                                             // NOTE gtk::StackSidebar doesn't show icon :-/
                                             set_icon_name: "video-reel-symbolic",
@@ -348,7 +330,7 @@ impl SimpleComponent for App {
                                             set_orientation: gtk::Orientation::Vertical,
                                             container_add: model.motion_page.widget(),
                                         } -> {
-                                            set_title: "Animated",
+                                            set_title: &fl!("animated-album"),
                                             set_name: ViewName::Animated.into(),
                                             // NOTE gtk::StackSidebar doesn't show icon :-/
                                             set_icon_name: "sonar-symbolic",
@@ -359,7 +341,7 @@ impl SimpleComponent for App {
                                             container_add: model.selfies_page.widget(),
                                         } -> {
                                             set_visible: model.show_selfies,
-                                            set_title: "Selfies",
+                                            set_title: &fl!("selfies-album"),
                                             set_name: ViewName::Selfies.into(),
                                             // NOTE gtk::StackSidebar doesn't show icon :-/
                                             set_icon_name: "sentiment-very-satisfied-symbolic",
@@ -374,7 +356,7 @@ impl SimpleComponent for App {
                                                 model.folders_album.widget(),
                                             },
                                         } -> {
-                                            set_title: "Folders",
+                                            set_title: &fl!("folders-album"),
                                             set_name: ViewName::Folders.into(),
                                             // NOTE gtk::StackSidebar doesn't show icon :-/
                                             set_icon_name: "folder-symbolic",
@@ -392,7 +374,7 @@ impl SimpleComponent for App {
                         add_top_bar = &adw::HeaderBar {
                             #[wrap(Some)]
                             set_title_widget = &gtk::Label {
-                                set_label: "Folder",
+                                set_label: &fl!("folder-album"),
                                 add_css_class: "title",
                             }
                         },
@@ -578,13 +560,6 @@ impl SimpleComponent for App {
 
         let mut actions = RelmActionGroup::<WindowActionGroup>::new();
 
-        let shortcuts_action = {
-            let shortcuts = widgets.shortcuts.clone();
-            RelmAction::<ShortcutsAction>::new_stateless(move |_| {
-                shortcuts.present();
-            })
-        };
-
         let about_action = {
             let sender = model.about_dialog.sender().clone();
             RelmAction::<AboutAction>::new_stateless(move |_| {
@@ -599,7 +574,6 @@ impl SimpleComponent for App {
             })
         };
 
-        actions.add_action(shortcuts_action);
         actions.add_action(about_action);
         actions.add_action(preferences_action);
 
@@ -680,11 +654,37 @@ impl SimpleComponent for App {
                 self.picture_navigation_view.push_by_tag("album");
 
             }
-            AppMsg::TaskStarted(msg) => {
+            AppMsg::TaskStarted(task_name) => {
                 self.spinner.start();
                 self.spinner.set_visible(!self.main_navigation.shows_sidebar());
-                self.banner.set_title(&msg);
                 self.banner.set_revealed(true);
+
+                match task_name {
+                    TaskName::Scan(MediaType::Photo) => {
+                        self.banner.set_title(&fl!("banner-scan-photos"));
+                    },
+                    TaskName::Scan(MediaType::Video) => {
+                        self.banner.set_title(&fl!("banner-scan-videos"));
+                    },
+                    TaskName::Enrich(MediaType::Photo) => {
+                        self.banner.set_title(&fl!("banner-metadata-photos"));
+                    },
+                    TaskName::Enrich(MediaType::Video) => {
+                        self.banner.set_title(&fl!("banner-metadata-videos"));
+                    },
+                    TaskName::Thumbnail(MediaType::Photo) => {
+                        self.banner.set_title(&fl!("banner-thumbnails-photos"));
+                    },
+                    TaskName::Thumbnail(MediaType::Video) => {
+                        self.banner.set_title(&fl!("banner-thumbnails-videos"));
+                    },
+                    TaskName::Clean(MediaType::Photo) => {
+                        self.banner.set_title(&fl!("banner-clean-photos"));
+                    },
+                    TaskName::Clean(MediaType::Video) => {
+                        self.banner.set_title(&fl!("banner-clean-videos"));
+                    },
+                };
             }
             AppMsg::BootstrapCompleted => {
                 event!(Level::INFO, "Bootstrap completed.");

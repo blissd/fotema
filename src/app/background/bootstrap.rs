@@ -69,7 +69,7 @@ pub enum BootstrapInput {
 #[derive(Debug)]
 pub enum BootstrapOutput {
      // Show banner message and start spinner
-    TaskStarted(String),
+    TaskStarted(TaskName),
 
     // Bootstrap process has completed.
     Completed,
@@ -222,33 +222,33 @@ impl Worker for Bootstrap {
                 self.load_library.emit(LoadLibraryInput::Refresh);
                 self.photo_scan.emit(PhotoScanInput::Start);
             }
-            BootstrapInput::TaskStarted(TaskName::Scan(MediaType::Photo)) => {
+            BootstrapInput::TaskStarted(task_name @ TaskName::Scan(MediaType::Photo)) => {
                 event!(Level::INFO, "bootstrap: scan photos started");
-                let _  = sender.output(BootstrapOutput::TaskStarted(String::from("Scanning file system for photos.")));
+                let _  = sender.output(BootstrapOutput::TaskStarted(task_name));
             }
             BootstrapInput::TaskCompleted(TaskName::Scan(MediaType::Photo)) => {
                 event!(Level::INFO, "bootstrap: scan photos completed");
                 self.video_scan.emit(VideoScanInput::Start);
             }
-            BootstrapInput::TaskStarted(TaskName::Scan(MediaType::Video)) => {
+            BootstrapInput::TaskStarted(task_name @ TaskName::Scan(MediaType::Video)) => {
                 event!(Level::INFO, "bootstrap: scan videos started");
-                let _  = sender.output(BootstrapOutput::TaskStarted(String::from("Scanning file system for videos.")));
+                let _  = sender.output(BootstrapOutput::TaskStarted(task_name));
             }
             BootstrapInput::TaskCompleted(TaskName::Scan(MediaType::Video)) => {
                 event!(Level::INFO, "bootstrap: scan videos completed");
                 self.photo_enrich.emit(PhotoEnrichInput::Start);
             }
-            BootstrapInput::TaskStarted(TaskName::Enrich(MediaType::Photo)) => {
+            BootstrapInput::TaskStarted(task_name @ TaskName::Enrich(MediaType::Photo)) => {
                 event!(Level::INFO, "bootstrap: photo enrichment started");
-                let _  = sender.output(BootstrapOutput::TaskStarted(String::from("Processing photo metadata.")));
+                let _  = sender.output(BootstrapOutput::TaskStarted(task_name));
             }
             BootstrapInput::TaskCompleted(TaskName::Enrich(MediaType::Photo)) => {
                 event!(Level::INFO, "bootstrap: photo enrichment completed");
                 self.video_enrich.emit(VideoEnrichInput::Start);
             }
-            BootstrapInput::TaskStarted(TaskName::Enrich(MediaType::Video)) => {
+            BootstrapInput::TaskStarted(task_name @ TaskName::Enrich(MediaType::Video)) => {
                 event!(Level::INFO, "bootstrap: video enrichment started");
-                let _  = sender.output(BootstrapOutput::TaskStarted(String::from("Processing video metadata.")));
+                let _  = sender.output(BootstrapOutput::TaskStarted(task_name));
             }
             BootstrapInput::TaskCompleted(TaskName::Enrich(MediaType::Video)) => {
                 event!(Level::INFO, "bootstrap: video enrichment completed");
@@ -260,34 +260,34 @@ impl Worker for Bootstrap {
 
                 self.photo_thumbnail.emit(PhotoThumbnailInput::Start);
             }
-            BootstrapInput::TaskStarted(TaskName::Thumbnail(MediaType::Photo)) => {
+            BootstrapInput::TaskStarted(task_name @ TaskName::Thumbnail(MediaType::Photo)) => {
                 event!(Level::INFO, "bootstrap: photo thumbnails started");
-                let _  = sender.output(BootstrapOutput::TaskStarted(String::from("Generating photo thumbnails. This will take a while.")));
+                let _  = sender.output(BootstrapOutput::TaskStarted(task_name));
             }
             BootstrapInput::TaskCompleted(TaskName::Thumbnail(MediaType::Photo)) => {
                 event!(Level::INFO, "bootstrap: photo thumbnails completed");
                 self.video_thumbnail.emit(VideoThumbnailInput::Start);
             }
-            BootstrapInput::TaskStarted(TaskName::Thumbnail(MediaType::Video)) => {
+            BootstrapInput::TaskStarted(task_name @ TaskName::Thumbnail(MediaType::Video)) => {
                 event!(Level::INFO, "bootstrap: video thumbnails started");
-                let _  = sender.output(BootstrapOutput::TaskStarted(String::from("Generating video thumbnails. This will take a while.")));
+                let _  = sender.output(BootstrapOutput::TaskStarted(task_name));
             }
             BootstrapInput::TaskCompleted(TaskName::Thumbnail(MediaType::Video)) => {
                 let duration = self.started_at.map(|x| x.elapsed());
                 event!(Level::INFO, "bootstrap: video thumbnails completed in {:?}", duration);
                 self.photo_clean.emit(PhotoCleanInput::Start);
             }
-            BootstrapInput::TaskStarted(TaskName::Clean(MediaType::Photo)) => {
+            BootstrapInput::TaskStarted(task_name @ TaskName::Clean(MediaType::Photo)) => {
                 event!(Level::INFO, "bootstrap: photo cleanup started.");
-                let _  = sender.output(BootstrapOutput::TaskStarted(String::from("Photo database maintenance.")));
+                let _  = sender.output(BootstrapOutput::TaskStarted(task_name));
             }
             BootstrapInput::TaskCompleted(TaskName::Clean(MediaType::Photo)) => {
                 event!(Level::INFO, "bootstrap: photo cleanup completed.");
                 self.video_clean.emit(VideoCleanInput::Start);
             }
-            BootstrapInput::TaskStarted(TaskName::Clean(MediaType::Video)) => {
+            BootstrapInput::TaskStarted(task_name @ TaskName::Clean(MediaType::Video)) => {
                 event!(Level::INFO, "bootstrap: video cleanup started.");
-                let _  = sender.output(BootstrapOutput::TaskStarted(String::from("Video database maintenance.")));
+                let _  = sender.output(BootstrapOutput::TaskStarted(task_name));
             }
             BootstrapInput::TaskCompleted(TaskName::Clean(MediaType::Video)) => {
                 event!(Level::INFO, "bootstrap: video cleanup completed.");
