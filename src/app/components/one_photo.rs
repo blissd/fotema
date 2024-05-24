@@ -348,6 +348,7 @@ impl SimpleAsyncComponent for OnePhoto {
                             self.mute_button.set_icon_name("multimedia-volume-control-symbolic");
                             self.skip_backwards.set_visible(true);
                             self.skip_forward.set_visible(true);
+                            self.skip_forward.set_sensitive(true);
                             self.video_timestamp.set_visible(true);
 
                             // Instead of video.set_muted(false), we must mute and then
