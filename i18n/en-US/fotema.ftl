@@ -53,7 +53,6 @@ month-thumbnail-label = { $month ->
    [11] November {$year}
    [12] December {$year}
   *[other] {$year}
-  }
 }
 
 ## About Dialog
