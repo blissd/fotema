@@ -52,9 +52,9 @@ month-thumbnail-label = { $month ->
    [10] अक्टूबर {$year}
    [11] नवम्बर {$year}
    [12] दिसम्बर {$year}
-  *[अन्य] {$year}
-  }
+  *[other] {$year}
 }
+
 
 ## About Dialog
 
