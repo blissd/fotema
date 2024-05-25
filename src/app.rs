@@ -143,6 +143,8 @@ pub(super) struct App {
 
 #[derive(Debug)]
 pub(super) enum AppMsg {
+    Activate(i32),
+
     Quit,
 
     // Toggle visibility of sidebar
@@ -195,6 +197,7 @@ impl SimpleComponent for App {
     }
 
     view! {
+        #[root]
         main_window = adw::ApplicationWindow::new(&main_application()) {
             set_visible: true,
 
@@ -206,6 +209,9 @@ impl SimpleComponent for App {
                 sender.input(AppMsg::Quit);
                 glib::Propagation::Stop
             },
+
+            // Notifies initial width of window so we can set correct adaptive layout for widgets
+            connect_is_active_notify => AppMsg::Activate(root.width()),
 
             add_css_class?: if PROFILE == "Devel" {
                     Some("devel")
@@ -442,7 +448,7 @@ impl SimpleComponent for App {
             });
 
         let library = Library::builder()
-            .launch((state.clone(), active_view.clone()))
+            .launch((state.clone(), active_view.clone(), adaptive_layout.clone()))
             .forward(sender.input_sender(), |msg| match msg {
                 LibraryOutput::View(id) => AppMsg::View(id, AlbumFilter::All),
             });
@@ -466,6 +472,7 @@ impl SimpleComponent for App {
             });
 
         state.subscribe(selfies_page.sender(), |_| AlbumInput::Refresh);
+        adaptive_layout.subscribe(selfies_page.sender(), |layout| AlbumInput::Adapt(*layout));
 
         let show_selfies = AppWidgets::show_selfies();
 
@@ -476,6 +483,7 @@ impl SimpleComponent for App {
             });
 
         state.subscribe(motion_page.sender(), |_| AlbumInput::Refresh);
+        adaptive_layout.subscribe(motion_page.sender(), |layout| AlbumInput::Adapt(*layout));
 
         let videos_page = Album::builder()
             .launch((state.clone(), active_view.clone(), ViewName::Videos, AlbumFilter::Videos))
@@ -484,6 +492,7 @@ impl SimpleComponent for App {
             });
 
         state.subscribe(videos_page.sender(), |_| AlbumInput::Refresh);
+        adaptive_layout.subscribe(videos_page.sender(), |layout| AlbumInput::Adapt(*layout));
 
         let folders_album = FoldersAlbum::builder()
             .launch((state.clone(), active_view.clone()))
@@ -503,6 +512,7 @@ impl SimpleComponent for App {
             });
 
         state.subscribe(folder_album.sender(), |_| AlbumInput::Refresh);
+        adaptive_layout.subscribe(folder_album.sender(), |layout| AlbumInput::Adapt(*layout));
 
         let about_dialog = AboutDialog::builder().launch(root.clone()).detach();
 
@@ -589,8 +599,15 @@ impl SimpleComponent for App {
         ComponentParts { model, widgets }
     }
 
-    fn update(&mut self, message: Self::Input, _sender: ComponentSender<Self>) {
+    fn update(&mut self, message: Self::Input, sender: ComponentSender<Self>) {
         match message {
+            AppMsg::Activate(width) => {
+                if width >= 500 {
+                    sender.input(AppMsg::Adapt(adaptive::Layout::Wide));
+                } else {
+                    sender.input(AppMsg::Adapt(adaptive::Layout::Narrow));
+                }
+            },
             AppMsg::Quit => main_application().quit(),
             AppMsg::ToggleSidebar => {
                 let show = self.main_navigation.shows_sidebar();

@@ -15,7 +15,11 @@ use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
 use relm4::*;
 use std::path::Path;
 use std::sync::Arc;
+use std::cell::RefCell;
+use std::rc::Rc;
+use std::collections::HashSet;
 
+use crate::app::adaptive;
 use crate::app::SharedState;
 use crate::app::ActiveView;
 use crate::app::ViewName;
@@ -44,6 +48,9 @@ pub enum AlbumInput {
 
     // Show no photos
     Filter(AlbumFilter),
+
+    // Adapt to layout
+    Adapt(adaptive::Layout),
 }
 
 #[derive(Debug)]
@@ -55,6 +62,9 @@ pub enum AlbumOutput {
 #[derive(Debug)]
 struct PhotoGridItem {
     visual: Arc<fotema_core::visual::Visual>,
+
+    // Supports dynamic resizing of thumbnails
+    all_pictures: Rc<RefCell<HashSet<gtk::Picture>>>
 }
 
 struct PhotoGridItemWidgets {
@@ -107,7 +117,7 @@ impl RelmGridItem for PhotoGridItem {
                         #[wrap(Some)]
                         #[name(picture)]
                         set_child = &gtk::Picture {
-                            set_can_shrink: false,
+                            set_can_shrink: true,
                         }
                     }
                 }
@@ -126,6 +136,13 @@ impl RelmGridItem for PhotoGridItem {
     }
 
     fn bind(&mut self, widgets: &mut Self::Widgets, _root: &mut Self::Root) {
+
+        // Add our picture to the set of all pictures so it can be easily resized
+        // when the window dimensions changes between wide and narrow.
+        if !self.all_pictures.borrow().contains(&widgets.picture) {
+            self.all_pictures.borrow_mut().insert(widgets.picture.clone());
+        }
+
         if self.visual.thumbnail_path.as_ref().is_some_and(|x| x.exists()) {
             widgets.picture.set_filename(self.visual.thumbnail_path.clone());
 
@@ -188,45 +205,60 @@ pub struct Album {
     view_name: ViewName,
     photo_grid: TypedGridView<PhotoGridItem, gtk::SingleSelection>,
     filter: AlbumFilter,
+    layout: adaptive::Layout,
+    item_pictures: Rc<RefCell<HashSet<gtk::Picture>>>,
 }
 
-#[relm4::component(pub)]
+pub struct AlbumWidgets {
+    // All pictures referenced by grid view.
+    item_pictures: Rc<RefCell<HashSet<gtk::Picture>>>,
+}
+
+//#[relm4::component(pub)]
 impl SimpleComponent for Album {
     type Init = (SharedState, ActiveView, ViewName, AlbumFilter);
     type Input = AlbumInput;
     type Output = AlbumOutput;
+    type Root = gtk::ScrolledWindow;
+    type Widgets = AlbumWidgets;
 
-    view! {
-        gtk::ScrolledWindow {
-            set_vexpand: true,
+    fn init_root() -> Self::Root {
 
-            #[local_ref]
-            grid_view -> gtk::GridView {
-                set_orientation: gtk::Orientation::Vertical,
-                set_single_click_activate: true,
-                //set_max_columns: 3,
-
-                connect_activate[sender] => move |_, idx| {
-                    sender.input(AlbumInput::Selected(idx))
-                },
-            }
-        }
+        gtk::ScrolledWindow::builder()
+            .vexpand(true)
+            .build()
     }
 
     fn init(
         (state, active_view, view_name, filter): Self::Init,
-        _root: Self::Root,
+        root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
         let photo_grid = TypedGridView::new();
 
-        let mut model = Album { state, active_view, view_name, photo_grid, filter };
+         let grid_view = &photo_grid.view;
+         grid_view.set_orientation(gtk::Orientation::Vertical);
+         grid_view.set_single_click_activate(true);
+         grid_view.connect_activate(move |_, idx| sender.input(AlbumInput::Selected(idx)));
+
+        let mut model = Album {
+            state,
+            active_view,
+            view_name,
+            photo_grid,
+            filter,
+            layout: adaptive::Layout::Narrow,
+            item_pictures: Rc::new(RefCell::new(HashSet::new())),
+        };
 
         model.update_filter();
 
-        let grid_view = &model.photo_grid.view;
+        let widgets = AlbumWidgets {
+            item_pictures: model.item_pictures.clone(),
+        };
 
-        let widgets = view_output!();
+        root.set_child(Some(&model.photo_grid.view));
+
         ComponentParts { model, widgets }
     }
 
@@ -267,7 +299,35 @@ impl SimpleComponent for Album {
                     event!(Level::DEBUG, "Scrolling to {}", index);
                     self.photo_grid.view.scroll_to(index, flags, None);
                 }
-            }
+            },
+            AlbumInput::Adapt(layout @ adaptive::Layout::Narrow) => {
+                event!(Level::DEBUG, "Adapt narrow");
+                self.layout = layout;
+            },
+            AlbumInput::Adapt(layout @ adaptive::Layout::Wide) => {
+                event!(Level::DEBUG, "Adapt wide");
+                self.layout = layout;
+            },
+        }
+    }
+
+    fn update_view(&self, widgets: &mut Self::Widgets, _sender: ComponentSender<Self>) {
+        match self.layout {
+            // Update thumbnail size depending on adaptive layout type
+            adaptive::Layout::Narrow => {
+                let pics = widgets.item_pictures.borrow_mut();
+                for pic in pics.iter() {
+                    pic.set_width_request(112);
+                    pic.set_height_request(112);
+                }
+            },
+            adaptive::Layout::Wide => {
+                let pics = widgets.item_pictures.borrow_mut();
+                for pic in pics.iter() {
+                    pic.set_width_request(170);
+                    pic.set_height_request(170);
+                }
+            },
         }
     }
 }
@@ -279,11 +339,15 @@ impl Album {
             let data = self.state.read();
             data
                 .iter()
-                .map(|visual| PhotoGridItem { visual: visual.clone() })
+                .map(|visual| PhotoGridItem {
+                    visual: visual.clone(),
+                    all_pictures: self.item_pictures.clone(),
+                })
                 .collect::<Vec<PhotoGridItem>>()
         };
 
         self.photo_grid.clear();
+        self.item_pictures.borrow_mut().clear();
 
         //self.photo_grid.add_filter(move |item| (self.photo_grid_filter)(&item.picture));
         self.photo_grid.extend_from_iter(all);

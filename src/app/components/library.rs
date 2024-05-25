@@ -7,9 +7,11 @@ use fotema_core::{VisualId, YearMonth};
 use relm4::*;
 use relm4::adw;
 use std::str::FromStr;
+use std::sync::Arc;
 use strum::EnumString;
 use strum::IntoStaticStr;
 
+use crate::app::adaptive;
 use crate::app::SharedState;
 use crate::app::ActiveView;
 use crate::app::ViewName;
@@ -65,7 +67,7 @@ enum LibraryViewName {
 
 #[relm4::component(pub)]
 impl SimpleComponent for Library {
-    type Init = (SharedState, ActiveView);
+    type Init = (SharedState, ActiveView, Arc<adaptive::LayoutState>);
     type Input = LibraryInput;
     type Output = LibraryOutput;
 
@@ -79,7 +81,7 @@ impl SimpleComponent for Library {
     }
 
     fn init(
-        (state, active_view): Self::Init,
+        (state, active_view, layout_state): Self::Init,
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
@@ -91,6 +93,7 @@ impl SimpleComponent for Library {
             });
 
         state.subscribe(all_album.sender(), |_| AlbumInput::Refresh);
+        layout_state.subscribe(all_album.sender(), |layout| AlbumInput::Adapt(*layout));
 
         let months_album = MonthsAlbum::builder()
             .launch((state.clone(), active_view.clone()))

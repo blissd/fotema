@@ -83,7 +83,9 @@ impl RelmGridItem for PhotoGridItem {
                         #[wrap(Some)]
                         #[name(picture)]
                         set_child = &gtk::Picture {
-                            set_can_shrink: false,
+                            set_can_shrink: true,
+                            set_width_request: 170,
+                            set_height_request: 170,
                         }
                     }
                 }
