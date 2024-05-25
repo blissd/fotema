@@ -26,7 +26,7 @@ use super::album_filter::AlbumFilter;
 use tracing::{event, Level};
 
 const NARROW_EDGE_LENGTH: i32 = 112;
-const WIDE_EDGE_LENGTH: i32 = 170;
+const WIDE_EDGE_LENGTH: i32 = 200;
 
 #[derive(Debug)]
 pub enum AlbumInput {
@@ -242,7 +242,7 @@ impl SimpleComponent for Album {
             view_name,
             photo_grid,
             filter,
-            edge_length: I32Binding::new(NARROW_EDGE_LENGTH), // narrow edge length
+            edge_length: I32Binding::new(NARROW_EDGE_LENGTH),
         };
 
         model.update_filter();
@@ -290,11 +290,9 @@ impl SimpleComponent for Album {
                 }
             },
             AlbumInput::Adapt(adaptive::Layout::Narrow) => {
-                event!(Level::DEBUG, "Adapt narrow");
                 self.edge_length.set_value(NARROW_EDGE_LENGTH);
             },
             AlbumInput::Adapt(adaptive::Layout::Wide) => {
-                event!(Level::DEBUG, "Adapt wide");
                 self.edge_length.set_value(WIDE_EDGE_LENGTH);
             },
         }

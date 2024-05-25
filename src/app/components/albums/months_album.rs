@@ -16,12 +16,14 @@ use relm4::gtk::prelude::FrameExt;
 use relm4::gtk::prelude::WidgetExt;
 use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
 use relm4::*;
+use relm4::binding::*;
 
 use fotema_core::Year;
 use fotema_core::YearMonth;
 use std::path;
 use std::sync::Arc;
 
+use crate::adaptive;
 use crate::app::SharedState;
 use crate::app::ActiveView;
 use crate::app::ViewName;
@@ -29,9 +31,15 @@ use crate::fl;
 
 use tracing::{event, Level};
 
+const NARROW_EDGE_LENGTH: i32 = 170;
+const WIDE_EDGE_LENGTH: i32 = 200;
+
 #[derive(Debug)]
 struct PhotoGridItem {
     picture: Arc<fotema_core::visual::Visual>,
+
+    // Length of thumbnail edge to allow for resizing when layout changes.
+    edge_length: I32Binding,
 }
 
 struct Widgets {
@@ -50,6 +58,9 @@ pub enum MonthsAlbumInput {
 
     // Reload photos from database
     Refresh,
+
+    // Adapt to layout
+    Adapt(adaptive::Layout),
 }
 
 #[derive(Debug)]
@@ -100,6 +111,9 @@ impl RelmGridItem for PhotoGridItem {
     fn bind(&mut self, widgets: &mut Self::Widgets, _root: &mut Self::Root) {
         let ym = self.picture.year_month();
 
+        widgets.picture.add_write_only_binding(&self.edge_length, "width-request");
+        widgets.picture.add_write_only_binding(&self.edge_length, "height-request");
+
         widgets
             .label
             .set_label(&fl!("month-thumbnail-label",
@@ -138,6 +152,7 @@ pub struct MonthsAlbum {
     state: SharedState,
     active_view: ActiveView,
     photo_grid: TypedGridView<PhotoGridItem, gtk::SingleSelection>,
+    edge_length: I32Binding,
 }
 
 #[relm4::component(pub)]
@@ -148,15 +163,12 @@ impl SimpleComponent for MonthsAlbum {
 
     view! {
         gtk::ScrolledWindow {
-            //set_propagate_natural_height: true,
-            //set_has_frame: true,
             set_vexpand: true,
 
             #[local_ref]
             photo_grid_view -> gtk::GridView {
                 set_orientation: gtk::Orientation::Vertical,
                 set_single_click_activate: true,
-                //set_max_columns: 3,
 
                 connect_activate[sender] => move |_, idx| {
                     sender.input(MonthsAlbumInput::MonthSelected(idx))
@@ -172,7 +184,12 @@ impl SimpleComponent for MonthsAlbum {
     ) -> ComponentParts<Self> {
         let photo_grid = TypedGridView::new();
 
-        let model = MonthsAlbum { state, active_view, photo_grid };
+        let model = MonthsAlbum {
+            state,
+            active_view,
+            photo_grid,
+            edge_length: I32Binding::new(NARROW_EDGE_LENGTH),
+        };
 
         let photo_grid_view = &model.photo_grid.view;
 
@@ -214,6 +231,12 @@ impl SimpleComponent for MonthsAlbum {
                     self.photo_grid.view.scroll_to(index, flags, None);
                 }
             }
+            MonthsAlbumInput::Adapt(adaptive::Layout::Narrow) => {
+                self.edge_length.set_value(NARROW_EDGE_LENGTH);
+            },
+            MonthsAlbumInput::Adapt(adaptive::Layout::Wide) => {
+                self.edge_length.set_value(WIDE_EDGE_LENGTH);
+            },
         }
     }
 }
@@ -225,7 +248,10 @@ impl MonthsAlbum {
             data
                 .iter()
                 .dedup_by(|x, y| x.year_month() == y.year_month())
-                .map(|picture| PhotoGridItem { picture: picture.clone() })
+                .map(|picture| PhotoGridItem {
+                    picture: picture.clone(),
+                    edge_length: self.edge_length.clone(),
+                })
                 .collect::<Vec<PhotoGridItem>>()
         };
 
@@ -241,3 +267,4 @@ impl MonthsAlbum {
         }
     }
 }
+

@@ -103,6 +103,7 @@ impl SimpleComponent for Library {
         );
 
         state.subscribe(months_album.sender(), |_| MonthsAlbumInput::Refresh);
+        layout_state.subscribe(months_album.sender(), |layout| MonthsAlbumInput::Adapt(*layout));
 
         let years_album = YearsAlbum::builder()
             .launch((state.clone(), active_view.clone()))
@@ -112,6 +113,7 @@ impl SimpleComponent for Library {
         );
 
         state.subscribe(years_album.sender(), |_| YearsAlbumInput::Refresh);
+        layout_state.subscribe(years_album.sender(), |layout| YearsAlbumInput::Adapt(*layout));
 
         let widgets = view_output!();
 
