@@ -60,6 +60,8 @@ month-thumbnail-label = { $month ->
 # Section header for open source projects acknowledgements.
 about-opensource = Open Source Projects
 
+about-translators = Translators
+
 ## Photo/Video Viewer
 
 # Tooltip for (i) button to show photo/video information sidebar

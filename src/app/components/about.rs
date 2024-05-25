@@ -44,6 +44,11 @@ impl SimpleComponent for AboutDialog {
             "libde265 https://github.com/strukturag/libde265",
         ]);
 
+        // I've not used 'translator_credits' as I cannot get it to display.
+        about.add_acknowledgement_section(Some(&fl!("about-translators")), &[
+            "Scrambled777 <weblate.scrambled777@simplelogin.com>", // Hindi
+        ]);
+
         about.add_legal_section("FFmpeg", Some("Copyright © 2024 FFmpeg"), gtk::License::Gpl30, None);
         about.add_legal_section("libheif", Some("Copyright © 2017–2023 Dirk Farin"), gtk::License::Lgpl30, None);
         about.add_legal_section("libde265", Some("Copyright © 2017–2023 Dirk Farin"), gtk::License::Lgpl30, None);
