@@ -16,6 +16,7 @@ use relm4::*;
 use std::path::Path;
 use std::sync::Arc;
 
+use crate::app::adaptive;
 use crate::app::SharedState;
 use crate::app::ActiveView;
 use crate::app::ViewName;
@@ -44,6 +45,9 @@ pub enum AlbumInput {
 
     // Show no photos
     Filter(AlbumFilter),
+
+    // Adapt to layout
+    Adapt(adaptive::Layout),
 }
 
 #[derive(Debug)]
@@ -267,7 +271,13 @@ impl SimpleComponent for Album {
                     event!(Level::DEBUG, "Scrolling to {}", index);
                     self.photo_grid.view.scroll_to(index, flags, None);
                 }
-            }
+            },
+            AlbumInput::Adapt(adaptive::Layout::Narrow) => {
+                event!(Level::DEBUG, "Adapt narrow");
+            },
+            AlbumInput::Adapt(adaptive::Layout::Wide) => {
+                event!(Level::DEBUG, "Adapt wide");
+            },
         }
     }
 }

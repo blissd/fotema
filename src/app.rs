@@ -442,7 +442,7 @@ impl SimpleComponent for App {
             });
 
         let library = Library::builder()
-            .launch((state.clone(), active_view.clone()))
+            .launch((state.clone(), active_view.clone(), adaptive_layout.clone()))
             .forward(sender.input_sender(), |msg| match msg {
                 LibraryOutput::View(id) => AppMsg::View(id, AlbumFilter::All),
             });
