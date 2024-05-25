@@ -210,8 +210,6 @@ pub struct Album {
 }
 
 pub struct AlbumWidgets {
-    grid_view: gtk::GridView,
-
     // All pictures referenced by grid view.
     item_pictures: Rc<RwLock<HashSet<gtk::Picture>>>,
 }
@@ -255,10 +253,7 @@ impl SimpleComponent for Album {
 
         model.update_filter();
 
-        let grid_view = &model.photo_grid.view;
-
         let widgets = AlbumWidgets {
-            grid_view: grid_view.clone(),
             item_pictures: model.item_pictures.clone(),
         };
 
@@ -322,8 +317,8 @@ impl SimpleComponent for Album {
             adaptive::Layout::Narrow => {
                 let pics = widgets.item_pictures.write().expect("Lock to adapt narrow");
                 for pic in pics.iter() {
-                    pic.set_width_request(110);
-                    pic.set_height_request(110);
+                    pic.set_width_request(112);
+                    pic.set_height_request(112);
                 }
             },
             adaptive::Layout::Wide => {
