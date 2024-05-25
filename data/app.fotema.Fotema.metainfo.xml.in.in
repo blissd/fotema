@@ -47,6 +47,20 @@
   </branding>
 
   <releases>
+    <release version="1.6.0" date="2024-05-25">
+      <description>
+        <p>Improvements:</p>
+        <ul>
+          <li>All, Video, Animated, and Selfie views are now mobile friendly and will display three columns.</li>
+          <li>Year, month, and folders views are now mobile friendly and will display two columns.</li>
+          <li>Hindi localisation.</li>
+        </ul>
+        <p>Bugs fixed:</p>
+        <ul>
+          <li>Skip forward button would sometimes stay disabled.</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.5.0" date="2024-05-21">
       <description>
         <p>Fixes for narrow displays.</p>
