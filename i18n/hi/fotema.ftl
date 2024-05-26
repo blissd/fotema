@@ -39,6 +39,7 @@ folder-album = फोल्डर
 # Variables:
 #   $month - month number (1 through 12).
 #   $year - year e.g., 2024
+# Translator note: do not values in square brackets, such as '[other]'.
 month-thumbnail-label = { $month ->
    [1] जनवरी {$year}
    [2] फरवरी {$year}
@@ -60,6 +61,11 @@ month-thumbnail-label = { $month ->
 
 # Section header for open source projects acknowledgements.
 about-opensource = मुक्त स्रोत परियोजनाएं
+
+# Translator note: add one translator per-line to get a translation
+# credit in the Fotema's "About" page.
+about-translator-credits =
+  Scrambled777 <weblate.scrambled777@simplelogin.com>
 
 ## Photo/Video Viewer
 

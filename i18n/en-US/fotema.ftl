@@ -39,6 +39,7 @@ folder-album = Folder
 # Variables:
 #   $month - month number (1 through 12).
 #   $year - year e.g., 2024
+# Translator note: do not values in square brackets, such as '[other]'.
 month-thumbnail-label = { $month ->
    [1] January {$year}
    [2] February {$year}
@@ -60,7 +61,10 @@ month-thumbnail-label = { $month ->
 # Section header for open source projects acknowledgements.
 about-opensource = Open Source Projects
 
-about-translators = Translators
+# Translator note: add one translator per-line to get a translation
+# credit in the Fotema's "About" page.
+about-translator-credits =
+  David Bliss <hello@fotema.app>
 
 ## Photo/Video Viewer
 

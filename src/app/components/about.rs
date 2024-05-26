@@ -28,7 +28,7 @@ impl SimpleComponent for AboutDialog {
             .issue_url("https://github.com/blissd/fotema/issues")
             .application_name("Fotema")
             .version(VERSION)
-            //.translator_credits("translator-credits")
+            .translator_credits(&fl!("about-translator-credits"))
             .copyright("Copyright © 2024 David Bliss")
             .developer_name("David Bliss")
             .developers(vec!["David Bliss"])
@@ -42,11 +42,6 @@ impl SimpleComponent for AboutDialog {
             "FFmpeg https://ffmpeg.org/",
             "libheif https://github.com/strukturag/libheif",
             "libde265 https://github.com/strukturag/libde265",
-        ]);
-
-        // I've not used 'translator_credits' as I cannot get it to display.
-        about.add_acknowledgement_section(Some(&fl!("about-translators")), &[
-            "Scrambled777 <weblate.scrambled777@simplelogin.com>", // Hindi
         ]);
 
         about.add_legal_section("FFmpeg", Some("Copyright © 2024 FFmpeg"), gtk::License::Gpl30, None);
