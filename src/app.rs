@@ -504,6 +504,7 @@ impl SimpleComponent for App {
         );
 
         state.subscribe(folders_album.sender(), |_| FoldersAlbumInput::Refresh);
+        adaptive_layout.subscribe(folders_album.sender(), |layout| FoldersAlbumInput::Adapt(*layout));
 
         let folder_album = Album::builder()
             .launch((state.clone(), active_view.clone(), ViewName::Folder, AlbumFilter::None))

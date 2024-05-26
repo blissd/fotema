@@ -8,20 +8,27 @@ use fotema_core::visual::model::PictureOrientation;
 use strum::IntoEnumIterator;
 
 use itertools::Itertools;
+
 use relm4::gtk;
 use relm4::gtk::gdk;
 use relm4::gtk::gdk_pixbuf;
 use relm4::gtk::prelude::WidgetExt;
 use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
 use relm4::*;
+use relm4::binding::*;
+
 use std::path;
 use std::sync::Arc;
 
+use crate::adaptive;
 use crate::app::SharedState;
 use crate::app::ActiveView;
 use crate::app::ViewName;
 
 use tracing::{event, Level};
+
+const NARROW_EDGE_LENGTH: i32 = 170;
+const WIDE_EDGE_LENGTH: i32 = 200;
 
 #[derive(Debug)]
 struct PhotoGridItem {
@@ -29,6 +36,9 @@ struct PhotoGridItem {
 
     // Folder album cover
     picture: Arc<fotema_core::visual::Visual>,
+
+    // Length of thumbnail edge to allow for resizing when layout changes.
+    edge_length: I32Binding,
 }
 
 struct Widgets {
@@ -43,6 +53,9 @@ pub enum FoldersAlbumInput {
     Refresh,
 
     FolderSelected(u32), // Index into photo grid vector
+
+    // Adapt to layout
+    Adapt(adaptive::Layout),
 }
 
 #[derive(Debug)]
@@ -63,8 +76,6 @@ impl RelmGridItem for PhotoGridItem {
                         #[name(picture)]
                         gtk::Picture {
                             set_can_shrink: true,
-                            set_width_request: 170,
-                            set_height_request: 170,
                         }
                     }
                 },
@@ -87,6 +98,9 @@ impl RelmGridItem for PhotoGridItem {
         widgets
             .label
             .set_text(format!("{}", self.folder_name).as_str());
+
+        widgets.picture.add_write_only_binding(&self.edge_length, "width-request");
+        widgets.picture.add_write_only_binding(&self.edge_length, "height-request");
 
         if self.picture.thumbnail_path.as_ref().is_some_and(|x| x.exists())
         {
@@ -120,6 +134,7 @@ pub struct FoldersAlbum {
     state: SharedState,
     active_view: ActiveView,
     photo_grid: TypedGridView<PhotoGridItem, gtk::SingleSelection>,
+    edge_length: I32Binding,
 }
 
 #[relm4::component(pub)]
@@ -130,15 +145,12 @@ impl SimpleComponent for FoldersAlbum {
 
     view! {
         gtk::ScrolledWindow {
-            //set_propagate_natural_height: true,
-            //set_has_frame: true,
             set_vexpand: true,
 
             #[local_ref]
             pictures_box -> gtk::GridView {
                 set_orientation: gtk::Orientation::Vertical,
                 set_single_click_activate: true,
-                //set_max_columns: 3,
 
                 connect_activate[sender] => move |_, idx| {
                     sender.input(FoldersAlbumInput::FolderSelected(idx))
@@ -154,7 +166,12 @@ impl SimpleComponent for FoldersAlbum {
     ) -> ComponentParts<Self> {
         let photo_grid = TypedGridView::new();
 
-        let model = FoldersAlbum { state, active_view, photo_grid };
+        let model = FoldersAlbum {
+            state,
+            active_view,
+            photo_grid,
+            edge_length: I32Binding::new(NARROW_EDGE_LENGTH),
+        };
 
         let pictures_box = &model.photo_grid.view;
 
@@ -170,14 +187,14 @@ impl SimpleComponent for FoldersAlbum {
                 if self.photo_grid.is_empty() {
                     self.refresh();
                 }
-            }
+            },
             FoldersAlbumInput::Refresh => {
                 if *self.active_view.read() == ViewName::Folders {
                     self.refresh();
                 } else {
                     self.photo_grid.clear();
                 }
-            }
+            },
             FoldersAlbumInput::FolderSelected(index) => {
                 event!(Level::DEBUG, "Folder selected index: {}", index);
                 if let Some(item) = self.photo_grid.get_visible(index) {
@@ -187,7 +204,13 @@ impl SimpleComponent for FoldersAlbum {
                     let _ = sender
                         .output(FoldersAlbumOutput::FolderSelected(item.picture.parent_path.clone()));
                 }
-            }
+            },
+            FoldersAlbumInput::Adapt(adaptive::Layout::Narrow) => {
+                self.edge_length.set_value(NARROW_EDGE_LENGTH);
+            },
+            FoldersAlbumInput::Adapt(adaptive::Layout::Wide) => {
+                self.edge_length.set_value(WIDE_EDGE_LENGTH);
+            },
         }
     }
 }
@@ -211,6 +234,7 @@ impl FoldersAlbum {
             let album = PhotoGridItem {
                 folder_name: first.folder_name().unwrap_or("-".to_string()),
                 picture: first.clone(),
+                edge_length: self.edge_length.clone(),
             };
             pictures.push(album);
         }

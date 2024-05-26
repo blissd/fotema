@@ -10,6 +10,7 @@ use strum::IntoEnumIterator;
 
 use itertools::Itertools;
 use fotema_core::Year;
+
 use relm4::gtk;
 use relm4::gtk::gdk;
 use relm4::gtk::gdk_pixbuf;
@@ -17,16 +18,25 @@ use relm4::gtk::prelude::FrameExt;
 use relm4::gtk::prelude::WidgetExt;
 use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
 use relm4::*;
+use relm4::binding::*;
+
 use std::path;
 use std::sync::Arc;
 
+use crate::adaptive;
 use crate::app::SharedState;
 use crate::app::ActiveView;
 use crate::app::ViewName;
 
+const NARROW_EDGE_LENGTH: i32 = 170;
+const WIDE_EDGE_LENGTH: i32 = 200;
+
 #[derive(Debug)]
 struct PhotoGridItem {
     picture: Arc<fotema_core::visual::Visual>,
+
+    // Length of thumbnail edge to allow for resizing when layout changes.
+    edge_length: I32Binding,
 }
 #[derive(Debug)]
 pub enum YearsAlbumInput {
@@ -37,6 +47,9 @@ pub enum YearsAlbumInput {
 
     // Reload photos from database
     Refresh,
+
+    // Adapt to layout
+    Adapt(adaptive::Layout),
 }
 
 #[derive(Debug)]
@@ -94,6 +107,9 @@ impl RelmGridItem for PhotoGridItem {
             .label
             .set_text(format!("{}", self.picture.year()).as_str());
 
+        widgets.picture.add_write_only_binding(&self.edge_length, "width-request");
+        widgets.picture.add_write_only_binding(&self.edge_length, "height-request");
+
         if self.picture.thumbnail_path.as_ref().is_some_and(|x| x.exists()) {
             widgets
                 .picture
@@ -125,6 +141,7 @@ pub struct YearsAlbum {
     state: SharedState,
     active_view: ActiveView,
     photo_grid: TypedGridView<PhotoGridItem, gtk::NoSelection>,
+    edge_length: I32Binding,
 }
 
 #[relm4::component(pub)]
@@ -159,7 +176,12 @@ impl SimpleComponent for YearsAlbum {
     ) -> ComponentParts<Self> {
         let photo_grid = TypedGridView::new();
 
-        let model = YearsAlbum { state, active_view, photo_grid };
+        let model = YearsAlbum {
+            state,
+            active_view,
+            photo_grid,
+            edge_length: I32Binding::new(NARROW_EDGE_LENGTH),
+        };
 
         let photo_grid_view = &model.photo_grid.view;
 
@@ -187,7 +209,13 @@ impl SimpleComponent for YearsAlbum {
                     let date = item.borrow().picture.year_month();
                     let _ = sender.output(YearsAlbumOutput::YearSelected(date.year));
                 }
-            }
+            },
+            YearsAlbumInput::Adapt(adaptive::Layout::Narrow) => {
+                self.edge_length.set_value(NARROW_EDGE_LENGTH);
+            },
+            YearsAlbumInput::Adapt(adaptive::Layout::Wide) => {
+                self.edge_length.set_value(WIDE_EDGE_LENGTH);
+            },
         }
     }
 }
@@ -199,7 +227,10 @@ impl YearsAlbum {
             data
                 .iter()
                 .dedup_by(|x, y| x.year() == y.year())
-                .map(|picture| PhotoGridItem { picture: picture.clone() })
+                .map(|picture| PhotoGridItem {
+                    picture: picture.clone(),
+                    edge_length: self.edge_length.clone(),
+                })
                 .collect::<Vec<PhotoGridItem>>()
         };
 
