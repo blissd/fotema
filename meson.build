@@ -31,6 +31,13 @@ prefix = get_option('prefix')
 bindir = prefix / get_option('bindir')
 localedir = prefix / get_option('localedir')
 
+# Why don't we use localdir? Using localdir works perfectly when
+# developing locally. However, the Flathub build servers put locale files
+# into separate flatpak packages which is breaking my Fluent localisation
+# setup. Fotema will fail starting up saying it canot find the localisation
+# files.
+i18ndir = prefix / 'i18n'
+
 datadir = prefix / get_option('datadir')
 pkgdatadir = datadir / meson.project_name()
 iconsdir = datadir / 'icons'
@@ -65,13 +72,11 @@ if get_option('profile') == 'development'
 endif
 
 subdir('data')
-#subdir('po')
-
-
+subdir('po')
 subdir('src')
 
 # Copy Fluent FTL localization files to locales directory.
-install_subdir('i18n', install_dir: localedir, strip_directory: true)
+install_subdir('i18n', install_dir: i18ndir, strip_directory: true)
 
 gnome.post_install(
   gtk_update_icon_cache: true,

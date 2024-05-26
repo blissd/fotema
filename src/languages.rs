@@ -4,7 +4,7 @@
 
 use i18n_embed::fluent::{fluent_language_loader, FluentLanguageLoader};
 
-use crate::LOCALEDIR;
+use crate::config::I18NDIR;
 use i18n_embed::DesktopLanguageRequester;
 use i18n_embed::LanguageLoader;
 use lazy_static::lazy_static;
@@ -38,7 +38,7 @@ pub fn loader() -> FluentLanguageLoader {
     info!("Requested languages: {:?}", requested_languages);
 
     let loader: FluentLanguageLoader = fluent_language_loader!();
-    let i18n_assets = i18n_embed::FileSystemAssets::new(PathBuf::from(LOCALEDIR));
+    let i18n_assets = i18n_embed::FileSystemAssets::new(PathBuf::from(I18NDIR));
 
     loader
         .load_languages(&i18n_assets, &requested_languages)
