@@ -107,10 +107,19 @@ viewer-skip-backwards-10-seconds =
 viewer-mute =
   .tooltip = Mute/Unmute
 
-# Convert all incompatible videos description
+# Convert all incompatible videos description.
 viewer-convert-all-description = This video must be converted before it can be played. This only needs to happen once, but it takes a while to convert a video.
 
+# Button to convert all incompatible videos.
 viewer-convert-all-button = Convert all incompatible videos
+
+# Viewer failed to load an image or video.
+viewer-error-failed-to-load = Failed to load
+
+# Viewer could not display an image or video because it is missing.
+# Variables:
+#  file_name - (String) path of missing file.
+viewer-error-missing-file = Cannot display file '{$file_name} because it isn't there.
 
 ## Photo/Video Information Sidebar
 
