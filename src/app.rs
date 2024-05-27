@@ -51,7 +51,7 @@ use self::components::{
         folders_album::{FoldersAlbum, FoldersAlbumInput, FoldersAlbumOutput},
     },
     library::{Library, LibraryInput, LibraryOutput},
-    viewer::{Viewer, ViewerInput, ViewerOutput},
+    viewer::view_nav::{ViewNav, ViewNavInput, ViewNavOutput},
     preferences::{PreferencesDialog, PreferencesInput, PreferencesOutput},
 };
 
@@ -106,7 +106,7 @@ pub(super) struct App {
 
     library: Controller<Library>,
 
-    viewer: AsyncController<Viewer>,
+    view_nav: AsyncController<ViewNav>,
 
     show_selfies: bool,
     selfies_page: Controller<Album>,
@@ -393,7 +393,7 @@ impl SimpleComponent for App {
                 // Page for showing a single photo.
                 adw::NavigationPage {
                     set_tag: Some("picture"),
-                    model.viewer.widget(),
+                    model.view_nav.widget(),
                 },
             },
         }
@@ -459,10 +459,10 @@ impl SimpleComponent for App {
             .detach_worker((state.clone(), video_repo, transcoder.clone(), transcode_progress_monitor.clone()))
             .detach();
 
-        let viewer = Viewer::builder()
+        let view_nav = ViewNav::builder()
             .launch((state.clone(), transcode_progress_monitor.clone(), adaptive_layout.clone()))
             .forward(sender.input_sender(), |msg| match msg {
-                ViewerOutput::TranscodeAll => AppMsg::TranscodeAll,
+                ViewNavOutput::TranscodeAll => AppMsg::TranscodeAll,
             });
 
         let selfies_page = Album::builder()
@@ -546,7 +546,7 @@ impl SimpleComponent for App {
 
             library,
 
-            viewer,
+            view_nav,
             motion_page,
             videos_page,
             selfies_page,
@@ -658,13 +658,13 @@ impl SimpleComponent for App {
             }
             AppMsg::View(visual_id, filter) => {
                 // Send message to show image
-                self.viewer.emit(ViewerInput::View(visual_id, filter));
+                self.view_nav.emit(ViewNavInput::View(visual_id, filter));
 
                 // Display navigation page for viewing an individual photo.
                 self.picture_navigation_view.push_by_tag("picture");
             }
             AppMsg::ViewHidden => {
-                self.viewer.emit(ViewerInput::Hidden);
+                self.view_nav.emit(ViewNavInput::Hidden);
             }
             AppMsg::ViewFolder(path) => {
                 self.folder_album.emit(AlbumInput::Activate);
