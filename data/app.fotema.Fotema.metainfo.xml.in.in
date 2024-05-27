@@ -52,11 +52,11 @@
         <p>Improvements:</p>
         <ul>
           <li>Display an error message when a photo or video fails to load.</li>
-        <ul>
+        </ul>
         <p>Bugs fixed:</p>
         <ul>
           <li>Fix resource leak leading to crash when scrolling thumbnails.</li>
-        <ul>
+        </ul>
       </description>
     </release>
     <release version="1.6.0" date="2024-05-25">
