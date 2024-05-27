@@ -39,6 +39,9 @@ struct PhotoGridItem {
 
     // Length of thumbnail edge to allow for resizing when layout changes.
     edge_length: I32Binding,
+
+    // If the gtk::Picture has been bound to edge_length.
+    is_bound: bool,
 }
 
 struct Widgets {
@@ -99,8 +102,15 @@ impl RelmGridItem for PhotoGridItem {
             .label
             .set_text(format!("{}", self.folder_name).as_str());
 
-        widgets.picture.add_write_only_binding(&self.edge_length, "width-request");
-        widgets.picture.add_write_only_binding(&self.edge_length, "height-request");
+        // If we repeatedly bind, then Fotema will die with the following error:
+        // (fotema:2): GLib-GObject-CRITICAL **: 13:26:14.297: Too many GWeakRef registered
+        // GLib-GObject:ERROR:../gobject/gbinding.c:805:g_binding_constructed: assertion failed: (source != NULL)
+        // Bail out! GLib-GObject:ERROR:../gobject/gbinding.c:805:g_binding_constructed: assertion failed: (source != NULL)
+        if !self.is_bound {
+            widgets.picture.add_write_only_binding(&self.edge_length, "width-request");
+            widgets.picture.add_write_only_binding(&self.edge_length, "height-request");
+            self.is_bound = true;
+        }
 
         if self.picture.thumbnail_path.as_ref().is_some_and(|x| x.exists())
         {
@@ -235,6 +245,7 @@ impl FoldersAlbum {
                 folder_name: first.folder_name().unwrap_or("-".to_string()),
                 picture: first.clone(),
                 edge_length: self.edge_length.clone(),
+                is_bound: false,
             };
             pictures.push(album);
         }

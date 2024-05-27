@@ -65,6 +65,9 @@ struct PhotoGridItem {
 
     // Length of thumbnail edge to allow for resizing when layout changes.
     edge_length: I32Binding,
+
+    // If the gtk::Picture has been bound to edge_length.
+    is_bound: bool,
 }
 
 struct PhotoGridItemWidgets {
@@ -138,8 +141,17 @@ impl RelmGridItem for PhotoGridItem {
     fn bind(&mut self, widgets: &mut Self::Widgets, _root: &mut Self::Root) {
         // Bindings to allow dynamic update of thumbnail width and height
         // when layout changes between wide and narrow
-        widgets.picture.add_write_only_binding(&self.edge_length, "width-request");
-        widgets.picture.add_write_only_binding(&self.edge_length, "height-request");
+
+        // If we repeatedly bind, then Fotema will die with the following error:
+        // (fotema:2): GLib-GObject-CRITICAL **: 13:26:14.297: Too many GWeakRef registered
+        // GLib-GObject:ERROR:../gobject/gbinding.c:805:g_binding_constructed: assertion failed: (source != NULL)
+        // Bail out! GLib-GObject:ERROR:../gobject/gbinding.c:805:g_binding_constructed: assertion failed: (source != NULL)
+
+        if !self.is_bound {
+            widgets.picture.add_write_only_binding(&self.edge_length, "width-request");
+            widgets.picture.add_write_only_binding(&self.edge_length, "height-request");
+            self.is_bound = true;
+        }
 
         if self.visual.thumbnail_path.as_ref().is_some_and(|x| x.exists()) {
             widgets.picture.set_filename(self.visual.thumbnail_path.clone());
@@ -309,6 +321,7 @@ impl Album {
                 .map(|visual| PhotoGridItem {
                     visual: visual.clone(),
                     edge_length: self.edge_length.clone(),
+                    is_bound: false,
                 })
                 .collect::<Vec<PhotoGridItem>>()
         };
