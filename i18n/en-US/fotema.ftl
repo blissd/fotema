@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 ## Terms
+
 # See https://projectfluent.org/fluent/guide/terms.html
 
 -app-name = Fotema
@@ -207,6 +208,7 @@ progress-convert-videos = Converting videos.
 progress-idle = Idle.
 
 ## Notification banner for background tasks
+
 # Similar to the progress bar, but allows for longer messages.
 
 # Scanning file system for new photos
@@ -234,6 +236,7 @@ banner-clean-photos = Photo database maintenance.
 banner-clean-videos = Video database maintenance.
 
 ## Primary menu
+
 # The "hamburger" menu on the main app navigation sidebar.
 
 # Menu item to show preferences dialog

@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 ## Terms
+
 # See https://projectfluent.org/fluent/guide/terms.html
 
 -app-name = Fotema
@@ -58,7 +59,6 @@ month-thumbnail-label = { $month ->
    [12] दिसम्बर {$year}
   *[other] {$year}
 }
-
 
 ## About Dialog
 
@@ -193,6 +193,7 @@ progress-convert-videos = वीडियो परिवर्तित कि�
 progress-idle = निष्क्रिय।
 
 ## Notification banner for background tasks
+
 # Similar to the progress bar, but allows for longer messages.
 
 # Scanning file system for new photos
@@ -219,6 +220,7 @@ banner-clean-photos = फोटो डेटाबेस का रखरखा�
 banner-clean-videos = वीडियो डेटाबेस का रखरखाव।
 
 ## Primary menu
+
 # The "hamburger" menu on the main app navigation sidebar.
 
 # Menu item to show preferences dialog

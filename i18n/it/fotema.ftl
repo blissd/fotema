@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 ## Terms
+
 # See https://projectfluent.org/fluent/guide/terms.html
 
 -app-name = Fotema
@@ -111,7 +112,7 @@ viewer-mute =
   .tooltip = Muto/Smuta
 
 # Convert all incompatible videos description
-viewer-convert-all-description = Questo video deve essere convertito prima di poter essere riprodotto. Questo deve accadere solo una volta, ma ci vuole un po' di tempo per convertire un video.
+viewer-convert-all-description = Questo video deve essere convertito prima di poter essere riprodotto. Questo deve accadere solo una volta, ma ci vuole un po’ di tempo per convertire un video.
 
 viewer-convert-all-button = Converti tutti i video incompatibili
 
@@ -192,6 +193,7 @@ progress-convert-videos = Conversione di video.
 progress-idle = Inattivo.
 
 ## Notification banner for background tasks
+
 # Similar to the progress bar, but allows for longer messages.
 
 # Scanning file system for new photos
@@ -207,10 +209,10 @@ banner-metadata-photos =Elaborazione dei metadati delle foto.
 banner-metadata-videos = Elaborazione dei metadati video.
 
 # Generating thumbnails for all photos.
-banner-thumbnails-photos = Generazione di miniature di foto. Ci vorrà un po' di tempo.
+banner-thumbnails-photos = Generazione di miniature di foto. Ci vorrà un po’ di tempo.
 
 # Generating thumbnails for all videos.
-banner-thumbnails-videos = Generazione di miniature dei video. Ci vorrà un po' di tempo.
+banner-thumbnails-videos = Generazione di miniature dei video. Ci vorrà un po’ di tempo.
 
 # Updating the database to remove details of absent photos.
 banner-clean-photos = Manutenzione del database fotografico.
@@ -219,6 +221,7 @@ banner-clean-photos = Manutenzione del database fotografico.
 banner-clean-videos = Manutenzione del database video.
 
 ## Primary menu
+
 # The "hamburger" menu on the main app navigation sidebar.
 
 # Menu item to show preferences dialog
