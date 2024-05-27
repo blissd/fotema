@@ -13,9 +13,11 @@ use relm4::gtk::prelude::*;
 use relm4::gtk::gdk_pixbuf;
 use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
 use relm4::*;
-use relm4::binding::*;
 use std::path::Path;
 use std::sync::Arc;
+use std::rc::Rc;
+use std::cell::RefCell;
+use std::collections::HashSet;
 
 use crate::app::adaptive;
 use crate::app::SharedState;
@@ -63,11 +65,8 @@ pub enum AlbumOutput {
 struct PhotoGridItem {
     visual: Arc<fotema_core::visual::Visual>,
 
-    // Length of thumbnail edge to allow for resizing when layout changes.
-    edge_length: I32Binding,
-
-    // If the gtk::Picture has been bound to edge_length.
-    is_bound: bool,
+    // Set of all thumbnails to allow for easy resizing on layout change.
+    thumbnails: Rc<RefCell<HashSet<gtk::Picture>>>,
 }
 
 struct PhotoGridItemWidgets {
@@ -141,18 +140,11 @@ impl RelmGridItem for PhotoGridItem {
     }
 
     fn bind(&mut self, widgets: &mut Self::Widgets, _root: &mut Self::Root) {
-        // Bindings to allow dynamic update of thumbnail width and height
-        // when layout changes between wide and narrow
 
-        // If we repeatedly bind, then Fotema will die with the following error:
-        // (fotema:2): GLib-GObject-CRITICAL **: 13:26:14.297: Too many GWeakRef registered
-        // GLib-GObject:ERROR:../gobject/gbinding.c:805:g_binding_constructed: assertion failed: (source != NULL)
-        // Bail out! GLib-GObject:ERROR:../gobject/gbinding.c:805:g_binding_constructed: assertion failed: (source != NULL)
-
-        if !self.is_bound {
-            widgets.picture.add_write_only_binding(&self.edge_length, "width-request");
-            widgets.picture.add_write_only_binding(&self.edge_length, "height-request");
-            self.is_bound = true;
+        // Add our picture to the set of all pictures so it can be easily resized
+        // when the window dimensions changes between wide and narrow.
+        if !self.thumbnails.borrow().contains(&widgets.picture) {
+            self.thumbnails.borrow_mut().insert(widgets.picture.clone());
         }
 
         if self.visual.thumbnail_path.as_ref().is_some_and(|x| x.exists()) {
@@ -217,29 +209,28 @@ pub struct Album {
     view_name: ViewName,
     photo_grid: TypedGridView<PhotoGridItem, gtk::SingleSelection>,
     filter: AlbumFilter,
-    edge_length: I32Binding,
+    layout: adaptive::Layout,
+    thumbnails: Rc<RefCell<HashSet<gtk::Picture>>>,
 }
 
-#[relm4::component(pub)]
+pub struct AlbumWidgets {
+    // All pictures referenced by grid view.
+    thumbnails: Rc<RefCell<HashSet<gtk::Picture>>>,
+}
+
+
+//#[relm4::component(pub)]
 impl SimpleComponent for Album {
     type Init = (SharedState, ActiveView, ViewName, AlbumFilter);
     type Input = AlbumInput;
     type Output = AlbumOutput;
+    type Root = gtk::ScrolledWindow;
+    type Widgets = AlbumWidgets;
 
-    view! {
-        gtk::ScrolledWindow {
-            set_vexpand: true,
-
-            #[local_ref]
-            grid_view -> gtk::GridView {
-                set_orientation: gtk::Orientation::Vertical,
-                set_single_click_activate: true,
-
-                connect_activate[sender] => move |_, idx| {
-                    sender.input(AlbumInput::Selected(idx))
-                },
-            }
-        }
+    fn init_root() -> Self::Root {
+        gtk::ScrolledWindow::builder()
+            .vexpand(true)
+            .build()
     }
 
     fn init(
@@ -248,7 +239,11 @@ impl SimpleComponent for Album {
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
         let photo_grid = TypedGridView::new();
-        let grid_view = &photo_grid.view.clone();
+
+        let grid_view = &photo_grid.view;
+        grid_view.set_orientation(gtk::Orientation::Vertical);
+        grid_view.set_single_click_activate(true);
+        grid_view.connect_activate(move |_, idx| sender.input(AlbumInput::Selected(idx)));
 
         let mut model = Album {
             state,
@@ -256,12 +251,18 @@ impl SimpleComponent for Album {
             view_name,
             photo_grid,
             filter,
-            edge_length: I32Binding::new(NARROW_EDGE_LENGTH),
+            layout: adaptive::Layout::Narrow,
+            thumbnails: Rc::new(RefCell::new(HashSet::new())),
         };
 
         model.update_filter();
 
-        let widgets = view_output!();
+        let widgets = AlbumWidgets {
+            thumbnails: model.thumbnails.clone(),
+        };
+
+        root.set_child(Some(&model.photo_grid.view));
+
         ComponentParts { model, widgets }
     }
 
@@ -303,14 +304,31 @@ impl SimpleComponent for Album {
                     self.photo_grid.view.scroll_to(index, flags, None);
                 }
             },
-            AlbumInput::Adapt(adaptive::Layout::Narrow) => {
-                self.edge_length.set_value(NARROW_EDGE_LENGTH);
-            },
-            AlbumInput::Adapt(adaptive::Layout::Wide) => {
-                self.edge_length.set_value(WIDE_EDGE_LENGTH);
+            AlbumInput::Adapt(layout) => {
+                self.layout = layout;
             },
         }
     }
+
+    fn update_view(&self, widgets: &mut Self::Widgets, _sender: ComponentSender<Self>) {
+        match self.layout {
+            // Update thumbnail size depending on adaptive layout type
+            adaptive::Layout::Narrow => {
+                let pics = widgets.thumbnails.borrow_mut();
+                for pic in pics.iter() {
+                    pic.set_width_request(NARROW_EDGE_LENGTH);
+                    pic.set_height_request(NARROW_EDGE_LENGTH);
+                }
+            },
+            adaptive::Layout::Wide => {
+                let pics = widgets.thumbnails.borrow_mut();
+                for pic in pics.iter() {
+                    pic.set_width_request(WIDE_EDGE_LENGTH);
+                    pic.set_height_request(WIDE_EDGE_LENGTH);
+                }
+             },
+         }
+     }
 }
 
 impl Album {
@@ -322,15 +340,13 @@ impl Album {
                 .iter()
                 .map(|visual| PhotoGridItem {
                     visual: visual.clone(),
-                    edge_length: self.edge_length.clone(),
-                    is_bound: false,
+                    thumbnails: self.thumbnails.clone(),
                 })
                 .collect::<Vec<PhotoGridItem>>()
         };
 
+        self.thumbnails.borrow_mut().clear();
         self.photo_grid.clear();
-
-        //self.photo_grid.add_filter(move |item| (self.photo_grid_filter)(&item.picture));
         self.photo_grid.extend_from_iter(all);
 
         if !self.photo_grid.is_empty() {
