@@ -119,7 +119,13 @@ viewer-error-failed-to-load = Failed to load
 # Viewer could not display an image or video because it is missing.
 # Variables:
 #  file_name - (String) path of missing file.
-viewer-error-missing-file = Cannot display file '{$file_name} because it isn't there.
+viewer-error-missing-file = Cannot display file because it is missing:
+  {$file_name}
+
+# Viewer could not display a file because database entry doesn't have file path.
+# If this situation occurs, then I've mucked up the SQL view query and a bug should
+# be raised.
+viewer-error-missing-path = File path not present in database
 
 ## Photo/Video Information Sidebar
 
