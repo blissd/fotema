@@ -110,7 +110,7 @@ viewer-mute =
 # Convert all incompatible videos description
 viewer-convert-all-description = Questo video deve essere convertito prima di poter essere riprodotto. Questo deve accadere solo una volta, ma ci vuole un po' di tempo per convertire un video.
 
-viewer-convert-all-button = Convert all incompatible videos
+viewer-convert-all-button = Converti tutti i video incompatibili
 
 ## Photo/Video Information Sidebar
 
