@@ -8,10 +8,10 @@ use relm4::gtk::prelude::*;
 use relm4::*;
 use relm4::prelude::*;
 
-use super::albums::album_filter::AlbumFilter;
-use super::one_photo::{OnePhoto, OnePhotoInput, OnePhotoOutput};
-use super::photo_info::{PhotoInfo, PhotoInfoInput};
-use super::progress_monitor::ProgressMonitor;
+use crate::app::components::albums::album_filter::AlbumFilter;
+use super::view_one::{ViewOne, ViewOneInput, ViewOneOutput};
+use super::view_info::{ViewInfo, ViewInfoInput};
+use crate::app::components::progress_monitor::ProgressMonitor;
 use crate::app::SharedState;
 use crate::adaptive;
 use crate::fl;
@@ -23,7 +23,7 @@ use std::sync::Arc;
 use tracing::{event, Level};
 
 #[derive(Debug)]
-pub enum ViewerInput {
+pub enum ViewNavInput {
     // View an item after applying an album filter.
     View(VisualId, AlbumFilter),
 
@@ -52,18 +52,18 @@ pub enum ViewerInput {
 }
 
 #[derive(Debug)]
-pub enum ViewerOutput {
+pub enum ViewNavOutput {
     TranscodeAll,
 }
 
-pub struct Viewer {
+pub struct ViewNav {
     state: SharedState,
 
-    // Info for photo
-    one_photo: AsyncController<OnePhoto>,
+    // View one photo or video
+    view_one: AsyncController<ViewOne>,
 
     // Info for photo
-    photo_info: Controller<PhotoInfo>,
+    view_info: Controller<ViewInfo>,
 
     // Photo and photo info views
     split_view: adw::OverlaySplitView,
@@ -82,10 +82,10 @@ pub struct Viewer {
 }
 
 #[relm4::component(pub async)]
-impl SimpleAsyncComponent for Viewer {
+impl SimpleAsyncComponent for ViewNav {
     type Init = (SharedState, Arc<Reducer<ProgressMonitor>>, Arc<adaptive::LayoutState>);
-    type Input = ViewerInput;
-    type Output = ViewerOutput;
+    type Input = ViewNavInput;
+    type Output = ViewNavOutput;
 
     view! {
         adw::ToolbarView {
@@ -93,7 +93,7 @@ impl SimpleAsyncComponent for Viewer {
                 pack_end = &gtk::Button {
                     set_icon_name: "info-outline-symbolic",
                     set_tooltip_text: Some(&fl!("viewer-info-tooltip")),
-                    connect_clicked => ViewerInput::ToggleInfo,
+                    connect_clicked => ViewNavInput::ToggleInfo,
                 }
             },
 
@@ -104,7 +104,7 @@ impl SimpleAsyncComponent for Viewer {
                 set_show_sidebar: false,
 
                 #[wrap(Some)]
-                set_sidebar = model.photo_info.widget(),
+                set_sidebar = model.view_info.widget(),
 
                 set_sidebar_position: gtk::PackType::End,
 
@@ -123,7 +123,7 @@ impl SimpleAsyncComponent for Viewer {
                             add_css_class: "osd",
                             add_css_class: "circular",
                             set_tooltip_text: Some(&fl!("viewer-previous", "tooltip")),
-                            connect_clicked => ViewerInput::GoLeft,
+                            connect_clicked => ViewNavInput::GoLeft,
                         },
                     },
 
@@ -140,12 +140,12 @@ impl SimpleAsyncComponent for Viewer {
                             add_css_class: "osd",
                             add_css_class: "circular",
                             set_tooltip_text: Some(&fl!("viewer-next", "tooltip")),
-                            connect_clicked => ViewerInput::GoRight,
+                            connect_clicked => ViewNavInput::GoRight,
                         },
                     },
 
                     #[wrap(Some)]
-                    set_child = model.one_photo.widget(),
+                    set_child = model.view_one.widget(),
                 },
             }
         }
@@ -159,27 +159,27 @@ impl SimpleAsyncComponent for Viewer {
 
         let split_view = adw::OverlaySplitView::new();
 
-        let one_photo = OnePhoto::builder()
+        let view_one = ViewOne::builder()
             .launch(transcode_progress_monitor)
             .forward(sender.input_sender(), |msg| match msg {
-                OnePhotoOutput::PhotoShown(id, info) => ViewerInput::ShowPhotoInfo(id, info),
-                OnePhotoOutput::VideoShown(id) => ViewerInput::ShowVideoInfo(id),
-                OnePhotoOutput::TranscodeAll => ViewerInput::TranscodeAll,
+                ViewOneOutput::PhotoShown(id, info) => ViewNavInput::ShowPhotoInfo(id, info),
+                ViewOneOutput::VideoShown(id) => ViewNavInput::ShowVideoInfo(id),
+                ViewOneOutput::TranscodeAll => ViewNavInput::TranscodeAll,
             });
 
-        let photo_info = PhotoInfo::builder()
+        let view_info = ViewInfo::builder()
             .launch(state.clone())
             .detach();
 
-        layout_state.subscribe(sender.input_sender(), |layout| ViewerInput::Adapt(layout.clone()));
+        layout_state.subscribe(sender.input_sender(), |layout| ViewNavInput::Adapt(layout.clone()));
 
         let left_button = gtk::Button::new();
         let right_button = gtk::Button::new();
 
-        let model = Viewer {
+        let model = ViewNav {
             state,
-            one_photo,
-            photo_info,
+            view_one,
+            view_info,
             current_index: None,
             left_button: left_button.clone(),
             right_button: right_button.clone(),
@@ -195,10 +195,10 @@ impl SimpleAsyncComponent for Viewer {
 
     async fn update(&mut self, msg: Self::Input, sender: AsyncComponentSender<Self>) {
         match msg {
-            ViewerInput::Hidden => {
-                self.one_photo.emit(OnePhotoInput::Hidden);
+            ViewNavInput::Hidden => {
+                self.view_one.emit(ViewOneInput::Hidden);
             },
-            ViewerInput::View(visual_id, filter) => {
+            ViewNavInput::View(visual_id, filter) => {
                 event!(Level::INFO, "Showing item for {}", visual_id);
 
                 // To support next/previous navigation we must have a view of the visual
@@ -218,10 +218,10 @@ impl SimpleAsyncComponent for Viewer {
                     .position(|x| x.visual_id == visual_id);
 
                 if let Some(index) = self.current_index {
-                    sender.input(ViewerInput::ViewByIndex(index));
+                    sender.input(ViewNavInput::ViewByIndex(index));
                 }
             },
-            ViewerInput::ViewByIndex(index) => {
+            ViewNavInput::ViewByIndex(index) => {
 
                 if index >= self.filtered_items.len() || self.filtered_items.is_empty() {
                     event!(Level::ERROR, "Cannot view at index {}. Number of filtered_items is {}", index, self.filtered_items.len());
@@ -233,25 +233,25 @@ impl SimpleAsyncComponent for Viewer {
 
                 self.update_nav_buttons();
 
-                self.one_photo.emit(OnePhotoInput::View(visual.clone()));
+                self.view_one.emit(ViewOneInput::View(visual.clone()));
             },
-            ViewerInput::ToggleInfo => {
+            ViewNavInput::ToggleInfo => {
                 let show = self.split_view.shows_sidebar();
                 self.split_view.set_show_sidebar(!show);
             },
-            ViewerInput::ShowPhotoInfo(visual_id, image_info) => {
-                self.photo_info.emit(PhotoInfoInput::Photo(visual_id, image_info));
+            ViewNavInput::ShowPhotoInfo(visual_id, image_info) => {
+                self.view_info.emit(ViewInfoInput::Photo(visual_id, image_info));
             },
-            ViewerInput::ShowVideoInfo(visual_id) => {
-                self.photo_info.emit(PhotoInfoInput::Video(visual_id));
+            ViewNavInput::ShowVideoInfo(visual_id) => {
+                self.view_info.emit(ViewInfoInput::Video(visual_id));
             },
-            ViewerInput::TranscodeAll => {
+            ViewNavInput::TranscodeAll => {
                 event!(Level::INFO, "Transcode all");
                 // FIXME refactor to remove message forwarding.
-                // OnePhoto should send straight to transcoder.
-                let _ = sender.output(ViewerOutput::TranscodeAll);
+                // ViewOne should send straight to transcoder.
+                let _ = sender.output(ViewNavOutput::TranscodeAll);
             },
-            ViewerInput::GoLeft => {
+            ViewNavInput::GoLeft => {
                 let Some(index) = self.current_index else {
                     return;
                 };
@@ -260,9 +260,9 @@ impl SimpleAsyncComponent for Viewer {
                     return;
                 }
 
-                sender.input(ViewerInput::ViewByIndex(index - 1));
+                sender.input(ViewNavInput::ViewByIndex(index - 1));
             },
-            ViewerInput::GoRight => {
+            ViewNavInput::GoRight => {
                 let Some(index) = self.current_index else {
                     return;
                 };
@@ -271,14 +271,14 @@ impl SimpleAsyncComponent for Viewer {
                     return;
                 }
 
-                sender.input(ViewerInput::ViewByIndex(index + 1));
+                sender.input(ViewNavInput::ViewByIndex(index + 1));
             },
-            ViewerInput::Adapt(adaptive::Layout::Narrow) => {
+            ViewNavInput::Adapt(adaptive::Layout::Narrow) => {
                 let show = self.split_view.shows_sidebar();
                 self.split_view.set_collapsed(true);
                 self.split_view.set_show_sidebar(show);
             },
-            ViewerInput::Adapt(adaptive::Layout::Wide) => {
+            ViewNavInput::Adapt(adaptive::Layout::Wide) => {
                 let show = self.split_view.shows_sidebar();
                 self.split_view.set_collapsed(false);
                 self.split_view.set_show_sidebar(show);
@@ -287,7 +287,7 @@ impl SimpleAsyncComponent for Viewer {
     }
 }
 
-impl Viewer {
+impl ViewNav {
     fn update_nav_buttons(&self) {
         if self.filtered_items.is_empty() {
             self.left_button.set_sensitive(false);

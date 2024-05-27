@@ -5,8 +5,6 @@
 pub mod about;
 pub mod preferences;
 pub mod albums;
-pub mod one_photo;
-pub mod photo_info;
 pub mod library;
 pub mod progress_monitor;
 pub mod progress_panel;

@@ -25,13 +25,13 @@ use crate::fl;
 use tracing::{event, Level};
 
 #[derive(Debug)]
-pub enum PhotoInfoInput {
+pub enum ViewInfoInput {
     Photo(VisualId, ImageInfo),
     Video(VisualId),
     OpenFolder,
 }
 
-pub struct PhotoInfo {
+pub struct ViewInfo {
     state: SharedState,
 
     path: Option<PathBuf>,
@@ -64,9 +64,9 @@ pub struct PhotoInfo {
 
 
 #[relm4::component(pub)]
-impl SimpleComponent for PhotoInfo {
+impl SimpleComponent for ViewInfo {
     type Init = SharedState;
-    type Input = PhotoInfoInput;
+    type Input = ViewInfoInput;
     type Output = ();
 
     view! {
@@ -89,7 +89,7 @@ impl SimpleComponent for PhotoInfo {
                             set_icon_name: "folder-open-symbolic",
                             set_tooltip_text: Some(&fl!("infobar-folder", "tooltip")),
                             add_css_class: "flat",
-                            connect_clicked => PhotoInfoInput::OpenFolder,
+                            connect_clicked => ViewInfoInput::OpenFolder,
                         }
                     },
 
@@ -246,7 +246,7 @@ impl SimpleComponent for PhotoInfo {
         let video_file_size = adw::ActionRow::new();
         let video_originally_created_at = adw::ActionRow::new();
 
-        let model = PhotoInfo {
+        let model = ViewInfo {
             state,
 
             folder: folder.clone(),
@@ -283,7 +283,7 @@ impl SimpleComponent for PhotoInfo {
 
     fn update(&mut self, msg: Self::Input, _sender: ComponentSender<Self>) {
         match msg {
-            PhotoInfoInput::OpenFolder => {
+            ViewInfoInput::OpenFolder => {
                 let Some(ref path) = self.path else {
                     return;
                 };
@@ -291,7 +291,7 @@ impl SimpleComponent for PhotoInfo {
                 let launcher = gtk::FileLauncher::new(Some(&file));
                 launcher.open_containing_folder(None::<&adw::ApplicationWindow>, None::<&gio::Cancellable>, |_| ());
             },
-            PhotoInfoInput::Photo(ref visual_id, ref image_info) => {
+            ViewInfoInput::Photo(ref visual_id, ref image_info) => {
                 let result = {
                     let data = self.state.read();
                     data.iter().find(|&x| x.visual_id == *visual_id).cloned()
@@ -310,7 +310,7 @@ impl SimpleComponent for PhotoInfo {
                     let _ = self.update_photo_details(vis.clone(), image_info);
                 }
             },
-            PhotoInfoInput::Video(ref visual_id) => {
+            ViewInfoInput::Video(ref visual_id) => {
                 let result = {
                     let data = self.state.read();
                     data.iter().find(|&x| x.visual_id == *visual_id).cloned()
@@ -337,7 +337,7 @@ impl SimpleComponent for PhotoInfo {
 /// Value row subtitle when value absent.
 const FALLBACK: &str = "–";
 
-impl PhotoInfo {
+impl ViewInfo {
 
     fn update_file_details(&mut self, vis: Arc<fotema_core::visual::Visual>) -> Result<(), String> {
         let Some(ref path) = vis.path() else {

@@ -27,7 +27,7 @@ const TEN_SECS_IN_MICROS: i64 = 10_000_000;
 const FIFTEEN_SECS_IN_MICROS: i64 = 15_000_000;
 
 #[derive(Debug)]
-pub enum OnePhotoInput {
+pub enum ViewOneInput {
     // View an item.
     View(Arc<Visual>),
 
@@ -55,7 +55,7 @@ pub enum OnePhotoInput {
 }
 
 #[derive(Debug)]
-pub enum OnePhotoOutput {
+pub enum ViewOneOutput {
     TranscodeAll,
 
     PhotoShown(VisualId, glycin::ImageInfo),
@@ -63,7 +63,7 @@ pub enum OnePhotoOutput {
     VideoShown(VisualId),
 }
 
-pub struct OnePhoto {
+pub struct ViewOne {
     picture: gtk::Picture,
 
     video: Option<gtk::MediaFile>,
@@ -90,10 +90,10 @@ pub struct OnePhoto {
 }
 
 #[relm4::component(pub async)]
-impl SimpleAsyncComponent for OnePhoto {
+impl SimpleAsyncComponent for ViewOne {
     type Init = Arc<Reducer<ProgressMonitor>>;
-    type Input = OnePhotoInput;
-    type Output = OnePhotoOutput;
+    type Input = ViewOneInput;
+    type Output = ViewOneOutput;
 
     view! {
         gtk::Box {
@@ -137,7 +137,7 @@ impl SimpleAsyncComponent for OnePhoto {
                             add_css_class: "circular",
                             add_css_class: "osd",
                             set_tooltip_text: Some(&fl!("viewer-skip-backwards-10-seconds", "tooltip")),
-                            connect_clicked => OnePhotoInput::SkipBackwards,
+                            connect_clicked => ViewOneInput::SkipBackwards,
                         },
 
                         #[local_ref]
@@ -146,7 +146,7 @@ impl SimpleAsyncComponent for OnePhoto {
                             add_css_class: "circular",
                             add_css_class: "osd",
                             set_tooltip_text: Some(&fl!("viewer-play", "tooltip")),
-                            connect_clicked => OnePhotoInput::PlayToggle,
+                            connect_clicked => ViewOneInput::PlayToggle,
                         },
 
                         #[local_ref]
@@ -155,7 +155,7 @@ impl SimpleAsyncComponent for OnePhoto {
                             add_css_class: "circular",
                             add_css_class: "osd",
                             set_tooltip_text: Some(&fl!("viewer-skip-forward-10-seconds", "tooltip")),
-                            connect_clicked => OnePhotoInput::SkipForward,
+                            connect_clicked => ViewOneInput::SkipForward,
                         },
 
                         #[local_ref]
@@ -165,7 +165,7 @@ impl SimpleAsyncComponent for OnePhoto {
                             add_css_class: "circular",
                             add_css_class: "osd",
                             set_tooltip_text: Some(&fl!("viewer-mute", "tooltip")),
-                            connect_clicked => OnePhotoInput::MuteToggle,
+                            connect_clicked => ViewOneInput::MuteToggle,
                         },
                     },
                 },
@@ -201,7 +201,7 @@ impl SimpleAsyncComponent for OnePhoto {
                             set_label: &fl!("viewer-convert-all-button"),
                             add_css_class: "suggested-action",
                             add_css_class: "pill",
-                            connect_clicked => OnePhotoInput::TranscodeAll,
+                            connect_clicked => ViewOneInput::TranscodeAll,
                         },
 
                         model.transcode_progress.widget(),
@@ -250,7 +250,7 @@ impl SimpleAsyncComponent for OnePhoto {
 
         let broken_status = adw::StatusPage::new();
 
-        let model = OnePhoto {
+        let model = ViewOne {
             picture: picture.clone(),
             video: None,
             video_controls: video_controls.clone(),
@@ -272,11 +272,11 @@ impl SimpleAsyncComponent for OnePhoto {
 
     async fn update(&mut self, msg: Self::Input, sender: AsyncComponentSender<Self>) {
         match msg {
-            OnePhotoInput::Hidden => {
+            ViewOneInput::Hidden => {
                 self.video = None;
                 self.picture.set_paintable(None::<&gdk::Paintable>);
             },
-            OnePhotoInput::View(visual) => {
+            ViewOneInput::View(visual) => {
                 event!(Level::INFO, "Showing item for {}", visual.visual_id);
 
                 self.picture.set_visible(false);
@@ -350,7 +350,7 @@ impl SimpleAsyncComponent for OnePhoto {
                     self.picture.set_paintable(Some(&texture));
                     self.picture.set_visible(true);
 
-                    let _ = sender.output(OnePhotoOutput::PhotoShown(visual.visual_id.clone(), image.info().clone()));
+                    let _ = sender.output(ViewOneOutput::PhotoShown(visual.visual_id.clone(), image.info().clone()));
                 } else { // video or motion photo
                     let is_transcoded = visual.video_transcoded_path.as_ref().is_some_and(|x| x.exists());
 
@@ -396,16 +396,16 @@ impl SimpleAsyncComponent for OnePhoto {
                             // send a message to unmute. This seems to work around the problem
                             // of videos staying muted after viewing muting and unmuting.
                             video.set_muted(true);
-                            sender.input(OnePhotoInput::MuteToggle);
+                            sender.input(ViewOneInput::MuteToggle);
 
                             video.set_loop(false);
 
                             let sender1 = sender.clone();
                             let sender2 = sender.clone();
                             let sender3 = sender.clone();
-                            video.connect_ended_notify(move |_| sender1.input(OnePhotoInput::VideoEnded));
-                            video.connect_timestamp_notify(move |_| sender2.input(OnePhotoInput::Timestamp));
-                            video.connect_prepared_notify(move |_| sender3.input(OnePhotoInput::Prepared));
+                            video.connect_ended_notify(move |_| sender1.input(ViewOneInput::VideoEnded));
+                            video.connect_timestamp_notify(move |_| sender2.input(ViewOneInput::Timestamp));
+                            video.connect_prepared_notify(move |_| sender3.input(ViewOneInput::Prepared));
                         }
 
                         video.play();
@@ -414,11 +414,11 @@ impl SimpleAsyncComponent for OnePhoto {
                         self.video = Some(video);
                         self.picture.set_paintable(self.video.as_ref());
                         self.picture.set_visible(true);
-                        let _ = sender.output(OnePhotoOutput::VideoShown(visual.visual_id.clone()));
+                        let _ = sender.output(ViewOneOutput::VideoShown(visual.visual_id.clone()));
                     }
                 }
             },
-            OnePhotoInput::Prepared => {
+            ViewOneInput::Prepared => {
                 // Video details, like duration, aren't available until the video
                 // has been prepared.
                 if let Some(ref video) = self.video {
@@ -431,7 +431,7 @@ impl SimpleAsyncComponent for OnePhoto {
                     }
                 }
             },
-            OnePhotoInput::MuteToggle => {
+            ViewOneInput::MuteToggle => {
                 if let Some(ref video) = self.video {
                     if video.is_muted() {
                         self.mute_button.set_icon_name("multimedia-volume-control-symbolic");
@@ -442,7 +442,7 @@ impl SimpleAsyncComponent for OnePhoto {
                     }
                 }
             },
-            OnePhotoInput::PlayToggle => {
+            ViewOneInput::PlayToggle => {
                 if let Some(ref video) = self.video {
                     if video.is_ended() {
                         video.seek(0);
@@ -455,7 +455,7 @@ impl SimpleAsyncComponent for OnePhoto {
                         // to work around that.
                         video.play();
                         video.pause();
-                        sender.input(OnePhotoInput::PlayToggle);
+                        sender.input(ViewOneInput::PlayToggle);
                     } else if video.is_playing() {
                         video.pause();
                         self.play_button.set_icon_name("play-symbolic");
@@ -466,7 +466,7 @@ impl SimpleAsyncComponent for OnePhoto {
                     }
                 }
             },
-            OnePhotoInput::SkipBackwards => {
+            ViewOneInput::SkipBackwards => {
                 if let Some(ref video) = self.video {
                     let ts = video.timestamp();
                     if video.is_ended() {
@@ -474,7 +474,7 @@ impl SimpleAsyncComponent for OnePhoto {
                         video.play();
                         video.pause();
                         self.play_button.set_icon_name("play-symbolic");
-                        sender.input(OnePhotoInput::PlayToggle);
+                        sender.input(ViewOneInput::PlayToggle);
                         return;
                     } else if ts < TEN_SECS_IN_MICROS {
                         video.seek(0);
@@ -483,7 +483,7 @@ impl SimpleAsyncComponent for OnePhoto {
                     }
                 }
             },
-            OnePhotoInput::SkipForward => {
+            ViewOneInput::SkipForward => {
                 if let Some(ref video) = self.video {
                     let mut ts = video.timestamp();
                     if ts + TEN_SECS_IN_MICROS >= video.duration() {
@@ -496,21 +496,21 @@ impl SimpleAsyncComponent for OnePhoto {
                     video.seek(ts);
                 }
             },
-            OnePhotoInput::VideoEnded => {
+            ViewOneInput::VideoEnded => {
                 self.play_button.set_icon_name("arrow-circular-top-left-symbolic");
                 self.skip_forward.set_sensitive(false);
             },
-            OnePhotoInput::Timestamp => {
+            ViewOneInput::Timestamp => {
                 if let Some(ref video) = self.video {
                     let current_ts = fotema_core::time::format_hhmmss(&TimeDelta::microseconds(video.timestamp()));
                     let total_ts = fotema_core::time::format_hhmmss(&TimeDelta::microseconds(video.duration()));
                     self.video_timestamp.set_text(&format!("{}/{}", current_ts, total_ts));
                 }
             },
-            OnePhotoInput::TranscodeAll => {
+            ViewOneInput::TranscodeAll => {
                 event!(Level::INFO, "Transcode all");
                 self.transcode_button.set_visible(false);
-                let _ = sender.output(OnePhotoOutput::TranscodeAll);
+                let _ = sender.output(ViewOneOutput::TranscodeAll);
             },
         }
     }
