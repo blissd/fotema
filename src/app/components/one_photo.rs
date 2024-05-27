@@ -85,6 +85,8 @@ pub struct OnePhoto {
     transcode_status: adw::StatusPage,
 
     transcode_progress: Controller<ProgressPanel>,
+
+    broken_status: adw::StatusPage,
 }
 
 #[relm4::component(pub async)]
@@ -205,6 +207,15 @@ impl SimpleAsyncComponent for OnePhoto {
                         model.transcode_progress.widget(),
                     }
                 }
+            },
+
+            #[local_ref]
+            broken_status -> adw::StatusPage {
+                set_valign: gtk::Align::Start,
+                set_vexpand: true,
+
+                set_visible: false,
+                set_icon_name: Some("sad-computer-symbolic"),
             }
         }
     }
@@ -237,6 +248,7 @@ impl SimpleAsyncComponent for OnePhoto {
 
         let transcode_status = adw::StatusPage::new();
 
+        let broken_status = adw::StatusPage::new();
 
         let model = OnePhoto {
             picture: picture.clone(),
@@ -250,6 +262,7 @@ impl SimpleAsyncComponent for OnePhoto {
             transcode_button: transcode_button.clone(),
             transcode_status: transcode_status.clone(),
             transcode_progress,
+            broken_status: broken_status.clone(),
         };
 
         let widgets = view_output!();
@@ -266,9 +279,36 @@ impl SimpleAsyncComponent for OnePhoto {
             OnePhotoInput::View(visual) => {
                 event!(Level::INFO, "Showing item for {}", visual.visual_id);
 
-                let visual_path = visual.picture_path.clone()
-                    .or_else(|| visual.video_path.clone())
-                    .expect("Must have path");
+                self.picture.set_visible(false);
+                self.transcode_status.set_visible(false);
+                self.video_controls.set_visible(false);
+                self.broken_status.set_visible(false);
+
+                let visual_path = visual.picture_path.as_ref()
+                    .or_else(|| visual.video_path.as_ref());
+
+                let Some(visual_path) = visual_path else {
+                    if visual.is_video_only() {
+                        self.broken_status.set_icon_name(Some("item-missing-symbolic"));
+                    } else {
+                        self.broken_status.set_icon_name(Some("image-missing-symbolic"));
+                    }
+                    self.broken_status.set_description(Some(&fl!("viewer-error-missing-path")));
+                    self.broken_status.set_visible(true);
+                    return;
+                };
+
+                if !visual_path.exists() {
+                    if visual.is_video_only() {
+                        self.broken_status.set_icon_name(Some("item-missing-symbolic"));
+                    } else {
+                        self.broken_status.set_icon_name(Some("image-missing-symbolic"));
+                    }
+                    self.broken_status.set_description(Some(&fl!("viewer-error-missing-file",
+                        file_name = visual_path.to_string_lossy())));
+                    self.broken_status.set_visible(true);
+                    return;
+                }
 
                 self.picture.set_paintable(None::<&gdk::Paintable>);
                 self.video = None;
@@ -279,35 +319,36 @@ impl SimpleAsyncComponent for OnePhoto {
                 }
 
                 if visual.is_photo_only() {
-                    self.picture.set_visible(true);
-                    self.transcode_status.set_visible(false);
-                    self.video_controls.set_visible(false);
-
                     // Apply a CSS transformation to respect the EXIF orientation
                     let orientation = visual.picture_orientation
                         .unwrap_or(PictureOrientation::North);
                     self.picture.add_css_class(orientation.as_ref());
 
-                    let file = gio::File::for_path(visual_path.clone());
-                    let image_result = glycin::Loader::new(file).load().await;
+                    let file = gio::File::for_path(visual_path);
 
-                    let image = if let Ok(image) = image_result {
-                        image
-                    } else {
-                        event!(Level::ERROR, "Failed loading image: {:?}", image_result);
+                    let image = glycin::Loader::new(file).load().await;
+
+                    let Ok(image) = image else {
+                        event!(Level::ERROR, "Failed loading image: {:?}", image);
+                        self.broken_status.set_icon_name(Some("sad-computer-symbolic"));
+                        self.broken_status.set_description(Some(&fl!("viewer-error-failed-to-load")));
+                        self.broken_status.set_visible(true);
                         return;
                     };
 
-                    let frame = if let Ok(frame) = image.next_frame().await {
-                        frame
-                    } else {
-                        event!(Level::ERROR, "Failed getting image frame");
+                    let frame = image.next_frame().await;
+                    let Ok(frame) = frame else {
+                        event!(Level::ERROR, "Failed getting image frame: {:?}", frame);
+                        self.broken_status.set_icon_name(Some("sad-computer-symbolic"));
+                        self.broken_status.set_description(Some(&fl!("viewer-error-failed-to-load")));
+                        self.broken_status.set_visible(true);
                         return;
                     };
 
                     let texture = frame.texture;
 
                     self.picture.set_paintable(Some(&texture));
+                    self.picture.set_visible(true);
 
                     let _ = sender.output(OnePhotoOutput::PhotoShown(visual.visual_id.clone(), image.info().clone()));
                 } else { // video or motion photo
@@ -331,9 +372,9 @@ impl SimpleAsyncComponent for OnePhoto {
                             self.picture.add_css_class(orientation.as_ref());
                         }
 
-                        let video_path = visual.video_transcoded_path.clone()
+                        let video_path = visual.video_transcoded_path.as_ref()
                             .filter(|x| x.exists())
-                            .or_else(|| visual.video_path.clone())
+                            .or_else(|| visual.video_path.as_ref())
                             .expect("must have video path");
 
                         let video = gtk::MediaFile::for_filename(video_path);
@@ -372,6 +413,7 @@ impl SimpleAsyncComponent for OnePhoto {
 
                         self.video = Some(video);
                         self.picture.set_paintable(self.video.as_ref());
+                        self.picture.set_visible(true);
                         let _ = sender.output(OnePhotoOutput::VideoShown(visual.visual_id.clone()));
                     }
                 }

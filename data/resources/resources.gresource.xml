@@ -35,5 +35,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
     <file alias="multimedia-volume-control-symbolic.svg" preprocess="xml-stripblanks">icons/multimedia-volume-control-symbolic.svg</file>
     <file alias="audio-volume-muted-symbolic.svg" preprocess="xml-stripblanks">icons/audio-volume-muted-symbolic.svg</file>
     <file alias="arrow-circular-top-left-symbolic.svg" preprocess="xml-stripblanks">icons/arrow-circular-top-left-symbolic.svg</file>
+    <file alias="sad-computer-symbolic.svg" preprocess="xml-stripblanks">icons/sad-computer-symbolic.svg</file>
+    <file alias="item-missing-symbolic.svg" preprocess="xml-stripblanks">icons/item-missing-symbolic.svg</file>
   </gresource>
 </gresources>
