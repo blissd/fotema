@@ -371,6 +371,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf4b9d6a944f767f8e5e0db018570623c85f3d925ac718db4e06d0187adb21c1"
 
 [[package]]
+name = "bitreader"
+version = "0.3.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bdd859c9d97f7c468252795b35aeccc412bdbb1e90ee6969c4fa6328272eaeff"
+dependencies = [
+ "cfg-if",
+]
+
+[[package]]
 name = "bitstream-io"
 version = "2.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -402,6 +411,15 @@ dependencies = [
  "futures-io",
  "futures-lite",
  "piper",
+]
+
+[[package]]
+name = "boyer-moore-magiclen"
+version = "0.2.20"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "95e6233f2d926b5b123caf9d58e3885885255567fbe7776a7fdcae2a4d7241c4"
+dependencies = [
+ "debug-helper",
 ]
 
 [[package]]
@@ -642,6 +660,12 @@ dependencies = [
  "once_cell",
  "parking_lot_core",
 ]
+
+[[package]]
+name = "debug-helper"
+version = "0.3.13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f578e8e2c440e7297e008bb5486a3a8a194775224bbc23729b0dbdfaeebf162e"
 
 [[package]]
 name = "deranged"
@@ -1024,6 +1048,7 @@ dependencies = [
  "rayon",
  "refinery",
  "rusqlite",
+ "sm_motion_photo",
  "strum",
  "tempfile",
  "tracing",
@@ -2221,6 +2246,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "memmap"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6585fd95e7bb50d6cc31e20d4cf9afb4e2ba16c5846fc76793f11218da9c475b"
+dependencies = [
+ "libc",
+ "winapi",
+]
+
+[[package]]
 name = "memmap2"
 version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2252,6 +2287,18 @@ checksum = "87dfd01fe195c66b572b37921ad8803d010623c0aca821bea2302239d155cdae"
 dependencies = [
  "adler",
  "simd-adler32",
+]
+
+[[package]]
+name = "mp4parse"
+version = "0.11.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "23271c4426588287355ad91e1c86b253a3312b1881515dd7783e051f1b64a400"
+dependencies = [
+ "bitreader",
+ "byteorder",
+ "log",
+ "num-traits",
 ]
 
 [[package]]
@@ -3187,6 +3234,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8f92a496fb766b417c996b9c5e57daf2f7ad3b0bebe1ccfca4856390e3d3bb67"
 dependencies = [
  "autocfg",
+]
+
+[[package]]
+name = "sm_motion_photo"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "49006aa5edb8cda4bba3d46c8d2cf59b2330302ff4b422abe48959f4016bd365"
+dependencies = [
+ "boyer-moore-magiclen",
+ "memmap",
+ "mp4parse",
 ]
 
 [[package]]
