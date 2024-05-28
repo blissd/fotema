@@ -16,14 +16,12 @@ use relm4::gtk::prelude::FrameExt;
 use relm4::gtk::prelude::WidgetExt;
 use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
 use relm4::*;
+use relm4::binding::*;
 
 use fotema_core::Year;
 use fotema_core::YearMonth;
 use std::path;
 use std::sync::Arc;
-use std::rc::Rc;
-use std::cell::RefCell;
-use std::collections::HashSet;
 
 use crate::adaptive;
 use crate::app::SharedState;
@@ -40,20 +38,23 @@ const WIDE_EDGE_LENGTH: i32 = 200;
 struct PhotoGridItem {
     picture: Arc<fotema_core::visual::Visual>,
 
-    // Set of all thumbnails to allow for easy resizing on layout change.
-    thumbnails: Rc<RefCell<HashSet<gtk::Picture>>>,
+    // Length of thumbnail edge to allow for resizing when layout changes.
+    edge_length: I32Binding,
 }
 
 struct Widgets {
     picture: gtk::Picture,
     label: gtk::Label,
+
+    // If the gtk::Picture has been bound to edge_length.
+    is_bound: bool,
 }
 #[derive(Debug)]
 pub enum MonthsAlbumInput {
     Activate,
 
     /// A month has been selected in the grid view
-    Selected(u32), // WARN this is an index into a Vec, not a month
+    MonthSelected(u32), // WARN this is an index into a Vec, not a month
 
     /// Scroll to first photo of year
     GoToYear(Year),
@@ -105,7 +106,11 @@ impl RelmGridItem for PhotoGridItem {
             }
         }
 
-        let widgets = Widgets { picture, label };
+        let widgets = Widgets {
+            picture,
+            label,
+            is_bound: false,
+        };
 
         (root, widgets)
     }
@@ -113,10 +118,14 @@ impl RelmGridItem for PhotoGridItem {
     fn bind(&mut self, widgets: &mut Self::Widgets, _root: &mut Self::Root) {
         let ym = self.picture.year_month();
 
-        // Add our picture to the set of all pictures so it can be easily resized
-        // when the window dimensions changes between wide and narrow.
-        if !self.thumbnails.borrow().contains(&widgets.picture) {
-            self.thumbnails.borrow_mut().insert(widgets.picture.clone());
+        // If we repeatedly bind, then Fotema will die with the following error:
+        // (fotema:2): GLib-GObject-CRITICAL **: 13:26:14.297: Too many GWeakRef registered
+        // GLib-GObject:ERROR:../gobject/gbinding.c:805:g_binding_constructed: assertion failed: (source != NULL)
+        // Bail out! GLib-GObject:ERROR:../gobject/gbinding.c:805:g_binding_constructed: assertion failed: (source != NULL)
+        if !widgets.is_bound {
+            widgets.picture.add_write_only_binding(&self.edge_length, "width-request");
+            widgets.picture.add_write_only_binding(&self.edge_length, "height-request");
+            widgets.is_bound = true;
         }
 
         widgets
@@ -157,55 +166,48 @@ pub struct MonthsAlbum {
     state: SharedState,
     active_view: ActiveView,
     photo_grid: TypedGridView<PhotoGridItem, gtk::SingleSelection>,
-    layout: adaptive::Layout,
-    thumbnails: Rc<RefCell<HashSet<gtk::Picture>>>,
+    edge_length: I32Binding,
 }
 
-pub struct MonthsAlbumWidgets {
-    // All pictures referenced by grid view.
-    thumbnails: Rc<RefCell<HashSet<gtk::Picture>>>,
-}
-
-//#[relm4::component(pub)]
+#[relm4::component(pub)]
 impl SimpleComponent for MonthsAlbum {
     type Init = (SharedState, ActiveView);
     type Input = MonthsAlbumInput;
     type Output = MonthsAlbumOutput;
-    type Root = gtk::ScrolledWindow;
-    type Widgets = MonthsAlbumWidgets;
 
-    fn init_root() -> Self::Root {
-        gtk::ScrolledWindow::builder()
-            .vexpand(true)
-            .build()
+    view! {
+        gtk::ScrolledWindow {
+            set_vexpand: true,
+
+            #[local_ref]
+            photo_grid_view -> gtk::GridView {
+                set_orientation: gtk::Orientation::Vertical,
+                set_single_click_activate: true,
+
+                connect_activate[sender] => move |_, idx| {
+                    sender.input(MonthsAlbumInput::MonthSelected(idx))
+                },
+            },
+        }
     }
 
     fn init(
         (state, active_view): Self::Init,
-        root: Self::Root,
+        _root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
         let photo_grid = TypedGridView::new();
-
-        let grid_view = &photo_grid.view;
-        grid_view.set_orientation(gtk::Orientation::Vertical);
-        grid_view.set_single_click_activate(true);
-        grid_view.connect_activate(move |_, idx| sender.input(MonthsAlbumInput::Selected(idx)));
 
         let model = MonthsAlbum {
             state,
             active_view,
             photo_grid,
-            layout: adaptive::Layout::Narrow,
-            thumbnails: Rc::new(RefCell::new(HashSet::new())),
+            edge_length: I32Binding::new(NARROW_EDGE_LENGTH),
         };
 
-        let widgets = MonthsAlbumWidgets {
-            thumbnails: model.thumbnails.clone(),
-        };
+        let photo_grid_view = &model.photo_grid.view;
 
-        root.set_child(Some(&model.photo_grid.view));
-
+        let widgets = view_output!();
         ComponentParts { model, widgets }
     }
 
@@ -224,7 +226,7 @@ impl SimpleComponent for MonthsAlbum {
                     self.photo_grid.clear();
                 }
             }
-            MonthsAlbumInput::Selected(index) => {
+            MonthsAlbumInput::MonthSelected(index) => {
                 if let Some(item) = self.photo_grid.get(index) {
                     let ym = item.borrow().picture.year_month();
                     event!(Level::DEBUG, "index {} has year_month {}", index, ym);
@@ -243,31 +245,14 @@ impl SimpleComponent for MonthsAlbum {
                     self.photo_grid.view.scroll_to(index, flags, None);
                 }
             }
-            MonthsAlbumInput::Adapt(layout) => {
-                self.layout = layout;
+            MonthsAlbumInput::Adapt(adaptive::Layout::Narrow) => {
+                self.edge_length.set_value(NARROW_EDGE_LENGTH);
+            },
+            MonthsAlbumInput::Adapt(adaptive::Layout::Wide) => {
+                self.edge_length.set_value(WIDE_EDGE_LENGTH);
             },
         }
     }
-
-    fn update_view(&self, widgets: &mut Self::Widgets, _sender: ComponentSender<Self>) {
-        match self.layout {
-            // Update thumbnail size depending on adaptive layout type
-            adaptive::Layout::Narrow => {
-                let pics = widgets.thumbnails.borrow_mut();
-                for pic in pics.iter() {
-                    pic.set_width_request(NARROW_EDGE_LENGTH);
-                    pic.set_height_request(NARROW_EDGE_LENGTH);
-                }
-            },
-            adaptive::Layout::Wide => {
-                let pics = widgets.thumbnails.borrow_mut();
-                for pic in pics.iter() {
-                    pic.set_width_request(WIDE_EDGE_LENGTH);
-                    pic.set_height_request(WIDE_EDGE_LENGTH);
-                }
-             },
-         }
-     }
 }
 
 impl MonthsAlbum {
@@ -279,12 +264,11 @@ impl MonthsAlbum {
                 .dedup_by(|x, y| x.year_month() == y.year_month())
                 .map(|picture| PhotoGridItem {
                     picture: picture.clone(),
-                    thumbnails: self.thumbnails.clone(),
+                    edge_length: self.edge_length.clone(),
                 })
                 .collect::<Vec<PhotoGridItem>>()
         };
 
-        self.thumbnails.borrow_mut().clear();
         self.photo_grid.clear();
         self.photo_grid.extend_from_iter(all_pictures);
 
