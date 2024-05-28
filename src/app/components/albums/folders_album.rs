@@ -15,12 +15,10 @@ use relm4::gtk::gdk_pixbuf;
 use relm4::gtk::prelude::WidgetExt;
 use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
 use relm4::*;
+use relm4::binding::*;
 
 use std::path;
 use std::sync::Arc;
-use std::rc::Rc;
-use std::cell::RefCell;
-use std::collections::HashSet;
 
 use crate::adaptive;
 use crate::app::SharedState;
@@ -39,13 +37,16 @@ struct PhotoGridItem {
     // Folder album cover
     picture: Arc<fotema_core::visual::Visual>,
 
-    // Set of all thumbnails to allow for easy resizing on layout change.
-    thumbnails: Rc<RefCell<HashSet<gtk::Picture>>>,
+    // Length of thumbnail edge to allow for resizing when layout changes.
+    edge_length: I32Binding,
 }
 
 struct Widgets {
     picture: gtk::Picture,
     label: gtk::Label,
+
+    // If the gtk::Picture has been bound to edge_length.
+    is_bound: bool,
 }
 #[derive(Debug)]
 pub enum FoldersAlbumInput {
@@ -54,7 +55,7 @@ pub enum FoldersAlbumInput {
     // Reload photos from database
     Refresh,
 
-    Selected(u32), // Index into photo grid vector
+    FolderSelected(u32), // Index into photo grid vector
 
     // Adapt to layout
     Adapt(adaptive::Layout),
@@ -93,7 +94,11 @@ impl RelmGridItem for PhotoGridItem {
             }
         }
 
-        let widgets = Widgets { picture, label };
+        let widgets = Widgets {
+            picture,
+            label,
+            is_bound: false,
+        };
 
         (my_box, widgets)
     }
@@ -103,13 +108,18 @@ impl RelmGridItem for PhotoGridItem {
             .label
             .set_text(format!("{}", self.folder_name).as_str());
 
-        // Add our picture to the set of all pictures so it can be easily resized
-        // when the window dimensions changes between wide and narrow.
-        if !self.thumbnails.borrow().contains(&widgets.picture) {
-            self.thumbnails.borrow_mut().insert(widgets.picture.clone());
+        // If we repeatedly bind, then Fotema will die with the following error:
+        // (fotema:2): GLib-GObject-CRITICAL **: 13:26:14.297: Too many GWeakRef registered
+        // GLib-GObject:ERROR:../gobject/gbinding.c:805:g_binding_constructed: assertion failed: (source != NULL)
+        // Bail out! GLib-GObject:ERROR:../gobject/gbinding.c:805:g_binding_constructed: assertion failed: (source != NULL)
+        if !widgets.is_bound {
+            widgets.picture.add_write_only_binding(&self.edge_length, "width-request");
+            widgets.picture.add_write_only_binding(&self.edge_length, "height-request");
+            widgets.is_bound = true;
         }
 
-        if self.picture.thumbnail_path.as_ref().is_some_and(|x| x.exists()) {
+        if self.picture.thumbnail_path.as_ref().is_some_and(|x| x.exists())
+        {
             widgets
                 .picture
                 .set_filename(self.picture.thumbnail_path.clone());
@@ -140,54 +150,48 @@ pub struct FoldersAlbum {
     state: SharedState,
     active_view: ActiveView,
     photo_grid: TypedGridView<PhotoGridItem, gtk::SingleSelection>,
-    layout: adaptive::Layout,
-    thumbnails: Rc<RefCell<HashSet<gtk::Picture>>>,
+    edge_length: I32Binding,
 }
 
-pub struct FoldersAlbumWidgets {
-    // All pictures referenced by grid view.
-    thumbnails: Rc<RefCell<HashSet<gtk::Picture>>>,
-}
-
-//#[relm4::component(pub)]
+#[relm4::component(pub)]
 impl SimpleComponent for FoldersAlbum {
     type Init = (SharedState, ActiveView);
     type Input = FoldersAlbumInput;
     type Output = FoldersAlbumOutput;
-    type Root = gtk::ScrolledWindow;
-    type Widgets = FoldersAlbumWidgets;
 
-    fn init_root() -> Self::Root {
-        gtk::ScrolledWindow::builder()
-            .vexpand(true)
-            .build()
+    view! {
+        gtk::ScrolledWindow {
+            set_vexpand: true,
+
+            #[local_ref]
+            pictures_box -> gtk::GridView {
+                set_orientation: gtk::Orientation::Vertical,
+                set_single_click_activate: true,
+
+                connect_activate[sender] => move |_, idx| {
+                    sender.input(FoldersAlbumInput::FolderSelected(idx))
+                }
+            }
+        }
     }
 
     fn init(
         (state, active_view): Self::Init,
-        root: Self::Root,
+        _root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
         let photo_grid = TypedGridView::new();
-
-        let grid_view = &photo_grid.view;
-        grid_view.set_orientation(gtk::Orientation::Vertical);
-        grid_view.set_single_click_activate(true);
-        grid_view.connect_activate(move |_, idx| sender.input(FoldersAlbumInput::Selected(idx)));
 
         let model = FoldersAlbum {
             state,
             active_view,
             photo_grid,
-            layout: adaptive::Layout::Narrow,
-            thumbnails: Rc::new(RefCell::new(HashSet::new())),
+            edge_length: I32Binding::new(NARROW_EDGE_LENGTH),
         };
 
-        let widgets = FoldersAlbumWidgets {
-            thumbnails: model.thumbnails.clone(),
-        };
+        let pictures_box = &model.photo_grid.view;
 
-        root.set_child(Some(&model.photo_grid.view));
+        let widgets = view_output!();
 
         ComponentParts { model, widgets }
     }
@@ -207,7 +211,7 @@ impl SimpleComponent for FoldersAlbum {
                     self.photo_grid.clear();
                 }
             },
-            FoldersAlbumInput::Selected(index) => {
+            FoldersAlbumInput::FolderSelected(index) => {
                 event!(Level::DEBUG, "Folder selected index: {}", index);
                 if let Some(item) = self.photo_grid.get_visible(index) {
                     let item = item.borrow();
@@ -217,31 +221,14 @@ impl SimpleComponent for FoldersAlbum {
                         .output(FoldersAlbumOutput::FolderSelected(item.picture.parent_path.clone()));
                 }
             },
-            FoldersAlbumInput::Adapt(layout) => {
-                self.layout = layout;
+            FoldersAlbumInput::Adapt(adaptive::Layout::Narrow) => {
+                self.edge_length.set_value(NARROW_EDGE_LENGTH);
+            },
+            FoldersAlbumInput::Adapt(adaptive::Layout::Wide) => {
+                self.edge_length.set_value(WIDE_EDGE_LENGTH);
             },
         }
     }
-
-    fn update_view(&self, widgets: &mut Self::Widgets, _sender: ComponentSender<Self>) {
-        match self.layout {
-            // Update thumbnail size depending on adaptive layout type
-            adaptive::Layout::Narrow => {
-                let pics = widgets.thumbnails.borrow_mut();
-                for pic in pics.iter() {
-                    pic.set_width_request(NARROW_EDGE_LENGTH);
-                    pic.set_height_request(NARROW_EDGE_LENGTH);
-                }
-            },
-            adaptive::Layout::Wide => {
-                let pics = widgets.thumbnails.borrow_mut();
-                for pic in pics.iter() {
-                    pic.set_width_request(WIDE_EDGE_LENGTH);
-                    pic.set_height_request(WIDE_EDGE_LENGTH);
-                }
-             },
-         }
-     }
 }
 
 impl FoldersAlbum {
@@ -261,16 +248,15 @@ impl FoldersAlbum {
             let album = PhotoGridItem {
                 folder_name: first.folder_name().unwrap_or("-".to_string()),
                 picture: first.clone(),
-                    thumbnails: self.thumbnails.clone(),
+                edge_length: self.edge_length.clone(),
             };
             pictures.push(album);
         }
 
         pictures.sort_by_key(|pic| pic.folder_name.clone());
 
-        self.thumbnails.borrow_mut().clear();
         self.photo_grid.clear();
-        self.photo_grid.extend_from_iter(pictures);
+        self.photo_grid.extend_from_iter(pictures.into_iter());
 
         // NOTE folder view is not sorted by a timestamp, so don't scroll to end.
     }
