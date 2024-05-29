@@ -74,6 +74,9 @@ impl SimpleComponent for ProgressPanel {
                         TaskName::Transcode => {
                             self.progress_bar.set_text(Some(&fl!("progress-convert-videos")));
                         },
+                        TaskName::MotionPhoto => {
+                            self.progress_bar.set_text(Some(&fl!("progress-motion-photo")));
+                        },
                         TaskName::Idle => {
                             self.progress_bar.set_text(Some(&fl!("progress-idle")));
                         },

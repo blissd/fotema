@@ -17,7 +17,7 @@ use std::result::Result::Ok;
 /// This version number should be incremented each time metadata scanning has
 /// a bug fix or feature addition that changes the metadata produced.
 /// Each photo will be saved with a metadata scan version which will allow for
-/// easy selection of photos when there metadata can be updated.
+/// easy selection of photos when their metadata can be updated.
 
 pub const VERSION: u32 = 2;
 

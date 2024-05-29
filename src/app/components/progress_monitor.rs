@@ -18,6 +18,7 @@ pub enum TaskName {
     Enrich(MediaType),
     Thumbnail(MediaType),
     Transcode,
+    MotionPhoto,
 
     /// FIXME figure out if 'Idle' will be used.
     Idle,

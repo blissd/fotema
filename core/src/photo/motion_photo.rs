@@ -13,6 +13,13 @@ use tracing::debug;
 
 use sm_motion_photo::SmMotion;
 
+/// This version number should be incremented each motion photo extraction has
+/// a bug fix or feature addition that changes the motion photo data produced.
+/// Each photo will be saved with a motion photo extraction version which will allow for
+/// easy selection of photos when their motion photo can be updated.
+
+pub const VERSION: u32 = 1;
+
 /// Motion photos are an image followed by an embedded MP4 video.
 #[derive(Debug, Clone)]
 pub struct MotionPhotoExtractor {
@@ -45,7 +52,7 @@ impl MotionPhotoExtractor {
         debug!("Photo {:?} has an embedded motion video.", picture_path);
 
         let motion_photo_video_path = {
-            // Create a directory per 1000 thumbnails
+            // Create a directory per 1000 motion photos
             let partition = (picture_id.id() / 1000) as i32;
             let partition = format!("{:0>4}", partition);
             let file_name = format!("{}.mp4", picture_id);
@@ -69,6 +76,7 @@ impl MotionPhotoExtractor {
         let mpv = MotionPhotoVideo {
             path: motion_photo_video_path,
             duration,
+            video_codec: None, // FIXME
         };
 
         Ok(Some(mpv))

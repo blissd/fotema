@@ -216,4 +216,5 @@ impl Metadata {
 pub struct MotionPhotoVideo {
     pub path: PathBuf,
     pub duration: Option<TimeDelta>,
+    pub video_codec: Option<String>,
 }

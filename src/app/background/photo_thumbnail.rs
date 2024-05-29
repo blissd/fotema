@@ -99,7 +99,7 @@ impl PhotoThumbnail {
                     let _ = repo.clone().mark_broken(&pic.picture_id);
                 } else if let Err(_) = result {
                     event!(Level::ERROR, "Panicked generate or add thumbnail: Photo path: {:?}", pic.path);
-                    let _ = repo.clone().mark_broken(&&pic.picture_id);
+                    let _ = repo.clone().mark_broken(&pic.picture_id);
                 }
 
                 progress_monitor.emit(ProgressMonitorInput::Advance);

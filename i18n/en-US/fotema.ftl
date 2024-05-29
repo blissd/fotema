@@ -204,6 +204,9 @@ progress-thumbnails-videos = Generating video thumbnails.
 # Transcoding videos to a compatible format
 progress-convert-videos = Converting videos.
 
+# Extracting motion photo videos
+progress-motion-photo = Processing motion photos.
+
 # Not doing any background work
 progress-idle = Idle.
 
@@ -234,6 +237,9 @@ banner-clean-photos = Photo database maintenance.
 
 # Updating the database to remove details of absent videos.
 banner-clean-videos = Video database maintenance.
+
+# Extracting video component from Android motion photos
+banner-extract-motion-photos = Extracting motion photos.
 
 ## Primary menu
 

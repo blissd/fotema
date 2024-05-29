@@ -64,7 +64,7 @@ impl Repository {
                     video_thumbnail,
 
                     created_ts,
-                    is_ios_live_photo,
+                    is_live_photo,
 
                     video_transcoded_path,
                     is_transcode_required,
@@ -135,9 +135,9 @@ impl Repository {
 
         let created_at: DateTime<Utc> = row.get("created_ts").ok().expect("Must have created_ts");
 
-        let is_ios_live_photo: Option<bool> = row.get("is_ios_live_photo").ok();
+        let is_live_photo: Option<bool> = row.get("is_live_photo").ok();
 
-        let is_ios_live_photo = is_ios_live_photo.is_some_and(|x| x);
+        let is_live_photo = is_live_photo.is_some_and(|x| x);
 
         let video_transcoded_path: Option<PathBuf> = row
             .get("video_transcoded_path")
@@ -166,7 +166,7 @@ impl Repository {
             video_path,
             created_at,
             is_selfie,
-            is_ios_live_photo,
+            is_live_photo,
             video_transcoded_path,
             video_orientation,
             is_transcode_required,
