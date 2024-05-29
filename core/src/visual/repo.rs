@@ -24,7 +24,7 @@ pub struct Repository {
     library_base_path: path::PathBuf,
 
     /// Base path for thumbnails and transcoded videos
-    thumbnail_base_path: path::PathBuf,
+    cache_dir_base_path: path::PathBuf,
 
     /// Connection to backing Sqlite database.
     con: Arc<Mutex<rusqlite::Connection>>,
@@ -34,12 +34,12 @@ impl Repository {
     /// Builds a Repository and creates operational tables.
     pub fn open(
         library_base_path: &path::Path,
-        thumbnail_base_path: &path::Path,
+        cache_dir_base_path: &path::Path,
         con: Arc<Mutex<rusqlite::Connection>>,
     ) -> Result<Repository> {
         let repo = Repository {
             library_base_path: path::PathBuf::from(library_base_path),
-            thumbnail_base_path: path::PathBuf::from(thumbnail_base_path),
+            cache_dir_base_path: path::PathBuf::from(cache_dir_base_path),
             con,
         };
         Ok(repo)
@@ -62,6 +62,8 @@ impl Repository {
                     video_id,
                     video_path_b64,
                     video_thumbnail,
+
+                    motion_photo_video_path,
 
                     created_ts,
                     is_live_photo,
@@ -101,7 +103,7 @@ impl Repository {
         let picture_thumbnail: Option<PathBuf> = row
             .get("picture_thumbnail")
             .map(|x: String| PathBuf::from(x))
-            .map(|x| self.thumbnail_base_path.join(x))
+            .map(|x| self.cache_dir_base_path.join(x))
             .ok();
 
         let picture_orientation: Option<PictureOrientation> = row
@@ -123,7 +125,7 @@ impl Repository {
         let video_thumbnail: Option<PathBuf> = row
             .get("video_thumbnail")
             .map(|x: String| PathBuf::from(x))
-            .map(|x| self.thumbnail_base_path.join(x))
+            .map(|x| self.cache_dir_base_path.join(x))
             .ok();
 
         let video_orientation: Option<PictureOrientation> = row
@@ -132,6 +134,12 @@ impl Repository {
             .ok();
 
         let thumbnail_path: Option<PathBuf> = picture_thumbnail.or(video_thumbnail);
+
+        let motion_photo_video_path: Option<PathBuf> = row
+            .get("motion_photo_video_path")
+            .map(|x: String| PathBuf::from(x))
+            .map(|x| self.cache_dir_base_path.join(x))
+            .ok();
 
         let created_at: DateTime<Utc> = row.get("created_ts").ok().expect("Must have created_ts");
 
@@ -143,7 +151,7 @@ impl Repository {
             .get("video_transcoded_path")
             .ok()
             .map(|x: String| PathBuf::from(x))
-            .map(|x| self.thumbnail_base_path.join(x));
+            .map(|x| self.cache_dir_base_path.join(x));
 
         let is_transcode_required: Option<bool> = row.get("is_transcode_required").ok();
 
@@ -171,6 +179,7 @@ impl Repository {
             video_orientation,
             is_transcode_required,
             video_duration,
+            motion_photo_video_path,
         };
         Ok(v)
     }

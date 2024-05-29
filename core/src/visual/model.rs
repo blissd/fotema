@@ -64,6 +64,8 @@ pub struct Visual {
 
     pub picture_orientation: Option<Orientation>,
 
+    pub motion_photo_video_path: Option<PathBuf>,
+
     /// EXIF or file system creation timestamp
     pub created_at: DateTime<Utc>,
 
@@ -93,7 +95,7 @@ impl Visual {
     }
 
     pub fn is_photo_only(&self) -> bool {
-        self.picture_id.is_some() && self.video_id.is_none()
+        self.picture_id.is_some() && self.video_id.is_none() && !self.is_live_photo
     }
 
     pub fn is_video_only(&self) -> bool {
