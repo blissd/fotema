@@ -379,9 +379,6 @@ impl SimpleAsyncComponent for ViewOne {
                             .or_else(|| visual.motion_photo_video_path.as_ref())
                             .expect("must have video path");
 
-                        println!("********* Video path: {:?}", video_path);
-                        println!("********* Motion path: {:?}", visual.motion_photo_video_path);
-
                         let video = gtk::MediaFile::for_filename(video_path);
                         if visual.is_motion_photo() {
                            self.mute_button.set_icon_name("audio-volume-muted-symbolic");
