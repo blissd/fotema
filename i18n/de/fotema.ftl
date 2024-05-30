@@ -218,10 +218,10 @@ banner-scan-photos = Scanne des Dateisystems nach Fotos.
 banner-scan-videos = Scanne des Dateisystems nach Videos.
 
 # Processing new photos to extract metadata from EXIF tags.
-banner-metadata-photos = Vearbeite Foto-Metadaten.
+banner-metadata-photos = Verarbeite Foto-Metadaten.
 
 # Processing new videos to extract metadata from video container.
-banner-metadata-videos = Vearbeite Video-Metadaten.
+banner-metadata-videos = Verarbeite Video-Metadaten.
 
 # Generating thumbnails for all photos.
 banner-thumbnails-photos = Erstellen von Foto-Miniaturansichten. Dies kann eine Weile dauern.
