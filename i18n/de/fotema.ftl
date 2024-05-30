@@ -63,7 +63,7 @@ month-thumbnail-label = { $month ->
 ## About Dialog
 
 # Section header for open source projects acknowledgements.
-about-opensource = Open-Source-Projekte
+about-opensource = Quelloffene Projekte
 
 # Translator note: add one translator per-line to get a translation
 # credit in the Fotema's "About" page.
@@ -79,7 +79,7 @@ viewer-info-tooltip = Eigenschaften anzeigen
 # Attributes:
 #  .tooltip - Tooltip on mouse hover.
 viewer-next =
-  .tooltip = Nächstes
+  .tooltip = Weiter
 
 # Go to previous button when viewing photo or video.
 # Attributes:
@@ -185,7 +185,7 @@ prefs-views-section = Ansicht
 # Attributes:
 #   .subtitle - Description of toggle button action action.
 prefs-views-selfies = Selfies
-  .subtitle = Zeigt eine separate Ansicht für Selfies, die mit iOS-Geräten aufgenommen wurden. Starte {-app-name} neu, um es anzuwenden.
+  .subtitle = Zeige eine separate Ansicht für Selfies, die mit iOS-Geräten aufgenommen wurden. Starte {-app-name} neu, um es anzuwenden.
 
 ## Progress bar for background tasks
 
