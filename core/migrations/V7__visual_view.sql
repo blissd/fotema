@@ -37,7 +37,7 @@ SELECT
 
   COALESCE(videos.video_codec, motion_photos.video_codec) IN ('hevc') AS is_transcode_required,
 
-  videos.transcoded_path AS video_transcoded_path,
+  COALESCE(videos.transcoded_path, motion_photos.transcoded_path) AS video_transcoded_path,
 
   COALESCE(videos.rotation, motion_photos.rotation) AS video_rotation,
 

@@ -14,6 +14,7 @@ use tracing::debug;
 use sm_motion_photo::SmMotion;
 
 use crate::video::metadata as video_metadata;
+use crate::video::transcode;
 
 /// This version number should be incremented each motion photo extraction has
 /// a bug fix or feature addition that changes the motion photo data produced.
@@ -30,7 +31,7 @@ pub struct MotionPhotoExtractor {
 
 impl MotionPhotoExtractor {
     pub fn build(base_path: &Path) -> Result<MotionPhotoExtractor> {
-        let base_path = PathBuf::from(base_path).join("motion_photo_videos");
+        let base_path = PathBuf::from(base_path).join("motion_photos");
         std::fs::create_dir_all(&base_path)?;
 
         Ok(MotionPhotoExtractor { base_path })
@@ -53,7 +54,7 @@ impl MotionPhotoExtractor {
 
         debug!("Photo {:?} has an embedded motion video.", picture_path);
 
-        let motion_photo_video_path = {
+        let video_path = {
             // Create a directory per 1000 motion photos
             let partition = (picture_id.id() / 1000) as i32;
             let partition = format!("{:0>4}", partition);
@@ -61,26 +62,42 @@ impl MotionPhotoExtractor {
             self.base_path.join(partition).join(file_name)
         };
 
-        if !motion_photo_video_path.exists() {
-            motion_photo_video_path.parent().map(|p| {
+        if !video_path.exists() {
+            video_path.parent().map(|p| {
                 let _ = std::fs::create_dir_all(p);
             });
 
-            let mut video_file = File::create(&motion_photo_video_path).unwrap();
+            let mut video_file = File::create(&video_path).unwrap();
             sm.dump_video_file(&mut video_file).unwrap();
         }
 
         let mut mpv = MotionPhotoVideo {
-            path: motion_photo_video_path.clone(),
+            path: video_path.clone(),
             duration: None,
             video_codec: None,
             rotation: None,
         };
 
-        if let Ok(meta) = video_metadata::from_path(&motion_photo_video_path) {
+        if let Ok(meta) = video_metadata::from_path(&video_path) {
             mpv.video_codec = meta.video_codec;
             mpv.rotation = meta.rotation;
             mpv.duration = meta.duration;
+        }
+
+        if mpv
+            .video_codec
+            .as_ref()
+            .is_some_and(|codec| codec == "hevc")
+        {
+            let transcoded_path = {
+                // Create a directory per 1000 motion photos
+                let partition = (picture_id.id() / 1000) as i32;
+                let partition = format!("{:0>4}", partition);
+                let file_name = format!("{}_transcoded.mkv", picture_id);
+                self.base_path.join(partition).join(file_name)
+            };
+
+            transcode::transcode(&video_path, &transcoded_path)?;
         }
 
         Ok(Some(mpv))

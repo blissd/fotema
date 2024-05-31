@@ -11,6 +11,9 @@ CREATE TABLE motion_photos (
         -- path to extracted video under cache directory
         video_path         TEXT UNIQUE,
 
+        -- path to transcoded video under cache directory
+        transcoded_path    TEXT UNIQUE,
+
         -- video duration in milliseconds
         duration_millis    INTEGER,
 

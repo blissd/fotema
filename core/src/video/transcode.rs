@@ -33,36 +33,41 @@ impl Transcoder {
             self.base_path.join(partition).join(file_name)
         };
 
-        if transcoded_path.exists() {
-            return Ok(PathBuf::from(transcoded_path));
-        } else {
-            transcoded_path.parent().map(|p| {
-                let _ = std::fs::create_dir_all(p);
-            });
-        }
-
-        event!(Level::DEBUG, "Transcoding video: {:?}", video_path);
-
-        let temporary_transcoded_path = transcoded_path.with_extension("tmp.mkv");
-
-        // FIXME can transcoding be reliably hardware accelerated?
-        Command::new("ffmpeg")
-            .arg("-y")
-            .arg("-loglevel")
-            .arg("error")
-            .arg("-hwaccel")
-            .arg("auto")
-            .arg("-i")
-            .arg(video_path.as_os_str())
-            .arg("-c:a")
-            .arg("copy")
-            .arg("-c:v")
-            .arg("h264")
-            .arg(temporary_transcoded_path.as_os_str())
-            .status()?;
-
-        std::fs::rename(&temporary_transcoded_path, &transcoded_path)?;
+        transcode(video_path, &transcoded_path)?;
 
         Ok(PathBuf::from(transcoded_path))
     }
+}
+
+pub fn transcode(video_path: &Path, transcoded_path: &Path) -> Result<()> {
+    if transcoded_path.exists() {
+        return Ok(());
+    } else {
+        transcoded_path.parent().map(|p| {
+            let _ = std::fs::create_dir_all(p);
+        });
+    }
+
+    event!(Level::DEBUG, "Transcoding video: {:?}", video_path);
+
+    let temporary_transcoded_path = transcoded_path.with_extension("tmp.mkv");
+
+    Command::new("ffmpeg")
+        .arg("-y")
+        .arg("-loglevel")
+        .arg("error")
+        .arg("-hwaccel")
+        .arg("auto")
+        .arg("-i")
+        .arg(video_path.as_os_str())
+        .arg("-c:a")
+        .arg("copy")
+        .arg("-c:v")
+        .arg("h264")
+        .arg(temporary_transcoded_path.as_os_str())
+        .status()?;
+
+    std::fs::rename(&temporary_transcoded_path, &transcoded_path)?;
+
+    Ok(())
 }
