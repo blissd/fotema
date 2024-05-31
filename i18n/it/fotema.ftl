@@ -134,7 +134,7 @@ infobar-file-created = File creato
 infobar-file-modified = File modificato
 
 # File size file system metadata.
-infobar-file-size = Dimensione fiel
+infobar-file-size = Dimensione del file
 
 # File format, such as "JPEG" or "PNG".
 infobar-file-format = Formato
