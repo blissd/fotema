@@ -210,9 +210,6 @@ impl SimpleComponent for App {
                 glib::Propagation::Stop
             },
 
-            // Notifies initial width of window so we can set correct adaptive layout for widgets
-            connect_is_active_notify => AppMsg::Activate(root.width()),
-
             add_css_class?: if PROFILE == "Devel" {
                     Some("devel")
                 } else {
@@ -591,6 +588,9 @@ impl SimpleComponent for App {
         actions.register_for_widget(&widgets.main_window);
 
         widgets.load_window_size();
+
+        // Get startup window size and propagate so all components have correct narrow/wide layout.
+        sender.input(AppMsg::Activate(widgets.main_window.default_width()));
 
         model.spinner.set_visible(true);
         model.spinner.start();
