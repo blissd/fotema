@@ -47,6 +47,18 @@
   </branding>
 
   <releases>
+    <release version="1.7.1" date="2024-05-28">
+      <description>
+        <p>Improvements:</p>
+        <ul>
+          <li>German translation.</li>
+        </ul>
+        <p>Bugs fixed:</p>
+        <ul>
+          <li>Hamburger menu would not open properly for mobile view.</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.7.0" date="2024-05-28">
       <description>
         <p>Improvements:</p>
