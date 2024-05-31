@@ -277,21 +277,27 @@ impl Repository {
                         video_path,
                         duration_millis,
                         video_codec,
-                        rotation
+                        rotation,
+                        transcoded_path
                     ) VALUES (
-                        ?1, ?2, ?3, ?4, ?5, ?6
+                        ?1, ?2, ?3, ?4, ?5, ?6, ?7
                     ) ON CONFLICT (picture_id) DO UPDATE SET
                         extract_version = ?2,
                         video_path = ?3,
                         duration_millis = ?4,
                         video_codec = ?5,
-                        rotation = ?6
+                        rotation = ?6,
+                        transcoded_path = ?7
                     ",
                 )?;
 
                 // convert to relative path before saving to database
                 // path relative to cache directory so no need to base64 encode
                 let video_path = video.path.strip_prefix(&self.cache_dir_base_path).ok();
+                let transcoded_path = video
+                    .transcoded_path
+                    .as_ref()
+                    .and_then(|x| x.strip_prefix(&self.cache_dir_base_path).ok());
 
                 stmt.execute(params![
                     picture_id.id(),
@@ -300,6 +306,7 @@ impl Repository {
                     video.duration.map(|x| x.num_milliseconds()),
                     video.video_codec,
                     video.rotation,
+                    transcoded_path.as_ref().map(|p| p.to_string_lossy()),
                 ])?;
             } else {
                 let mut stmt = tx.prepare(
@@ -308,14 +315,16 @@ impl Repository {
                     extract_version,
                     video_path,
                     duration_millis,
-                    video_codec
+                    video_codec,
+                    transcoded_path
                 ) VALUES (
-                    ?1, ?2, NULL, NULL, NULL
+                    ?1, ?2, NULL, NULL, NULL, NULL
                 ) ON CONFLICT (picture_id) DO UPDATE SET
                     extract_version = ?2,
                     video_path = NULL,
                     duration_millis = NULL,
-                    video_codec = NULL
+                    video_codec = NULL,
+                    transcoded_path = NULL
                 ",
                 )?;
 

@@ -76,12 +76,18 @@ impl MotionPhotoExtractor {
             duration: None,
             video_codec: None,
             rotation: None,
+            transcoded_path: None,
         };
 
         if let Ok(meta) = video_metadata::from_path(&video_path) {
             mpv.video_codec = meta.video_codec;
             mpv.rotation = meta.rotation;
             mpv.duration = meta.duration;
+        } else {
+            // If we have extracted the video but can't get any metadata, then the motion photo
+            // format for this file probably isn't supported by the sm_motion_photo library and
+            // we have duff data.
+            return Ok(None);
         }
 
         if mpv
@@ -98,6 +104,8 @@ impl MotionPhotoExtractor {
             };
 
             transcode::transcode(&video_path, &transcoded_path)?;
+
+            mpv.transcoded_path = Some(transcoded_path);
         }
 
         Ok(Some(mpv))
