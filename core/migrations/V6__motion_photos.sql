@@ -17,6 +17,9 @@ CREATE TABLE motion_photos (
         -- video codec, such as HEVC
         video_codec        TEXT,
 
+        -- rotation in degrees
+        rotation           INTEGER,
+
         FOREIGN KEY (picture_id) REFERENCES pictures (picture_id) ON DELETE CASCADE
 );
 

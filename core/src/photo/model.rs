@@ -217,4 +217,8 @@ pub struct MotionPhotoVideo {
     pub path: PathBuf,
     pub duration: Option<TimeDelta>,
     pub video_codec: Option<String>,
+
+    // Rotation of video in degrees.
+    // Should be 90, 180, 270, or the negative of those.
+    pub rotation: Option<i32>,
 }

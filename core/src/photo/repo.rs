@@ -276,14 +276,16 @@ impl Repository {
                         extract_version,
                         video_path,
                         duration_millis,
-                        video_codec
+                        video_codec,
+                        rotation
                     ) VALUES (
-                        ?1, ?2, ?3, ?4, ?5
+                        ?1, ?2, ?3, ?4, ?5, ?6
                     ) ON CONFLICT (picture_id) DO UPDATE SET
                         extract_version = ?2,
                         video_path = ?3,
                         duration_millis = ?4,
-                        video_codec = ?5
+                        video_codec = ?5,
+                        rotation = ?6
                     ",
                 )?;
 
@@ -297,6 +299,7 @@ impl Repository {
                     video_path.as_ref().map(|p| p.to_str()),
                     video.duration.map(|x| x.num_milliseconds()),
                     video.video_codec,
+                    video.rotation,
                 ])?;
             } else {
                 let mut stmt = tx.prepare(

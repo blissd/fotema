@@ -6,12 +6,14 @@ use crate::photo::model::PictureId;
 use anyhow::*;
 
 use super::model::MotionPhotoVideo;
-use chrono::TimeDelta;
 use std::fs::File;
 use std::path::{Path, PathBuf};
+use std::result::Result::Ok;
 use tracing::debug;
 
 use sm_motion_photo::SmMotion;
+
+use crate::video::metadata as video_metadata;
 
 /// This version number should be incremented each motion photo extraction has
 /// a bug fix or feature addition that changes the motion photo data produced.
@@ -59,11 +61,6 @@ impl MotionPhotoExtractor {
             self.base_path.join(partition).join(file_name)
         };
 
-        let duration = sm
-            .get_video_file_duration()
-            .map(|x| x as i64)
-            .and_then(|x| TimeDelta::try_milliseconds(x));
-
         if !motion_photo_video_path.exists() {
             motion_photo_video_path.parent().map(|p| {
                 let _ = std::fs::create_dir_all(p);
@@ -73,11 +70,18 @@ impl MotionPhotoExtractor {
             sm.dump_video_file(&mut video_file).unwrap();
         }
 
-        let mpv = MotionPhotoVideo {
-            path: motion_photo_video_path,
-            duration,
-            video_codec: None, // FIXME
+        let mut mpv = MotionPhotoVideo {
+            path: motion_photo_video_path.clone(),
+            duration: None,
+            video_codec: None,
+            rotation: None,
         };
+
+        if let Ok(meta) = video_metadata::from_path(&motion_photo_video_path) {
+            mpv.video_codec = meta.video_codec;
+            mpv.rotation = meta.rotation;
+            mpv.duration = meta.duration;
+        }
 
         Ok(Some(mpv))
     }

@@ -33,10 +33,13 @@ SELECT
         ELSE 'video_thumbnails/' || printf('%04d', videos.video_id / 1000) || '/' || CAST(videos.video_id AS TEXT) || '_200x200.png'
   END AS video_thumbnail,
 
-  videos.video_codec,
-  videos.video_codec IN ('hevc') AS is_transcode_required,
+  COALESCE(videos.video_codec, motion_photos.video_codec) AS video_codec,
+
+  COALESCE(videos.video_codec, motion_photos.video_codec) IN ('hevc') AS is_transcode_required,
+
   videos.transcoded_path AS video_transcoded_path,
-  videos.rotation AS video_rotation,
+
+  COALESCE(videos.rotation, motion_photos.rotation) AS video_rotation,
 
   -- An iOS live photo is a photo and a video linked with a content ID.
   -- However, we only really need the video part, and short (<3 seconds)
@@ -51,8 +54,6 @@ SELECT
   COALESCE(videos.duration_millis, motion_photos.duration_millis) as duration_millis,
 
   motion_photos.video_path AS motion_photo_video_path,
-
-  motion_photos.video_codec AS motion_photo_video_codec,
 
   -- Prefer embedded metadata over file system metadata
   COALESCE(
