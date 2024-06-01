@@ -83,7 +83,7 @@ pub struct Bootstrap {
     started_at: Option<Instant>,
 
     /// Whether a background task has updated some library state and the library should be reloaded.
-    library_updated: bool,
+    library_stale: bool,
 
     load_library: WorkerController<LoadLibrary>,
 
@@ -214,7 +214,7 @@ impl Worker for Bootstrap {
 
         let model = Bootstrap {
             started_at: None,
-            library_updated: false,
+            library_stale: false,
             load_library,
             photo_scan,
             video_scan,
@@ -247,7 +247,7 @@ impl Worker for Bootstrap {
             }
             BootstrapInput::TaskCompleted(TaskName::Scan(MediaType::Photo), updated) => {
                 info!("Scan photos completed");
-                self.library_updated = self.library_updated || updated.is_some_and(|x| x > 0);
+                self.library_stale = self.library_stale || updated.is_some_and(|x| x > 0);
                 self.video_scan.emit(VideoScanInput::Start);
             }
             BootstrapInput::TaskStarted(task_name @ TaskName::Scan(MediaType::Video)) => {
@@ -256,7 +256,7 @@ impl Worker for Bootstrap {
             }
             BootstrapInput::TaskCompleted(TaskName::Scan(MediaType::Video), updated) => {
                 info!("Scan videos completed");
-                self.library_updated = self.library_updated || updated.is_some_and(|x| x > 0);
+                self.library_stale = self.library_stale || updated.is_some_and(|x| x > 0);
                 self.photo_enrich.emit(PhotoEnrichInput::Start);
             }
             BootstrapInput::TaskStarted(task_name @ TaskName::Enrich(MediaType::Photo)) => {
@@ -265,7 +265,7 @@ impl Worker for Bootstrap {
             }
             BootstrapInput::TaskCompleted(TaskName::Enrich(MediaType::Photo), updated) => {
                 info!("Photo enrichment completed");
-                self.library_updated = self.library_updated || updated.is_some_and(|x| x > 0);
+                self.library_stale = self.library_stale || updated.is_some_and(|x| x > 0);
                 self.video_enrich.emit(VideoEnrichInput::Start);
             }
             BootstrapInput::TaskStarted(task_name @ TaskName::Enrich(MediaType::Video)) => {
@@ -275,12 +275,12 @@ impl Worker for Bootstrap {
             BootstrapInput::TaskCompleted(TaskName::Enrich(MediaType::Video), updated) => {
                 info!("Video enrichment completed");
 
-                self.library_updated = self.library_updated || updated.is_some_and(|x| x > 0);
-                if self.library_updated {
+                self.library_stale = self.library_stale || updated.is_some_and(|x| x > 0);
+                if self.library_stale {
                     info!("Refreshing library after video enrichment");
                     self.load_library.emit(LoadLibraryInput::Refresh);
                 }
-                self.library_updated = false;
+                self.library_stale = false;
 
                 self.photo_extract_motion.emit(PhotoExtractMotionInput::Start);
             }
@@ -290,7 +290,7 @@ impl Worker for Bootstrap {
             }
             BootstrapInput::TaskCompleted(TaskName::MotionPhoto, updated) => {
                 info!("photo thumbnails completed");
-                self.library_updated = self.library_updated || updated.is_some_and(|x| x > 0);
+                self.library_stale = self.library_stale || updated.is_some_and(|x| x > 0);
                 self.photo_thumbnail.emit(PhotoThumbnailInput::Start);
             }
             BootstrapInput::TaskStarted(task_name @ TaskName::Thumbnail(MediaType::Photo)) => {
@@ -299,7 +299,7 @@ impl Worker for Bootstrap {
             }
             BootstrapInput::TaskCompleted(TaskName::Thumbnail(MediaType::Photo), updated) => {
                 info!("Photo thumbnails completed");
-                self.library_updated = self.library_updated || updated.is_some_and(|x| x > 0);
+                self.library_stale = self.library_stale || updated.is_some_and(|x| x > 0);
                 self.video_thumbnail.emit(VideoThumbnailInput::Start);
             }
             BootstrapInput::TaskStarted(task_name @ TaskName::Thumbnail(MediaType::Video)) => {
@@ -309,7 +309,7 @@ impl Worker for Bootstrap {
             BootstrapInput::TaskCompleted(TaskName::Thumbnail(MediaType::Video), updated) => {
                 let duration = self.started_at.map(|x| x.elapsed());
                 info!("Video thumbnails completed in {:?}", duration);
-                self.library_updated = self.library_updated || updated.is_some_and(|x| x > 0);
+                self.library_stale = self.library_stale || updated.is_some_and(|x| x > 0);
                 self.photo_clean.emit(PhotoCleanInput::Start);
             }
             BootstrapInput::TaskStarted(task_name @ TaskName::Clean(MediaType::Photo)) => {
@@ -318,7 +318,7 @@ impl Worker for Bootstrap {
             }
             BootstrapInput::TaskCompleted(TaskName::Clean(MediaType::Photo), updated) => {
                 info!("Photo cleanup completed.");
-                self.library_updated = self.library_updated || updated.is_some_and(|x| x > 0);
+                self.library_stale = self.library_stale || updated.is_some_and(|x| x > 0);
                 self.video_clean.emit(VideoCleanInput::Start);
             }
             BootstrapInput::TaskStarted(task_name @ TaskName::Clean(MediaType::Video)) => {
@@ -330,12 +330,12 @@ impl Worker for Bootstrap {
 
                 // This is the last background task to complete. Refresh library if there
                 // has been a visible change to the library state.
-                self.library_updated = self.library_updated || updated.is_some_and(|x| x > 0);
-                if self.library_updated {
+                self.library_stale = self.library_stale || updated.is_some_and(|x| x > 0);
+                if self.library_stale {
                     info!("Refreshing library after video cleanup");
                     self.load_library.emit(LoadLibraryInput::Refresh);
                 }
-                self.library_updated = false;
+                self.library_stale = false;
 
                 let _ = sender.output(BootstrapOutput::Completed);
             }
