@@ -9,7 +9,7 @@ use fotema_core::visual::Repository;
 use fotema_core::Visual;
 use std::sync::Arc;
 use anyhow::*;
-use tracing::{event, Level};
+use tracing::error;
 
 #[derive(Debug)]
 pub enum LoadLibraryInput {
@@ -36,7 +36,7 @@ impl Worker for LoadLibrary {
                 let result = self.load();
 
                 if let Err(e) = result {
-                    event!(Level::ERROR, "Failed load library with: {}", e);
+                    error!("Failed load library with: {}", e);
                 }
             }
         };

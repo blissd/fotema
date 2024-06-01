@@ -4,7 +4,7 @@
 
 use relm4::prelude::*;
 use relm4::Worker;
-use tracing::{event, Level};
+use tracing::{error, info};
 
 #[derive(Debug)]
 pub enum PhotoScanInput {
@@ -36,7 +36,7 @@ impl Worker for PhotoScan {
             PhotoScanInput::Start => {
                 let result = self.scan_and_add(sender);
                 if let Err(e) = result {
-                    event!(Level::ERROR, "Failed scan with: {}", e);
+                    error!("Failed scan with: {}", e);
                 }
             }
         };
@@ -49,8 +49,11 @@ impl PhotoScan {
         sender.output(PhotoScanOutput::Started)
             .map_err(|e| format!("{:?}", e))?;
 
-        event!(Level::INFO, "Scanning file system for pictures...");
+        info!("Scanning file system for pictures...");
+
         let result = self.scan.scan_all().map_err(|e| e.to_string())?;
+        info!("Found {} photos to add to database", result.len());
+
         self.repo.add_all(&result).map_err(|e| e.to_string())?;
 
         sender.output(PhotoScanOutput::Completed)

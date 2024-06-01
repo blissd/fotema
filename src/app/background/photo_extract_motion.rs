@@ -9,7 +9,7 @@ use rayon::prelude::*;
 use anyhow::*;
 use std::sync::Arc;
 use std::result::Result::Ok;
-use tracing::{event, Level};
+use tracing::{error, info};
 
 use crate::app::components::progress_monitor::{
     ProgressMonitor,
@@ -29,7 +29,7 @@ pub enum PhotoExtractMotionOutput {
     Started,
 
     // Motion photo extract has completed
-    Completed,
+    Completed(usize),
 
 }
 
@@ -58,11 +58,12 @@ impl PhotoExtractMotion {
             .collect();
 
         let count = unprocessed.len();
+         info!("Found {} photos as candidates for extracting motion photo videos", count);
 
         // Short-circuit before sending progress messages to stop
         // banner from appearing and disappearing.
         if count == 0 {
-            let _ = sender.output(PhotoExtractMotionOutput::Completed);
+            let _ = sender.output(PhotoExtractMotionOutput::Completed(count));
             return Ok(());
         }
 
@@ -83,14 +84,14 @@ impl PhotoExtractMotion {
                         repo.clone().add_motion_photo_video(&photo.picture_id, opt_video)
                     },
                     Err(e) => {
-                    event!(Level::ERROR, "Failed extracting motion photo: {:?}: Photo path: {:?}", e, photo.path);
+                    error!("Failed extracting motion photo: {:?}: Photo path: {:?}", e, photo.path);
                         repo.clone().mark_broken(&photo.picture_id)
                     },
                 };
 
                 match result {
                     Err(e) => {
-                        event!(Level::ERROR, "Failed updating database: {:?}: Photo path: {:?}", e, photo.path);
+                        error!("Failed updating database: {:?}: Photo path: {:?}", e, photo.path);
                     },
                     _ => {},
                 }
@@ -98,11 +99,11 @@ impl PhotoExtractMotion {
                 progress_monitor.emit(ProgressMonitorInput::Advance);
             });
 
-        event!(Level::INFO, "Extracted {} motion photos in {} seconds.", count, start.elapsed().as_secs());
+        info!("Extracted {} motion photos in {} seconds.", count, start.elapsed().as_secs());
 
         progress_monitor.emit(ProgressMonitorInput::Complete);
 
-        let _ = sender.output(PhotoExtractMotionOutput::Completed);
+        let _ = sender.output(PhotoExtractMotionOutput::Completed(count));
 
         Ok(())
     }
@@ -125,14 +126,14 @@ impl Worker for PhotoExtractMotion {
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
             PhotoExtractMotionInput::Start => {
-                event!(Level::INFO, "Extracting motion photos...");
+                info!("Extracting motion photos...");
                 let repo = self.repo.clone();
                 let extractor = self.extractor.clone();
                 let progress_monitor = self.progress_monitor.clone();
 
                 rayon::spawn(move || {
                     if let Err(e) = PhotoExtractMotion::extract(repo, extractor, progress_monitor, sender) {
-                        event!(Level::ERROR, "Failed to update previews: {}", e);
+                        error!("Failed to update previews: {}", e);
                     }
                 });
             }

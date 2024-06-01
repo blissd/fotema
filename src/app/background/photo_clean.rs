@@ -7,7 +7,7 @@ use relm4::Worker;
 use rayon::prelude::*;
 use anyhow::*;
 
-use tracing::{event, Level};
+use tracing::{error, info};
 
 #[derive(Debug)]
 pub enum PhotoCleanInput {
@@ -20,7 +20,7 @@ pub enum PhotoCleanOutput {
     Started,
 
     // Thumbnail generation has completed
-    Completed,
+    Completed(usize),
 
 }
 
@@ -39,16 +39,17 @@ impl PhotoClean {
         let pics: Vec<fotema_core::photo::model::Picture> = self.repo.all()?;
 
         let count = pics.len();
+         info!("Found {} photos as candidates for cleaning", count);
 
         // Short-circuit before sending progress messages to stop
         // banner from appearing and disappearing.
         if count == 0 {
-            let _ = sender.output(PhotoCleanOutput::Completed);
+            let _ = sender.output(PhotoCleanOutput::Completed(count));
             return Ok(());
         }
 
         if let Err(e) = sender.output(PhotoCleanOutput::Started){
-            event!(Level::ERROR, "Failed sending cleanup started: {:?}", e);
+            error!("Failed sending cleanup started: {:?}", e);
         }
 
         pics.par_iter()
@@ -56,17 +57,17 @@ impl PhotoClean {
                 if !pic.path.exists() {
                     let result = self.repo.clone().remove(pic.picture_id);
                     if let Err(e) = result {
-                        event!(Level::ERROR, "Failed remove {}: {:?}", pic.picture_id, e);
+                        error!("Failed remove {}: {:?}", pic.picture_id, e);
                     } else {
-                        event!(Level::INFO, "Removed {}", pic.picture_id);
+                        error!("Removed {}", pic.picture_id);
                     }
                 }
             });
 
-        event!(Level::INFO, "Cleaned {} photos in {} seconds.", count, start.elapsed().as_secs());
+        error!("Cleaned {} photos in {} seconds.", count, start.elapsed().as_secs());
 
-        if let Err(e) = sender.output(PhotoCleanOutput::Completed) {
-            event!(Level::ERROR, "Failed sending PhotoCleanOutput::Completed: {:?}", e);
+        if let Err(e) = sender.output(PhotoCleanOutput::Completed(count)) {
+            error!("Failed sending PhotoCleanOutput::Completed: {:?}", e);
         }
 
         Ok(())
@@ -85,10 +86,10 @@ impl Worker for PhotoClean {
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
             PhotoCleanInput::Start => {
-                event!(Level::INFO, "Cleaning photos...");
+                error!("Cleaning photos...");
 
                 if let Err(e) = self.cleanup(&sender) {
-                    event!(Level::ERROR, "Failed to clean photos: {}", e);
+                    error!("Failed to clean photos: {}", e);
                 }
             }
         };

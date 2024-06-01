@@ -25,7 +25,7 @@ use crate::app::SharedState;
 use crate::app::ActiveView;
 use crate::app::ViewName;
 
-use tracing::{event, Level};
+use tracing::{event, Level, info};
 
 const NARROW_EDGE_LENGTH: i32 = 170;
 const WIDE_EDGE_LENGTH: i32 = 200;
@@ -206,8 +206,10 @@ impl SimpleComponent for FoldersAlbum {
             },
             FoldersAlbumInput::Refresh => {
                 if *self.active_view.read() == ViewName::Folders {
+                    info!("Folders view is active so refreshing");
                     self.refresh();
                 } else {
+                    info!("Folders view is inactive so clearing");
                     self.photo_grid.clear();
                 }
             },
@@ -259,5 +261,14 @@ impl FoldersAlbum {
         self.photo_grid.extend_from_iter(pictures.into_iter());
 
         // NOTE folder view is not sorted by a timestamp, so don't scroll to end.
+        // NOTE without scroll the photo grid doesn't immediately reappear after refresh. Instead
+        // it is necessary to click to another view and back :-(
+        if !self.photo_grid.is_empty() {
+            self.photo_grid.view.scroll_to(
+                0,
+                gtk::ListScrollFlags::SELECT,
+                None,
+            );
+        }
     }
 }
