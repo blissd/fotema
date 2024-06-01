@@ -118,3 +118,107 @@ viewer-play =
 #  .tooltip - Tooltip on mouse hover.
 viewer-skip-forward-10-seconds =
     .tooltip = Hopp forover 10 sekunder
+# Photo/Video Information Sidebar
+# File modification timestamp from image or video embedded metadata.
+infobar-originally-modified = Opprinnelig endret
+# Progress bar for background tasks
+# Extracting details from photo EXIF data
+progress-metadata-photos = Behandler bildemetadata …
+# Progress bar for background tasks
+# Not doing any background work
+progress-idle = Ledig.
+# Notification banner for background tasks
+# Updating the database to remove details of absent videos.
+banner-clean-videos = Vedlikehold av videodatabase.
+# Notification banner for background tasks
+# Extracting video component from Android motion photos
+banner-extract-motion-photos = Pakker ut bevegelige bilder.
+# Photo/Video Viewer
+# Viewer failed to load an image or video.
+viewer-error-failed-to-load = Klarte ikke å laste inn
+# Photo/Video Viewer
+# Viewer could not display an image or video because it is missing.
+# Variables:
+#  file_name - (String) path of missing file.
+viewer-error-missing-file =
+    Kan ikke vise manglende fil:
+    { $file_name }
+# Photo/Video Viewer
+# Viewer could not display a file because database entry doesn't have file path.
+# If this situation occurs, then I've mucked up the SQL view query and a bug should
+# be raised.
+viewer-error-missing-path = Filstien finnes ikke i databasen
+# Thumbnail decorations
+# Label on month album thumbnails.
+# Variables:
+#   $month - month number (1 through 12).
+#   $year - year e.g., 2024
+# Translator note: do not values in square brackets, such as '[other]'.
+month-thumbnail-label =
+    { $month ->
+        [1] Januar { $year }
+        [2] Februar { $year }
+        [3] Mars{ $year }
+        [4] April { $year }
+        [5] Mai { $year }
+        [6] Juni { $year }
+        [7] Juli { $year }
+        [8] August { $year }
+        [9] September { $year }
+        [10] Oktober { $year }
+        [11] November { $year }
+        [12] Desember { $year }
+       *[other] { $year }
+    }
+# Photo/Video Information Sidebar
+# Name of containing folder of photo or video being viewed.
+# Attributes:
+#  .tooltip - tooltip text for open folder action button.
+infobar-folder = Mappe
+    .tooltip = Åpne inneholdende mappe
+# Preferences
+# Title of section of preferences for views
+prefs-views-section = Visninger
+    .description = Vis eller skjul sidefeltsvisninger
+# Preferences
+# Selfies page enabled or disabled.
+# Attributes:
+#   .subtitle - Description of toggle button action action.
+prefs-views-selfies = Selvportretter
+    .subtitle = Viser en egen visning for selvportrett tatt på iOS-enheter. Start  { -app-name } igjen for å bruke.
+# Progress bar for background tasks
+# Extracting details from video container metadata
+progress-metadata-videos = Behandler videometadata …
+# Progress bar for background tasks
+# Generating thumbnails from videos
+progress-thumbnails-videos = Genererer video-miniatyrbilder …
+# Notification banner for background tasks
+# Processing new photos to extract metadata from EXIF tags.
+banner-metadata-photos = Behandler bildemetadata …
+# Progress bar for background tasks
+# Generating thumbnails from photos
+progress-thumbnails-photos = Genererer miniatyrbilder …
+# Progress bar for background tasks
+# Transcoding videos to a compatible format
+progress-convert-videos = Konverterer videoer …
+# Notification banner for background tasks
+# Scanning file system for new photos
+banner-scan-photos = Skanner filsystem for bilder …
+# Progress bar for background tasks
+# Extracting motion photo videos
+progress-motion-photo = Behandler bevegelige bilder …
+# Notification banner for background tasks
+# Scanning file system for new videos
+banner-scan-videos = Skanner filsystem for videoer …
+# Notification banner for background tasks
+# Processing new videos to extract metadata from video container.
+banner-metadata-videos = Behandler videometadata …
+# Notification banner for background tasks
+# Generating thumbnails for all photos.
+banner-thumbnails-photos = Generer miniatyrbilder … Dette kan ta en stund.
+# Notification banner for background tasks
+# Generating thumbnails for all videos.
+banner-thumbnails-videos = Generer video-miniatyrbilder … Dette kan ta en stund.
+# Notification banner for background tasks
+# Updating the database to remove details of absent photos.
+banner-clean-photos = Vedlikehold av bildedatabase.
