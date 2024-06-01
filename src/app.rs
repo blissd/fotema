@@ -39,7 +39,7 @@ use std::str::FromStr;
 use strum::EnumString;
 use strum::IntoStaticStr;
 
-use tracing::{event, Level};
+use tracing::{event, Level, info};
 
 mod components;
 
@@ -409,6 +409,8 @@ impl SimpleComponent for App {
 
         let pic_base_dir = glib::user_special_dir(glib::enums::UserDirectory::Pictures)
             .expect("Expect XDG_PICTURES_DIR");
+
+        info!("XDG_PICTURES_DIR is {:?}", pic_base_dir);
 
         let db_path = data_dir.join("pictures.sqlite");
 

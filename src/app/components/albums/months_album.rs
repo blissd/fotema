@@ -22,6 +22,7 @@ use fotema_core::Year;
 use fotema_core::YearMonth;
 use std::path;
 use std::sync::Arc;
+use tracing::info;
 
 use crate::adaptive;
 use crate::app::SharedState;
@@ -221,8 +222,10 @@ impl SimpleComponent for MonthsAlbum {
             }
             MonthsAlbumInput::Refresh => {
                 if *self.active_view.read() == ViewName::Month {
+                    info!("Month view is active so refreshing");
                     self.refresh();
                 } else {
+                    info!("Month is inactive so clearing");
                     self.photo_grid.clear();
                 }
             }

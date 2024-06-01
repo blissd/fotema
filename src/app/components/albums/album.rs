@@ -23,7 +23,7 @@ use crate::app::ActiveView;
 use crate::app::ViewName;
 use super::album_filter::AlbumFilter;
 
-use tracing::{event, Level};
+use tracing::{event, Level, info};
 
 const NARROW_EDGE_LENGTH: i32 = 112;
 const WIDE_EDGE_LENGTH: i32 = 200;
@@ -276,8 +276,10 @@ impl SimpleComponent for Album {
             }
             AlbumInput::Refresh => {
                 if *self.active_view.read() == self.view_name {
+                    info!("{:?} view is active so refreshing", self.view_name);
                     self.refresh();
                 } else {
+                    info!("{:?} view is inactive so clearing", self.view_name);
                     self.photo_grid.clear();
                 }
             }

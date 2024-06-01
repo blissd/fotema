@@ -6,7 +6,7 @@ use relm4::prelude::*;
 use relm4::Worker;
 use fotema_core::video;
 
-use tracing::{event, Level};
+use tracing::{error, info};
 
 #[derive(Debug)]
 pub enum VideoScanInput {
@@ -38,7 +38,7 @@ impl Worker for VideoScan {
             VideoScanInput::Start => {
                 let result = self.scan_and_add(sender);
                 if let Err(e) = result {
-                    event!(Level::ERROR, "Failed scan with: {}", e);
+                    error!("Failed scan with: {}", e);
                 }
             }
         };
@@ -51,8 +51,11 @@ impl VideoScan {
         sender.output(VideoScanOutput::Started)
             .map_err(|e| format!("{:?}", e))?;
 
-        event!(Level::INFO, "Scanning file system for videos...");
+        info!("Scanning file system for videos...");
+
         let result = self.scan.scan_all().map_err(|e| e.to_string())?;
+        info!("Found {} videos to add to database", result.len());
+
         self.repo.add_all(&result).map_err(|e| e.to_string())?;
 
         sender.output(VideoScanOutput::Completed)
