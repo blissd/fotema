@@ -8,6 +8,7 @@ use crate::config::I18NDIR;
 use i18n_embed::DesktopLanguageRequester;
 use i18n_embed::LanguageLoader;
 use lazy_static::lazy_static;
+use unic_langid::LanguageIdentifier;
 
 use std::path::PathBuf;
 use tracing::info;
@@ -31,17 +32,38 @@ macro_rules! fl {
 }
 
 pub fn loader() -> FluentLanguageLoader {
+    let loader: FluentLanguageLoader = fluent_language_loader!();
+    let localizations = i18n_embed::FileSystemAssets::new(PathBuf::from(I18NDIR));
+
     // Get user's preferred languages from OS.
     let requested_languages = DesktopLanguageRequester::requested_languages();
-    let requested_languages = &requested_languages.iter().collect::<Vec<_>>(); // janky API needs &[&lang_id]
 
     info!("Requested languages: {:?}", requested_languages);
 
-    let loader: FluentLanguageLoader = fluent_language_loader!();
-    let i18n_assets = i18n_embed::FileSystemAssets::new(PathBuf::from(I18NDIR));
+    // For each requested language add a more general version _without_ a region specified.
+    // This is to make language fallbacks work properly so that "de_DE" can fallback to "de"
+    // rather than falling back to "en_US".
+    // Apology to future self: I suspect I shouldn't have to do this, and that this solution
+    // will come back to bite you in the bum.
+    let requested_languages = requested_languages
+        .into_iter()
+        .flat_map(|lang| {
+            vec![
+                lang.clone(),
+                LanguageIdentifier::from_parts(lang.language, None, None, &[]),
+            ]
+        })
+        .collect::<Vec<_>>();
+
+    let requested_languages = &requested_languages.iter().collect::<Vec<_>>(); // janky API needs &[&lang_id]
+
+    info!(
+        "Requested languages with fallbacks: {:?}",
+        requested_languages
+    );
 
     loader
-        .load_languages(&i18n_assets, &requested_languages)
+        .load_languages(&localizations, &requested_languages)
         .expect("Localization files should be present");
     loader
 }

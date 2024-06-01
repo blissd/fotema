@@ -64,7 +64,7 @@ impl PhotoClean {
                 }
             });
 
-        error!("Cleaned {} photos in {} seconds.", count, start.elapsed().as_secs());
+        info!("Cleaned {} photos in {} seconds.", count, start.elapsed().as_secs());
 
         if let Err(e) = sender.output(PhotoCleanOutput::Completed(count)) {
             error!("Failed sending PhotoCleanOutput::Completed: {:?}", e);
@@ -86,7 +86,7 @@ impl Worker for PhotoClean {
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
             PhotoCleanInput::Start => {
-                error!("Cleaning photos...");
+                info!("Cleaning photos...");
 
                 if let Err(e) = self.cleanup(&sender) {
                     error!("Failed to clean photos: {}", e);
