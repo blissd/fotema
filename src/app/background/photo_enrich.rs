@@ -21,8 +21,7 @@ pub enum PhotoEnrichOutput {
     Started,
 
     // Metadata enrichment completed
-    Completed,
-
+    Completed(usize),
 }
 
 pub struct PhotoEnrich {
@@ -46,7 +45,7 @@ impl PhotoEnrich {
         // Short-circuit before sending progress messages to stop
         // banner from appearing and disappearing.
         if count == 0 {
-            let _ = sender.output(PhotoEnrichOutput::Completed);
+            let _ = sender.output(PhotoEnrichOutput::Completed(count));
             return Ok(());
         }
 
@@ -64,7 +63,7 @@ impl PhotoEnrich {
 
         info!("Extracted {} photo metadatas in {} seconds.", count, start.elapsed().as_secs());
 
-        if let Err(e) = sender.output(PhotoEnrichOutput::Completed) {
+        if let Err(e) = sender.output(PhotoEnrichOutput::Completed(count)) {
             error!("Failed sending PhotoEnrichOutput::Completed: {:?}", e);
         }
 

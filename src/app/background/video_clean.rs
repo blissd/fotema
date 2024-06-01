@@ -20,7 +20,7 @@ pub enum VideoCleanOutput {
     Started,
 
     // Thumbnail generation has completed
-    Completed,
+    Completed(usize),
 
 }
 
@@ -44,7 +44,7 @@ impl VideoClean {
         // Short-circuit before sending progress messages to stop
         // banner from appearing and disappearing.
         if count == 0 {
-            let _ = sender.output(VideoCleanOutput::Completed);
+            let _ = sender.output(VideoCleanOutput::Completed(count));
             return Ok(());
         }
 
@@ -66,7 +66,7 @@ impl VideoClean {
 
         info!("Cleaned {} videos in {} seconds.", count, start.elapsed().as_secs());
 
-        if let Err(e) = sender.output(VideoCleanOutput::Completed) {
+        if let Err(e) = sender.output(VideoCleanOutput::Completed(count)) {
             error!("Failed sending VideoCleanOutput::Completed: {:?}", e);
         }
 

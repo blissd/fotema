@@ -23,6 +23,8 @@ use relm4::binding::*;
 use std::path;
 use std::sync::Arc;
 
+use tracing::info;
+
 use crate::adaptive;
 use crate::app::SharedState;
 use crate::app::ActiveView;
@@ -213,8 +215,10 @@ impl SimpleComponent for YearsAlbum {
             }
             YearsAlbumInput::Refresh => {
                 if *self.active_view.read() == ViewName::Year {
+                    info!("Year view is active so refreshing");
                     self.refresh();
                 } else {
+                    info!("Year is inactive so clearing");
                     self.photo_grid.clear();
                 }
             }

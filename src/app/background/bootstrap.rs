@@ -64,8 +64,9 @@ pub enum BootstrapInput {
     // A background task has started
     TaskStarted(TaskName),
 
-    // A background task has completed
-    TaskCompleted(TaskName),
+    // A background task has completed.
+    // usize is count of processed items.
+    TaskCompleted(TaskName, Option<usize>),
 }
 
 #[derive(Debug)]
@@ -80,6 +81,9 @@ pub enum BootstrapOutput {
 
 pub struct Bootstrap {
     started_at: Option<Instant>,
+
+    /// Whether a background task has updated some library state and the library should be reloaded.
+    library_updated: bool,
 
     load_library: WorkerController<LoadLibrary>,
 
@@ -149,67 +153,68 @@ impl Worker for Bootstrap {
             .detach_worker((photo_scanner.clone(), photo_repo.clone()))
             .forward(sender.input_sender(), |msg| match msg {
                 PhotoScanOutput::Started => BootstrapInput::TaskStarted(TaskName::Scan(MediaType::Photo)),
-                PhotoScanOutput::Completed => BootstrapInput::TaskCompleted(TaskName::Scan(MediaType::Photo)),
+                PhotoScanOutput::Completed => BootstrapInput::TaskCompleted(TaskName::Scan(MediaType::Photo), None),
             });
 
         let video_scan = VideoScan::builder()
             .detach_worker((video_scanner.clone(), video_repo.clone()))
             .forward(sender.input_sender(), |msg| match msg {
                 VideoScanOutput::Started => BootstrapInput::TaskStarted(TaskName::Scan(MediaType::Video)),
-                VideoScanOutput::Completed => BootstrapInput::TaskCompleted(TaskName::Scan(MediaType::Video)),
+                VideoScanOutput::Completed => BootstrapInput::TaskCompleted(TaskName::Scan(MediaType::Video), None),
             });
 
         let photo_enrich = PhotoEnrich::builder()
             .detach_worker(photo_repo.clone())
             .forward(sender.input_sender(), |msg| match msg {
                 PhotoEnrichOutput::Started => BootstrapInput::TaskStarted(TaskName::Enrich(MediaType::Photo)),
-                PhotoEnrichOutput::Completed => BootstrapInput::TaskCompleted(TaskName::Enrich(MediaType::Photo)),
+                PhotoEnrichOutput::Completed(count) => BootstrapInput::TaskCompleted(TaskName::Enrich(MediaType::Photo), Some(count)),
             });
 
         let video_enrich = VideoEnrich::builder()
             .detach_worker((video_repo.clone(), progress_monitor.clone()))
             .forward(sender.input_sender(), |msg| match msg {
                 VideoEnrichOutput::Started => BootstrapInput::TaskStarted(TaskName::Enrich(MediaType::Video)),
-                VideoEnrichOutput::Completed => BootstrapInput::TaskCompleted(TaskName::Enrich(MediaType::Video)),
+                VideoEnrichOutput::Completed(count) => BootstrapInput::TaskCompleted(TaskName::Enrich(MediaType::Video), Some(count)),
             });
 
         let photo_extract_motion = PhotoExtractMotion::builder()
             .detach_worker((motion_photo_extractor, photo_repo.clone(), progress_monitor.clone()))
             .forward(sender.input_sender(), |msg| match msg {
                 PhotoExtractMotionOutput::Started => BootstrapInput::TaskStarted(TaskName::MotionPhoto),
-                PhotoExtractMotionOutput::Completed => BootstrapInput::TaskCompleted(TaskName::MotionPhoto),
+                PhotoExtractMotionOutput::Completed(count) => BootstrapInput::TaskCompleted(TaskName::MotionPhoto, Some(count)),
             });
 
         let photo_thumbnail = PhotoThumbnail::builder()
             .detach_worker((photo_thumbnailer.clone(), photo_repo.clone(), progress_monitor.clone()))
             .forward(sender.input_sender(), |msg| match msg {
                 PhotoThumbnailOutput::Started => BootstrapInput::TaskStarted(TaskName::Thumbnail(MediaType::Photo)),
-                PhotoThumbnailOutput::Completed => BootstrapInput::TaskCompleted(TaskName::Thumbnail(MediaType::Photo)),
+                PhotoThumbnailOutput::Completed(count) => BootstrapInput::TaskCompleted(TaskName::Thumbnail(MediaType::Photo), Some(count)),
             });
 
         let video_thumbnail = VideoThumbnail::builder()
             .detach_worker((video_thumbnailer.clone(), video_repo.clone(), progress_monitor.clone()))
             .forward(sender.input_sender(), |msg| match msg {
                 VideoThumbnailOutput::Started => BootstrapInput::TaskStarted(TaskName::Thumbnail(MediaType::Video)),
-                VideoThumbnailOutput::Completed => BootstrapInput::TaskCompleted(TaskName::Thumbnail(MediaType::Video)),
+                VideoThumbnailOutput::Completed(count) => BootstrapInput::TaskCompleted(TaskName::Thumbnail(MediaType::Video), Some(count)),
             });
 
         let photo_clean = PhotoClean::builder()
             .detach_worker(photo_repo.clone())
             .forward(sender.input_sender(), |msg| match msg {
                 PhotoCleanOutput::Started => BootstrapInput::TaskStarted(TaskName::Clean(MediaType::Photo)),
-                PhotoCleanOutput::Completed => BootstrapInput::TaskCompleted(TaskName::Clean(MediaType::Video)),
+                PhotoCleanOutput::Completed(count) => BootstrapInput::TaskCompleted(TaskName::Clean(MediaType::Video), Some(count)),
             });
 
         let video_clean = VideoClean::builder()
             .detach_worker(video_repo.clone())
             .forward(sender.input_sender(), |msg| match msg {
                 VideoCleanOutput::Started => BootstrapInput::TaskStarted(TaskName::Clean(MediaType::Video)),
-                VideoCleanOutput::Completed => BootstrapInput::TaskCompleted(TaskName::Clean(MediaType::Video)),
+                VideoCleanOutput::Completed(count) => BootstrapInput::TaskCompleted(TaskName::Clean(MediaType::Video), Some(count)),
             });
 
         let model = Bootstrap {
             started_at: None,
+            library_updated: false,
             load_library,
             photo_scan,
             video_scan,
@@ -229,7 +234,7 @@ impl Worker for Bootstrap {
         // the app starts up.
         match msg {
             BootstrapInput::Start => {
-                info!("bootstrap: start");
+                info!("Start");
                 self.started_at = Some(Instant::now());
 
                 // Initial library load to reduce time from starting app and seeing a photo grid
@@ -237,82 +242,101 @@ impl Worker for Bootstrap {
                 self.photo_scan.emit(PhotoScanInput::Start);
             }
             BootstrapInput::TaskStarted(task_name @ TaskName::Scan(MediaType::Photo)) => {
-                info!("bootstrap: scan photos started");
+                info!("Scan photos started");
                 let _  = sender.output(BootstrapOutput::TaskStarted(task_name));
             }
-            BootstrapInput::TaskCompleted(TaskName::Scan(MediaType::Photo)) => {
-                info!("bootstrap: scan photos completed");
+            BootstrapInput::TaskCompleted(TaskName::Scan(MediaType::Photo), updated) => {
+                info!("Scan photos completed");
+                self.library_updated = self.library_updated || updated.is_some_and(|x| x > 0);
                 self.video_scan.emit(VideoScanInput::Start);
             }
             BootstrapInput::TaskStarted(task_name @ TaskName::Scan(MediaType::Video)) => {
-                info!("bootstrap: scan videos started");
+                info!("Scan videos started");
                 let _  = sender.output(BootstrapOutput::TaskStarted(task_name));
             }
-            BootstrapInput::TaskCompleted(TaskName::Scan(MediaType::Video)) => {
-                info!("bootstrap: scan videos completed");
+            BootstrapInput::TaskCompleted(TaskName::Scan(MediaType::Video), updated) => {
+                info!("Scan videos completed");
+                self.library_updated = self.library_updated || updated.is_some_and(|x| x > 0);
                 self.photo_enrich.emit(PhotoEnrichInput::Start);
             }
             BootstrapInput::TaskStarted(task_name @ TaskName::Enrich(MediaType::Photo)) => {
-                info!("bootstrap: photo enrichment started");
+                info!("Photo enrichment started");
                 let _  = sender.output(BootstrapOutput::TaskStarted(task_name));
             }
-            BootstrapInput::TaskCompleted(TaskName::Enrich(MediaType::Photo)) => {
-                info!("bootstrap: photo enrichment completed");
+            BootstrapInput::TaskCompleted(TaskName::Enrich(MediaType::Photo), updated) => {
+                info!("Photo enrichment completed");
+                self.library_updated = self.library_updated || updated.is_some_and(|x| x > 0);
                 self.video_enrich.emit(VideoEnrichInput::Start);
             }
             BootstrapInput::TaskStarted(task_name @ TaskName::Enrich(MediaType::Video)) => {
-                info!("bootstrap: video enrichment started");
+                info!("Video enrichment started");
                 let _  = sender.output(BootstrapOutput::TaskStarted(task_name));
             }
-            BootstrapInput::TaskCompleted(TaskName::Enrich(MediaType::Video)) => {
-                info!("bootstrap: video enrichment completed");
+            BootstrapInput::TaskCompleted(TaskName::Enrich(MediaType::Video), updated) => {
+                info!("Video enrichment completed");
 
-                // metadata might have changed, so reload library
-                // FIXME only reload if we know new items were found when scanning,
-                // or items had metadata updated
-                self.load_library.emit(LoadLibraryInput::Refresh);
+                self.library_updated = self.library_updated || updated.is_some_and(|x| x > 0);
+                if self.library_updated {
+                    info!("Refreshing library after video enrichment");
+                    self.load_library.emit(LoadLibraryInput::Refresh);
+                }
+                self.library_updated = false;
 
                 self.photo_extract_motion.emit(PhotoExtractMotionInput::Start);
             }
             BootstrapInput::TaskStarted(task_name @ TaskName::MotionPhoto) => {
-                info!("bootstrap: motion photo extract started");
+                info!("Motion photo extract started");
                 let _  = sender.output(BootstrapOutput::TaskStarted(task_name));
             }
-            BootstrapInput::TaskCompleted(TaskName::MotionPhoto) => {
-                info!("bootstrap: photo thumbnails completed");
+            BootstrapInput::TaskCompleted(TaskName::MotionPhoto, updated) => {
+                info!("photo thumbnails completed");
+                self.library_updated = self.library_updated || updated.is_some_and(|x| x > 0);
                 self.photo_thumbnail.emit(PhotoThumbnailInput::Start);
             }
             BootstrapInput::TaskStarted(task_name @ TaskName::Thumbnail(MediaType::Photo)) => {
-                info!("bootstrap: photo thumbnails started");
+                info!("Photo thumbnails started");
                 let _  = sender.output(BootstrapOutput::TaskStarted(task_name));
             }
-            BootstrapInput::TaskCompleted(TaskName::Thumbnail(MediaType::Photo)) => {
-                info!("bootstrap: photo thumbnails completed");
+            BootstrapInput::TaskCompleted(TaskName::Thumbnail(MediaType::Photo), updated) => {
+                info!("Photo thumbnails completed");
+                self.library_updated = self.library_updated || updated.is_some_and(|x| x > 0);
                 self.video_thumbnail.emit(VideoThumbnailInput::Start);
             }
             BootstrapInput::TaskStarted(task_name @ TaskName::Thumbnail(MediaType::Video)) => {
-                info!("bootstrap: video thumbnails started");
+                info!("Video thumbnails started");
                 let _  = sender.output(BootstrapOutput::TaskStarted(task_name));
             }
-            BootstrapInput::TaskCompleted(TaskName::Thumbnail(MediaType::Video)) => {
+            BootstrapInput::TaskCompleted(TaskName::Thumbnail(MediaType::Video), updated) => {
                 let duration = self.started_at.map(|x| x.elapsed());
-                info!("bootstrap: video thumbnails completed in {:?}", duration);
+                info!("Video thumbnails completed in {:?}", duration);
+                self.library_updated = self.library_updated || updated.is_some_and(|x| x > 0);
                 self.photo_clean.emit(PhotoCleanInput::Start);
             }
             BootstrapInput::TaskStarted(task_name @ TaskName::Clean(MediaType::Photo)) => {
-                info!("bootstrap: photo cleanup started.");
+                info!("Photo cleanup started.");
                 let _  = sender.output(BootstrapOutput::TaskStarted(task_name));
             }
-            BootstrapInput::TaskCompleted(TaskName::Clean(MediaType::Photo)) => {
-                info!("bootstrap: photo cleanup completed.");
+            BootstrapInput::TaskCompleted(TaskName::Clean(MediaType::Photo), updated) => {
+                info!("Photo cleanup completed.");
+                self.library_updated = self.library_updated || updated.is_some_and(|x| x > 0);
                 self.video_clean.emit(VideoCleanInput::Start);
             }
             BootstrapInput::TaskStarted(task_name @ TaskName::Clean(MediaType::Video)) => {
-                info!("bootstrap: video cleanup started.");
+                info!("Video cleanup started.");
                 let _  = sender.output(BootstrapOutput::TaskStarted(task_name));
             }
-            BootstrapInput::TaskCompleted(TaskName::Clean(MediaType::Video)) => {
-                info!("bootstrap: video cleanup completed.");
+            BootstrapInput::TaskCompleted(TaskName::Clean(MediaType::Video), updated) => {
+                info!("Video cleanup completed.");
+
+                // This is the last background task to complete. Refresh library if there
+                // has been a visible change to the library state.
+                self.library_updated = self.library_updated || updated.is_some_and(|x| x > 0);
+                if self.library_updated {
+                    info!("Refreshing library after video cleanup");
+                    self.load_library.emit(LoadLibraryInput::Refresh);
+                }
+                self.library_updated = false;
+
                 let _ = sender.output(BootstrapOutput::Completed);
             }
         };

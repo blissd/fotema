@@ -29,7 +29,7 @@ pub enum PhotoExtractMotionOutput {
     Started,
 
     // Motion photo extract has completed
-    Completed,
+    Completed(usize),
 
 }
 
@@ -63,7 +63,7 @@ impl PhotoExtractMotion {
         // Short-circuit before sending progress messages to stop
         // banner from appearing and disappearing.
         if count == 0 {
-            let _ = sender.output(PhotoExtractMotionOutput::Completed);
+            let _ = sender.output(PhotoExtractMotionOutput::Completed(count));
             return Ok(());
         }
 
@@ -103,7 +103,7 @@ impl PhotoExtractMotion {
 
         progress_monitor.emit(ProgressMonitorInput::Complete);
 
-        let _ = sender.output(PhotoExtractMotionOutput::Completed);
+        let _ = sender.output(PhotoExtractMotionOutput::Completed(count));
 
         Ok(())
     }

@@ -33,7 +33,7 @@ pub enum VideoThumbnailOutput {
     Started,
 
     // Thumbnail generation has completed
-    Completed,
+    Completed(usize),
 
 }
 
@@ -71,7 +71,7 @@ impl VideoThumbnail {
         // Short-circuit before sending progress messages to stop
         // banner from appearing and disappearing.
         if count == 0 {
-            let _ = sender.output(VideoThumbnailOutput::Completed);
+            let _ = sender.output(VideoThumbnailOutput::Completed(count));
             return Ok(());
         }
 
@@ -106,7 +106,7 @@ impl VideoThumbnail {
 
         progress_monitor.emit(ProgressMonitorInput::Complete);
 
-        let _ = sender.output(VideoThumbnailOutput::Completed);
+        let _ = sender.output(VideoThumbnailOutput::Completed(count));
 
         Ok(())
     }

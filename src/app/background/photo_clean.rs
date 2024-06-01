@@ -20,7 +20,7 @@ pub enum PhotoCleanOutput {
     Started,
 
     // Thumbnail generation has completed
-    Completed,
+    Completed(usize),
 
 }
 
@@ -44,7 +44,7 @@ impl PhotoClean {
         // Short-circuit before sending progress messages to stop
         // banner from appearing and disappearing.
         if count == 0 {
-            let _ = sender.output(PhotoCleanOutput::Completed);
+            let _ = sender.output(PhotoCleanOutput::Completed(count));
             return Ok(());
         }
 
@@ -66,7 +66,7 @@ impl PhotoClean {
 
         error!("Cleaned {} photos in {} seconds.", count, start.elapsed().as_secs());
 
-        if let Err(e) = sender.output(PhotoCleanOutput::Completed) {
+        if let Err(e) = sender.output(PhotoCleanOutput::Completed(count)) {
             error!("Failed sending PhotoCleanOutput::Completed: {:?}", e);
         }
 

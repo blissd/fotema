@@ -30,7 +30,7 @@ pub enum VideoEnrichOutput {
     Started,
 
     // Thumbnail generation has completed
-    Completed,
+    Completed(usize),
 }
 
 pub struct VideoEnrich {
@@ -55,7 +55,7 @@ impl VideoEnrich {
         // Short-circuit before sending progress messages to stop
         // banner from appearing and disappearing.
         if count == 0 {
-            let _ = sender.output(VideoEnrichOutput::Completed);
+            let _ = sender.output(VideoEnrichOutput::Completed(count));
             return Ok(());
         }
 
@@ -78,7 +78,7 @@ impl VideoEnrich {
 
         info!("Enriched {} videos in {} seconds.", count, start.elapsed().as_secs());
 
-        if let Err(e) = sender.output(VideoEnrichOutput::Completed) {
+        if let Err(e) = sender.output(VideoEnrichOutput::Completed(count)) {
             error!("Failed sending VideoEnrichOutput::Completed: {:?}", e);
         }
 
