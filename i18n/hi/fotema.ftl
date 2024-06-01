@@ -114,14 +114,29 @@ viewer-mute =
 # Convert all incompatible videos description
 viewer-convert-all-description = इस वीडियो को चलाने से पहले इसे परिवर्तित किया जाना चाहिए। ऐसा केवल एक बार होने की आवश्यकता है, लेकिन किसी वीडियो को परिवर्तित करने में कुछ समय लगता है।
 
+# Button to convert all incompatible videos.
 viewer-convert-all-button = सभी असंगत वीडियो परिवर्तित करें
+
+# Viewer failed to load an image or video.
+viewer-error-failed-to-load = लोड करने में विफल
+
+# Viewer could not display an image or video because it is missing.
+# Variables:
+#  file_name - (String) path of missing file.
+viewer-error-missing-file = फाइल प्रदर्शित नहीं हो सकती क्योंकि वह अनुपलब्ध है:
+  {$file_name}
+
+# Viewer could not display a file because database entry doesn't have file path.
+# If this situation occurs, then I've mucked up the SQL view query and a bug should
+# be raised.
+viewer-error-missing-path = फाइल पथ डेटाबेस में मौजूद नहीं है
 
 ## Photo/Video Information Sidebar
 
 # Name of containing folder of photo or video being viewed.
 # Attributes:
 #  .tooltip - tooltip text for open folder action button.
-infobar-folder = Folder
+infobar-folder = फोल्डर
   .tooltip = धारक फोल्डर खोलें
 
 # File name of photo or video
@@ -163,7 +178,7 @@ infobar-dimensions = आयाम
 ## Preferences
 
 # Title of section of preferences for views
-prefs-views-section = Views
+prefs-views-section = दृश्य
   .description = पार्श्वपट्टी दृश्य दिखाएं या छुपाएं
 
 # Selfies page enabled or disabled.
@@ -189,6 +204,9 @@ progress-thumbnails-videos = वीडियो थंबनेल उत्प�
 # Transcoding videos to a compatible format
 progress-convert-videos = वीडियो परिवर्तित किया जा रहा है।
 
+# Extracting motion photo videos
+progress-motion-photo = मोशन फोटो का प्रसंस्करण।
+
 # Not doing any background work
 progress-idle = निष्क्रिय।
 
@@ -204,6 +222,7 @@ banner-scan-videos = वीडियो के लिए फाइल सिस�
 
 # Processing new photos to extract metadata from EXIF tags.
 banner-metadata-photos = फोटो मेटाडेटा का प्रसंस्करण।
+
 # Processing new videos to extract metadata from video container.
 banner-metadata-videos = वीडियो मेटाडेटा का प्रसंस्करण।
 
@@ -218,6 +237,9 @@ banner-clean-photos = फोटो डेटाबेस का रखरखा�
 
 # Updating the database to remove details of absent videos.
 banner-clean-videos = वीडियो डेटाबेस का रखरखाव।
+
+# Extracting video component from Android motion photos
+banner-extract-motion-photos = मोशन फोटो का निष्कर्षण।
 
 ## Primary menu
 
