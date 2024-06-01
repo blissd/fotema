@@ -8,7 +8,7 @@ use rayon::prelude::*;
 use anyhow::*;
 use fotema_core::photo::metadata;
 
-use tracing::{event, Level};
+use tracing::{error, info};
 
 #[derive(Debug)]
 pub enum PhotoEnrichInput {
@@ -41,6 +41,7 @@ impl PhotoEnrich {
         let unprocessed = repo.find_need_metadata_update()?;
 
         let count = unprocessed.len();
+         info!("Found {} photos as candidates for enriching", count);
 
         // Short-circuit before sending progress messages to stop
         // banner from appearing and disappearing.
@@ -61,10 +62,10 @@ impl PhotoEnrich {
 
         repo.add_metadatas(metadatas)?;
 
-        event!(Level::INFO, "Extracted {} photo metadatas in {} seconds.", count, start.elapsed().as_secs());
+        info!("Extracted {} photo metadatas in {} seconds.", count, start.elapsed().as_secs());
 
         if let Err(e) = sender.output(PhotoEnrichOutput::Completed) {
-            event!(Level::ERROR, "Failed sending PhotoEnrichOutput::Completed: {:?}", e);
+            error!("Failed sending PhotoEnrichOutput::Completed: {:?}", e);
         }
 
         Ok(())
@@ -87,13 +88,13 @@ impl Worker for PhotoEnrich {
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
             PhotoEnrichInput::Start => {
-                event!(Level::INFO, "Enriching photos...");
+                info!("Enriching photos...");
                 let repo = self.repo.clone();
 
                 // Avoid runtime panic from calling block_on
                 rayon::spawn(move || {
                     if let Err(e) = PhotoEnrich::enrich(repo, &sender) {
-                        event!(Level::ERROR, "Failed to update previews: {}", e);
+                        error!("Failed to update previews: {}", e);
                     }
                 });
             }

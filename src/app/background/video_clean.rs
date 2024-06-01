@@ -7,7 +7,7 @@ use relm4::Worker;
 use rayon::prelude::*;
 use anyhow::*;
 
-use tracing::{event, Level};
+use tracing::{error, info};
 
 #[derive(Debug)]
 pub enum VideoCleanInput {
@@ -39,6 +39,7 @@ impl VideoClean {
         let vids: Vec<fotema_core::video::model::Video> = self.repo.all()?;
 
         let count = vids.len();
+         info!("Found {} videos as candidates for cleaning", count);
 
         // Short-circuit before sending progress messages to stop
         // banner from appearing and disappearing.
@@ -48,7 +49,7 @@ impl VideoClean {
         }
 
         if let Err(e) = sender.output(VideoCleanOutput::Started){
-            event!(Level::ERROR, "Failed sending cleanup started: {:?}", e);
+            error!("Failed sending cleanup started: {:?}", e);
         }
 
         vids.par_iter()
@@ -56,17 +57,17 @@ impl VideoClean {
                 if !vid.path.exists() {
                     let result = self.repo.clone().remove(vid.video_id);
                     if let Err(e) = result {
-                        event!(Level::ERROR, "Failed remove {}: {:?}", vid.video_id, e);
+                        error!("Failed remove {}: {:?}", vid.video_id, e);
                     } else {
-                        event!(Level::INFO, "Removed {}", vid.video_id);
+                        info!("Removed {}", vid.video_id);
                     }
                 }
             });
 
-        event!(Level::INFO, "Cleaned {} videos in {} seconds.", count, start.elapsed().as_secs());
+        info!("Cleaned {} videos in {} seconds.", count, start.elapsed().as_secs());
 
         if let Err(e) = sender.output(VideoCleanOutput::Completed) {
-            event!(Level::ERROR, "Failed sending VideoCleanOutput::Completed: {:?}", e);
+            error!("Failed sending VideoCleanOutput::Completed: {:?}", e);
         }
 
         Ok(())
@@ -85,10 +86,10 @@ impl Worker for VideoClean {
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
             VideoCleanInput::Start => {
-                event!(Level::INFO, "Cleaning videos...");
+                info!("Cleaning videos...");
 
                 if let Err(e) = self.cleanup(&sender) {
-                    event!(Level::ERROR, "Failed to clean videos: {}", e);
+                    error!("Failed to clean videos: {}", e);
                 }
             }
         };

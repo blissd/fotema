@@ -10,7 +10,7 @@ use futures::executor::block_on;
 use anyhow::*;
 use std::sync::Arc;
 use std::result::Result::Ok;
-use tracing::{event, Level};
+use tracing::{error, info};
 
 use std::panic;
 
@@ -66,6 +66,7 @@ impl PhotoThumbnail {
         unprocessed.reverse();
 
         let count = unprocessed.len();
+         info!("Found {} photos to generate thumbnails for", count);
 
         // Short-circuit before sending progress messages to stop
         // banner from appearing and disappearing.
@@ -95,17 +96,17 @@ impl PhotoThumbnail {
                 // If we got an err, then there was a panic.
                 // If we got Ok(Err(e)) there wasn't a panic, but we still failed.
                 if let Ok(Err(e)) = result {
-                    event!(Level::ERROR, "Failed generate or add thumbnail: {:?}: Photo path: {:?}", e, pic.path);
+                    error!("Failed generate or add thumbnail: {:?}: Photo path: {:?}", e, pic.path);
                     let _ = repo.clone().mark_broken(&pic.picture_id);
                 } else if let Err(_) = result {
-                    event!(Level::ERROR, "Panicked generate or add thumbnail: Photo path: {:?}", pic.path);
+                    error!("Panicked generate or add thumbnail: Photo path: {:?}", pic.path);
                     let _ = repo.clone().mark_broken(&pic.picture_id);
                 }
 
                 progress_monitor.emit(ProgressMonitorInput::Advance);
             });
 
-        event!(Level::INFO, "Generated {} photo thumbnails in {} seconds.", count, start.elapsed().as_secs());
+        info!("Generated {} photo thumbnails in {} seconds.", count, start.elapsed().as_secs());
 
         progress_monitor.emit(ProgressMonitorInput::Complete);
 
@@ -133,7 +134,7 @@ impl Worker for PhotoThumbnail {
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
             PhotoThumbnailInput::Start => {
-                event!(Level::INFO, "Generating photo thumbnails...");
+                info!("Generating photo thumbnails...");
                 let repo = self.repo.clone();
                 let thumbnailer = self.thumbnailer.clone();
                 let progress_monitor = self.progress_monitor.clone();
@@ -141,7 +142,7 @@ impl Worker for PhotoThumbnail {
                 // Avoid runtime panic from calling block_on
                 rayon::spawn(move || {
                     if let Err(e) = PhotoThumbnail::enrich(repo, thumbnailer, progress_monitor, sender) {
-                        event!(Level::ERROR, "Failed to update previews: {}", e);
+                        error!("Failed to update previews: {}", e);
                     }
                 });
             }

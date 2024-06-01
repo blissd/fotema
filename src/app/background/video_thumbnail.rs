@@ -9,7 +9,7 @@ use anyhow::*;
 use std::sync::Arc;
 use std::panic;
 use std::result::Result::Ok;
-use tracing::{event, Level};
+use tracing::{error, info};
 use rayon::prelude::*;
 
 use fotema_core::video::{Video, Thumbnailer, Repository};
@@ -66,6 +66,7 @@ impl VideoThumbnail {
         unprocessed.reverse();
 
         let count = unprocessed.len();
+         info!("Found {} videos to generate thumbnails for", count);
 
         // Short-circuit before sending progress messages to stop
         // banner from appearing and disappearing.
@@ -91,17 +92,17 @@ impl VideoThumbnail {
                 // If we got an err, then there was a panic.
                 // If we got Ok(Err(e)) there wasn't a panic, but we still failed.
                 if let Ok(Err(e)) = result {
-                    event!(Level::ERROR, "Failed generate or add thumbnail: {:?}: Video path: {:?}", e, vid.path);
+                    error!("Failed generate or add thumbnail: {:?}: Video path: {:?}", e, vid.path);
                     let _ = repo.clone().mark_broken(&vid.video_id);
                 } else if let Err(_) = result {
-                    event!(Level::ERROR, "Panicked generate or add thumbnail: Video path: {:?}", vid.path);
+                    error!("Panicked generate or add thumbnail: Video path: {:?}", vid.path);
                     let _ = repo.clone().mark_broken(&vid.video_id);
                 }
 
                 progress_monitor.emit(ProgressMonitorInput::Advance);
             });
 
-        event!(Level::INFO, "Generated {} video thumbnails in {} seconds.", count, start.elapsed().as_secs());
+        info!("Generated {} video thumbnails in {} seconds.", count, start.elapsed().as_secs());
 
         progress_monitor.emit(ProgressMonitorInput::Complete);
 
@@ -129,7 +130,7 @@ impl Worker for VideoThumbnail {
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
             VideoThumbnailInput::Start => {
-                event!(Level::INFO, "Generating video thumbnails...");
+                info!("Generating video thumbnails...");
                 let repo = self.repo.clone();
                 let thumbnailer = self.thumbnailer.clone();
                 let progress_monitor = self.progress_monitor.clone();
@@ -137,7 +138,7 @@ impl Worker for VideoThumbnail {
                 // Avoid runtime panic from calling block_on
                 rayon::spawn(move || {
                     if let Err(e) = VideoThumbnail::enrich(repo, thumbnailer, progress_monitor, sender) {
-                        event!(Level::ERROR, "Failed to update video thumbnails: {}", e);
+                        error!("Failed to update video thumbnails: {}", e);
                     }
                 });
             }

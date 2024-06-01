@@ -11,7 +11,7 @@ use anyhow::*;
 use fotema_core::video::Repository;
 use fotema_core::video::Transcoder;
 use fotema_core::Visual;
-use tracing::{event, Level};
+use tracing::{error, info};
 
 use crate::app::components::progress_monitor::{
     ProgressMonitor,
@@ -64,6 +64,9 @@ impl VideoTranscode {
                 .collect()
         };
 
+
+         info!("Found {} videos to transcode", unprocessed.len());
+
         self.progress_monitor
             .emit(ProgressMonitorInput::Start(TaskName::Transcode, unprocessed.len()));
 
@@ -80,10 +83,10 @@ impl VideoTranscode {
 
                 if let std::result::Result::Ok(ref transcode_path) = result {
                     if let Err(e) = self.repo.add_transcode(video_id, transcode_path) {
-                        event!(Level::ERROR, "Failed adding transcode path: {:?}", e);
+                        error!("Failed adding transcode path: {:?}", e);
                     }
                 } else if let Err(ref e) = result {
-                    event!(Level::ERROR, "Failed transcoding: {:?}", e);
+                    error!("Failed transcoding: {:?}", e);
                 }
 
                 self.progress_monitor.emit(ProgressMonitorInput::Advance);
@@ -110,10 +113,10 @@ impl Worker for VideoTranscode {
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
             VideoTranscodeInput::All => {
-                event!(Level::INFO, "Transcoding all incompatible videos");
+                info!("Transcoding all incompatible videos");
 
                 if let Err(e) = self.transcode_all(&sender) {
-                    event!(Level::ERROR, "Failed to transcode photo: {}", e);
+                    error!("Failed to transcode photo: {}", e);
                 }
             },
         };
