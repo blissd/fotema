@@ -47,6 +47,19 @@
   </branding>
 
   <releases>
+    <release version="1.8.0" date="2024-06-01">
+      <description>
+        <p>Improvements:</p>
+        <ul>
+          <li>Android motion photo support (Samsung devices only).</li>
+          <li>Updated Hindi translation.</li>
+        </ul>
+        <p>Bugs fixed:</p>
+        <ul>
+          <li>Regional requested language would not fall back to non-regional variant.</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.7.1" date="2024-05-28">
       <description>
         <p>Improvements:</p>
