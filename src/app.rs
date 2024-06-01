@@ -690,6 +690,9 @@ impl SimpleComponent for App {
                     TaskName::Enrich(MediaType::Video) => {
                         self.banner.set_title(&fl!("banner-metadata-videos"));
                     },
+                    TaskName::MotionPhoto => {
+                        self.banner.set_title(&fl!("banner-extract-motion-photos"));
+                    },
                     TaskName::Thumbnail(MediaType::Photo) => {
                         self.banner.set_title(&fl!("banner-thumbnails-photos"));
                     },

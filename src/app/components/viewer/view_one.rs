@@ -375,6 +375,8 @@ impl SimpleAsyncComponent for ViewOne {
                         let video_path = visual.video_transcoded_path.as_ref()
                             .filter(|x| x.exists())
                             .or_else(|| visual.video_path.as_ref())
+                            .filter(|x| x.exists())
+                            .or_else(|| visual.motion_photo_video_path.as_ref())
                             .expect("must have video path");
 
                         let video = gtk::MediaFile::for_filename(video_path);
@@ -488,7 +490,6 @@ impl SimpleAsyncComponent for ViewOne {
                     let mut ts = video.timestamp();
                     if ts + TEN_SECS_IN_MICROS >= video.duration() {
                         ts = video.duration();
-                        //video.seek(ts);
                         video.stream_ended();
                     } else {
                         ts += TEN_SECS_IN_MICROS;

@@ -4,7 +4,7 @@
 
 use crate::YearMonth;
 use chrono::prelude::*;
-use chrono::{DateTime, FixedOffset, Utc};
+use chrono::{DateTime, FixedOffset, TimeDelta, Utc};
 use std::fmt::Display;
 use std::path::PathBuf;
 use strum::{AsRefStr, EnumIter};
@@ -209,4 +209,17 @@ impl Metadata {
             .as_ref()
             .is_some_and(|x| x.contains("front"))
     }
+}
+
+/// A video extracted from a motion photo
+#[derive(Debug, Clone)]
+pub struct MotionPhotoVideo {
+    pub path: PathBuf,
+    pub duration: Option<TimeDelta>,
+    pub video_codec: Option<String>,
+    pub transcoded_path: Option<PathBuf>,
+
+    // Rotation of video in degrees.
+    // Should be 90, 180, 270, or the negative of those.
+    pub rotation: Option<i32>,
 }

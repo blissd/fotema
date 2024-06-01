@@ -27,6 +27,7 @@ use super::{
     photo_enrich::{PhotoEnrich, PhotoEnrichInput, PhotoEnrichOutput},
     photo_scan::{PhotoScan, PhotoScanInput, PhotoScanOutput},
     photo_thumbnail::{PhotoThumbnail, PhotoThumbnailInput, PhotoThumbnailOutput},
+    photo_extract_motion::{PhotoExtractMotion, PhotoExtractMotionInput, PhotoExtractMotionOutput},
 
     video_clean::{VideoClean, VideoCleanInput, VideoCleanOutput},
     video_enrich::{VideoEnrich, VideoEnrichInput, VideoEnrichOutput},
@@ -51,6 +52,7 @@ pub enum MediaType {
 pub enum TaskName {
     Scan(MediaType),
     Enrich(MediaType),
+    MotionPhoto,
     Thumbnail(MediaType),
     Clean(MediaType),
 }
@@ -92,6 +94,8 @@ pub struct Bootstrap {
 
     photo_thumbnail: WorkerController<PhotoThumbnail>,
     video_thumbnail: WorkerController<VideoThumbnail>,
+
+    photo_extract_motion: WorkerController<PhotoExtractMotion>,
 }
 
 impl Worker for Bootstrap {
@@ -127,6 +131,8 @@ impl Worker for Bootstrap {
         };
 
         let video_thumbnailer = video::Thumbnailer::build(&cache_dir).unwrap();
+
+        let motion_photo_extractor = photo::MotionPhotoExtractor::build(&cache_dir).unwrap();
 
         let visual_repo = visual::Repository::open(
             &pic_base_dir,
@@ -167,6 +173,13 @@ impl Worker for Bootstrap {
                 VideoEnrichOutput::Completed => BootstrapInput::TaskCompleted(TaskName::Enrich(MediaType::Video)),
             });
 
+        let photo_extract_motion = PhotoExtractMotion::builder()
+            .detach_worker((motion_photo_extractor, photo_repo.clone(), progress_monitor.clone()))
+            .forward(sender.input_sender(), |msg| match msg {
+                PhotoExtractMotionOutput::Started => BootstrapInput::TaskStarted(TaskName::MotionPhoto),
+                PhotoExtractMotionOutput::Completed => BootstrapInput::TaskCompleted(TaskName::MotionPhoto),
+            });
+
         let photo_thumbnail = PhotoThumbnail::builder()
             .detach_worker((photo_thumbnailer.clone(), photo_repo.clone(), progress_monitor.clone()))
             .forward(sender.input_sender(), |msg| match msg {
@@ -202,6 +215,7 @@ impl Worker for Bootstrap {
             video_scan,
             photo_enrich,
             video_enrich,
+            photo_extract_motion,
             photo_clean,
             video_clean,
             photo_thumbnail,
@@ -258,6 +272,14 @@ impl Worker for Bootstrap {
                 // or items had metadata updated
                 self.load_library.emit(LoadLibraryInput::Refresh);
 
+                self.photo_extract_motion.emit(PhotoExtractMotionInput::Start);
+            }
+            BootstrapInput::TaskStarted(task_name @ TaskName::MotionPhoto) => {
+                event!(Level::INFO, "bootstrap: motion photo extract started");
+                let _  = sender.output(BootstrapOutput::TaskStarted(task_name));
+            }
+            BootstrapInput::TaskCompleted(TaskName::MotionPhoto) => {
+                event!(Level::INFO, "bootstrap: photo thumbnails completed");
                 self.photo_thumbnail.emit(PhotoThumbnailInput::Start);
             }
             BootstrapInput::TaskStarted(task_name @ TaskName::Thumbnail(MediaType::Photo)) => {

@@ -64,6 +64,8 @@ pub struct Visual {
 
     pub picture_orientation: Option<Orientation>,
 
+    pub motion_photo_video_path: Option<PathBuf>,
+
     /// EXIF or file system creation timestamp
     pub created_at: DateTime<Utc>,
 
@@ -71,7 +73,7 @@ pub struct Visual {
     pub is_selfie: Option<bool>,
 
     // Is this an iOS live photo?
-    pub is_ios_live_photo: bool,
+    pub is_live_photo: bool,
 
     // Does the video_code require the video is transcoded?
     pub is_transcode_required: Option<bool>,
@@ -89,11 +91,11 @@ impl Visual {
     }
 
     pub fn is_motion_photo(&self) -> bool {
-        self.is_ios_live_photo
+        self.is_live_photo
     }
 
     pub fn is_photo_only(&self) -> bool {
-        self.picture_id.is_some() && self.video_id.is_none()
+        self.picture_id.is_some() && self.video_id.is_none() && !self.is_live_photo
     }
 
     pub fn is_video_only(&self) -> bool {

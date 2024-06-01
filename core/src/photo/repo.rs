@@ -5,6 +5,8 @@
 use crate::photo::model::{Picture, PictureId, ScannedFile};
 
 use super::metadata;
+use super::model::MotionPhotoVideo;
+use super::motion_photo;
 use super::Metadata;
 use crate::path_encoding;
 use anyhow::*;
@@ -21,8 +23,8 @@ pub struct Repository {
     /// Base path to picture library on file system
     library_base_path: PathBuf,
 
-    /// Base path for photo thumbnails
-    thumbnail_base_path: PathBuf,
+    /// Base path for photo thumbnails and motion photo videos
+    cache_dir_base_path: PathBuf,
 
     /// Connection to backing Sqlite database.
     con: Arc<Mutex<rusqlite::Connection>>,
@@ -32,18 +34,19 @@ impl Repository {
     /// Builds a Repository and creates operational tables.
     pub fn open(
         library_base_path: &Path,
-        thumbnail_base_path: &Path,
+        cache_dir_base_path: &Path,
         con: Arc<Mutex<rusqlite::Connection>>,
     ) -> Result<Repository> {
         if !library_base_path.is_dir() {
             bail!("{:?} is not a directory", library_base_path);
         }
 
-        let thumbnail_base_path = PathBuf::from(thumbnail_base_path);
+        let library_base_path = PathBuf::from(library_base_path);
+        let cache_dir_base_path = PathBuf::from(cache_dir_base_path);
 
         let repo = Repository {
-            library_base_path: PathBuf::from(library_base_path),
-            thumbnail_base_path,
+            library_base_path,
+            cache_dir_base_path,
             con,
         };
 
@@ -98,7 +101,7 @@ impl Repository {
             )?;
 
             // convert to relative path before saving to database
-            let thumbnail_path = thumbnail_path.strip_prefix(&self.thumbnail_base_path).ok();
+            let thumbnail_path = thumbnail_path.strip_prefix(&self.cache_dir_base_path).ok();
 
             stmt.execute(params![
                 picture_id.id(),
@@ -203,7 +206,9 @@ impl Repository {
         Ok(result)
     }
 
-    /// Gets all pictures in the repository, in ascending order of modification timestamp.
+    /// Gets all pictures that haven't had their metadata extracted.
+    /// Will return all pictures that are not broken and have a metadata version
+    /// lower than the current metadata scanner.
     pub fn find_need_metadata_update(&self) -> Result<Vec<Picture>> {
         let con = self.con.lock().unwrap();
         let mut stmt = con.prepare(
@@ -229,6 +234,108 @@ impl Repository {
         Ok(result)
     }
 
+    /// Gets all pictures that haven't been inspected for containing a motion photo.
+    pub fn find_need_motion_photo_extract(&self) -> Result<Vec<Picture>> {
+        let con = self.con.lock().unwrap();
+        let mut stmt = con.prepare(
+            "SELECT
+                    pictures.picture_id,
+                    pictures.picture_path_b64,
+                    pictures.thumbnail_path,
+                    pictures.fs_created_ts,
+                    pictures.exif_created_ts,
+                    pictures.exif_modified_ts,
+                    pictures.is_selfie
+                FROM pictures
+                FULL OUTER JOIN motion_photos USING (picture_id)
+                WHERE COALESCE(motion_photos.extract_version, 0) < ?1
+                AND COALESCE(is_broken, FALSE) IS FALSE",
+        )?;
+
+        let result = stmt
+            .query_map([motion_photo::VERSION], |row| self.to_picture(row))?
+            .flatten()
+            .collect();
+
+        Ok(result)
+    }
+
+    pub fn add_motion_photo_video(
+        &mut self,
+        picture_id: &PictureId,
+        video: Option<MotionPhotoVideo>,
+    ) -> Result<()> {
+        let mut con = self.con.lock().unwrap();
+        let tx = con.transaction()?;
+
+        {
+            if let Some(video) = video {
+                let mut stmt = tx.prepare(
+                    "INSERT INTO motion_photos (
+                        picture_id,
+                        extract_version,
+                        video_path,
+                        duration_millis,
+                        video_codec,
+                        rotation,
+                        transcoded_path
+                    ) VALUES (
+                        ?1, ?2, ?3, ?4, ?5, ?6, ?7
+                    ) ON CONFLICT (picture_id) DO UPDATE SET
+                        extract_version = ?2,
+                        video_path = ?3,
+                        duration_millis = ?4,
+                        video_codec = ?5,
+                        rotation = ?6,
+                        transcoded_path = ?7
+                    ",
+                )?;
+
+                // convert to relative path before saving to database
+                // path relative to cache directory so no need to base64 encode
+                let video_path = video.path.strip_prefix(&self.cache_dir_base_path).ok();
+                let transcoded_path = video
+                    .transcoded_path
+                    .as_ref()
+                    .and_then(|x| x.strip_prefix(&self.cache_dir_base_path).ok());
+
+                stmt.execute(params![
+                    picture_id.id(),
+                    motion_photo::VERSION,
+                    video_path.as_ref().map(|p| p.to_str()),
+                    video.duration.map(|x| x.num_milliseconds()),
+                    video.video_codec,
+                    video.rotation,
+                    transcoded_path.as_ref().map(|p| p.to_string_lossy()),
+                ])?;
+            } else {
+                let mut stmt = tx.prepare(
+                    "INSERT INTO motion_photos (
+                    picture_id,
+                    extract_version,
+                    video_path,
+                    duration_millis,
+                    video_codec,
+                    transcoded_path
+                ) VALUES (
+                    ?1, ?2, NULL, NULL, NULL, NULL
+                ) ON CONFLICT (picture_id) DO UPDATE SET
+                    extract_version = ?2,
+                    video_path = NULL,
+                    duration_millis = NULL,
+                    video_codec = NULL,
+                    transcoded_path = NULL
+                ",
+                )?;
+
+                stmt.execute(params![picture_id.id(), motion_photo::VERSION,])?;
+            }
+        }
+
+        tx.commit()?;
+        Ok(())
+    }
+
     fn to_picture(&self, row: &Row<'_>) -> rusqlite::Result<Picture> {
         let picture_id = row.get("picture_id").map(|x| PictureId::new(x))?;
 
@@ -239,7 +346,7 @@ impl Repository {
 
         let thumbnail_path = row
             .get("thumbnail_path")
-            .map(|p: String| self.thumbnail_base_path.join(p))
+            .map(|p: String| self.cache_dir_base_path.join(p))
             .ok();
 
         let fs_created_at = row.get("fs_created_ts")?;
