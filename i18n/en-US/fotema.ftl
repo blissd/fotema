@@ -239,7 +239,7 @@ banner-clean-photos = Photo database maintenance.
 banner-clean-videos = Video database maintenance.
 
 # Extracting video component from Android motion photos
-banner-extract-motion-photos = Extracting motion photos.
+banner-extract-motion-photos = Processing motion photos.
 
 ## Primary menu
 
