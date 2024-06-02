@@ -59,6 +59,12 @@ pub enum FoldersAlbumInput {
 
     // Adapt to layout
     Adapt(adaptive::Layout),
+
+    /// No-op. After refreshing the thumbnail grid, the screen would be blank and thumbnails
+    /// would not appear until clicking to another view and back. I don't know why this happens,
+    /// and have only observed this behaviour on the folders album view. As a work around, send
+    /// a no-op message to trigger a view redraw.
+    Noop,
 }
 
 #[derive(Debug)]
@@ -198,7 +204,10 @@ impl SimpleComponent for FoldersAlbum {
 
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
-           FoldersAlbumInput::Activate => {
+            FoldersAlbumInput::Noop => {
+                info!("No-op received... so doing nothing. As expected :-/");
+            },
+            FoldersAlbumInput::Activate => {
                 *self.active_view.write() = ViewName::Folders;
                 if self.photo_grid.is_empty() {
                     self.refresh();
@@ -208,6 +217,9 @@ impl SimpleComponent for FoldersAlbum {
                 if *self.active_view.read() == ViewName::Folders {
                     info!("Folders view is active so refreshing");
                     self.refresh();
+
+                    // Work-around to make grid appear.
+                    sender.input(FoldersAlbumInput::Noop);
                 } else {
                     info!("Folders view is inactive so clearing");
                     self.photo_grid.clear();
@@ -261,14 +273,5 @@ impl FoldersAlbum {
         self.photo_grid.extend_from_iter(pictures.into_iter());
 
         // NOTE folder view is not sorted by a timestamp, so don't scroll to end.
-        // NOTE without scroll the photo grid doesn't immediately reappear after refresh. Instead
-        // it is necessary to click to another view and back :-(
-        if !self.photo_grid.is_empty() {
-            self.photo_grid.view.scroll_to(
-                0,
-                gtk::ListScrollFlags::SELECT,
-                None,
-            );
-        }
     }
 }
