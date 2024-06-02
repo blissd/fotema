@@ -13,6 +13,7 @@
     <ul>
       <li>Many supported image formats. Fotema supports the same image formats as Loupe (the GNOME image viewer).</li>
       <li>View iOS Live Photos.</li>
+      <li>View Android motion photos (Samsung devices only).</li>
       <li>Play videos.</li>
       <li>View your library by year or month.</li>
     </ul>
