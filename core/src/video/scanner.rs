@@ -8,6 +8,7 @@ use chrono::prelude::*;
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
+use tracing::error;
 use walkdir::WalkDir;
 
 // FIXME photos::Scanner and videos::Scanner are now broadly the same. Can they be consolidated?
@@ -35,6 +36,11 @@ impl Scanner {
 
         WalkDir::new(&self.scan_base)
             .into_iter()
+            .inspect(|x| {
+                let _ = x
+                    .as_ref()
+                    .inspect_err(|e| error!("Failed walking: {:?}", e));
+            })
             .flatten() // skip files we failed to read
             .filter(|x| x.path().is_file()) // only process files
             .filter(|x| {
@@ -47,6 +53,11 @@ impl Scanner {
                 suffixes.contains(&ext.unwrap_or(String::from("not_a_video")))
             })
             .map(|x| self.scan_one(x.path())) // Get video info for path
+            .inspect(|x| {
+                let _ = x
+                    .as_ref()
+                    .inspect_err(|e| error!("Failed scanning: {:?}", e));
+            })
             .flatten() // ignore any errors when reading videos
             .for_each(func); // visit
     }
