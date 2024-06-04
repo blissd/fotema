@@ -357,7 +357,6 @@ impl ViewInfo {
             .created()
             .map(|x| Into::<DateTime<Utc>>::into(x))
             .map(|x| x.format("%Y-%m-%d %H:%M:%S %:z").to_string())
-            .map_err(|e| e.to_string())
             .ok();
 
 
@@ -365,7 +364,6 @@ impl ViewInfo {
             .modified()
             .map(|x| Into::<DateTime<Utc>>::into(x))
             .map(|x| x.format("%Y-%m-%d %H:%M:%S %:z").to_string())
-            .map_err(|e| e.to_string())
             .ok();
 
         let has_date_time_details = [

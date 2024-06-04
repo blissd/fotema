@@ -96,9 +96,9 @@ pub struct ScannedFile {
     /// Full path to picture file.
     pub path: PathBuf,
 
-    pub fs_created_at: DateTime<Utc>,
+    pub fs_created_at: Option<DateTime<Utc>>,
 
-    pub fs_modified_at: DateTime<Utc>,
+    pub fs_modified_at: Option<DateTime<Utc>>,
 
     pub fs_file_size_bytes: u64,
 }

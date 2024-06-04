@@ -160,14 +160,16 @@ impl Repository {
             let mut vid_stmt = tx.prepare_cached(
                 "INSERT INTO videos (
                         fs_created_ts,
+                        fs_modified_ts,
                         video_path_b64,
                         video_path_lossy,
                         link_path_b64,
                         link_path_lossy
                     ) VALUES (
-                        ?1, ?2, ?3, $4, $5
+                        ?1, ?2, ?3, ?4, ?5, ?6
                     ) ON CONFLICT (video_path_b64) DO UPDATE SET
-                        fs_created_ts=?1
+                        fs_created_ts = ?1,
+                        fs_modified_ts = ?2
                     ",
             )?;
 
@@ -187,6 +189,7 @@ impl Repository {
 
                 vid_stmt.execute(params![
                     vid.fs_created_at,
+                    vid.fs_modified_at,
                     video_path_b64,
                     video_path.to_string_lossy(),
                     link_path_b64,

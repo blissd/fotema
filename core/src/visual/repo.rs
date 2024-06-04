@@ -65,7 +65,7 @@ impl Repository {
 
                     motion_photo_video_path,
 
-                    created_ts,
+                    ordering_ts,
                     is_live_photo,
 
                     video_transcoded_path,
@@ -73,7 +73,7 @@ impl Repository {
                     duration_millis,
                     video_rotation
                 FROM visual
-                ORDER BY created_ts ASC",
+                ORDER BY ordering_ts ASC",
         )?;
 
         let result = stmt.query_map([], |row| self.to_visual(row))?;
@@ -141,7 +141,8 @@ impl Repository {
             .map(|x| self.cache_dir_base_path.join(x))
             .ok();
 
-        let created_at: DateTime<Utc> = row.get("created_ts").ok().expect("Must have created_ts");
+        let ordering_ts: DateTime<Utc> =
+            row.get("ordering_ts").ok().expect("Must have ordering_ts");
 
         let is_live_photo: Option<bool> = row.get("is_live_photo").ok();
 
@@ -172,7 +173,7 @@ impl Repository {
             picture_orientation,
             video_id,
             video_path,
-            created_at,
+            created_at: ordering_ts, // FIXME rename created_at to ordering_ts
             is_selfie,
             is_live_photo,
             video_transcoded_path,

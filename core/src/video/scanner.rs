@@ -77,11 +77,15 @@ impl Scanner {
 
         let metadata = file.metadata()?;
 
-        let fs_created_at = metadata.created().map(|x| Into::<DateTime<Utc>>::into(x))?;
+        let fs_created_at = metadata
+            .created()
+            .map(|x| Into::<DateTime<Utc>>::into(x))
+            .ok();
 
         let fs_modified_at = metadata
             .modified()
-            .map(|x| Into::<DateTime<Utc>>::into(x))?;
+            .map(|x| Into::<DateTime<Utc>>::into(x))
+            .ok();
 
         let fs_file_size_bytes = metadata.len();
 
