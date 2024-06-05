@@ -1,5 +1,5 @@
 -- File system creation time should be nullable as not all file systems
--- support it. Looking at you, EXT4.
+-- support it.
 -- Add file system modification time. Looks like Linux file systems should
 -- have a modification time of file, but allow nullable just in case.
 
