@@ -48,6 +48,14 @@
   </branding>
 
   <releases>
+    <release version="1.8.1" date="2024-06-05">
+      <description>
+        <p>Bugs fixed:</p>
+        <ul>
+          <li>No photos or videos displayed on file systems that don't expose a file creation time.</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.8.0" date="2024-06-01">
       <description>
         <p>Improvements:</p>
