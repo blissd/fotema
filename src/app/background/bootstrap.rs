@@ -281,8 +281,7 @@ impl Worker for Bootstrap {
                     self.load_library.emit(LoadLibraryInput::Refresh);
                 }
                 self.library_stale = false;
-
-                self.photo_extract_motion.emit(PhotoExtractMotionInput::Start);
+                self.photo_thumbnail.emit(PhotoThumbnailInput::Start);
             }
             BootstrapInput::TaskStarted(task_name @ TaskName::MotionPhoto) => {
                 info!("Motion photo extract started");
@@ -291,7 +290,7 @@ impl Worker for Bootstrap {
             BootstrapInput::TaskCompleted(TaskName::MotionPhoto, updated) => {
                 info!("photo thumbnails completed");
                 self.library_stale = self.library_stale || updated.is_some_and(|x| x > 0);
-                self.photo_thumbnail.emit(PhotoThumbnailInput::Start);
+                self.photo_clean.emit(PhotoCleanInput::Start);
             }
             BootstrapInput::TaskStarted(task_name @ TaskName::Thumbnail(MediaType::Photo)) => {
                 info!("Photo thumbnails started");
@@ -310,7 +309,7 @@ impl Worker for Bootstrap {
                 let duration = self.started_at.map(|x| x.elapsed());
                 info!("Video thumbnails completed in {:?}", duration);
                 self.library_stale = self.library_stale || updated.is_some_and(|x| x > 0);
-                self.photo_clean.emit(PhotoCleanInput::Start);
+                self.photo_extract_motion.emit(PhotoExtractMotionInput::Start);
             }
             BootstrapInput::TaskStarted(task_name @ TaskName::Clean(MediaType::Photo)) => {
                 info!("Photo cleanup started.");
