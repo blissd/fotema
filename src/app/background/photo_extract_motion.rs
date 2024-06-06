@@ -55,6 +55,7 @@ impl PhotoExtractMotion {
         let unprocessed: Vec<fotema_core::photo::model::Picture> = repo
             .find_need_motion_photo_extract()?
             .into_iter()
+            .filter(|pic| pic.path.exists())
             .collect();
 
         let count = unprocessed.len();

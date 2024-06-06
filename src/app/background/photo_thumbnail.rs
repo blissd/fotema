@@ -59,6 +59,7 @@ impl PhotoThumbnail {
         let mut unprocessed: Vec<fotema_core::photo::model::Picture> = repo
             .all()?
             .into_iter()
+            .filter(|pic| pic.path.exists())
             .filter(|pic| !pic.thumbnail_path.as_ref().is_some_and(|p| p.exists()))
             .collect();
 
