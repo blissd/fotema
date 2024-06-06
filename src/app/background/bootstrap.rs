@@ -202,7 +202,7 @@ impl Worker for Bootstrap {
             .detach_worker(photo_repo.clone())
             .forward(sender.input_sender(), |msg| match msg {
                 PhotoCleanOutput::Started => BootstrapInput::TaskStarted(TaskName::Clean(MediaType::Photo)),
-                PhotoCleanOutput::Completed(count) => BootstrapInput::TaskCompleted(TaskName::Clean(MediaType::Video), Some(count)),
+                PhotoCleanOutput::Completed(count) => BootstrapInput::TaskCompleted(TaskName::Clean(MediaType::Photo), Some(count)),
             });
 
         let video_clean = VideoClean::builder()
