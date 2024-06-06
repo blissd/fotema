@@ -59,7 +59,7 @@ impl PhotoClean {
                     if let Err(e) = result {
                         error!("Failed remove {}: {:?}", pic.picture_id, e);
                     } else {
-                        error!("Removed {}", pic.picture_id);
+                        info!("Removed {}", pic.picture_id);
                     }
                 }
             });
