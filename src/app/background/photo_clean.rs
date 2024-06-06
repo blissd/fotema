@@ -39,7 +39,7 @@ impl PhotoClean {
         let pics: Vec<fotema_core::photo::model::Picture> = self.repo.all()?;
 
         let count = pics.len();
-         info!("Found {} photos as candidates for cleaning", count);
+        info!("Found {} photos as candidates for cleaning", count);
 
         // Short-circuit before sending progress messages to stop
         // banner from appearing and disappearing.

@@ -87,7 +87,6 @@ impl Worker for VideoClean {
         match msg {
             VideoCleanInput::Start => {
                 info!("Cleaning videos...");
-                println!("****** clean vid *****");
 
                 if let Err(e) = self.cleanup(&sender) {
                     error!("Failed to clean videos: {}", e);
