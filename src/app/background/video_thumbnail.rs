@@ -59,6 +59,7 @@ impl VideoThumbnail {
         let mut unprocessed: Vec<Video> = repo
             .all()?
             .into_iter()
+            .filter(|vid| vid.path.exists())
             .filter(|vid| !vid.thumbnail_path.as_ref().is_some_and(|p| p.exists()))
             .collect();
 

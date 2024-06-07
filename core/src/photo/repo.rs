@@ -192,13 +192,17 @@ impl Repository {
                     pictures.picture_id,
                     pictures.picture_path_b64,
                     pictures.thumbnail_path,
-                    pictures.fs_created_ts,
-                    pictures.exif_created_ts,
-                    pictures.exif_modified_ts,
+                    COALESCE(
+                        pictures.exif_created_ts,
+                        pictures.exif_modified_ts,
+                        pictures.fs_created_ts,
+                        pictures.fs_modified_ts,
+                        CURRENT_TIMESTAMP
+                      ) AS ordering_ts,
                     pictures.is_selfie
                 FROM pictures
                 WHERE COALESCE(is_broken, FALSE) IS FALSE
-                ORDER BY COALESCE(exif_created_ts, fs_created_ts) ASC",
+                ORDER BY ordering_ts ASC",
         )?;
 
         let result = stmt
@@ -219,14 +223,18 @@ impl Repository {
                     pictures.picture_id,
                     pictures.picture_path_b64,
                     pictures.thumbnail_path,
-                    pictures.fs_created_ts,
-                    pictures.exif_created_ts,
-                    pictures.exif_modified_ts,
+                    COALESCE(
+                        pictures.exif_created_ts,
+                        pictures.exif_modified_ts,
+                        pictures.fs_created_ts,
+                        pictures.fs_modified_ts,
+                        CURRENT_TIMESTAMP
+                      ) AS ordering_ts,
                     pictures.is_selfie
                 FROM pictures
                 WHERE metadata_version < ?1
                 AND COALESCE(is_broken, FALSE) IS FALSE
-                ORDER BY COALESCE(exif_created_ts, fs_created_ts) ASC",
+                ORDER BY ordering_ts ASC",
         )?;
 
         let result = stmt
@@ -245,9 +253,13 @@ impl Repository {
                     pictures.picture_id,
                     pictures.picture_path_b64,
                     pictures.thumbnail_path,
-                    pictures.fs_created_ts,
-                    pictures.exif_created_ts,
-                    pictures.exif_modified_ts,
+                    COALESCE(
+                        pictures.exif_created_ts,
+                        pictures.exif_modified_ts,
+                        pictures.fs_created_ts,
+                        pictures.fs_modified_ts,
+                        CURRENT_TIMESTAMP
+                      ) AS ordering_ts,
                     pictures.is_selfie
                 FROM pictures
                 FULL OUTER JOIN motion_photos USING (picture_id)
@@ -352,18 +364,14 @@ impl Repository {
             .map(|p: String| self.cache_dir_base_path.join(p))
             .ok();
 
-        let fs_created_at = row.get("fs_created_ts")?;
-        let exif_created_at = row.get("exif_created_ts").ok();
-        let exif_modified_at = row.get("exif_modified_ts").ok();
+        let ordering_ts = row.get("ordering_ts").expect("must have ordering_ts");
         let is_selfie = row.get("is_selfie").ok();
 
         std::result::Result::Ok(Picture {
             picture_id,
             path: picture_path,
             thumbnail_path,
-            fs_created_at,
-            exif_created_at,
-            exif_modified_at,
+            ordering_ts,
             is_selfie,
         })
     }

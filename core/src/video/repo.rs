@@ -210,14 +210,18 @@ impl Repository {
                     video_id,
                     video_path_b64,
                     thumbnail_path,
-                    fs_created_ts,
-                    stream_created_ts,
+                    COALESCE(
+                        videos.stream_created_ts,
+                        videos.fs_created_ts,
+                        videos.fs_modified_ts,
+                        CURRENT_TIMESTAMP
+                    ) AS ordering_ts,
                     duration_millis,
                     video_codec,
                     transcoded_path
                 FROM videos
                 WHERE COALESCE(is_broken, FALSE) IS FALSE
-                ORDER BY COALESCE(stream_created_ts, fs_created_ts) ASC",
+                ORDER BY ordering_ts ASC",
         )?;
 
         let result = stmt.query_map([], |row| self.to_video(row))?;
@@ -233,15 +237,19 @@ impl Repository {
                     video_id,
                     video_path_b64,
                     thumbnail_path,
-                    fs_created_ts,
-                    stream_created_ts,
+                    COALESCE(
+                        videos.stream_created_ts,
+                        videos.fs_created_ts,
+                        videos.fs_modified_ts,
+                        CURRENT_TIMESTAMP
+                    ) AS ordering_ts,
                     duration_millis,
                     video_codec,
                     transcoded_path
                 FROM videos
                 WHERE metadata_version < ?1
                 AND COALESCE(is_broken, FALSE) IS FALSE
-                ORDER BY COALESCE(stream_created_ts, fs_created_ts) ASC",
+                ORDER BY ordering_ts ASC",
         )?;
 
         let result = stmt.query_map([metadata::VERSION], |row| self.to_video(row))?;
@@ -262,8 +270,7 @@ impl Repository {
             .map(|p: String| self.thumbnail_base_path.join(p))
             .ok();
 
-        let fs_created_at = row.get("fs_created_ts")?;
-        let stream_created_at = row.get("stream_created_at").ok();
+        let ordering_ts = row.get("ordering_ts").expect("must have ordering_ts");
 
         let stream_duration = row
             .get("stream_duration")
@@ -281,8 +288,7 @@ impl Repository {
             video_id,
             path: video_path,
             thumbnail_path,
-            fs_created_at,
-            stream_created_at,
+            ordering_ts,
             stream_duration,
             video_codec,
             transcoded_path,

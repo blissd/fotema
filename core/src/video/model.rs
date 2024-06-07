@@ -39,11 +39,8 @@ pub struct Video {
     /// Full path to square preview image
     pub thumbnail_path: Option<PathBuf>,
 
-    /// Filesystem creation timestamp
-    pub fs_created_at: DateTime<Utc>,
-
-    /// Video stream metadata creation timestamp
-    pub stream_created_at: Option<DateTime<Utc>>,
+    /// Time ordering
+    pub ordering_ts: DateTime<Utc>,
 
     /// Video stream metadata duration
     pub stream_duration: Option<TimeDelta>,
@@ -53,12 +50,6 @@ pub struct Video {
 
     /// Video codec
     pub video_codec: Option<String>,
-}
-
-impl Video {
-    pub fn is_transcode_required(&self) -> bool {
-        self.video_codec.as_ref().is_some_and(|x| x == "hevc")
-    }
 }
 
 /// A video on the local file system that has been scanned.

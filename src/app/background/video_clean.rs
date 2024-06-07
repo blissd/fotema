@@ -39,7 +39,7 @@ impl VideoClean {
         let vids: Vec<fotema_core::video::model::Video> = self.repo.all()?;
 
         let count = vids.len();
-         info!("Found {} videos as candidates for cleaning", count);
+        info!("Found {} videos as candidates for cleaning", count);
 
         // Short-circuit before sending progress messages to stop
         // banner from appearing and disappearing.
