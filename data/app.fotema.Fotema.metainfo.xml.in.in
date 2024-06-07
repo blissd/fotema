@@ -48,6 +48,15 @@
   </branding>
 
   <releases>
+    <release version="1.8.2" date="2024-06-07">
+      <description>
+        <p>Bugs fixed:</p>
+        <ul>
+          <li>Thumbnails not generated for files without a creation time.</li>
+          <li>Deleted videos not removed from database.</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.8.1" date="2024-06-05">
       <description>
         <p>Bugs fixed:</p>
