@@ -2,8 +2,6 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use crate::YearMonth;
-use chrono::prelude::*;
 use chrono::{DateTime, FixedOffset, TimeDelta, Utc};
 use std::fmt::Display;
 use std::path::PathBuf;
@@ -42,50 +40,11 @@ pub struct Picture {
     /// Full path to square preview image
     pub thumbnail_path: Option<PathBuf>,
 
-    /// Creation timestamp from file system.
-    pub fs_created_at: DateTime<Utc>,
-
-    /// Creation timestamp from EXIF metadata.
-    pub exif_created_at: Option<DateTime<Utc>>,
-
-    /// Creation timestamp from EXIF metadata.
-    pub exif_modified_at: Option<DateTime<Utc>>,
+    /// Ordering timestamp
+    pub ordering_ts: DateTime<Utc>,
 
     /// Was picture taken with front camera?
     pub is_selfie: Option<bool>,
-}
-
-impl Picture {
-    pub fn parent_path(&self) -> Option<PathBuf> {
-        self.path.parent().map(|x| PathBuf::from(x))
-    }
-
-    pub fn folder_name(&self) -> Option<String> {
-        self.path
-            .parent()
-            .and_then(|x| x.file_name())
-            .map(|x| x.to_string_lossy().to_string())
-    }
-
-    pub fn created_at(&self) -> DateTime<Utc> {
-        self.exif_created_at.unwrap_or(self.fs_created_at)
-    }
-
-    pub fn year(&self) -> u32 {
-        self.created_at().date_naive().year_ce().1
-    }
-
-    pub fn year_month(&self) -> YearMonth {
-        let date = self.created_at().date_naive();
-        let year = date.year();
-        let month = date.month();
-        let month = chrono::Month::try_from(u8::try_from(month).unwrap()).unwrap();
-        YearMonth { year, month }
-    }
-
-    pub fn date(&self) -> chrono::NaiveDate {
-        self.created_at().date_naive()
-    }
 }
 
 // scanner
