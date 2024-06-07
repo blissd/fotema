@@ -173,7 +173,7 @@ impl Repository {
             picture_orientation,
             video_id,
             video_path,
-            created_at: ordering_ts, // FIXME rename created_at to ordering_ts
+            ordering_ts,
             is_selfie,
             is_live_photo,
             video_transcoded_path,

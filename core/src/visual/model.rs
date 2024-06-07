@@ -66,8 +66,8 @@ pub struct Visual {
 
     pub motion_photo_video_path: Option<PathBuf>,
 
-    /// EXIF or file system creation timestamp
-    pub created_at: DateTime<Utc>,
+    /// Best candidate for ordering visual items. With a final fallback of the current timestamp.
+    pub ordering_ts: DateTime<Utc>,
 
     // Is this a selfie?
     pub is_selfie: Option<bool>,
@@ -110,11 +110,11 @@ impl Visual {
     }
 
     pub fn year(&self) -> u32 {
-        self.created_at.date_naive().year_ce().1
+        self.ordering_ts.date_naive().year_ce().1
     }
 
     pub fn year_month(&self) -> YearMonth {
-        let date = self.created_at.date_naive();
+        let date = self.ordering_ts.date_naive();
         let year = date.year();
         let month = date.month();
         let month = chrono::Month::try_from(u8::try_from(month).unwrap()).unwrap();
