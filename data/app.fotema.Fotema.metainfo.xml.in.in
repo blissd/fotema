@@ -48,6 +48,11 @@
   </branding>
 
   <releases>
+    <release version="1.8.3" date="2024-06-08">
+      <description>
+        <p>Hindi translation updates.</p>
+      </description>
+    </release>
     <release version="1.8.2" date="2024-06-07">
       <description>
         <p>Bugs fixed:</p>
