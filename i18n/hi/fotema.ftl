@@ -239,7 +239,7 @@ banner-clean-photos = फोटो डेटाबेस का रखरखा�
 banner-clean-videos = वीडियो डेटाबेस का रखरखाव।
 
 # Extracting video component from Android motion photos
-banner-extract-motion-photos = मोशन फोटो का निष्कर्षण।
+banner-extract-motion-photos = मोशन फोटो का प्रसंस्करण।
 
 ## Primary menu
 
