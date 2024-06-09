@@ -177,6 +177,9 @@ infobar-dimensions = Dimensions
 
 ## Preferences
 
+# Title of preferences dialog
+prefs-title = Preferences
+
 # Title of section of preferences for views
 prefs-views-section = Views
   .description = Show or hide sidebar views

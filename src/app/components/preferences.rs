@@ -42,6 +42,7 @@ impl SimpleComponent for PreferencesDialog {
 
     view!{
         adw::PreferencesDialog {
+            set_title: &fl!("prefs-title"),
             add = &adw::PreferencesPage {
                 add = &adw::PreferencesGroup {
                     set_title: &fl!("prefs-views-section"),
