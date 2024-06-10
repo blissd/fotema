@@ -177,6 +177,9 @@ infobar-dimensions = आयाम
 
 ## Preferences
 
+# Title of preferences dialog
+prefs-title = प्राथमिकताएं
+
 # Title of section of preferences for views
 prefs-views-section = दृश्य
   .description = पार्श्वपट्टी दृश्य दिखाएं या छुपाएं
