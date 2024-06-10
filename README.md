@@ -11,6 +11,9 @@ A photo gallery for Linux.
 
 ![All Photos View](/data/resources/screenshots/all-photos.png?raw=true "All Photos View")
 
+## Installation
+<a href='https://flathub.org/apps/app.fotema.Fotema'><img width='240' alt='Download on Flathub' src='https://flathub.org/api/badge?locale=en'/></a>
+
 ## Building the project
 
 Install `flatpak`, `flatpak-builder`, and [just](https://github.com/casey/just).
