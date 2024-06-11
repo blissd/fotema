@@ -58,7 +58,7 @@ impl Repository {
         let tx = con.transaction()?;
 
         {
-            let mut update_pictures = tx.prepare(
+            let mut update_pictures = tx.prepare_cached(
                 "UPDATE pictures
                 SET
                     metadata_version = ?2,
@@ -70,7 +70,7 @@ impl Repository {
                 WHERE picture_id = ?1",
             )?;
 
-            let mut update_geo = tx.prepare(
+            let mut update_geo = tx.prepare_cached(
                 "INSERT INTO pictures_geo (
                     picture_id,
                     latitude,
@@ -113,7 +113,7 @@ impl Repository {
         let tx = con.transaction()?;
 
         {
-            let mut stmt = tx.prepare(
+            let mut stmt = tx.prepare_cached(
                 "UPDATE pictures
                 SET
                     thumbnail_path = ?2,
@@ -139,7 +139,7 @@ impl Repository {
         let tx = con.transaction()?;
 
         {
-            let mut stmt = tx.prepare(
+            let mut stmt = tx.prepare_cached(
                 "UPDATE pictures
                 SET
                     is_broken = TRUE
