@@ -5,8 +5,10 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+use anyhow::*;
 /// GPS code derived from Loupe.
 /// See https://gitlab.gnome.org/GNOME/loupe/-/blob/main/src/metadata/gps.rs
+use h3o::{CellIndex, LatLng, Resolution};
 
 #[derive(Debug, Clone, Copy)]
 pub struct GPSLocation {
@@ -23,7 +25,7 @@ pub struct GPSCoord {
 }
 
 impl GPSCoord {
-    pub fn to_f64(self) -> f64 {
+    pub fn to_f64(&self) -> f64 {
         let sign = if self.sing { 1. } else { -1. };
 
         let min = self.min.unwrap_or_default();
@@ -98,5 +100,10 @@ impl GPSLocation {
                 sec: lon_sec,
             },
         })
+    }
+
+    pub fn to_cell_index(&self, resolution: Resolution) -> Result<CellIndex> {
+        let ll = LatLng::new(self.latitude.to_f64(), self.longitude.to_f64())?;
+        Ok(ll.to_cell(resolution))
     }
 }

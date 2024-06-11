@@ -10,6 +10,7 @@ use super::motion_photo;
 use super::Metadata;
 use crate::path_encoding;
 use anyhow::*;
+use h3o;
 use rusqlite;
 use rusqlite::params;
 use rusqlite::Row;
@@ -74,12 +75,14 @@ impl Repository {
                 "INSERT INTO pictures_geo (
                     picture_id,
                     latitude,
-                    longitude
+                    longitude,
+                    h3_r7_id
                 ) VALUES (
-                    ?1, ?2, ?3
+                    ?1, ?2, ?3, ?4
                 ) ON CONFLICT (picture_id) DO UPDATE SET
                     latitude = ?2,
-                    longitude = ?3
+                    longitude = ?3,
+                    h3_r7_id = ?4
                 ",
             )?;
 
@@ -95,10 +98,16 @@ impl Repository {
                 ])?;
 
                 if let Some(location) = metadata.location {
+                    let h3_r7_id: Option<u64> = location
+                        .to_cell_index(h3o::Resolution::Seven)
+                        .ok()
+                        .map(|x| x.into());
+
                     update_geo.execute(params![
                         picture_id.id(),
                         location.latitude.to_f64(),
                         location.longitude.to_f64(),
+                        h3_r7_id,
                     ])?;
                 }
             }
