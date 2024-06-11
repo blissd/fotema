@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+use super::gps::GPSLocation;
 use super::model::Orientation;
 use super::Metadata;
 use anyhow::*;
@@ -18,8 +19,13 @@ use std::result::Result::Ok;
 /// a bug fix or feature addition that changes the metadata produced.
 /// Each photo will be saved with a metadata scan version which will allow for
 /// easy selection of photos when their metadata can be updated.
-
-pub const VERSION: u32 = 2;
+///
+/// History:
+/// 0. Initial version.
+/// 1. Orientation.
+/// 2. Motion photos.
+/// 3. GPS coordinates.
+pub const VERSION: u32 = 3;
 
 /// Extract EXIF metadata from file
 pub fn from_path(path: &Path) -> Result<Metadata> {
@@ -138,7 +144,37 @@ fn from_exif(exif_data: Exif) -> Result<Metadata> {
 
     metadata.content_id = ios_content_id(&exif_data);
 
+    metadata.location = gps_location(&exif_data);
+
     Ok(metadata)
+}
+
+/// Parse GPS latitude and longitude from EXIF data
+/// Mostly borrowed from Loupe.
+/// See https://gitlab.gnome.org/GNOME/loupe/-/blob/main/src/metadata.rs
+fn gps_location(exif: &Exif) -> Option<GPSLocation> {
+    if let (Some(latitude), Some(latitude_ref), Some(longitude), Some(longitude_ref)) = (
+        exif.get_field(exif::Tag::GPSLatitude, exif::In::PRIMARY),
+        exif.get_field(exif::Tag::GPSLatitudeRef, exif::In::PRIMARY),
+        exif.get_field(exif::Tag::GPSLongitude, exif::In::PRIMARY),
+        exif.get_field(exif::Tag::GPSLongitudeRef, exif::In::PRIMARY),
+    ) {
+        if let (
+            exif::Value::Rational(latitude),
+            exif::Value::Ascii(latitude_ref),
+            exif::Value::Rational(longitude),
+            exif::Value::Ascii(longitude_ref),
+        ) = (
+            &latitude.value,
+            &latitude_ref.value,
+            &longitude.value,
+            &longitude_ref.value,
+        ) {
+            return GPSLocation::for_exif(latitude, latitude_ref, longitude, longitude_ref);
+        }
+    }
+
+    None
 }
 
 /// Parse content ID from the Apple maker note
@@ -157,7 +193,7 @@ fn ios_content_id(exif_data: &Exif) -> Option<String> {
     //
     // EXIF data starts at byte 12 with a byte order mark, but doesn't include the magic 0x2a.
     //
-    // To fix this we rewrite the begining of the buffer to do the following:
+    // To fix this we rewrite the beginning of the buffer to do the following:
     // 1. Start with a byte order mark (0x4d4d);
     // 2. Have the Douglas constant (0x002a).
     // 3. Have the byte offset point to the first piece of data (14)
@@ -165,17 +201,18 @@ fn ios_content_id(exif_data: &Exif) -> Option<String> {
     let mut buf: Vec<u8> = Vec::new();
     buf.extend_from_slice(raw);
 
-    buf[0] = 0x4d;
-    buf[1] = 0x4d;
+    buf[0] = 0x4d; // byte order
+    buf[1] = 0x4d; // byte order
     buf[2] = 0;
-    buf[3] = 0x2a; // the Douglas constant
+    buf[3] = 0x2a; // the Douglas constant (42 ;-)
     buf[4] = 0;
     buf[5] = 0;
     buf[6] = 0;
-    buf[7] = 14;
+    buf[7] = 14; // first piece of data starts at byte 14
 
     let exif_data = exif::Reader::new().read_raw(buf).ok()?;
 
+    // 0x11 is the tag ID Apple uses for the content ID.
     let content_id =
         exif_data.get_field(exif::Tag(exif::Context::Tiff, 0x11), exif::In::PRIMARY)?;
 

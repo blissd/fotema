@@ -58,7 +58,7 @@ impl Repository {
         let tx = con.transaction()?;
 
         {
-            let mut stmt = tx.prepare(
+            let mut update_pictures = tx.prepare(
                 "UPDATE pictures
                 SET
                     metadata_version = ?2,
@@ -70,8 +70,21 @@ impl Repository {
                 WHERE picture_id = ?1",
             )?;
 
+            let mut update_geo = tx.prepare(
+                "INSERT INTO pictures_geo (
+                    picture_id,
+                    latitude,
+                    longitude
+                ) VALUES (
+                    ?1, ?2, ?3
+                ) ON CONFLICT (picture_id) DO UPDATE SET
+                    latitude = ?2,
+                    longitude = ?3
+                ",
+            )?;
+
             for (picture_id, metadata) in pics {
-                stmt.execute(params![
+                update_pictures.execute(params![
                     picture_id.id(),
                     metadata::VERSION,
                     metadata.created_at,
@@ -80,6 +93,14 @@ impl Repository {
                     metadata.content_id,
                     metadata.orientation.map(|x| x as u8),
                 ])?;
+
+                if let Some(location) = metadata.location {
+                    update_geo.execute(params![
+                        picture_id.id(),
+                        location.latitude.to_f64(),
+                        location.longitude.to_f64(),
+                    ])?;
+                }
             }
         }
 

@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+use super::gps::GPSLocation;
 use chrono::{DateTime, FixedOffset, TimeDelta, Utc};
 use std::fmt::Display;
 use std::path::PathBuf;
@@ -160,6 +161,9 @@ pub struct Metadata {
     // Some images... annoyingly... needs a rotation and mirror transformation applied
     // to display correctly.
     pub orientation: Option<Orientation>,
+
+    // GPS location
+    pub location: Option<GPSLocation>,
 }
 
 impl Metadata {
