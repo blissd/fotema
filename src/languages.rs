@@ -45,7 +45,7 @@ pub fn loader() -> FluentLanguageLoader {
     // rather than falling back to "en_US".
     // Apology to future self: I suspect I shouldn't have to do this, and that this solution
     // will come back to bite you in the bum.
-    let requested_languages = requested_languages
+    let mut requested_languages = requested_languages
         .into_iter()
         .flat_map(|lang| {
             vec![
@@ -54,6 +54,13 @@ pub fn loader() -> FluentLanguageLoader {
             ]
         })
         .collect::<Vec<_>>();
+
+    if requested_languages.is_empty() {
+        // FIXME why doesn't setting the fallback language on the FluentLanguageLoader
+        // work when there isn't a requested language?
+        let fallback: LanguageIdentifier = "en-US".parse().unwrap();
+        requested_languages.push(fallback);
+    }
 
     let requested_languages = &requested_languages.iter().collect::<Vec<_>>(); // janky API needs &[&lang_id]
 
