@@ -48,6 +48,14 @@
   </branding>
 
   <releases>
+    <release version="1.8.4" date="2024-06-13">
+      <description>
+        <ul>
+          <li>Hindi translation updates.</li>
+          <li>Panic when no language preferences detected.</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.8.3" date="2024-06-08">
       <description>
         <p>Hindi translation updates.</p>
