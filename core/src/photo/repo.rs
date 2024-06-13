@@ -76,13 +76,23 @@ impl Repository {
                     picture_id,
                     latitude,
                     longitude,
-                    h3_r7_id
+                    h3_r3_id,
+                    h3_r4_id,
+                    h3_r5_id,
+                    h3_r6_id,
+                    h3_r7_id,
+                    h3_r8_id
                 ) VALUES (
-                    ?1, ?2, ?3, ?4
+                    ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9
                 ) ON CONFLICT (picture_id) DO UPDATE SET
                     latitude = ?2,
                     longitude = ?3,
-                    h3_r7_id = ?4
+                    h3_r3_id = ?4,
+                    h3_r4_id = ?5,
+                    h3_r5_id = ?6,
+                    h3_r6_id = ?7,
+                    h3_r7_id = ?8,
+                    h3_r8_id = ?9
                 ",
             )?;
 
@@ -98,8 +108,33 @@ impl Repository {
                 ])?;
 
                 if let Some(location) = metadata.location {
+                    let h3_r3_id: Option<u64> = location
+                        .to_cell_index(h3o::Resolution::Three)
+                        .ok()
+                        .map(|x| x.into());
+
+                    let h3_r4_id: Option<u64> = location
+                        .to_cell_index(h3o::Resolution::Four)
+                        .ok()
+                        .map(|x| x.into());
+
+                    let h3_r5_id: Option<u64> = location
+                        .to_cell_index(h3o::Resolution::Five)
+                        .ok()
+                        .map(|x| x.into());
+
+                    let h3_r6_id: Option<u64> = location
+                        .to_cell_index(h3o::Resolution::Six)
+                        .ok()
+                        .map(|x| x.into());
+
                     let h3_r7_id: Option<u64> = location
                         .to_cell_index(h3o::Resolution::Seven)
+                        .ok()
+                        .map(|x| x.into());
+
+                    let h3_r8_id: Option<u64> = location
+                        .to_cell_index(h3o::Resolution::Eight)
                         .ok()
                         .map(|x| x.into());
 
@@ -107,7 +142,12 @@ impl Repository {
                         picture_id.id(),
                         location.latitude.to_f64(),
                         location.longitude.to_f64(),
+                        h3_r3_id,
+                        h3_r4_id,
+                        h3_r5_id,
+                        h3_r6_id,
                         h3_r7_id,
+                        h3_r8_id,
                     ])?;
                 }
             }

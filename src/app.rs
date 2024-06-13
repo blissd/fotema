@@ -49,6 +49,7 @@ use self::components::{
         album::{Album, AlbumInput, AlbumOutput},
         album_filter::AlbumFilter,
         folders_album::{FoldersAlbum, FoldersAlbumInput, FoldersAlbumOutput},
+        places_album::{PlacesAlbum, PlacesAlbumInput},
     },
     library::{Library, LibraryInput, LibraryOutput},
     viewer::view_nav::{ViewNav, ViewNavInput, ViewNavOutput},
@@ -81,6 +82,7 @@ pub enum ViewName {
     Animated,
     Folders,
     Folder,
+    Places,
     Selfies,
 }
 
@@ -112,6 +114,9 @@ pub(super) struct App {
     selfies_page: Controller<Album>,
     videos_page: Controller<Album>,
     motion_page: Controller<Album>,
+
+    /// Album with photos overlayed onto a map
+    places_page: Controller<PlacesAlbum>,
 
     // Grid of folders of photos
     folders_album: Controller<FoldersAlbum>,
@@ -341,6 +346,14 @@ impl SimpleComponent for App {
 
                                         add_child = &gtk::Box {
                                             set_orientation: gtk::Orientation::Vertical,
+                                            container_add: model.places_page.widget(),
+                                        } -> {
+                                            set_title: &fl!("places-page"),
+                                            set_name: ViewName::Places.into(),
+                                        },
+
+                                        add_child = &gtk::Box {
+                                            set_orientation: gtk::Orientation::Vertical,
                                             container_add: model.selfies_page.widget(),
                                         } -> {
                                             set_visible: model.show_selfies,
@@ -493,6 +506,13 @@ impl SimpleComponent for App {
         state.subscribe(videos_page.sender(), |_| AlbumInput::Refresh);
         adaptive_layout.subscribe(videos_page.sender(), |layout| AlbumInput::Adapt(*layout));
 
+        let places_page = PlacesAlbum::builder()
+            .launch((state.clone(), active_view.clone()))
+            .detach();
+
+        state.subscribe(places_page.sender(), |_| PlacesAlbumInput::Refresh);
+        adaptive_layout.subscribe(places_page.sender(), |layout| PlacesAlbumInput::Adapt(*layout));
+
         let folders_album = FoldersAlbum::builder()
             .launch((state.clone(), active_view.clone()))
             .forward(
@@ -548,6 +568,7 @@ impl SimpleComponent for App {
             view_nav,
             motion_page,
             videos_page,
+            places_page,
             selfies_page,
             show_selfies,
             folders_album,
@@ -655,6 +676,7 @@ impl SimpleComponent for App {
                     ViewName::Animated => self.motion_page.emit(AlbumInput::Activate),
                     ViewName::Folders => self.folders_album.emit(FoldersAlbumInput::Activate),
                     ViewName::Folder => self.folder_album.emit(AlbumInput::Activate),
+                    ViewName::Places => self.places_page.emit(PlacesAlbumInput::Activate),
                     ViewName::Nothing => event!(Level::WARN, "Nothing activated... which should not happen"),
                 }
             }
