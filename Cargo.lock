@@ -1048,6 +1048,8 @@ dependencies = [
  "i18n-embed-fl",
  "itertools 0.13.0",
  "lazy_static",
+ "libshumate",
+ "libshumate-sys",
  "rayon",
  "relm4",
  "rust-embed",
@@ -2187,6 +2189,37 @@ name = "libseccomp-sys"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9a7cbbd4ad467251987c6e5b47d53b11a5a05add08f2447a9e2d70aef1e0d138"
+
+[[package]]
+name = "libshumate"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bd77c1202aaccef5460f4ca95b3b3c117f85986c942127e4e518c47058a6eaf6"
+dependencies = [
+ "gdk-pixbuf 0.19.2",
+ "gdk4",
+ "gio 0.19.5",
+ "glib 0.19.7",
+ "gtk4",
+ "libc",
+ "libshumate-sys",
+]
+
+[[package]]
+name = "libshumate-sys"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ef5765221e416ebe7b5e9c5bd7e8dd09ca9e920b012474ca8f3da18f8e13c4a5"
+dependencies = [
+ "gdk-pixbuf-sys 0.19.5",
+ "gdk4-sys",
+ "gio-sys 0.19.5",
+ "glib-sys 0.19.5",
+ "gobject-sys 0.19.5",
+ "gtk4-sys",
+ "libc",
+ "system-deps",
+]
 
 [[package]]
 name = "libsqlite3-sys"
