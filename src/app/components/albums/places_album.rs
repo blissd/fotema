@@ -173,7 +173,7 @@ impl PlacesAlbum {
             info!("Centreing on most recent location at {}", location);
             self.map.map().expect("must have map").center_on(location.lat(), location.lng());
 
-            let widget = to_pin_thumbnail(&most_recent);
+            let widget = to_pin_thumbnail(&most_recent, Some(512));
 
             let marker = shumate::Marker::builder()
                 .child(&widget)
@@ -187,7 +187,7 @@ impl PlacesAlbum {
 }
 
 /// Make thumbnail to put onto map
-fn to_pin_thumbnail(visual: &Visual) -> gtk::Frame {
+fn to_pin_thumbnail(visual: &Visual, count: Option<usize>) -> gtk::Frame {
     let picture = if visual.thumbnail_path.as_ref().is_some_and(|x| x.exists()) {
         let picture = gtk::Image::from_file(visual.thumbnail_path.as_ref().expect("Must have path"));
 
@@ -208,9 +208,35 @@ fn to_pin_thumbnail(visual: &Visual) -> gtk::Frame {
     picture.set_width_request(100);
     picture.set_height_request(100);
 
-    let frame = gtk::Frame::builder()
-        .child(&picture)
-        .build();
+    let frame = gtk::Frame::new(None);
+
+     if let Some(count) = count {
+        // if there is a count then overlay the number in the bottom right corner.
+        let overlay = gtk::Overlay::builder()
+            .child(&picture)
+            .build();
+
+        let label = gtk::Label::builder()
+            .label(format!("{}", count))
+            .css_classes(["photo-grid-photo-status-label"]) // FIXME don't reuse CSS class.
+            .build();
+
+        let label_frame = gtk::Frame::builder()
+            .halign(gtk::Align::End)
+            .valign(gtk::Align::End)
+            .css_classes(["photo-grid-photo-status-frame"]) // FIXME don't reuse CSS class.
+            .child(&label)
+            .build();
+
+        label_frame.set_margin_all(8);
+
+        overlay.add_overlay(&label_frame);
+
+        frame.set_child(Some(&overlay));
+       // frame
+    } else {
+        frame.set_child(Some(&picture));
+    }
 
     frame.add_css_class("map-thumbnail-border");
 
