@@ -59,6 +59,8 @@ pub struct PlacesAlbum {
     active_view: ActiveView,
     edge_length: I32Binding,
     map: shumate::SimpleMap,
+    viewport: shumate::Viewport,
+    marker_layer: shumate::MarkerLayer,
 }
 
 #[relm4::component(pub)]
@@ -110,19 +112,22 @@ impl SimpleComponent for PlacesAlbum {
         let gesture = gtk::GestureClick::new();
         map_widget.add_controller(gesture.clone());
 
-       // let marker_layer: shumate::MarkerLayer =
-          //  shumate::MarkerLayer::new_full(&viewport, gtk::SelectionMode::Single);
+        let marker_layer: shumate::MarkerLayer =
+            shumate::MarkerLayer::new_full(&viewport, gtk::SelectionMode::Single);
 
         //let marker = shumate::Marker::new();
         //marker.set_location(0., 0.);
         //marker_layer.add_marker(&marker);
-        //map.add_layer(&marker_layer);
+
+        map.add_layer(&marker_layer);
 
         let model = PlacesAlbum {
             state,
             active_view,
             edge_length: I32Binding::new(NARROW_EDGE_LENGTH),
             map: map_widget.clone(),
+            viewport,
+            marker_layer,
         };
 
         let widgets = view_output!();
@@ -181,6 +186,16 @@ impl PlacesAlbum {
             let location = most_recent.location.expect("must have location");
             info!("Centreing on most recent location at {}", location);
             self.map.map().expect("must have map").center_on(location.lat(), location.lng());
+
+            let widget = to_pin_thumbnail(&most_recent);
+
+            let marker = shumate::Marker::builder()
+                .child(&widget)
+                .build();
+
+            marker.set_location(location.lat(), location.lng());
+
+           self.marker_layer.add_marker(&marker)
         }
     }
 }
