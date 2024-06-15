@@ -10,7 +10,7 @@ use crate::{PictureId, VideoId, YearMonth};
 
 use chrono::*;
 
-use h3o::{CellIndex, LatLng};
+use h3o::LatLng;
 
 pub use crate::photo::model::Orientation as PictureOrientation;
 

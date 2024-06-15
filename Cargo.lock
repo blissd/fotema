@@ -1043,6 +1043,7 @@ dependencies = [
  "futures",
  "gettext-rs",
  "glycin",
+ "h3o",
  "humansize",
  "i18n-embed",
  "i18n-embed-fl",

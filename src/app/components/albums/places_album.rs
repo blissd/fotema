@@ -4,8 +4,6 @@
 
 use fotema_core;
 
-use strum::IntoEnumIterator;
-
 use itertools::Itertools;
 
 use relm4::gtk;
@@ -16,9 +14,6 @@ use relm4::gtk::gdk;
 use relm4::*;
 use relm4::binding::*;
 
-use std::path;
-use std::sync::Arc;
-
 use tracing::info;
 
 use crate::adaptive;
@@ -27,15 +22,18 @@ use crate::app::ActiveView;
 use crate::app::ViewName;
 use fotema_core::Visual;
 
-use shumate::Map;
+use std::collections::HashMap;
+use h3o;
+
 use shumate;
 use shumate::prelude::*;
 use shumate::MAP_SOURCE_OSM_MAPNIK;
-use shumate::{MAX_LATITUDE, MAX_LONGITUDE, MIN_LATITUDE, MIN_LONGITUDE};
 
-
-const NARROW_EDGE_LENGTH: i32 = 170;
-const WIDE_EDGE_LENGTH: i32 = 200;
+const NARROW_EDGE_LENGTH: i32 = 60;
+const WIDE_EDGE_LENGTH: i32 = 100;
+const MIN_ZOOM_LEVEL: u32 = 3;
+const MAX_ZOOM_LEVEL: u32 = 17;
+const DEFAULT_ZOOM_LEVEL: f64 = 5.0;
 
 #[derive(Debug)]
 pub enum PlacesAlbumInput {
@@ -101,8 +99,9 @@ impl SimpleComponent for PlacesAlbum {
         // Reference map source used by MarkerLayer
         let viewport = map_widget.viewport().unwrap();
         viewport.set_reference_map_source(map_source.as_ref());
-        viewport.set_min_zoom_level(3);
-        viewport.set_zoom_level(5.);
+        viewport.set_min_zoom_level(MIN_ZOOM_LEVEL);
+        viewport.set_max_zoom_level(MAX_ZOOM_LEVEL);
+        viewport.set_zoom_level(DEFAULT_ZOOM_LEVEL);
         viewport.connect_zoom_level_notify(move |_| sender.input(PlacesAlbumInput::Zoom));
         //viewport.connect_latitude_notify(|_| sender.input(PlacesAlbumInput::Zoom);
         //viewport.connect_longitude_notify(|_| sender.input(PlacesAlbumInput::Zoom);
@@ -162,6 +161,29 @@ impl SimpleComponent for PlacesAlbum {
 }
 
 impl PlacesAlbum {
+
+    /// Maps a Shumate zoom level to a H3O resolution
+    fn zoom_to_resolution(zoom_level: f64) -> h3o::Resolution {
+        match zoom_level as u32 {
+            a if a <= MIN_ZOOM_LEVEL => h3o::Resolution::Zero,
+            4 => h3o::Resolution::One,
+            5 => h3o::Resolution::One,
+            6 => h3o::Resolution::Two,
+            7 => h3o::Resolution::Three,
+            8 => h3o::Resolution::Four,
+            9 => h3o::Resolution::Four,
+            10 => h3o::Resolution::Five,
+            11 => h3o::Resolution::Five,
+            12 => h3o::Resolution::Six,
+            13 => h3o::Resolution::Six,
+            14 => h3o::Resolution::Seven,
+            15 => h3o::Resolution::Eight,
+            16 => h3o::Resolution::Nine,
+            a if a >= MAX_ZOOM_LEVEL => h3o::Resolution::Ten,
+            _ =>  h3o::Resolution::Five,
+        }
+    }
+
     fn refresh(&mut self) {
         let data = self.state.read();
         let data = data.iter().filter(|x| x.location.is_some()).collect_vec();
