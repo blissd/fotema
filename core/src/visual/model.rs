@@ -10,6 +10,8 @@ use crate::{PictureId, VideoId, YearMonth};
 
 use chrono::*;
 
+use h3o::{CellIndex, LatLng};
+
 pub use crate::photo::model::Orientation as PictureOrientation;
 
 /// Database ID of a visual item
@@ -77,6 +79,9 @@ pub struct Visual {
 
     // Does the video_code require the video is transcoded?
     pub is_transcode_required: Option<bool>,
+
+    // Where photo was taken
+    pub location: Option<LatLng>,
 }
 
 impl Visual {

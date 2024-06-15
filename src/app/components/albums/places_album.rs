@@ -2,21 +2,17 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use gtk::prelude::OrientableExt;
 use fotema_core;
 
-use fotema_core::visual::model::PictureOrientation;
 use strum::IntoEnumIterator;
 
 use itertools::Itertools;
-use fotema_core::Year;
 
 use relm4::gtk;
-use relm4::gtk::gdk;
-use relm4::gtk::gdk_pixbuf;
 use relm4::gtk::prelude::FrameExt;
 use relm4::gtk::prelude::WidgetExt;
-use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
+use relm4::gtk::gdk_pixbuf;
+use relm4::gtk::gdk;
 use relm4::*;
 use relm4::binding::*;
 
@@ -29,8 +25,9 @@ use crate::adaptive;
 use crate::app::SharedState;
 use crate::app::ActiveView;
 use crate::app::ViewName;
+use fotema_core::Visual;
 
-use shumate::{Map};
+use shumate::Map;
 use shumate;
 use shumate::prelude::*;
 use shumate::MAP_SOURCE_OSM_MAPNIK;
@@ -49,12 +46,19 @@ pub enum PlacesAlbumInput {
 
     // Adapt to layout
     Adapt(adaptive::Layout),
+
+    Map,
+    MapSource,
+    Scale,
+    Viewport,
+    Zoom,
 }
 
 pub struct PlacesAlbum {
     state: SharedState,
     active_view: ActiveView,
     edge_length: I32Binding,
+    map: shumate::SimpleMap,
 }
 
 #[relm4::component(pub)]
@@ -76,11 +80,17 @@ impl SimpleComponent for PlacesAlbum {
     fn init(
         (state, active_view): Self::Init,
         _root: Self::Root,
-        _sender: ComponentSender<Self>,
+        sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
 
         //let map = Map::new();
-        let map_widget = shumate::SimpleMap::new();
+        let map_widget = shumate::SimpleMap::builder()
+           // .connect_scale_notify(|_| println!("scale"))
+            .build();
+
+        if let Some(scale) = map_widget.scale() {
+            scale.set_unit(shumate::Unit::Metric);
+        }
 
         // Use OpenStreetMap as the source
         let registry = shumate::MapSourceRegistry::with_defaults();
@@ -88,28 +98,31 @@ impl SimpleComponent for PlacesAlbum {
         let map = map_widget.map().unwrap();
 
         map_widget.set_map_source(map_source.as_ref());
-        map.center_on(0., 0.);
 
         // Reference map source used by MarkerLayer
         let viewport = map_widget.viewport().unwrap();
         viewport.set_reference_map_source(map_source.as_ref());
         viewport.set_zoom_level(5.);
+        viewport.connect_zoom_level_notify(move |_| sender.input(PlacesAlbumInput::Zoom));
+        //viewport.connect_latitude_notify(|_| sender.input(PlacesAlbumInput::Zoom);
+        //viewport.connect_longitude_notify(|_| sender.input(PlacesAlbumInput::Zoom);
 
         let gesture = gtk::GestureClick::new();
         map_widget.add_controller(gesture.clone());
 
-        let marker_layer: shumate::MarkerLayer =
-            shumate::MarkerLayer::new_full(&viewport, gtk::SelectionMode::Single);
+       // let marker_layer: shumate::MarkerLayer =
+          //  shumate::MarkerLayer::new_full(&viewport, gtk::SelectionMode::Single);
 
-        let marker = shumate::Marker::new();
-        marker.set_location(0., 0.);
-        marker_layer.add_marker(&marker);
-        map.add_layer(&marker_layer);
+        //let marker = shumate::Marker::new();
+        //marker.set_location(0., 0.);
+        //marker_layer.add_marker(&marker);
+        //map.add_layer(&marker_layer);
 
         let model = PlacesAlbum {
             state,
             active_view,
             edge_length: I32Binding::new(NARROW_EDGE_LENGTH),
+            map: map_widget.clone(),
         };
 
         let widgets = view_output!();
@@ -137,17 +150,67 @@ impl SimpleComponent for PlacesAlbum {
             PlacesAlbumInput::Adapt(adaptive::Layout::Wide) => {
                 self.edge_length.set_value(WIDE_EDGE_LENGTH);
             },
+
+            PlacesAlbumInput::Zoom => {
+                println!("zoom level = {}", self.map.viewport().unwrap().zoom_level());
+            },
+            PlacesAlbumInput::Map => {
+                println!("Map!");
+            },
+            PlacesAlbumInput::MapSource => {
+                println!("MapSource!");
+            },
+            PlacesAlbumInput::Scale => {
+                println!("Scale!");
+            },
+            PlacesAlbumInput::Viewport => {
+                println!("Viewport!");
+            },
         }
     }
 }
 
 impl PlacesAlbum {
     fn refresh(&mut self) {
-        let all_pictures = {
-            let data = self.state.read();
+        let data = self.state.read();
+        let data = data.iter().filter(|x| x.location.is_some()).collect_vec();
 
-        };
+        info!("{} items with location data", data.len());
 
+        if let Some(most_recent) = data.iter().max_by(|x,y|x.ordering_ts.cmp(&y.ordering_ts)) {
+            let location = most_recent.location.expect("must have location");
+            info!("Centreing on most recent location at {}", location);
+            self.map.map().expect("must have map").center_on(location.lat(), location.lng());
+        }
     }
 }
 
+/// Make
+fn to_pin_thumbnail(visual: &Visual) -> gtk::AspectFrame {
+
+    let picture = gtk::Picture::builder()
+        .can_shrink(true)
+        .width_request(100)
+        .height_request(100)
+        .build();
+
+    if visual.thumbnail_path.as_ref().is_some_and(|x| x.exists()) {
+        picture.set_filename(visual.thumbnail_path.clone());
+
+        // Add CSS class for orientation
+        let orientation = visual.thumbnail_orientation();
+        picture.add_css_class(orientation.as_ref());
+    } else {
+        let pb = gdk_pixbuf::Pixbuf::from_resource_at_scale(
+            "/app/fotema/Fotema/icons/scalable/actions/image-missing-symbolic.svg",
+            200, 200, true
+        ).unwrap();
+       let img = gdk::Texture::for_pixbuf(&pb);
+        picture.set_paintable(Some(&img));
+    }
+
+    gtk::AspectFrame::builder()
+        .child(&picture)
+    .build()
+
+}
