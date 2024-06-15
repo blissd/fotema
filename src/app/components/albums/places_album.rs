@@ -47,10 +47,7 @@ pub enum PlacesAlbumInput {
     // Adapt to layout
     Adapt(adaptive::Layout),
 
-    Map,
-    MapSource,
-    Scale,
-    Viewport,
+    // Map zoom has changed
     Zoom,
 }
 
@@ -104,6 +101,7 @@ impl SimpleComponent for PlacesAlbum {
         // Reference map source used by MarkerLayer
         let viewport = map_widget.viewport().unwrap();
         viewport.set_reference_map_source(map_source.as_ref());
+        viewport.set_min_zoom_level(3);
         viewport.set_zoom_level(5.);
         viewport.connect_zoom_level_notify(move |_| sender.input(PlacesAlbumInput::Zoom));
         //viewport.connect_latitude_notify(|_| sender.input(PlacesAlbumInput::Zoom);
@@ -158,18 +156,6 @@ impl SimpleComponent for PlacesAlbum {
 
             PlacesAlbumInput::Zoom => {
                 println!("zoom level = {}", self.map.viewport().unwrap().zoom_level());
-            },
-            PlacesAlbumInput::Map => {
-                println!("Map!");
-            },
-            PlacesAlbumInput::MapSource => {
-                println!("MapSource!");
-            },
-            PlacesAlbumInput::Scale => {
-                println!("Scale!");
-            },
-            PlacesAlbumInput::Viewport => {
-                println!("Viewport!");
             },
         }
     }
