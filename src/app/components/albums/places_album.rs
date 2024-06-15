@@ -200,32 +200,33 @@ impl PlacesAlbum {
     }
 }
 
-/// Make
-fn to_pin_thumbnail(visual: &Visual) -> gtk::AspectFrame {
-
-    let picture = gtk::Picture::builder()
-        .can_shrink(true)
-        .width_request(100)
-        .height_request(100)
-        .build();
-
-    if visual.thumbnail_path.as_ref().is_some_and(|x| x.exists()) {
-        picture.set_filename(visual.thumbnail_path.clone());
+/// Make thumbnail to put onto map
+fn to_pin_thumbnail(visual: &Visual) -> gtk::Frame {
+    let picture = if visual.thumbnail_path.as_ref().is_some_and(|x| x.exists()) {
+        let picture = gtk::Image::from_file(visual.thumbnail_path.as_ref().expect("Must have path"));
 
         // Add CSS class for orientation
         let orientation = visual.thumbnail_orientation();
         picture.add_css_class(orientation.as_ref());
+        picture
     } else {
         let pb = gdk_pixbuf::Pixbuf::from_resource_at_scale(
             "/app/fotema/Fotema/icons/scalable/actions/image-missing-symbolic.svg",
             200, 200, true
         ).unwrap();
        let img = gdk::Texture::for_pixbuf(&pb);
-        picture.set_paintable(Some(&img));
-    }
+       let picture = gtk::Image::from_paintable(Some(&img));
+        picture
+    };
 
-    gtk::AspectFrame::builder()
+    picture.set_width_request(100);
+    picture.set_height_request(100);
+
+    let frame = gtk::Frame::builder()
         .child(&picture)
-    .build()
+        .build();
 
+    frame.add_css_class("map-thumbnail-border");
+
+    frame
 }

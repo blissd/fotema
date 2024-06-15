@@ -76,3 +76,9 @@
   transform: rotate(90deg) scaleX(-1);
 }
 
+/* White background and border around map thumbnails */
+.map-thumbnail-border {
+  border-color: white;
+  border-width: 4px;
+}
+
