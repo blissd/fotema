@@ -324,5 +324,24 @@ fn to_pin_thumbnail(visual: &Visual, count: Option<usize>) -> gtk::Frame {
 
     frame.add_css_class("map-thumbnail-border");
 
+    let click = gtk::GestureClick::new();
+    {
+        let visual = visual.clone();
+        click.connect_released(move |_click,_,_,_| {
+            if count > 1 {
+                info!("Viewing album containing: {}", visual.visual_id);
+            } else {
+                info!("Viewing item: {}", visual.visual_id);
+            }
+        });
+    }
+
+    {
+        // if we get a stop message, then we are not dealing with a single-click.
+        click.connect_stopped(move |click| click.reset());
+    }
+
+    frame.add_controller(click);
+
     frame
 }
