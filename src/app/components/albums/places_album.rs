@@ -72,6 +72,8 @@ pub struct PlacesAlbum {
 
     /// Current resolution being viewed
     resolution: Option<h3o::Resolution>,
+
+    need_refresh: bool,
 }
 
 #[relm4::component(pub)]
@@ -142,6 +144,7 @@ impl SimpleComponent for PlacesAlbum {
             viewport,
             marker_layer,
             resolution: None,
+            need_refresh: true,
         };
 
         let widgets = view_output!();
@@ -152,7 +155,9 @@ impl SimpleComponent for PlacesAlbum {
         match msg {
             PlacesAlbumInput::Activate => {
                 *self.active_view.write() = ViewName::Places;
-                self.refresh(&sender);
+                if self.need_refresh {
+                    self.refresh(&sender);
+                }
             }
             PlacesAlbumInput::Refresh => {
                 if *self.active_view.read() == ViewName::Places {
@@ -160,7 +165,8 @@ impl SimpleComponent for PlacesAlbum {
                     self.refresh(&sender);
                 } else {
                     info!("Places view is inactive so clearing");
-                    //self.photo_grid.clear();
+                    self.marker_layer.remove_all();
+                    self.need_refresh = true;
                 }
             }
             PlacesAlbumInput::Adapt(adaptive::Layout::Narrow) => {
@@ -263,6 +269,7 @@ impl PlacesAlbum {
 
         self.viewport.set_zoom_level(DEFAULT_ZOOM_LEVEL);
         self.update_layer(&PlacesAlbum::zoom_to_resolution(DEFAULT_ZOOM_LEVEL), sender);
+        self.need_refresh = false;
     }
 }
 
