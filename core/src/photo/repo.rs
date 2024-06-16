@@ -10,7 +10,6 @@ use super::motion_photo;
 use super::Metadata;
 use crate::path_encoding;
 use anyhow::*;
-use h3o;
 use rusqlite;
 use rusqlite::params;
 use rusqlite::Row;
@@ -75,24 +74,12 @@ impl Repository {
                 "INSERT INTO pictures_geo (
                     picture_id,
                     latitude,
-                    longitude,
-                    h3_r3_id,
-                    h3_r4_id,
-                    h3_r5_id,
-                    h3_r6_id,
-                    h3_r7_id,
-                    h3_r8_id
+                    longitude
                 ) VALUES (
-                    ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9
+                    ?1, ?2, ?3
                 ) ON CONFLICT (picture_id) DO UPDATE SET
                     latitude = ?2,
-                    longitude = ?3,
-                    h3_r3_id = ?4,
-                    h3_r4_id = ?5,
-                    h3_r5_id = ?6,
-                    h3_r6_id = ?7,
-                    h3_r7_id = ?8,
-                    h3_r8_id = ?9
+                    longitude = ?3
                 ",
             )?;
 
@@ -108,46 +95,10 @@ impl Repository {
                 ])?;
 
                 if let Some(location) = metadata.location {
-                    let h3_r3_id: Option<u64> = location
-                        .to_cell_index(h3o::Resolution::Three)
-                        .ok()
-                        .map(|x| x.into());
-
-                    let h3_r4_id: Option<u64> = location
-                        .to_cell_index(h3o::Resolution::Four)
-                        .ok()
-                        .map(|x| x.into());
-
-                    let h3_r5_id: Option<u64> = location
-                        .to_cell_index(h3o::Resolution::Five)
-                        .ok()
-                        .map(|x| x.into());
-
-                    let h3_r6_id: Option<u64> = location
-                        .to_cell_index(h3o::Resolution::Six)
-                        .ok()
-                        .map(|x| x.into());
-
-                    let h3_r7_id: Option<u64> = location
-                        .to_cell_index(h3o::Resolution::Seven)
-                        .ok()
-                        .map(|x| x.into());
-
-                    let h3_r8_id: Option<u64> = location
-                        .to_cell_index(h3o::Resolution::Eight)
-                        .ok()
-                        .map(|x| x.into());
-
                     update_geo.execute(params![
                         picture_id.id(),
                         location.latitude.to_f64(),
-                        location.longitude.to_f64(),
-                        h3_r3_id,
-                        h3_r4_id,
-                        h3_r5_id,
-                        h3_r6_id,
-                        h3_r7_id,
-                        h3_r8_id,
+                        location.longitude.to_f64()
                     ])?;
                 }
             }

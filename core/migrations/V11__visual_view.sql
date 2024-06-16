@@ -58,14 +58,6 @@ SELECT
   pictures_geo.longitude AS longitude,
   pictures_geo.latitude AS latitude,
 
-  -- H3 geographic IDs
-  pictures_geo.h3_r3_id AS h3_r3_id,
-  pictures_geo.h3_r4_id AS h3_r4_id,
-  pictures_geo.h3_r5_id AS h3_r5_id,
-  pictures_geo.h3_r6_id AS h3_r6_id,
-  pictures_geo.h3_r7_id AS h3_r7_id,
-  pictures_geo.h3_r8_id AS h3_r8_id,
-
   -- Timestamp to order visual items by.
   -- Prefer embedded metadata over file system metadata.
   COALESCE(
