@@ -213,8 +213,12 @@ impl PlacesAlbum {
             .chunk_by(|x| x.location.map(|y| y.to_cell(*resolution)))
             .into_iter()
             .for_each(|(cell_index, vs)| {
-                let vs = vs.collect_vec();
-                let item = vs.get(0).expect("Groups can't be empty");
+                let mut vs = vs.collect_vec();
+
+                // Use newest visual item for thumbnail
+                vs.sort_by_key(|x| x.ordering_ts);
+                let item = vs.last().expect("Groups can't be empty");
+
                 let Some(cell_index) = cell_index else {
                     error!("Empty cell index after grouping");
                     return;
