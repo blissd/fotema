@@ -161,7 +161,9 @@ impl SimpleComponent for PlacesAlbum {
                 self.edge_length.set_value(WIDE_EDGE_LENGTH);
             },
             PlacesAlbumInput::Zoom => {
-                println!("zoom level = {}", self.map.viewport().unwrap().zoom_level());
+                let zoom_level = self.map.viewport().unwrap().zoom_level();
+                debug!("zoom level = {}", zoom_level);
+                self.update_layer(&PlacesAlbum::zoom_to_resolution(zoom_level));
             },
         }
     }
@@ -170,20 +172,21 @@ impl SimpleComponent for PlacesAlbum {
 impl PlacesAlbum {
 
     /// Maps a Shumate zoom level to a H3O resolution
+    /// FIXME this is pretty coarse. Would be good map by scale or by fractional zoom levels.
     fn zoom_to_resolution(zoom_level: f64) -> h3o::Resolution {
         match zoom_level as u32 {
             a if a <= MIN_ZOOM_LEVEL => h3o::Resolution::Zero,
             4 => h3o::Resolution::One,
-            5 => h3o::Resolution::One,
+            5 => h3o::Resolution::Two,
             6 => h3o::Resolution::Two,
             7 => h3o::Resolution::Three,
             8 => h3o::Resolution::Four,
             9 => h3o::Resolution::Four,
             10 => h3o::Resolution::Five,
-            11 => h3o::Resolution::Five,
+            11 => h3o::Resolution::Six,
             12 => h3o::Resolution::Six,
-            13 => h3o::Resolution::Six,
-            14 => h3o::Resolution::Seven,
+            13 => h3o::Resolution::Seven,
+            14 => h3o::Resolution::Eight,
             15 => h3o::Resolution::Eight,
             16 => h3o::Resolution::Nine,
             a if a >= MAX_ZOOM_LEVEL => h3o::Resolution::Ten,
@@ -195,6 +198,8 @@ impl PlacesAlbum {
         if self.resolution.is_some_and(|r| r == *resolution) {
             return;
         }
+
+        self.resolution = Some(*resolution);
 
         self.marker_layer.remove_all();
 
@@ -209,7 +214,6 @@ impl PlacesAlbum {
             .into_iter()
             .for_each(|(cell_index, vs)| {
                 let vs = vs.collect_vec();
-                debug!("h3 cell index={:?}, count={}", cell_index, vs.len());
                 let item = vs.get(0).expect("Groups can't be empty");
                 let Some(cell_index) = cell_index else {
                     error!("Empty cell index after grouping");
@@ -222,8 +226,14 @@ impl PlacesAlbum {
                     .child(&widget)
                     .build();
 
-                // use lat and lng from h3 cell, not from item.
-                let location: LatLng = cell_index.into();
+                // Hmmm... using the cell_index lat/lng can put thumbnails kinda far from where
+                // they occured
+                //let location: LatLng = cell_index.into();
+                let Some(location) = item.location else {
+                    error!("Empty location after grouping");
+                    return;
+                };
+
                 marker.set_location(location.lat(), location.lng());
 
                self.marker_layer.add_marker(&marker);
@@ -255,7 +265,7 @@ impl PlacesAlbum {
         }
 
         self.viewport.set_zoom_level(DEFAULT_ZOOM_LEVEL);
-        self.update_layer(&h3o::Resolution::Five);
+        self.update_layer(&PlacesAlbum::zoom_to_resolution(DEFAULT_ZOOM_LEVEL));
 
     }
 }
