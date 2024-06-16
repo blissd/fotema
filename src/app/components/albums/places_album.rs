@@ -188,7 +188,7 @@ impl PlacesAlbum {
             14 => h3o::Resolution::Eight,
             15 => h3o::Resolution::Eight,
             16 => h3o::Resolution::Nine,
-            a if a >= MAX_ZOOM_LEVEL => h3o::Resolution::Ten,
+            a if a >= MAX_ZOOM_LEVEL => h3o::Resolution::Nine,
             _ =>  h3o::Resolution::Five,
         }
     }
@@ -292,7 +292,9 @@ fn to_pin_thumbnail(visual: &Visual, count: Option<usize>) -> gtk::Frame {
 
     let frame = gtk::Frame::new(None);
 
-     if let Some(count) = count {
+    let count = count.unwrap_or(1);
+
+     if count > 1 {
         // if there is a count then overlay the number in the bottom right corner.
         let overlay = gtk::Overlay::builder()
             .child(&picture)
