@@ -14,7 +14,7 @@ use relm4::gtk::gdk;
 use relm4::*;
 use relm4::binding::*;
 
-use tracing::info;
+use tracing::{debug,error,info};
 
 use crate::adaptive;
 use crate::app::SharedState;
@@ -22,8 +22,8 @@ use crate::app::ActiveView;
 use crate::app::ViewName;
 use fotema_core::Visual;
 
-use std::collections::HashMap;
 use h3o;
+use h3o::LatLng;
 
 use shumate;
 use shumate::prelude::*;
@@ -53,9 +53,16 @@ pub struct PlacesAlbum {
     state: SharedState,
     active_view: ActiveView,
     edge_length: I32Binding,
+
+    /// Map of visual items
     map: shumate::SimpleMap,
     viewport: shumate::Viewport,
+
+    /// Layer containing thumbnails
     marker_layer: shumate::MarkerLayer,
+
+    /// Current resolution being viewed
+    resolution: Option<h3o::Resolution>,
 }
 
 #[relm4::component(pub)]
@@ -125,6 +132,7 @@ impl SimpleComponent for PlacesAlbum {
             map: map_widget.clone(),
             viewport,
             marker_layer,
+            resolution: None,
         };
 
         let widgets = view_output!();
@@ -152,7 +160,6 @@ impl SimpleComponent for PlacesAlbum {
             PlacesAlbumInput::Adapt(adaptive::Layout::Wide) => {
                 self.edge_length.set_value(WIDE_EDGE_LENGTH);
             },
-
             PlacesAlbumInput::Zoom => {
                 println!("zoom level = {}", self.map.viewport().unwrap().zoom_level());
             },
@@ -184,8 +191,49 @@ impl PlacesAlbum {
         }
     }
 
-    fn refresh(&mut self) {
+    fn update_layer(&mut self, resolution: &h3o::Resolution) {
+        if self.resolution.is_some_and(|r| r == *resolution) {
+            return;
+        }
+
+        self.marker_layer.remove_all();
+
         let data = self.state.read();
+        data.iter()
+            // only want visual items with location
+            .filter(|x| x.location.is_some())
+            // make visual items in same cell adjacent
+            .sorted_by_key(|x| x.location.map(|y| y.to_cell(*resolution)))
+            // group visual items in same cell
+            .chunk_by(|x| x.location.map(|y| y.to_cell(*resolution)))
+            .into_iter()
+            .for_each(|(cell_index, vs)| {
+                let vs = vs.collect_vec();
+                debug!("h3 cell index={:?}, count={}", cell_index, vs.len());
+                let item = vs.get(0).expect("Groups can't be empty");
+                let Some(cell_index) = cell_index else {
+                    error!("Empty cell index after grouping");
+                    return;
+                };
+
+                let widget = to_pin_thumbnail(&item, Some(vs.len()));
+
+                let marker = shumate::Marker::builder()
+                    .child(&widget)
+                    .build();
+
+                // use lat and lng from h3 cell, not from item.
+                let location: LatLng = cell_index.into();
+                marker.set_location(location.lat(), location.lng());
+
+               self.marker_layer.add_marker(&marker);
+            });
+    }
+
+
+
+    fn refresh(&mut self) {
+        let data = self.state.read().clone();
         let data = data.iter().filter(|x| x.location.is_some()).collect_vec();
 
         info!("{} items with location data", data.len());
@@ -203,8 +251,12 @@ impl PlacesAlbum {
 
             marker.set_location(location.lat(), location.lng());
 
-           self.marker_layer.add_marker(&marker)
+           self.marker_layer.add_marker(&marker);
         }
+
+        self.viewport.set_zoom_level(DEFAULT_ZOOM_LEVEL);
+        self.update_layer(&h3o::Resolution::Five);
+
     }
 }
 
@@ -250,7 +302,7 @@ fn to_pin_thumbnail(visual: &Visual, count: Option<usize>) -> gtk::Frame {
             .child(&label)
             .build();
 
-        label_frame.set_margin_all(8);
+        label_frame.set_margin_all(4);
 
         overlay.add_overlay(&label_frame);
 
