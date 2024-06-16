@@ -32,6 +32,8 @@ use fotema_core::database;
 use fotema_core::video;
 use fotema_core::VisualId;
 
+use h3o::CellIndex;
+
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::str::FromStr;
@@ -49,7 +51,7 @@ use self::components::{
         album::{Album, AlbumInput, AlbumOutput},
         album_filter::AlbumFilter,
         folders_album::{FoldersAlbum, FoldersAlbumInput, FoldersAlbumOutput},
-        places_album::{PlacesAlbum, PlacesAlbumInput},
+        places_album::{PlacesAlbum, PlacesAlbumInput, PlacesAlbumOutput},
     },
     library::{Library, LibraryInput, LibraryOutput},
     viewer::view_nav::{ViewNav, ViewNavInput, ViewNavOutput},
@@ -165,6 +167,8 @@ pub(super) enum AppMsg {
     ViewHidden,
 
     ViewFolder(PathBuf),
+
+    ViewGeographicArea(CellIndex),
 
     // A background task has started.
     TaskStarted(TaskName),
@@ -508,7 +512,10 @@ impl SimpleComponent for App {
 
         let places_page = PlacesAlbum::builder()
             .launch((state.clone(), active_view.clone()))
-            .detach();
+            .forward(sender.input_sender(), |msg| match msg {
+                PlacesAlbumOutput::View(visual_id) => AppMsg::View(visual_id, AlbumFilter::All),
+                PlacesAlbumOutput::GeographicArea(cell_index) => AppMsg::ViewGeographicArea(cell_index),
+            });
 
         state.subscribe(places_page.sender(), |_| PlacesAlbumInput::Refresh);
         adaptive_layout.subscribe(places_page.sender(), |layout| PlacesAlbumInput::Adapt(*layout));
@@ -693,6 +700,12 @@ impl SimpleComponent for App {
             AppMsg::ViewFolder(path) => {
                 self.folder_album.emit(AlbumInput::Activate);
                 self.folder_album.emit(AlbumInput::Filter(AlbumFilter::Folder(path)));
+                self.picture_navigation_view.push_by_tag("album");
+
+            }
+            AppMsg::ViewGeographicArea(cell_index) => {
+                self.folder_album.emit(AlbumInput::Activate);
+                self.folder_album.emit(AlbumInput::Filter(AlbumFilter::GeographicArea(cell_index)));
                 self.picture_navigation_view.push_by_tag("album");
 
             }

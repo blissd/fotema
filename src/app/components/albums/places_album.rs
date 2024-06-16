@@ -20,9 +20,10 @@ use crate::adaptive;
 use crate::app::SharedState;
 use crate::app::ActiveView;
 use crate::app::ViewName;
-use fotema_core::Visual;
+use fotema_core::{Visual, VisualId};
 
 use h3o;
+use h3o::CellIndex;
 
 use shumate;
 use shumate::prelude::*;
@@ -48,6 +49,15 @@ pub enum PlacesAlbumInput {
     Zoom,
 }
 
+#[derive(Debug)]
+pub enum PlacesAlbumOutput {
+    /// User has selected a single item to view on map
+    View(VisualId),
+
+    // User has selected a group of items grouped in a cell index to view as an album
+    GeographicArea(CellIndex),
+}
+
 pub struct PlacesAlbum {
     state: SharedState,
     active_view: ActiveView,
@@ -68,7 +78,7 @@ pub struct PlacesAlbum {
 impl SimpleComponent for PlacesAlbum {
     type Init = (SharedState, ActiveView);
     type Input = PlacesAlbumInput;
-    type Output = ();
+    type Output = PlacesAlbumOutput;
 
     view! {
        gtk::Box {
@@ -138,16 +148,16 @@ impl SimpleComponent for PlacesAlbum {
         ComponentParts { model, widgets }
     }
 
-    fn update(&mut self, msg: Self::Input, _sender: ComponentSender<Self>) {
+    fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
             PlacesAlbumInput::Activate => {
                 *self.active_view.write() = ViewName::Places;
-                self.refresh();
+                self.refresh(&sender);
             }
             PlacesAlbumInput::Refresh => {
                 if *self.active_view.read() == ViewName::Places {
                     info!("Places view is active so refreshing");
-                    self.refresh();
+                    self.refresh(&sender);
                 } else {
                     info!("Places view is inactive so clearing");
                     //self.photo_grid.clear();
@@ -162,7 +172,7 @@ impl SimpleComponent for PlacesAlbum {
             PlacesAlbumInput::Zoom => {
                 let zoom_level = self.map.viewport().unwrap().zoom_level();
                 debug!("zoom level = {}", zoom_level);
-                self.update_layer(&PlacesAlbum::zoom_to_resolution(zoom_level));
+                self.update_layer(&PlacesAlbum::zoom_to_resolution(zoom_level), &sender);
             },
         }
     }
@@ -193,7 +203,7 @@ impl PlacesAlbum {
         }
     }
 
-    fn update_layer(&mut self, resolution: &h3o::Resolution) {
+    fn update_layer(&mut self, resolution: &h3o::Resolution, sender: &ComponentSender<Self>) {
         if self.resolution.is_some_and(|r| r == *resolution) {
             return;
         }
@@ -218,7 +228,7 @@ impl PlacesAlbum {
                 vs.sort_by_key(|x| x.ordering_ts);
                 let item = vs.last().expect("Groups can't be empty");
 
-                let widget = to_pin_thumbnail(&item, Some(vs.len()));
+                let widget = to_pin_thumbnail(&item, Some(vs.len()), resolution, sender);
 
                 let marker = shumate::Marker::builder()
                     .child(&widget)
@@ -238,9 +248,7 @@ impl PlacesAlbum {
             });
     }
 
-
-
-    fn refresh(&mut self) {
+    fn refresh(&mut self, sender: &ComponentSender<Self>) {
         let data = self.state.read().clone();
         let data = data.iter().filter(|x| x.location.is_some()).collect_vec();
 
@@ -249,27 +257,17 @@ impl PlacesAlbum {
         if let Some(most_recent) = data.iter().max_by(|x,y|x.ordering_ts.cmp(&y.ordering_ts)) {
             let location = most_recent.location.expect("must have location");
             info!("Centreing on most recent location at {}", location);
-            self.map.map().expect("must have map").center_on(location.lat(), location.lng());
-
-            let widget = to_pin_thumbnail(&most_recent, Some(512));
-
-            let marker = shumate::Marker::builder()
-                .child(&widget)
-                .build();
-
-            marker.set_location(location.lat(), location.lng());
-
-           self.marker_layer.add_marker(&marker);
+            let map = self.map.map().expect("must have map");
+            map.center_on(location.lat(), location.lng());
         }
 
         self.viewport.set_zoom_level(DEFAULT_ZOOM_LEVEL);
-        self.update_layer(&PlacesAlbum::zoom_to_resolution(DEFAULT_ZOOM_LEVEL));
-
+        self.update_layer(&PlacesAlbum::zoom_to_resolution(DEFAULT_ZOOM_LEVEL), sender);
     }
 }
 
 /// Make thumbnail to put onto map
-fn to_pin_thumbnail(visual: &Visual, count: Option<usize>) -> gtk::Frame {
+fn to_pin_thumbnail(visual: &Visual, count: Option<usize>, resolution: &h3o::Resolution, sender: &ComponentSender<PlacesAlbum>) -> gtk::Frame {
     let picture = if visual.thumbnail_path.as_ref().is_some_and(|x| x.exists()) {
         let picture = gtk::Image::from_file(visual.thumbnail_path.as_ref().expect("Must have path"));
 
@@ -327,11 +325,17 @@ fn to_pin_thumbnail(visual: &Visual, count: Option<usize>) -> gtk::Frame {
     let click = gtk::GestureClick::new();
     {
         let visual = visual.clone();
+        let sender = sender.clone();
+        let resolution = *resolution;
         click.connect_released(move |_click,_,_,_| {
             if count > 1 {
                 info!("Viewing album containing: {}", visual.visual_id);
+                if let Some(cell_index) = visual.location.map(|loc| loc.to_cell(resolution)) {
+                    let _ = sender.output(PlacesAlbumOutput::GeographicArea(cell_index));
+                }
             } else {
                 info!("Viewing item: {}", visual.visual_id);
+                let _ = sender.output(PlacesAlbumOutput::View(visual.visual_id.clone()));
             }
         });
     }
