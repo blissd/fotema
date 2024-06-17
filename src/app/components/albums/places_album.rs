@@ -333,13 +333,13 @@ impl PlacesAlbum {
 
             let label = gtk::Label::builder()
                 .label(format!("{}", count))
-                .css_classes(["photo-grid-photo-status-label"]) // FIXME don't reuse CSS class.
+                .css_classes(["map-thumbnail-label-text"])
                 .build();
 
             let label_frame = gtk::Frame::builder()
                 .halign(gtk::Align::End)
                 .valign(gtk::Align::End)
-                .css_classes(["photo-grid-photo-status-frame"]) // FIXME don't reuse CSS class.
+                .css_classes(["map-thumbnail-label-frame"])
                 .child(&label)
                 .build();
 
