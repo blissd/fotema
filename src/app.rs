@@ -513,7 +513,7 @@ impl SimpleComponent for App {
         let places_page = PlacesAlbum::builder()
             .launch((state.clone(), active_view.clone()))
             .forward(sender.input_sender(), |msg| match msg {
-                PlacesAlbumOutput::View(visual_id) => AppMsg::View(visual_id, AlbumFilter::All),
+                PlacesAlbumOutput::View(visual_id) => AppMsg::View(visual_id, AlbumFilter::None),
                 PlacesAlbumOutput::GeographicArea(cell_index) => AppMsg::ViewGeographicArea(cell_index),
             });
 
