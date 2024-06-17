@@ -34,7 +34,8 @@ const WIDE_EDGE_LENGTH: i32 = 100;
 
 const MIN_ZOOM_LEVEL: u32 = 3;
 const MAX_ZOOM_LEVEL: u32 = 17;
-const DEFAULT_ZOOM_LEVEL: f64 = 5.0;
+
+const DEFAULT_ZOOM_LEVEL: f64 = 7.0;
 
 #[derive(Debug)]
 pub enum PlacesAlbumInput {
@@ -144,7 +145,7 @@ impl SimpleComponent for PlacesAlbum {
             map: map_widget.clone(),
             viewport,
             marker_layer,
-            resolution: h3o::Resolution::Five,
+            resolution: h3o::Resolution::Zero, // NOTE will immediately be overridden when map is first rendered
             need_refresh: true,
         };
 
@@ -206,11 +207,10 @@ impl PlacesAlbum {
             15 => h3o::Resolution::Eight,
             16 => h3o::Resolution::Nine,
             a if a >= MAX_ZOOM_LEVEL => h3o::Resolution::Nine,
-            _ =>  h3o::Resolution::Five,
+            _ =>  h3o::Resolution::Three,
         }
     }
-
-    fn update_layer(&mut self, resolution: &h3o::Resolution, sender: &ComponentSender<Self>) {
+     fn update_layer(&mut self, resolution: &h3o::Resolution, sender: &ComponentSender<Self>) {
         if self.resolution == *resolution {
             return;
         }
@@ -242,7 +242,7 @@ impl PlacesAlbum {
                     .build();
 
                 // Hmmm... using the cell_index lat/lng can put thumbnails kinda far from where
-                // they occured
+                // they occurred
                 //let location: LatLng = cell_index.into();
                 let Some(location) = item.location else {
                     error!("Empty location after grouping");
