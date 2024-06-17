@@ -31,6 +31,7 @@ use shumate::MAP_SOURCE_OSM_MAPNIK;
 
 const NARROW_EDGE_LENGTH: i32 = 60;
 const WIDE_EDGE_LENGTH: i32 = 100;
+
 const MIN_ZOOM_LEVEL: u32 = 3;
 const MAX_ZOOM_LEVEL: u32 = 17;
 const DEFAULT_ZOOM_LEVEL: f64 = 5.0;
@@ -291,8 +292,11 @@ impl PlacesAlbum {
             picture
         };
 
-        picture.set_width_request(100);
-        picture.set_height_request(100);
+        picture.add_write_only_binding(&self.edge_length, "width-request");
+        picture.add_write_only_binding(&self.edge_length, "height-request");
+
+        //picture.set_width_request(100);
+        //picture.set_height_request(100);
 
         let frame = gtk::Frame::new(None);
 
