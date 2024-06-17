@@ -71,7 +71,7 @@ pub struct PlacesAlbum {
     marker_layer: shumate::MarkerLayer,
 
     /// Current resolution being viewed
-    resolution: Option<h3o::Resolution>,
+    resolution: h3o::Resolution,
 
     need_refresh: bool,
 }
@@ -143,7 +143,7 @@ impl SimpleComponent for PlacesAlbum {
             map: map_widget.clone(),
             viewport,
             marker_layer,
-            resolution: None,
+            resolution: h3o::Resolution::Five,
             need_refresh: true,
         };
 
@@ -210,11 +210,11 @@ impl PlacesAlbum {
     }
 
     fn update_layer(&mut self, resolution: &h3o::Resolution, sender: &ComponentSender<Self>) {
-        if self.resolution.is_some_and(|r| r == *resolution) {
+        if self.resolution == *resolution {
             return;
         }
 
-        self.resolution = Some(*resolution);
+        self.resolution = *resolution;
 
         self.marker_layer.remove_all();
 
@@ -234,7 +234,7 @@ impl PlacesAlbum {
                 vs.sort_by_key(|x| x.ordering_ts);
                 let item = vs.last().expect("Groups can't be empty");
 
-                let widget = to_pin_thumbnail(&item, Some(vs.len()), resolution, sender);
+                let widget = self.to_pin_thumbnail(&item, Some(vs.len()), sender);
 
                 let marker = shumate::Marker::builder()
                     .child(&widget)
@@ -271,88 +271,89 @@ impl PlacesAlbum {
         self.update_layer(&PlacesAlbum::zoom_to_resolution(DEFAULT_ZOOM_LEVEL), sender);
         self.need_refresh = false;
     }
-}
 
-/// Make thumbnail to put onto map
-fn to_pin_thumbnail(visual: &Visual, count: Option<usize>, resolution: &h3o::Resolution, sender: &ComponentSender<PlacesAlbum>) -> gtk::Frame {
-    let picture = if visual.thumbnail_path.as_ref().is_some_and(|x| x.exists()) {
-        let picture = gtk::Image::from_file(visual.thumbnail_path.as_ref().expect("Must have path"));
+    /// Make thumbnail to put onto map
+    fn to_pin_thumbnail(&self, visual: &Visual, count: Option<usize>, sender: &ComponentSender<PlacesAlbum>) -> gtk::Frame {
+        let picture = if visual.thumbnail_path.as_ref().is_some_and(|x| x.exists()) {
+            let picture = gtk::Image::from_file(visual.thumbnail_path.as_ref().expect("Must have path"));
 
-        // Add CSS class for orientation
-        let orientation = visual.thumbnail_orientation();
-        picture.add_css_class(orientation.as_ref());
-        picture
-    } else {
-        let pb = gdk_pixbuf::Pixbuf::from_resource_at_scale(
-            "/app/fotema/Fotema/icons/scalable/actions/image-missing-symbolic.svg",
-            200, 200, true
-        ).unwrap();
-       let img = gdk::Texture::for_pixbuf(&pb);
-       let picture = gtk::Image::from_paintable(Some(&img));
-        picture
-    };
+            // Add CSS class for orientation
+            let orientation = visual.thumbnail_orientation();
+            picture.add_css_class(orientation.as_ref());
+            picture
+        } else {
+            let pb = gdk_pixbuf::Pixbuf::from_resource_at_scale(
+                "/app/fotema/Fotema/icons/scalable/actions/image-missing-symbolic.svg",
+                200, 200, true
+            ).unwrap();
+           let img = gdk::Texture::for_pixbuf(&pb);
+           let picture = gtk::Image::from_paintable(Some(&img));
+            picture
+        };
 
-    picture.set_width_request(100);
-    picture.set_height_request(100);
+        picture.set_width_request(100);
+        picture.set_height_request(100);
 
-    let frame = gtk::Frame::new(None);
+        let frame = gtk::Frame::new(None);
 
-    let count = count.unwrap_or(1);
+        let count = count.unwrap_or(1);
 
-     if count > 1 {
-        // if there is a count then overlay the number in the bottom right corner.
-        let overlay = gtk::Overlay::builder()
-            .child(&picture)
-            .build();
+         if count > 1 {
+            // if there is a count then overlay the number in the bottom right corner.
+            let overlay = gtk::Overlay::builder()
+                .child(&picture)
+                .build();
 
-        let label = gtk::Label::builder()
-            .label(format!("{}", count))
-            .css_classes(["photo-grid-photo-status-label"]) // FIXME don't reuse CSS class.
-            .build();
+            let label = gtk::Label::builder()
+                .label(format!("{}", count))
+                .css_classes(["photo-grid-photo-status-label"]) // FIXME don't reuse CSS class.
+                .build();
 
-        let label_frame = gtk::Frame::builder()
-            .halign(gtk::Align::End)
-            .valign(gtk::Align::End)
-            .css_classes(["photo-grid-photo-status-frame"]) // FIXME don't reuse CSS class.
-            .child(&label)
-            .build();
+            let label_frame = gtk::Frame::builder()
+                .halign(gtk::Align::End)
+                .valign(gtk::Align::End)
+                .css_classes(["photo-grid-photo-status-frame"]) // FIXME don't reuse CSS class.
+                .child(&label)
+                .build();
 
-        label_frame.set_margin_all(4);
+            label_frame.set_margin_all(4);
 
-        overlay.add_overlay(&label_frame);
+            overlay.add_overlay(&label_frame);
 
-        frame.set_child(Some(&overlay));
-       // frame
-    } else {
-        frame.set_child(Some(&picture));
-    }
+            frame.set_child(Some(&overlay));
+           // frame
+        } else {
+            frame.set_child(Some(&picture));
+        }
 
-    frame.add_css_class("map-thumbnail-border");
+        frame.add_css_class("map-thumbnail-border");
 
-    let click = gtk::GestureClick::new();
-    {
-        let visual = visual.clone();
-        let sender = sender.clone();
-        let resolution = *resolution;
-        click.connect_released(move |_click,_,_,_| {
-            if count > 1 {
-                info!("Viewing album containing: {}", visual.visual_id);
-                if let Some(cell_index) = visual.location.map(|loc| loc.to_cell(resolution)) {
-                    let _ = sender.output(PlacesAlbumOutput::GeographicArea(cell_index));
+        let click = gtk::GestureClick::new();
+        {
+            let visual = visual.clone();
+            let sender = sender.clone();
+            let resolution = self.resolution;
+            click.connect_released(move |_click,_,_,_| {
+                if count > 1 {
+                    info!("Viewing album containing: {}", visual.visual_id);
+                    if let Some(cell_index) = visual.location.map(|loc| loc.to_cell(resolution)) {
+                        let _ = sender.output(PlacesAlbumOutput::GeographicArea(cell_index));
+                    }
+                } else {
+                    info!("Viewing item: {}", visual.visual_id);
+                    let _ = sender.output(PlacesAlbumOutput::View(visual.visual_id.clone()));
                 }
-            } else {
-                info!("Viewing item: {}", visual.visual_id);
-                let _ = sender.output(PlacesAlbumOutput::View(visual.visual_id.clone()));
-            }
-        });
+            });
+        }
+
+        {
+            // if we get a stop message, then we are not dealing with a single-click.
+            click.connect_stopped(move |click| click.reset());
+        }
+
+        frame.add_controller(click);
+
+        frame
     }
-
-    {
-        // if we get a stop message, then we are not dealing with a single-click.
-        click.connect_stopped(move |click| click.reset());
-    }
-
-    frame.add_controller(click);
-
-    frame
 }
+
