@@ -122,9 +122,11 @@ impl SimpleComponent for PlacesAlbum {
         viewport.set_min_zoom_level(MIN_ZOOM_LEVEL);
         viewport.set_max_zoom_level(MAX_ZOOM_LEVEL);
         viewport.set_zoom_level(DEFAULT_ZOOM_LEVEL);
-        viewport.connect_zoom_level_notify(move |_| sender.input(PlacesAlbumInput::Zoom));
-        //viewport.connect_latitude_notify(|_| sender.input(PlacesAlbumInput::Zoom);
-        //viewport.connect_longitude_notify(|_| sender.input(PlacesAlbumInput::Zoom);
+
+        {
+            let sender = sender.clone();
+            viewport.connect_zoom_level_notify(move |_| sender.input(PlacesAlbumInput::Zoom));
+        }
 
         let gesture = gtk::GestureClick::new();
         map_widget.add_controller(gesture.clone());
@@ -132,21 +134,19 @@ impl SimpleComponent for PlacesAlbum {
         let marker_layer: shumate::MarkerLayer =
             shumate::MarkerLayer::new_full(&viewport, gtk::SelectionMode::Single);
 
-        //let marker = shumate::Marker::new();
-        //marker.set_location(0., 0.);
-        //marker_layer.add_marker(&marker);
-
         map.add_layer(&marker_layer);
 
         let model = PlacesAlbum {
             state,
             active_view,
+            need_refresh: true,
             edge_length: I32Binding::new(NARROW_EDGE_LENGTH),
             map: map_widget.clone(),
             viewport,
             marker_layer,
-            resolution: h3o::Resolution::Zero, // NOTE will immediately be overridden when map is first rendered
-            need_refresh: true,
+
+            // NOTE will immediately be overridden when map is first rendered
+            resolution: h3o::Resolution::Zero,
         };
 
         let widgets = view_output!();
@@ -178,7 +178,7 @@ impl SimpleComponent for PlacesAlbum {
                 self.edge_length.set_value(WIDE_EDGE_LENGTH);
             },
             PlacesAlbumInput::Zoom => {
-                let zoom_level = self.map.viewport().unwrap().zoom_level();
+                let zoom_level = self.viewport.zoom_level();
                 debug!("zoom level = {}", zoom_level);
                 self.update_layer(&PlacesAlbum::zoom_to_resolution(zoom_level), &sender);
             },
@@ -211,9 +211,12 @@ impl PlacesAlbum {
         }
     }
      fn update_layer(&mut self, resolution: &h3o::Resolution, sender: &ComponentSender<Self>) {
+
         if self.resolution == *resolution {
             return;
         }
+
+        debug!("Map moved or zoomed so will update thumbnails");
 
         self.resolution = *resolution;
 
@@ -228,6 +231,24 @@ impl PlacesAlbum {
             // group visual items in same cell
             .chunk_by(|x| x.location.map(|y| y.to_cell(*resolution)))
             .into_iter()
+            // sort by nearest cells
+            //.sorted_by_key(|(cell_index, _)| {
+            //    let cell_centre: h3o::LatLng = cell_index.expect("Must have cell index").into();
+            //    let metres: i64 = centre_point.distance_m(cell_centre) as i64; // f64 isn't ordered!
+            //    metres
+            //})
+            // FIXME I've experimented with updating the list of thumbnails
+            // when the map centre is moved between H3O cells, but it makes for janky map dragging.
+            // I'm going to disable the functionality for now, but might restore it if users with
+            // large collections raise bug reports for the map view.
+            //
+            // Only use the thumbnails of the nearest 250 items (where each item is in its own cell).
+            // This is to limit the number of thumbnail widgets that get created, because each
+            // h30::CellIndex will be represented by one thumbnail widget.
+            // If there are a lot of spreadout images we could generated thousands of widgets
+            // which might cause memory and performance problems (like trying to load every
+            // thumbnail in the album views does).
+            //.take(250)
             .for_each(|(_cell_index, vs)| {
                 let mut vs = vs.collect_vec();
 
@@ -253,6 +274,8 @@ impl PlacesAlbum {
 
                self.marker_layer.add_marker(&marker);
             });
+
+            info!("{} thumbnails added to the map", self.marker_layer.markers().len());
     }
 
     fn refresh(&mut self, sender: &ComponentSender<Self>) {
