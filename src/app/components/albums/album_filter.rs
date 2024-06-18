@@ -5,6 +5,7 @@
 use std::path::PathBuf;
 use fotema_core::Visual;
 use h3o::CellIndex;
+use fotema_core::VisualId;
 
 // An album is a view applied over the whole collection of messages.
 // An AlbumFilter defines the filter to apply to produce an album.
@@ -12,6 +13,9 @@ use h3o::CellIndex;
 pub enum AlbumFilter {
     // Show no photos
     None,
+
+    // Show a single photo
+    One(VisualId),
 
     // Show all photos
     All,
@@ -36,6 +40,7 @@ impl AlbumFilter {
     pub fn filter(self, v: &Visual) -> bool {
         match self {
             AlbumFilter::None => false,
+            AlbumFilter::One(visual_id) => v.visual_id == visual_id,
             AlbumFilter::All => true,
             AlbumFilter::Folder(path) => v.parent_path == path,
             AlbumFilter::Motion => v.is_motion_photo(),
