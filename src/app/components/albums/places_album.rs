@@ -29,6 +29,9 @@ use shumate;
 use shumate::prelude::*;
 use shumate::MAP_SOURCE_OSM_MAPNIK;
 
+use std::sync::Arc;
+use std::collections::HashMap;
+
 const NARROW_EDGE_LENGTH: i32 = 60;
 const WIDE_EDGE_LENGTH: i32 = 100;
 
@@ -49,6 +52,9 @@ pub enum PlacesAlbumInput {
 
     // Map zoom has changed
     Zoom,
+
+    // Map has been dragged
+    Move,
 }
 
 #[derive(Debug)]
@@ -58,6 +64,16 @@ pub enum PlacesAlbumOutput {
 
     // User has selected a group of items grouped in a cell index to view as an album
     GeographicArea(CellIndex),
+}
+
+/// Item to represent all photos in a cell
+#[derive(Debug)]
+pub struct CellItem {
+    /// Visual item to use for thumbnail.C
+    visual: Arc<Visual>,
+
+    /// Count of visual items in cell. Used for label.
+    count: usize,
 }
 
 pub struct PlacesAlbum {
@@ -74,6 +90,13 @@ pub struct PlacesAlbum {
 
     /// Current resolution being viewed
     resolution: h3o::Resolution,
+
+    /// Cells at current resolution.
+    /// Cell index, visual item for thumbnail, count of items in cell
+    cells: HashMap<CellIndex, CellItem>,
+
+    /// Cell nearest centre of map
+    centre_cell: h3o::CellIndex,
 
     need_refresh: bool,
 }
@@ -127,6 +150,14 @@ impl SimpleComponent for PlacesAlbum {
             let sender = sender.clone();
             viewport.connect_zoom_level_notify(move |_| sender.input(PlacesAlbumInput::Zoom));
         }
+        {
+            let sender = sender.clone();
+            viewport.connect_latitude_notify(move |_| sender.input(PlacesAlbumInput::Move));
+        }
+        {
+            let sender = sender.clone();
+            viewport.connect_longitude_notify(move |_| sender.input(PlacesAlbumInput::Move));
+        }
 
         let gesture = gtk::GestureClick::new();
         map_widget.add_controller(gesture.clone());
@@ -147,6 +178,13 @@ impl SimpleComponent for PlacesAlbum {
 
             // NOTE will immediately be overridden when map is first rendered
             resolution: h3o::Resolution::Zero,
+
+            cells: HashMap::new(),
+
+            // NOTE will immediately be overridden when map is first rendered
+            centre_cell: h3o::LatLng::new(0.0, 0.0)
+                .expect("0/0 is a valid lat/lng")
+                .to_cell(h3o::Resolution::Zero),
         };
 
         let widgets = view_output!();
@@ -182,6 +220,10 @@ impl SimpleComponent for PlacesAlbum {
                 debug!("zoom level = {}", zoom_level);
                 self.update_layer(&PlacesAlbum::zoom_to_resolution(zoom_level), &sender);
             },
+            PlacesAlbumInput::Move => {
+                let zoom_level = self.viewport.zoom_level();
+                self.update_layer(&PlacesAlbum::zoom_to_resolution(zoom_level), &sender);
+            },
         }
     }
 }
@@ -210,72 +252,96 @@ impl PlacesAlbum {
             _ =>  h3o::Resolution::Three,
         }
     }
-     fn update_layer(&mut self, resolution: &h3o::Resolution, sender: &ComponentSender<Self>) {
+    fn update_layer(&mut self, resolution: &h3o::Resolution, sender: &ComponentSender<Self>) {
 
-        if self.resolution == *resolution {
+        let Ok(centre_point) = h3o::LatLng::new(self.viewport.latitude(), self.viewport.longitude()) else {
+            error!("Invalid viewport centre point: lat={}, lng={}", self.viewport.latitude(), self.viewport.longitude());
+            return;
+        };
+
+        let centre_cell = centre_point.to_cell(*resolution);
+
+        if self.resolution == *resolution && self.centre_cell == centre_cell {
             return;
         }
 
-        debug!("Map moved or zoomed so will update thumbnails");
 
-        self.resolution = *resolution;
+        // When the resolution changes the set of cells on the map changes
+        // and the thumbnails and counts change.
+        if self.resolution != *resolution {
+            debug!("Resolution zoomed from {} to {}", self.resolution, resolution);
 
-        self.marker_layer.remove_all();
+            self.resolution = *resolution;
 
-        let data = self.state.read();
-        data.iter()
-            // only want visual items with location
-            .filter(|x| x.location.is_some())
-            // make visual items in same cell adjacent
-            .sorted_by_key(|x| x.location.map(|y| y.to_cell(*resolution)))
-            // group visual items in same cell
-            .chunk_by(|x| x.location.map(|y| y.to_cell(*resolution)))
-            .into_iter()
-            // sort by nearest cells
-            //.sorted_by_key(|(cell_index, _)| {
-            //    let cell_centre: h3o::LatLng = cell_index.expect("Must have cell index").into();
-            //    let metres: i64 = centre_point.distance_m(cell_centre) as i64; // f64 isn't ordered!
-            //    metres
-            //})
-            // FIXME I've experimented with updating the list of thumbnails
-            // when the map centre is moved between H3O cells, but it makes for janky map dragging.
-            // I'm going to disable the functionality for now, but might restore it if users with
-            // large collections raise bug reports for the map view.
-            //
-            // Only use the thumbnails of the nearest 250 items (where each item is in its own cell).
-            // This is to limit the number of thumbnail widgets that get created, because each
-            // h30::CellIndex will be represented by one thumbnail widget.
-            // If there are a lot of spreadout images we could generated thousands of widgets
-            // which might cause memory and performance problems (like trying to load every
-            // thumbnail in the album views does).
-            //.take(250)
-            .for_each(|(_cell_index, vs)| {
-                let mut vs = vs.collect_vec();
+            let data = self.state.read();
+            self.cells.clear();
 
-                // Use newest visual item for thumbnail
-                vs.sort_by_key(|x| x.ordering_ts);
-                let item = vs.last().expect("Groups can't be empty");
+            // Build a map of cell indexes to cell items for current resolution
+            data.iter()
+                // only want visual items with location
+                .filter(|x| x.location.is_some())
+                // make visual items in same cell adjacent
+                .sorted_by_key(|x| x.location.map(|y| y.to_cell(*resolution)))
+                // group visual items in same cell
+                .chunk_by(|x| x.location.map(|y| y.to_cell(*resolution)))
+                .into_iter()
+                .filter(|(index, _)| index.is_some())
+                .map(|(index, vs)| (index.unwrap(), vs))
+                .for_each(|(cell_index, vs)| {
+                    let vs = vs.collect_vec();
+                    let count = vs.len();
 
-                let widget = self.to_pin_thumbnail(&item, Some(vs.len()), sender);
+                    // Use newest visual item for thumbnail
+                    if let Some(visual) = vs.into_iter().max_by_key(|x| x.ordering_ts) {
+                        let item = CellItem {
+                            visual: visual.clone(),
+                            count,
+                        };
+                        self.cells.insert(cell_index, item);
+                    }
+                });
+        }
 
-                let marker = shumate::Marker::builder()
-                    .child(&widget)
-                    .build();
+        // When the centre cell changes then the set of visible cells changes.
+        // Some new cells will become visible, and other cells will no longer be visible.
+        if self.centre_cell != centre_cell {
+            debug!("Centre cell moved from {} to {}", self.centre_cell, centre_cell);
 
-                // Hmmm... using the cell_index lat/lng can put thumbnails kinda far from where
-                // they occurred
-                //let location: LatLng = cell_index.into();
-                let Some(location) = item.location else {
-                    error!("Empty location after grouping");
-                    return;
-                };
+            self.centre_cell = centre_cell;
 
-                marker.set_location(location.lat(), location.lng());
+            // Get neighbouring cells. Hopefully enough to fully cover the map,
+            // but not so many that the UI stutters.
+            let nearby = centre_cell.grid_disk::<Vec<_>>(5);
+            debug!("{} cells near centre", nearby.len());
 
-               self.marker_layer.add_marker(&marker);
-            });
+            self.marker_layer.remove_all();
+            nearby.into_iter()
+                .map(|cell_index| self.cells.get(&cell_index))
+                .for_each(|item| {
+                    if let Some(item) = item {
+                        let widget = self.to_pin_thumbnail(&item.visual, Some(item.count), sender);
 
+                        let marker = shumate::Marker::builder()
+                            .child(&widget)
+                            .build();
+
+                        // Hmmm... using the cell_index lat/lng can put thumbnails kinda far from where
+                        // they occurred
+                        //let location: LatLng = cell_index.into();
+                        let Some(location) = item.visual.location else {
+                            error!("Empty location after grouping");
+                            return;
+                        };
+
+                        marker.set_location(location.lat(), location.lng());
+
+                       self.marker_layer.add_marker(&marker);
+                   }
+                });
+
+            info!("{} cells on map", self.cells.len());
             info!("{} thumbnails added to the map", self.marker_layer.markers().len());
+        }
     }
 
     fn refresh(&mut self, sender: &ComponentSender<Self>) {
