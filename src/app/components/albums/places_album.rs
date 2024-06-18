@@ -323,7 +323,19 @@ impl PlacesAlbum {
         let nearby = centre_cell.grid_disk::<Vec<_>>(5);
         debug!("{} cells near centre", nearby.len());
 
+        // WARNING reusing the marker layer by removing all markers and then adding new ones
+        // would result in crashes (without any stack traces or logging) when viewing some images.
+        // Note 100% sure of the cause or if the libshumate underlying C code is responsible, but
+        // that is my best guess for now.
+        //
+        // As a work around I'll remove the old marker layer and add a new one.
         self.marker_layer.remove_all();
+
+        let map = self.map.map().expect("Must have map");
+        map.remove_layer(&self.marker_layer);
+
+        self.marker_layer = shumate::MarkerLayer::new_full(&self.viewport, gtk::SelectionMode::Single);
+        map.add_layer(&self.marker_layer);
 
         nearby.into_iter()
             // Select nearby cell items
