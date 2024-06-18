@@ -11,11 +11,11 @@
     <p>A photo gallery for everyone who wants their photos to live locally on their devices.</p>
     <p>Why enjoy your photo library with Fotema?</p>
     <ul>
-      <li>Many supported image formats. Fotema supports the same image formats as Loupe (the GNOME image viewer).</li>
-      <li>View iOS Live Photos.</li>
-      <li>View Android motion photos (Samsung devices only).</li>
-      <li>Play videos.</li>
+      <li>View iOS Live Photos and Android motion photos (Samsung devices only).</li>
+      <li>View photos plotted on a map.</li>
       <li>View your library by year or month.</li>
+      <li>Play videos.</li>
+      <li>Many supported image formats. Fotema supports the same image formats as Loupe (the GNOME image viewer).</li>
     </ul>
   </description>
 
@@ -23,6 +23,10 @@
     <screenshot type="default" environment="gnome">
       <image>https://github.com/blissd/fotema/blob/v1.0.0/data/resources/screenshots/all-photos.png?raw=true</image>
       <caption>All photos view</caption>
+    </screenshot>
+    <screenshot environment="gnome">
+      <image>https://github.com/blissd/fotema/blob/v1.9.0/data/resources/screenshots/places-view.png?raw=true</image>
+      <caption>Places view</caption>
     </screenshot>
     <screenshot environment="gnome">
       <image>https://github.com/blissd/fotema/blob/v1.0.0/data/resources/screenshots/folders-view.png?raw=true</image>
@@ -48,6 +52,13 @@
   </branding>
 
   <releases>
+    <release version="1.9.0" date="2024-06-19">
+      <description>
+        <ul>
+          <li>View photos on a world map.</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.8.4" date="2024-06-13">
       <description>
         <ul>
