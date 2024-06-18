@@ -325,7 +325,7 @@ impl PlacesAlbum {
 
         // WARNING reusing the marker layer by removing all markers and then adding new ones
         // would result in crashes (without any stack traces or logging) when viewing some images.
-        // Note 100% sure of the cause or if the libshumate underlying C code is responsible, but
+        // Not 100% sure of the cause or if the libshumate underlying C code is responsible, but
         // that is my best guess for now.
         //
         // As a work around I'll remove the old marker layer and add a new one.
