@@ -67,7 +67,7 @@ pub enum PlacesAlbumOutput {
 }
 
 /// Item to represent all photos in a cell
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CellItem {
     /// Visual item to use for thumbnail.C
     visual: Arc<Visual>,
@@ -324,28 +324,34 @@ impl PlacesAlbum {
         debug!("{} cells near centre", nearby.len());
 
         self.marker_layer.remove_all();
+
         nearby.into_iter()
+            // Select nearby cell items
             .map(|cell_index| self.cells.get(&cell_index))
+            // Drop any Nones
+            .flatten()
+            // We must sort items before adding to layer so they are added in a consistent order.
+            // This prevents overlapping thumbnails from changing their order and flickering
+            // when the map is dragged.
+            .sorted_by_key(|x| x.visual.ordering_ts)
             .for_each(|item| {
-                if let Some(item) = item {
-                    let widget = self.to_pin_thumbnail(&item.visual, Some(item.count), sender);
+                let widget = self.to_pin_thumbnail(&item.visual, Some(item.count), sender);
 
-                    let marker = shumate::Marker::builder()
-                        .child(&widget)
-                        .build();
+                let marker = shumate::Marker::builder()
+                    .child(&widget)
+                    .build();
 
-                    // Hmmm... using the cell_index lat/lng can put thumbnails kinda far from where
-                    // they occurred
-                    //let location: LatLng = cell_index.into();
-                    let Some(location) = item.visual.location else {
-                        error!("Empty location after grouping");
-                        return;
-                    };
+                // Hmmm... using the cell_index lat/lng can put thumbnails kinda far from where
+                // they occurred
+                //let location: LatLng = cell_index.into();
+                let Some(location) = item.visual.location else {
+                    error!("Empty location after grouping");
+                    return;
+                };
 
-                    marker.set_location(location.lat(), location.lng());
+                marker.set_location(location.lat(), location.lng());
 
-                   self.marker_layer.add_marker(&marker);
-               }
+               self.marker_layer.add_marker(&marker);
             });
 
         info!("{} cells on map", self.cells.len());
