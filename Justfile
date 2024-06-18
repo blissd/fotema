@@ -52,3 +52,4 @@ setup:
     sudo dnf install -y clang-libs
     sudo dnf install -y clang-devel
     sudo dnf install -y libadwaita-devel
+    sudo dnf install -y libshumate-devel
