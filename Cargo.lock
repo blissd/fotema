@@ -24,6 +24,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e89da841a80418a9b391ebaea17f5c112ffaaa96f621d2c285b5174da76b9011"
 dependencies = [
  "cfg-if",
+ "const-random",
  "once_cell",
  "version_check",
  "zerocopy",
@@ -584,6 +585,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "const-random"
+version = "0.1.18"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "87e00182fe74b066627d63b85fd550ac2998d4b0bd86bfed477a0ae4c7c71359"
+dependencies = [
+ "const-random-macro",
+]
+
+[[package]]
+name = "const-random-macro"
+version = "0.1.16"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f9d839f2a20b0aee515dc581a6172f2321f96cab76c1a38a4c584a194955390e"
+dependencies = [
+ "getrandom",
+ "once_cell",
+ "tiny-keccak",
+]
+
+[[package]]
 name = "core-foundation-sys"
 version = "0.8.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -915,6 +936,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "float_eq"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "28a80e3145d8ad11ba0995949bbcf48b9df2be62772b3d351ef017dff6ecb853"
+
+[[package]]
 name = "fluent"
 version = "0.16.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1016,11 +1043,14 @@ dependencies = [
  "futures",
  "gettext-rs",
  "glycin",
+ "h3o",
  "humansize",
  "i18n-embed",
  "i18n-embed-fl",
  "itertools 0.13.0",
  "lazy_static",
+ "libshumate",
+ "libshumate-sys",
  "rayon",
  "relm4",
  "rust-embed",
@@ -1043,6 +1073,7 @@ dependencies = [
  "gio 0.19.5",
  "glycin",
  "gtk",
+ "h3o",
  "image",
  "kamadak-exif",
  "rayon",
@@ -1718,6 +1749,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "h3o"
+version = "0.6.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0de3592e1f699692aa0525c42ff7879ec3ee7e36329af20967bc910a1cdc39c7"
+dependencies = [
+ "ahash",
+ "either",
+ "float_eq",
+ "h3o-bit",
+ "libm",
+]
+
+[[package]]
+name = "h3o-bit"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6fb45e8060378c0353781abf67e1917b545a6b710d0342d85b70c125af7ef320"
+
+[[package]]
 name = "half"
 version = "2.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2140,6 +2190,37 @@ name = "libseccomp-sys"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9a7cbbd4ad467251987c6e5b47d53b11a5a05add08f2447a9e2d70aef1e0d138"
+
+[[package]]
+name = "libshumate"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bd77c1202aaccef5460f4ca95b3b3c117f85986c942127e4e518c47058a6eaf6"
+dependencies = [
+ "gdk-pixbuf 0.19.2",
+ "gdk4",
+ "gio 0.19.5",
+ "glib 0.19.7",
+ "gtk4",
+ "libc",
+ "libshumate-sys",
+]
+
+[[package]]
+name = "libshumate-sys"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ef5765221e416ebe7b5e9c5bd7e8dd09ca9e920b012474ca8f3da18f8e13c4a5"
+dependencies = [
+ "gdk-pixbuf-sys 0.19.5",
+ "gdk4-sys",
+ "gio-sys 0.19.5",
+ "glib-sys 0.19.5",
+ "gobject-sys 0.19.5",
+ "gtk4-sys",
+ "libc",
+ "system-deps",
+]
 
 [[package]]
 name = "libsqlite3-sys"
@@ -3424,6 +3505,15 @@ checksum = "3f252a68540fde3a3877aeea552b832b40ab9a69e318efd078774a01ddee1ccf"
 dependencies = [
  "num-conv",
  "time-core",
+]
+
+[[package]]
+name = "tiny-keccak"
+version = "2.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2c9d3793400a45f954c52e73d068316d76b6f4e36977e3fcebb13a2721e80237"
+dependencies = [
+ "crunchy",
 ]
 
 [[package]]

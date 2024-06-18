@@ -9,6 +9,7 @@ use crate::visual::model::{PictureOrientation, Visual, VisualId};
 use crate::path_encoding;
 use anyhow::*;
 use chrono::*;
+use h3o::LatLng;
 use rusqlite;
 use rusqlite::Row;
 use std::path;
@@ -71,7 +72,10 @@ impl Repository {
                     video_transcoded_path,
                     is_transcode_required,
                     duration_millis,
-                    video_rotation
+                    video_rotation,
+
+                    latitude,
+                    longitude
                 FROM visual
                 ORDER BY ordering_ts ASC",
         )?;
@@ -161,6 +165,15 @@ impl Repository {
             .ok()
             .and_then(|x| TimeDelta::try_milliseconds(x));
 
+        let latitude: Option<f64> = row.get("latitude").ok();
+        let longitude: Option<f64> = row.get("longitude").ok();
+
+        let location = if let (Some(lat), Some(lng)) = (latitude, longitude) {
+            LatLng::new(lat, lng).ok()
+        } else {
+            None
+        };
+
         let v = Visual {
             visual_id,
             parent_path: link_path
@@ -181,6 +194,7 @@ impl Repository {
             is_transcode_required,
             video_duration,
             motion_photo_video_path,
+            location,
         };
         Ok(v)
     }

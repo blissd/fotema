@@ -11,6 +11,7 @@
   "finish-args": [
     "--device=dri",
     "--share=ipc",
+    "--share=network",
     "--socket=wayland",
     "--socket=fallback-x11",
     "--socket=pulseaudio",
@@ -61,6 +62,7 @@
     "modules/libheif.json",
     "modules/glycin-loaders.json",
     "modules/ffmpeg.json",
+    "modules/libshumate.json",
     {
       "name": "fotema",
       "buildsystem": "meson",

@@ -289,9 +289,10 @@ impl SimpleAsyncComponent for ViewNav {
 
 impl ViewNav {
     fn update_nav_buttons(&self) {
-        if self.filtered_items.is_empty() {
+        if self.filtered_items.len() <= 1 {
             self.left_button.set_sensitive(false);
             self.right_button.set_sensitive(false);
+            return;
         }
 
         let Some(index) = self.current_index else {

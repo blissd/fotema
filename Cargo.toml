@@ -34,7 +34,12 @@ rust-embed = "8.4.0"
 i18n-embed-fl = "0.8.0"
 unic-langid = "0.9.5"
 lazy_static = "1.4.0"
+libshumate-sys = "0.5.0"
+h3o = "0.6.4"
 
+[dependencies.shumate]
+package = "libshumate"
+version = "0.5.0"
 
 [dependencies.fotema_core]
 path = "core"

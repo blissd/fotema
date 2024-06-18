@@ -76,3 +76,18 @@
   transform: rotate(90deg) scaleX(-1);
 }
 
+/* Map view styles */
+.map-thumbnail-border {
+  border-color: white;
+  border-width: 4px;
+}
+
+.map-thumbnail-label-frame {
+  background-color: rgba(0, 0, 0, 0.4);
+}
+
+.map-thumbnail-label-text {
+  color: rgba(255,255,255,0.8);
+  font-weight: bold;
+  font-size: 12px;
+}

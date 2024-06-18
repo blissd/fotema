@@ -48,6 +48,12 @@ fn main() {
     gettextrs::bindtextdomain(GETTEXT_PACKAGE, LOCALEDIR).expect("Unable to bind the text domain");
     gettextrs::textdomain(GETTEXT_PACKAGE).expect("Unable to switch to the text domain");
 
+    // OpenStreetMap likes clients to provide a user agent so API overuse or abuse can
+    // be easily identified. Hopefully Fotema users won't cause OSM too much trouble, but
+    // I'd like to be compliant with the OSM policies just in case they need to get in touch.
+    // OSM--Thank you for your service.
+    shumate::functions::set_user_agent(Some("Fotema Photo Gallery for Linux (https://fotema.app)"));
+
     glib::set_application_name(&gettext("Fotema"));
 
     let res = gio::Resource::load(RESOURCES_FILE).expect("Could not load gresource file");
