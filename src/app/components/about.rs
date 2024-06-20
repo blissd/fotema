@@ -42,6 +42,8 @@ impl SimpleComponent for AboutDialog {
             "FFmpeg https://ffmpeg.org/",
             "libheif https://github.com/strukturag/libheif",
             "libde265 https://github.com/strukturag/libde265",
+            "OpenStreetMap https://www.openstreetmap.org",
+            "Shumate https://gitlab.gnome.org/GNOME/libshumate",
         ]);
 
         about.add_legal_section("FFmpeg", Some("Copyright © 2024 FFmpeg"), gtk::License::Gpl30, None);
