@@ -1070,7 +1070,7 @@ dependencies = [
  "fast_image_resize",
  "ffmpeg-next",
  "gdk4",
- "gio 0.19.5",
+ "gio 0.19.8",
  "glycin",
  "gtk",
  "h3o",
@@ -1229,7 +1229,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f6a23f8a0b5090494fd04924662d463f8386cc678dd3915015a838c1a3679b92"
 dependencies = [
  "gdk-pixbuf-sys 0.19.5",
- "gio 0.19.5",
+ "gio 0.19.8",
  "glib 0.19.7",
  "libc",
 ]
@@ -1286,7 +1286,7 @@ dependencies = [
  "cairo-rs 0.19.4",
  "gdk-pixbuf 0.19.2",
  "gdk4-sys",
- "gio 0.19.5",
+ "gio 0.19.8",
  "glib 0.19.7",
  "libc",
  "pango 0.19.5",
@@ -1389,9 +1389,9 @@ dependencies = [
 
 [[package]]
 name = "gio"
-version = "0.19.5"
+version = "0.19.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "be548be810e45dd31d3bbb89c6210980bb7af9bca3ea1292b5f16b75f8e394a7"
+checksum = "4c49f117d373ffcc98a35d114db5478bc223341cff53e39a5d6feced9e2ddffe"
 dependencies = [
  "futures-channel",
  "futures-core",
@@ -1541,7 +1541,7 @@ dependencies = [
  "futures-channel",
  "futures-util",
  "gdk4",
- "gio 0.19.5",
+ "gio 0.19.8",
  "glycin-utils",
  "lcms2",
  "lcms2-sys",
@@ -1707,7 +1707,7 @@ dependencies = [
  "futures-channel",
  "gdk-pixbuf 0.19.2",
  "gdk4",
- "gio 0.19.5",
+ "gio 0.19.8",
  "glib 0.19.7",
  "graphene-rs",
  "gsk4",
@@ -2116,7 +2116,7 @@ checksum = "91b4990248b9e1ec5e72094a2ccaea70ec3809f88f6fd52192f2af306b87c5d9"
 dependencies = [
  "gdk-pixbuf 0.19.2",
  "gdk4",
- "gio 0.19.5",
+ "gio 0.19.8",
  "glib 0.19.7",
  "gtk4",
  "libadwaita-sys",
@@ -2199,7 +2199,7 @@ checksum = "bd77c1202aaccef5460f4ca95b3b3c117f85986c942127e4e518c47058a6eaf6"
 dependencies = [
  "gdk-pixbuf 0.19.2",
  "gdk4",
- "gio 0.19.5",
+ "gio 0.19.8",
  "glib 0.19.7",
  "gtk4",
  "libc",
@@ -2598,7 +2598,7 @@ version = "0.19.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "504ce6e805439ea2c6791168fe7ef8e3da0c1b2ef82c44bc450dbc330592920d"
 dependencies = [
- "gio 0.19.5",
+ "gio 0.19.8",
  "glib 0.19.7",
  "libc",
  "pango-sys 0.19.5",
