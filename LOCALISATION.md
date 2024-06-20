@@ -41,6 +41,6 @@ of Fotema and run with:
 
 ```shell
 just devel
-LANG=fr flatpak run app.fotema.Fotema
+LANG=fr flatpak run app.fotema.Fotema.Devel
 ```
 
