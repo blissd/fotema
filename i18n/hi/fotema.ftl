@@ -37,6 +37,9 @@ folders-album = फोल्डर
 # Title for album showing contents of one folder.
 folder-album = फोल्डर
 
+# Title for places page which shows photos overlayed onto a map.
+places-page = स्थान
+
 ## Thumbnail decorations
 
 # Label on month album thumbnails.
