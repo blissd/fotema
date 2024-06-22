@@ -52,6 +52,13 @@
   </branding>
 
   <releases>
+    <release version="1.9.1" date="2024-06-22">
+      <description>
+        <ul>
+          <li>Hindi translation updates.</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.9.0" date="2024-06-19">
       <description>
         <ul>
