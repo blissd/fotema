@@ -32,10 +32,13 @@ selfies-album = Selfies
 animated-album = Animiert
 
 # Title for album showing all folders.
-folders-album = Ordner
+folders-album = Alle Alben
 
 # Title for album showing contents of one folder.
-folder-album = Ordner
+folder-album = Album
+
+# Title for places page which shows photos overlayed onto a map.
+places-page = Orte
 
 ## Thumbnail decorations
 
@@ -152,7 +155,7 @@ infobar-file-modified = Datei verändert
 infobar-file-size = Dateigröße
 
 # File format, such as "JPEG" or "PNG".
-infobar-file-format = Format
+infobar-file-format = Bildformat
 
 # File creation timestamp from image or video embedded metadata.
 infobar-originally-created = Original erstellt
@@ -173,9 +176,12 @@ infobar-video-codec = Video Codec
 infobar-audio-codec = Audio Codec
 
 # Width and height of photo or video.
-infobar-dimensions = Dimensionen
+infobar-dimensions = Bildgröße
 
 ## Preferences
+
+# Title of preferences dialog
+prefs-title = Einstellungen
 
 # Title of section of preferences for views
 prefs-views-section = Ansicht
@@ -202,7 +208,10 @@ progress-thumbnails-photos = Erstellen von Foto-Miniaturansichten.
 progress-thumbnails-videos = Erstellen von Video-Miniaturansichten.
 
 # Transcoding videos to a compatible format
-progress-convert-videos = Wandle Videos um.
+progress-convert-videos = Verarbeitung von Videos.
+
+# Extracting motion photo videos
+progress-motion-photo = Verarbeitung von Bewegungsfotos.
 
 # Not doing any background work
 progress-idle = Nichts zu tun.
@@ -234,6 +243,9 @@ banner-clean-photos = Optimierung der Fotodatenbank
 
 # Updating the database to remove details of absent videos.
 banner-clean-videos = Optimierung der Videodatenbank
+
+# Extracting video component from Android motion photos
+banner-extract-motion-photos = Bewegungsfotos werden verarbeitet
 
 ## Primary menu
 
