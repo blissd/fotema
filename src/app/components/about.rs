@@ -28,7 +28,7 @@ impl SimpleComponent for AboutDialog {
             .issue_url("https://github.com/blissd/fotema/issues")
             .application_name("Fotema")
             .version(VERSION)
-            .translator_credits(&fl!("about-translator-credits"))
+            .translator_credits(fl!("about-translator-credits"))
             .copyright("Copyright © 2024 David Bliss")
             .developer_name("David Bliss")
             .developers(vec!["David Bliss"])

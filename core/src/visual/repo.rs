@@ -88,14 +88,14 @@ impl Repository {
     fn to_visual(&self, row: &Row<'_>) -> rusqlite::Result<Visual> {
         let visual_id = row
             .get("visual_id")
-            .map(|x| VisualId::new(x))
+            .map(VisualId::new)
             .expect("Must have visual_id");
 
         let link_path: String = row.get("link_path_b64")?;
         let link_path =
             path_encoding::from_base64(&link_path).map_err(|_| rusqlite::Error::InvalidQuery)?;
 
-        let picture_id: Option<PictureId> = row.get("picture_id").map(|x| PictureId::new(x)).ok();
+        let picture_id: Option<PictureId> = row.get("picture_id").map(PictureId::new).ok();
 
         let picture_path: Option<PathBuf> = row
             .get("picture_path_b64")
@@ -117,7 +117,7 @@ impl Repository {
 
         let is_selfie: Option<bool> = row.get("is_selfie").ok();
 
-        let video_id: Option<VideoId> = row.get("video_id").map(|x| VideoId::new(x)).ok();
+        let video_id: Option<VideoId> = row.get("video_id").map(VideoId::new).ok();
 
         let video_path: Option<PathBuf> = row
             .get("video_path_b64")
@@ -145,8 +145,7 @@ impl Repository {
             .map(|x| self.cache_dir_base_path.join(x))
             .ok();
 
-        let ordering_ts: DateTime<Utc> =
-            row.get("ordering_ts").ok().expect("Must have ordering_ts");
+        let ordering_ts: DateTime<Utc> = row.get("ordering_ts").expect("Must have ordering_ts");
 
         let is_live_photo: Option<bool> = row.get("is_live_photo").ok();
 
@@ -163,7 +162,7 @@ impl Repository {
         let video_duration: Option<TimeDelta> = row
             .get("duration_millis")
             .ok()
-            .and_then(|x| TimeDelta::try_milliseconds(x));
+            .and_then(TimeDelta::try_milliseconds);
 
         let latitude: Option<f64> = row.get("latitude").ok();
         let longitude: Option<f64> = row.get("longitude").ok();
@@ -176,10 +175,7 @@ impl Repository {
 
         let v = Visual {
             visual_id,
-            parent_path: link_path
-                .parent()
-                .map(|x| PathBuf::from(x))
-                .expect("Parent path"),
+            parent_path: link_path.parent().map(PathBuf::from).expect("Parent path"),
             thumbnail_path,
             picture_id,
             picture_path,

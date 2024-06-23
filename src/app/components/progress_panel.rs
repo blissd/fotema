@@ -43,7 +43,7 @@ impl SimpleComponent for ProgressPanel {
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
 
-        progress_monitor.subscribe(&sender.input_sender(),
+        progress_monitor.subscribe(sender.input_sender(),
             |data| ProgressPanelInput::Update(data.task_name, data.fraction(), data.current_count, data.is_complete()));
 
         let model = ProgressPanel { progress_bar: progress_bar.clone() };

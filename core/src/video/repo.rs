@@ -176,7 +176,7 @@ impl Repository {
             for vid in vids {
                 // convert to relative path before saving to database
                 let video_path = vid.path.strip_prefix(&self.library_base_path)?;
-                let video_path_b64 = path_encoding::to_base64(&video_path);
+                let video_path_b64 = path_encoding::to_base64(video_path);
 
                 // Path without suffix so sibling pictures and videos can be related
                 let link_path = video_path
@@ -258,7 +258,7 @@ impl Repository {
     }
 
     fn to_video(&self, row: &Row<'_>) -> rusqlite::Result<Video> {
-        let video_id = row.get("video_id").map(|x| VideoId::new(x))?;
+        let video_id = row.get("video_id").map(VideoId::new)?;
 
         let video_path: String = row.get("video_path_b64")?;
         let video_path =

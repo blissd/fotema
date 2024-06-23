@@ -99,7 +99,7 @@ impl PhotoThumbnail {
                 if let Ok(Err(e)) = result {
                     error!("Failed generate or add thumbnail: {:?}: Photo path: {:?}", e, pic.path);
                     let _ = repo.clone().mark_broken(&pic.picture_id);
-                } else if let Err(_) = result {
+                } else if result.is_err() {
                     error!("Panicked generate or add thumbnail: Photo path: {:?}", pic.path);
                     let _ = repo.clone().mark_broken(&pic.picture_id);
                 }
@@ -123,12 +123,11 @@ impl Worker for PhotoThumbnail {
     type Output = PhotoThumbnailOutput;
 
     fn init((thumbnailer, repo, progress_monitor): Self::Init, _sender: ComponentSender<Self>) -> Self  {
-        let model = PhotoThumbnail {
+        PhotoThumbnail {
             thumbnailer,
             repo,
             progress_monitor,
-        };
-        model
+        }
     }
 
 

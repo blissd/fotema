@@ -35,17 +35,15 @@ impl Transcoder {
 
         transcode(video_path, &transcoded_path)?;
 
-        Ok(PathBuf::from(transcoded_path))
+        Ok(transcoded_path)
     }
 }
 
 pub fn transcode(video_path: &Path, transcoded_path: &Path) -> Result<()> {
     if transcoded_path.exists() {
         return Ok(());
-    } else {
-        transcoded_path.parent().map(|p| {
-            let _ = std::fs::create_dir_all(p);
-        });
+    } else if let Some(p) = transcoded_path.parent() {
+        let _ = std::fs::create_dir_all(p);
     }
 
     event!(Level::DEBUG, "Transcoding video: {:?}", video_path);
@@ -67,7 +65,7 @@ pub fn transcode(video_path: &Path, transcoded_path: &Path) -> Result<()> {
         .arg(temporary_transcoded_path.as_os_str())
         .status()?;
 
-    std::fs::rename(&temporary_transcoded_path, &transcoded_path)?;
+    std::fs::rename(&temporary_transcoded_path, transcoded_path)?;
 
     Ok(())
 }

@@ -33,7 +33,7 @@ impl Scanner {
     where
         F: FnMut(ScannedFile),
     {
-        let picture_suffixes = vec![
+        let picture_suffixes = [
             String::from("avif"),
             String::from("heic"), // not supported by image-rs
             String::from("jpeg"),
@@ -87,15 +87,9 @@ impl Scanner {
 
         let metadata = file.metadata()?;
 
-        let fs_created_at = metadata
-            .created()
-            .map(|x| Into::<DateTime<Utc>>::into(x))
-            .ok();
+        let fs_created_at = metadata.created().map(Into::<DateTime<Utc>>::into).ok();
 
-        let fs_modified_at = metadata
-            .modified()
-            .map(|x| Into::<DateTime<Utc>>::into(x))
-            .ok();
+        let fs_modified_at = metadata.modified().map(Into::<DateTime<Utc>>::into).ok();
 
         let fs_file_size_bytes = metadata.len();
 

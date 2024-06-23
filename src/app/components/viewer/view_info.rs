@@ -355,14 +355,14 @@ impl ViewInfo {
 
         let fs_created_at: Option<String> = metadata
             .created()
-            .map(|x| Into::<DateTime<Utc>>::into(x))
+            .map(Into::<DateTime<Utc>>::into)
             .map(|x| x.format("%Y-%m-%d %H:%M:%S %:z").to_string())
             .ok();
 
 
         let fs_modified_at: Option<String> = metadata
             .modified()
-            .map(|x| Into::<DateTime<Utc>>::into(x))
+            .map(Into::<DateTime<Utc>>::into)
             .map(|x| x.format("%Y-%m-%d %H:%M:%S %:z").to_string())
             .ok();
 

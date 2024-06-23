@@ -31,8 +31,8 @@ pub fn to_base64(p: &Path) -> String {
 pub fn from_base64(s: &String) -> Result<PathBuf> {
     Ok(BASE64_STANDARD
         .decode(s)
-        .map(|x| OsString::from_vec(x))
-        .map(|x| PathBuf::from(x))?)
+        .map(OsString::from_vec)
+        .map(PathBuf::from)?)
 }
 
 #[cfg(test)]

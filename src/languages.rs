@@ -70,7 +70,7 @@ pub fn loader() -> FluentLanguageLoader {
     );
 
     loader
-        .load_languages(&localizations, &requested_languages)
+        .load_languages(&localizations, requested_languages)
         .expect("Localization files should be present");
     loader
 }

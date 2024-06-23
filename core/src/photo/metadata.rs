@@ -140,7 +140,7 @@ fn from_exif(exif_data: Exif) -> Result<Metadata> {
     metadata.orientation = exif_data
         .get_field(exif::Tag::Orientation, exif::In::PRIMARY)
         .and_then(|e| e.value.get_uint(0))
-        .map(|e| Orientation::from(e));
+        .map(Orientation::from);
 
     metadata.content_id = ios_content_id(&exif_data);
 
@@ -216,16 +216,14 @@ fn ios_content_id(exif_data: &Exif) -> Option<String> {
     let content_id =
         exif_data.get_field(exif::Tag(exif::Context::Tiff, 0x11), exif::In::PRIMARY)?;
 
-    let content_id = match content_id.value {
+    match content_id.value {
         exif::Value::Ascii(ref vecs) => {
             let mut bytes = Vec::with_capacity(vecs[0].len());
             bytes.extend_from_slice(&vecs[0]);
             String::from_utf8(bytes).ok()
         }
         _ => None,
-    };
-
-    content_id
+    }
 }
 
 #[cfg(test)]

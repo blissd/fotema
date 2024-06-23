@@ -477,7 +477,6 @@ impl SimpleAsyncComponent for ViewOne {
                         video.pause();
                         self.play_button.set_icon_name("play-symbolic");
                         sender.input(ViewOneInput::PlayToggle);
-                        return;
                     } else if ts < TEN_SECS_IN_MICROS {
                         video.seek(0);
                     } else {

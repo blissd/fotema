@@ -112,7 +112,7 @@ impl RelmGridItem for PhotoGridItem {
     fn bind(&mut self, widgets: &mut Self::Widgets, _root: &mut Self::Root) {
         widgets
             .label
-            .set_text(format!("{}", self.folder_name).as_str());
+            .set_text(&self.folder_name.to_string());
 
         // If we repeatedly bind, then Fotema will die with the following error:
         // (fotema:2): GLib-GObject-CRITICAL **: 13:26:14.297: Too many GWeakRef registered
@@ -270,7 +270,7 @@ impl FoldersAlbum {
         pictures.sort_by_key(|pic| pic.folder_name.clone());
 
         self.photo_grid.clear();
-        self.photo_grid.extend_from_iter(pictures.into_iter());
+        self.photo_grid.extend_from_iter(pictures);
 
         // NOTE folder view is not sorted by a timestamp, so don't scroll to end.
     }

@@ -90,11 +90,8 @@ impl PhotoExtractMotion {
                     },
                 };
 
-                match result {
-                    Err(e) => {
-                        error!("Failed updating database: {:?}: Photo path: {:?}", e, photo.path);
-                    },
-                    _ => {},
+                if let Err(e) = result {
+                    error!("Failed updating database: {:?}: Photo path: {:?}", e, photo.path);
                 }
 
                 progress_monitor.emit(ProgressMonitorInput::Advance);
@@ -116,12 +113,11 @@ impl Worker for PhotoExtractMotion {
     type Output = PhotoExtractMotionOutput;
 
     fn init((extractor, repo, progress_monitor): Self::Init, _sender: ComponentSender<Self>) -> Self  {
-        let model = PhotoExtractMotion {
+        PhotoExtractMotion {
             extractor,
             repo,
             progress_monitor,
-        };
-        model
+        }
     }
 
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {

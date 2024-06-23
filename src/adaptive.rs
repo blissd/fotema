@@ -5,19 +5,14 @@
 use relm4::SharedState;
 
 /// The app layout
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
 pub enum Layout {
     // Layout screens for wide devices
     Wide,
 
     // Layout screens for narrow devices
+    #[default]
     Narrow,
-}
-
-impl Default for Layout {
-    fn default() -> Self {
-        Layout::Narrow
-    }
 }
 
 // Current layout
