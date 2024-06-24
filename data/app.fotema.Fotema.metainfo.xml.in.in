@@ -52,6 +52,13 @@
   </branding>
 
   <releases>
+    <release version="1.9.2" date="2024-06-25">
+      <description>
+        <ul>
+          <li>Turkish translation.</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.9.1" date="2024-06-22">
       <description>
         <ul>
