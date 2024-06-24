@@ -86,9 +86,7 @@ pub struct Visual {
 
 impl Visual {
     pub fn path(&self) -> Option<&PathBuf> {
-        self.picture_path
-            .as_ref()
-            .or_else(|| self.video_path.as_ref())
+        self.picture_path.as_ref().or(self.video_path.as_ref())
     }
 
     pub fn is_selfie(&self) -> bool {

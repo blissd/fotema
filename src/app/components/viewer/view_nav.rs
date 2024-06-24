@@ -171,7 +171,7 @@ impl SimpleAsyncComponent for ViewNav {
             .launch(state.clone())
             .detach();
 
-        layout_state.subscribe(sender.input_sender(), |layout| ViewNavInput::Adapt(layout.clone()));
+        layout_state.subscribe(sender.input_sender(), |layout| ViewNavInput::Adapt(*layout));
 
         let left_button = gtk::Button::new();
         let right_button = gtk::Button::new();
@@ -208,8 +208,8 @@ impl SimpleAsyncComponent for ViewNav {
                     self.filter = filter.clone();
                     let items = self.state.read();
                     self.filtered_items = items.iter()
-                        .filter(|v| filter.clone().filter(&v))
-                        .map(|v| v.clone())
+                        .filter(|v| filter.clone().filter(v))
+                        .cloned()
                         .collect();
                 }
 

@@ -77,10 +77,9 @@ impl Worker for PhotoEnrich {
     type Output = PhotoEnrichOutput;
 
     fn init(repo: Self::Init, _sender: ComponentSender<Self>) -> Self  {
-        let model = PhotoEnrich {
+        PhotoEnrich {
             repo,
-        };
-        model
+        }
     }
 
 

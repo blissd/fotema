@@ -30,12 +30,12 @@ pub fn format_hhmmss(delta: &TimeDelta) -> String {
     let seconds = total_seconds % 60;
     let minutes = (total_seconds / 60) % 60;
     let hours = (total_seconds / 60) / 60;
-    let hhmmss = if hours == 0 {
+
+    if hours == 0 {
         format!("{}:{:0>2}", minutes, seconds)
     } else {
         format!("{}:{:0>2}:{:0>2}", hours, minutes, seconds)
-    };
-    hhmmss
+    }
 }
 
 #[cfg(test)]

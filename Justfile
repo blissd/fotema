@@ -6,6 +6,12 @@
 default:
     just --list --justfile {{ justfile() }}
 
+fmt:
+  cargo fmt --verbose --all -- --check
+
+clippy:
+  cargo clippy --all-targets --all-features -- -D warnings
+
 # Run linters, such as the licence linter
 lint:
     reuse lint

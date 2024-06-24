@@ -92,11 +92,10 @@ impl Worker for VideoEnrich {
     type Output = VideoEnrichOutput;
 
     fn init((repo, progress_monitor): Self::Init, _sender: ComponentSender<Self>) -> Self  {
-        let model = VideoEnrich {
+        VideoEnrich {
             repo,
             progress_monitor,
-        };
-        model
+        }
     }
 
 

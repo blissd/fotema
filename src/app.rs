@@ -22,8 +22,6 @@ use relm4::{
     shared_state::Reducer,
 };
 
-use relm4;
-
 use crate::config::{APP_ID, PROFILE};
 use crate::adaptive;
 use crate::fl;
@@ -73,8 +71,9 @@ use self::components::progress_panel::ProgressPanel;
 type SharedState = Arc<relm4::SharedState<Vec<Arc<fotema_core::Visual>>>>;
 
 /// Name of a view that can be displayed
-#[derive(Copy, Clone, Debug, Eq, PartialEq, EnumString, IntoStaticStr)]
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, EnumString, IntoStaticStr)]
 pub enum ViewName {
+    #[default]
     Nothing, // no view
     Library, // parent of all, month, and year views.
     All,
@@ -86,10 +85,6 @@ pub enum ViewName {
     Folder,
     Places,
     Selfies,
-}
-
-impl Default for ViewName {
-    fn default() -> Self { ViewName::Nothing }
 }
 
 /// Currently visible view
@@ -784,8 +779,7 @@ impl SimpleComponent for App {
 impl AppWidgets {
     fn show_selfies() -> bool {
         let settings = gio::Settings::new(APP_ID);
-        let show_selfies = settings.boolean("show-selfies");
-        show_selfies
+        settings.boolean("show-selfies")
     }
 
     fn save_window_size(&self) -> Result<(), glib::BoolError> {

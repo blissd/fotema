@@ -119,32 +119,40 @@ fn from_exif(exif_data: Exif) -> Result<Metadata> {
         Some(offset.from_utc_datetime(&naive_date_time))
     }
 
-    let mut metadata = Metadata::default();
-
-    metadata.created_at = parse_date_time(
+    let created_at = parse_date_time(
         exif_data.get_field(exif::Tag::DateTimeOriginal, exif::In::PRIMARY),
         exif_data.get_field(exif::Tag::OffsetTimeOriginal, exif::In::PRIMARY),
     );
-    metadata.modified_at = parse_date_time(
+
+    let modified_at = parse_date_time(
         exif_data.get_field(exif::Tag::DateTime, exif::In::PRIMARY),
         exif_data.get_field(exif::Tag::OffsetTime, exif::In::PRIMARY),
     );
 
-    metadata.lens_model = exif_data
+    let lens_model = exif_data
         .get_field(exif::Tag::LensModel, exif::In::PRIMARY)
         .map(|e| e.display_value().to_string());
 
     // How to orient and flip the image.
     // Note that libheif will automatically apply the transformations when loading the image
     // so must be aware of file format before transforming to avoid a double transformation.
-    metadata.orientation = exif_data
+    let orientation = exif_data
         .get_field(exif::Tag::Orientation, exif::In::PRIMARY)
         .and_then(|e| e.value.get_uint(0))
-        .map(|e| Orientation::from(e));
+        .map(Orientation::from);
 
-    metadata.content_id = ios_content_id(&exif_data);
+    let content_id = ios_content_id(&exif_data);
 
-    metadata.location = gps_location(&exif_data);
+    let location = gps_location(&exif_data);
+
+    let metadata = Metadata {
+        created_at,
+        modified_at,
+        lens_model,
+        orientation,
+        content_id,
+        location,
+    };
 
     Ok(metadata)
 }
@@ -216,16 +224,14 @@ fn ios_content_id(exif_data: &Exif) -> Option<String> {
     let content_id =
         exif_data.get_field(exif::Tag(exif::Context::Tiff, 0x11), exif::In::PRIMARY)?;
 
-    let content_id = match content_id.value {
+    match content_id.value {
         exif::Value::Ascii(ref vecs) => {
             let mut bytes = Vec::with_capacity(vecs[0].len());
             bytes.extend_from_slice(&vecs[0]);
             String::from_utf8(bytes).ok()
         }
         _ => None,
-    };
-
-    content_id
+    }
 }
 
 #[cfg(test)]

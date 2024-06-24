@@ -179,7 +179,7 @@ impl Repository {
             for pic in pics {
                 // convert to relative path before saving to database
                 let picture_path = pic.path.strip_prefix(&self.library_base_path)?;
-                let picture_path_b64 = path_encoding::to_base64(&picture_path);
+                let picture_path_b64 = path_encoding::to_base64(picture_path);
 
                 // Path without suffix so sibling pictures and videos can be related
                 let link_path = picture_path
@@ -373,7 +373,7 @@ impl Repository {
     }
 
     fn to_picture(&self, row: &Row<'_>) -> rusqlite::Result<Picture> {
-        let picture_id = row.get("picture_id").map(|x| PictureId::new(x))?;
+        let picture_id = row.get("picture_id").map(PictureId::new)?;
 
         let picture_path: String = row.get("picture_path_b64")?;
         let picture_path =

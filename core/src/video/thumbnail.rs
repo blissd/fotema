@@ -40,10 +40,8 @@ impl Thumbnailer {
 
         if thumbnail_path.exists() {
             return Ok(thumbnail_path);
-        } else {
-            thumbnail_path.parent().map(|p| {
-                let _ = std::fs::create_dir_all(p);
-            });
+        } else if let Some(p) = thumbnail_path.parent() {
+            let _ = std::fs::create_dir_all(p);
         }
 
         event!(Level::DEBUG, "Standard thumbnail: {:?}", video_path);

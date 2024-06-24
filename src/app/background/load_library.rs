@@ -49,7 +49,7 @@ impl LoadLibrary {
             .repo
             .all()?
             .into_iter()
-            .map(|x| Arc::new(x))
+            .map(Arc::new)
             .collect::<Vec<Arc<Visual>>>();
 
         let mut index = self.state.write();

@@ -95,7 +95,7 @@ impl VideoThumbnail {
                 if let Ok(Err(e)) = result {
                     error!("Failed generate or add thumbnail: {:?}: Video path: {:?}", e, vid.path);
                     let _ = repo.clone().mark_broken(&vid.video_id);
-                } else if let Err(_) = result {
+                } else if result.is_err() {
                     error!("Panicked generate or add thumbnail: Video path: {:?}", vid.path);
                     let _ = repo.clone().mark_broken(&vid.video_id);
                 }
@@ -119,12 +119,11 @@ impl Worker for VideoThumbnail {
     type Output = VideoThumbnailOutput;
 
     fn init((thumbnailer, repo, progress_monitor): Self::Init, _sender: ComponentSender<Self>) -> Self  {
-        let model = Self {
+        Self {
             thumbnailer,
             repo,
             progress_monitor,
-        };
-        model
+        }
     }
 
 

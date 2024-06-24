@@ -109,7 +109,7 @@ impl Worker for Bootstrap {
 
     fn init((con, state, progress_monitor): Self::Init, sender: ComponentSender<Self>) -> Self  {
         let data_dir = glib::user_data_dir().join(APP_ID);
-        let _ = std::fs::create_dir_all(&data_dir);
+        let _ = std::fs::create_dir_all(data_dir);
 
         let cache_dir = glib::user_cache_dir().join(APP_ID);
         let _ = std::fs::create_dir_all(&cache_dir);
@@ -212,7 +212,7 @@ impl Worker for Bootstrap {
                 VideoCleanOutput::Completed(count) => BootstrapInput::TaskCompleted(TaskName::Clean(MediaType::Video), Some(count)),
             });
 
-        let model = Bootstrap {
+        Bootstrap {
             started_at: None,
             library_stale: false,
             load_library,
@@ -225,8 +225,7 @@ impl Worker for Bootstrap {
             video_clean,
             photo_thumbnail,
             video_thumbnail,
-        };
-        model
+        }
     }
 
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {

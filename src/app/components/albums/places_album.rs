@@ -338,10 +338,8 @@ impl PlacesAlbum {
         map.add_layer(&self.marker_layer);
 
         nearby.into_iter()
-            // Select nearby cell items
-            .map(|cell_index| self.cells.get(&cell_index))
-            // Drop any Nones
-            .flatten()
+            // Select nearby cell items and drop any Nones
+            .filter_map(|cell_index| self.cells.get(&cell_index))
             // We must sort items before adding to layer so they are added in a consistent order.
             // This prevents overlapping thumbnails from changing their order and flickering
             // when the map is dragged.
@@ -404,8 +402,7 @@ impl PlacesAlbum {
                 200, 200, true
             ).unwrap();
            let img = gdk::Texture::for_pixbuf(&pb);
-           let picture = gtk::Image::from_paintable(Some(&img));
-            picture
+           gtk::Image::from_paintable(Some(&img))
         };
 
         picture.add_write_only_binding(&self.edge_length, "width-request");

@@ -63,9 +63,9 @@ impl MotionPhotoExtractor {
         };
 
         if !video_path.exists() {
-            video_path.parent().map(|p| {
+            if let Some(p) = video_path.parent() {
                 let _ = std::fs::create_dir_all(p);
-            });
+            }
 
             let mut video_file = File::create(&video_path).unwrap();
             sm.dump_video_file(&mut video_file).unwrap();
