@@ -26,7 +26,7 @@ rayon = "1.10.0"
 refinery = { version = "0.8.14", features = ["rusqlite"] }
 rusqlite = { version = "0.31.0", features = ["bundled", "chrono"] }
 sm_motion_photo = "0.1.5"
-strum = { version = "0.26.2", features = ["derive"] }
+strum = { version = "0.26.3", features = ["derive"] }
 tempfile = "3.10.1"
 tracing = "0.1.40"
 walkdir = "2.5.0"
