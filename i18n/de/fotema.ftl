@@ -94,7 +94,7 @@ viewer-previous =
 # Attributes:
 #  .tooltip - Tooltip on mouse hover.
 viewer-play =
-  .tooltip = Play/Pause
+  .tooltip = Fortsetzen/Pausieren
 
 # Skip video forwards 10 seconds button.
 # Attributes:
@@ -196,22 +196,22 @@ prefs-views-selfies = Selfies
 ## Progress bar for background tasks
 
 # Extracting details from photo EXIF data
-progress-metadata-photos = Verarbeitung von Foto-Metadaten.
+progress-metadata-photos = Foto-Metadaten werden verarbeitet.
 
 # Extracting details from video container metadata
-progress-metadata-videos = Verarbeitung von Video-Metadaten.
+progress-metadata-videos = Video-Metadaten werden verarbeitet.
 
 # Generating thumbnails from photos
-progress-thumbnails-photos = Erstellen von Foto-Miniaturansichten.
+progress-thumbnails-photos = Foto-Miniaturansichten werden erstellt.
 
 # Generating thumbnails from videos
-progress-thumbnails-videos = Erstellen von Video-Miniaturansichten.
+progress-thumbnails-videos = Video-Miniaturansichten werden erstellt.
 
 # Transcoding videos to a compatible format
-progress-convert-videos = Verarbeitung von Videos.
+progress-convert-videos = Videos werden konvertiert.
 
 # Extracting motion photo videos
-progress-motion-photo = Verarbeitung von Bewegungsfotos.
+progress-motion-photo = Bewegungsfotos werden verarbeitet.
 
 # Not doing any background work
 progress-idle = Nichts zu tun.
@@ -221,28 +221,28 @@ progress-idle = Nichts zu tun.
 # Similar to the progress bar, but allows for longer messages.
 
 # Scanning file system for new photos
-banner-scan-photos = Scanne des Dateisystems nach Fotos.
+banner-scan-photos = Dateien werden nach Fotos durchsucht.
 
 # Scanning file system for new videos
-banner-scan-videos = Scanne des Dateisystems nach Videos.
+banner-scan-videos = Dateien werden nach Videos durchsucht.
 
 # Processing new photos to extract metadata from EXIF tags.
-banner-metadata-photos = Verarbeite Foto-Metadaten.
+banner-metadata-photos = Foto-Metadaten werden verarbeitet.
 
 # Processing new videos to extract metadata from video container.
-banner-metadata-videos = Verarbeite Video-Metadaten.
+banner-metadata-videos = Video-Metadaten werden erstellt.
 
 # Generating thumbnails for all photos.
-banner-thumbnails-photos = Erstellen von Foto-Miniaturansichten. Dies kann eine Weile dauern.
+banner-thumbnails-photos = Foto-Miniaturansichten werden erstellt. Dies kann eine Weile dauern.
 
 # Generating thumbnails for all videos.
-banner-thumbnails-videos = Erstellen von Video-Miniaturansichten. Dies kann eine Weile dauern.
+banner-thumbnails-videos = Video-Miniaturansichten werden erstellt. Dies kann eine Weile dauern.
 
 # Updating the database to remove details of absent photos.
-banner-clean-photos = Optimierung der Fotodatenbank
+banner-clean-photos = Fotodatenbank wird optimiert
 
 # Updating the database to remove details of absent videos.
-banner-clean-videos = Optimierung der Videodatenbank
+banner-clean-videos = Videodatenbank wird optimiert
 
 # Extracting video component from Android motion photos
 banner-extract-motion-photos = Bewegungsfotos werden verarbeitet
