@@ -191,7 +191,7 @@ prefs-views-section = Görünümler
 # Attributes:
 #   .subtitle - Description of toggle button action action.
 prefs-views-selfies = Özçekimler
-  .subtitle = iOS cihazlarda çekilen özçemimler için ayrı bir görünüm gösterir. Uygulamak için {-app-name} uygulamasını yeniden başlatın.
+  .subtitle = iOS cihazlarda çekilen özçekimler için ayrı bir görünüm gösterir. Uygulamak için {-app-name} uygulamasını yeniden başlatın.
 
 ## Progress bar for background tasks
 
@@ -239,10 +239,10 @@ banner-thumbnails-photos = Fotoğraf küçük resimleri oluşturuluyor. Bu biraz
 banner-thumbnails-videos = Video küçük resimleri oluşturuluyor. Bu biraz zaman alacaktır.
 
 # Updating the database to remove details of absent photos.
-banner-clean-photos = Fotoğraf veritabanı bakımı.
+banner-clean-photos = Fotoğraf veritabanı bakımı yapılıyor.
 
 # Updating the database to remove details of absent videos.
-banner-clean-videos = Video veritabanı bakımı.
+banner-clean-videos = Video veritabanı bakımı yapılıyor.
 
 # Extracting video component from Android motion photos
 banner-extract-motion-photos = Hareketli fotoğraflar işleniyor.
