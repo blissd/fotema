@@ -53,6 +53,16 @@
   </branding>
 
   <releases>
+    <release version="1.9.3" date="2024-06-26">
+      <description>
+        <ul>
+          <li>Add Norwegian translation.</li>
+          <li>Update Turkish translation.</li>
+          <li>Add Weblate translation link.</li>
+          <li>Add Phosh metadata.</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.9.2" date="2024-06-25">
       <description>
         <ul>
