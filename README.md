@@ -3,6 +3,9 @@ SPDX-FileCopyrightText: © 2024 David Bliss
 
 SPDX-License-Identifier: GFDL-1.3-or-later
 -->
+
+[![Translation status](https://hosted.weblate.org/widget/fotema/app/svg-badge.svg)](https://hosted.weblate.org/engage/fotema/)
+
 # Fotema
 
 __fotema__ (___adj. Esperanto___) "fond of taking photos"
