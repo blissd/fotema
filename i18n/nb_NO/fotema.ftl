@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: © 2024 David Bliss
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 # Photo/Video Information Sidebar
 # File size file system metadata.
 infobar-file-size = Filstørrelse
