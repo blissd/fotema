@@ -8,7 +8,13 @@ SPDX-License-Identifier: GFDL-1.3-or-later
 Fotema is internationalised with the [Fluent](https://projectfluent.org/)
 i18n framework.
 
-Localizations are found under the `i18n` directory.
+Localisations are found under the `i18n` directory.
+
+## Weblate
+
+The easiest way to translate Fotema is to use Weblate. Please make Weblate your first choice for localization.
+
+[![Translation status](https://hosted.weblate.org/widget/fotema/app/svg-badge.svg)](https://hosted.weblate.org/engage/fotema/)
 
 ## Add A New Localisation
 
