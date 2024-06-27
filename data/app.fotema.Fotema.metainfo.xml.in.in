@@ -36,6 +36,7 @@
 
   <url type="homepage">https://github.com/blissd/fotema</url>
   <url type="bugtracker">https://github.com/blissd/fotema/issues</url>
+  <url type="translate">https://hosted.weblate.org/projects/fotema/app</url>
 
   <content_rating type="oars-1.1" />
 
