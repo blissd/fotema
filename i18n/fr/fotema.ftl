@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: © 2024 David Bliss
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
 # Main Navigation Pages
 # Title for album showing contents of one folder.
 folder-album = Dossier

@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: © 2024 David Bliss
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
 # Progress bar for background tasks
 # Extracting motion photo videos
 progress-motion-photo = Memproses motion photo.
