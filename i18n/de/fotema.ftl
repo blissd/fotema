@@ -1,10 +1,4 @@
-# SPDX-FileCopyrightText: © 2024 David Bliss
-#
-# SPDX-License-Identifier: GPL-3.0-or-later
-
-
 ## Terms
-
 
 # See https://projectfluent.org/fluent/guide/terms.html
 

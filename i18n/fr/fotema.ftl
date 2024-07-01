@@ -1,8 +1,6 @@
-# SPDX-FileCopyrightText: © 2024 David Bliss
-#
-# SPDX-License-Identifier: GPL-3.0-or-later
-#
-# Main Navigation Pages
+## Terms
+-app-name = Fotema
+## Main Navigation Pages
 # Title for album showing contents of one folder.
 folder-album = Dossier
 # Main Navigation Pages
@@ -90,8 +88,6 @@ banner-scan-photos = Recherche de photos dans le système de fichiers.
 # Notification banner for background tasks
 # Generating thumbnails for all photos.
 banner-thumbnails-photos = Génération des vignettes des photos. Cela peut prendre du temps.
-# Terms
--app-name = Fotema
 # Main Navigation Pages
 # Title for years album.
 years-album = Année

@@ -41,3 +41,8 @@ License: GPL-3.0-or-later
 Files: po/*.in
 Copyright: © 2024 David Bliss <david@fotema.app>
 License: GPL-3.0-or-later
+
+Files: i18n/**/fotema.ftl
+Copyright: © 2024 David Bliss <david@fotema.app>
+License: GPL-3.0-or-later
+
