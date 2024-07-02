@@ -12,6 +12,8 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.86"
 base64 = "0.22.1"
+candle-nn = "0.6.0"
+candle-transformers = "0.6.0"
 chrono = "0.4.37"
 fast_image_resize = { version = "4.2.1", features = ["image"] }
 ffmpeg-next = "7.0.2"
@@ -21,6 +23,7 @@ glycin = "1.0.2"
 gtk = "0.18.1"
 h3o = "0.6.4"
 image = "0.25.2"
+hf-hub = "0.3.2"
 kamadak-exif = "0.5.5"
 rayon = "1.10.0"
 refinery = { version = "0.8.14", features = ["rusqlite"] }
@@ -30,6 +33,10 @@ strum = { version = "0.26.2", features = ["derive"] }
 tempfile = "3.10.1"
 tracing = "0.1.40"
 walkdir = "2.5.0"
+
+[dependencies.candle]
+package = "candle-core"
+version = "0.6.0"
 
 [dev-dependencies]
 tempfile = "3.10.1"
