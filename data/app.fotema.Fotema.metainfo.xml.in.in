@@ -53,6 +53,15 @@
   </branding>
 
   <releases>
+    <release version="1.9.4" date="2024-07-04">
+      <description>
+        <ul>
+          <li>Add French translation.</li>
+          <li>Add Indonesian translation.</li>
+          <li>Update German translation.</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.9.3" date="2024-06-26">
       <description>
         <ul>
