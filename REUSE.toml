@@ -1,0 +1,71 @@
+# SPDX-FileCopyrightText: © 2024 David Bliss <david@fotema.app>
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+version = 1
+SPDX-PackageName = "Fotema"
+SPDX-PackageSupplier = "David Bliss <david@fotema.app>"
+SPDX-PackageDownloadLocation = "https://github.com/blissd/fotema"
+
+[[annotations]]
+path = "build-aux/**.json"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "© 2024 David Bliss <david@fotema.app>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "core/migrations/**.sql"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "© 2024 David Bliss <david@fotema.app>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "Cargo.lock"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "© 2024 David Bliss <david@fotema.app>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "data/**.in"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "© 2024 David Bliss <david@fotema.app>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "data/icons/**.svg"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "© 2024 David Bliss <david@fotema.app>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "data/icons/**.svg"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "© 2024 David Bliss <david@fotema.app>"
+SPDX-License-Identifier = "CC0-1.0"
+
+[[annotations]]
+# NOTE attribution is unclear. Icons are from the GNOME Icon Library
+# app by Bilal Elmoussaoui so I've attributed the copyright to him.
+# If I'm wrong, then please let me know.
+path = "data/resources/icons/**.svg"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "© 2024 Bilal Elmoussaoui <bilal.elmoussaoui@gnome.org>"
+SPDX-License-Identifier = "CC0-1.0"
+
+[[annotations]]
+path = "hooks/**"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "© 2024 David Bliss <david@fotema.app>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "po/**.in"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "© 2024 David Bliss <david@fotema.app>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "i18n/**/fotema.ftl"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "© 2024 David Bliss <david@fotema.app>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
