@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: © 2023 Mochineko <t.o.e.4315@gmail.com>
+//
+// SPDX-License-Identifier: MIT
+
 use candle_core::{Error, Result, Shape, Tensor};
 use half::f16;
 

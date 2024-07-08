@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: © 2023 Mochineko <t.o.e.4315@gmail.com>
+//
+// SPDX-License-Identifier: MIT
+//
 // Reference implementation:
 // https://github.com/hollance/BlazeFace-PyTorch/blob/master/blazeface.py
 

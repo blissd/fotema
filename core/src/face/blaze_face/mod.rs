@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: © 2023 mochineko
+// SPDX-FileCopyrightText: © 2023 Mochineko <t.o.e.4315@gmail.com>
 //
 // SPDX-License-Identifier: MIT
 

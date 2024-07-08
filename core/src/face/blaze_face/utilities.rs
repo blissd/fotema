@@ -1,12 +1,9 @@
-use candle_core::{safetensors, DType, Device, Result, Tensor};
-/*
-use face_tracking_rs::blaze_face::{
-    blaze_face::{BlazeFace, ModelType},
-    face_detection::FaceDetection,
-};
-*/
+// SPDX-FileCopyrightText: © 2023 Mochineko <t.o.e.4315@gmail.com>
+//
+// SPDX-License-Identifier: MIT
 
 use super::{blaze_face::BlazeFace, blaze_face::ModelType, face_detection::FaceDetection};
+use candle_core::{safetensors, DType, Device, Result, Tensor};
 use image::{DynamicImage, Rgba, RgbaImage};
 
 pub fn load_model(

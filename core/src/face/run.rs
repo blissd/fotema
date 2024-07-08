@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: © 2023 https://github.com/huggingface/candle
+//
+// SPDX-License-Identifier: MIT
+
 use super::model::{Multiples, YoloV8};
 
 use candle_core::{DType, Device, IndexOp, Result, Tensor};

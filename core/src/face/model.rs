@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: © 2023 https://github.com/huggingface/candle
+//
+// SPDX-License-Identifier: MIT
+
 use candle_core::{DType, IndexOp, Result, Tensor, D};
 use candle_nn::{batch_norm, conv2d, conv2d_no_bias, Conv2d, Conv2dConfig, Module, VarBuilder};
 
