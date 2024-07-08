@@ -10,6 +10,8 @@ use std::path::{Path, PathBuf};
 use candle_nn::{Module, VarBuilder};
 use candle_transformers::models::mobileone;
 
+use crate::face::blaze_face;
+
 #[derive(Debug, Clone)]
 pub struct Rect {
     x: u32,

@@ -1,4 +1,4 @@
-use candle::{DType, IndexOp, Result, Tensor, D};
+use candle_core::{DType, IndexOp, Result, Tensor, D};
 use candle_nn::{batch_norm, conv2d, conv2d_no_bias, Conv2d, Conv2dConfig, Module, VarBuilder};
 
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -65,7 +65,7 @@ impl Upsample {
 }
 
 impl Module for Upsample {
-    fn forward(&self, xs: &Tensor) -> candle::Result<Tensor> {
+    fn forward(&self, xs: &Tensor) -> candle_core::Result<Tensor> {
         let (_b_size, _channels, h, w) = xs.dims4()?;
         xs.upsample_nearest2d(self.scale_factor * h, self.scale_factor * w)
     }

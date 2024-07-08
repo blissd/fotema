@@ -1,6 +1,6 @@
 use super::model::{Multiples, YoloV8};
 
-use candle::{DType, Device, IndexOp, Result, Tensor};
+use candle_core::{DType, Device, IndexOp, Result, Tensor};
 use candle_nn::{Module, VarBuilder};
 use candle_transformers::object_detection::{non_maximum_suppression, Bbox, KeyPoint};
 
@@ -235,7 +235,7 @@ pub fn run<T: Task>(args: Args) -> anyhow::Result<()> {
         let mut image_name = std::path::PathBuf::from(image_name);
         let original_image = image::io::Reader::open(&image_name)?
             .decode()
-            .map_err(candle::Error::wrap)?;
+            .map_err(candle_core::Error::wrap)?;
         let (width, height) = {
             let w = original_image.width() as usize;
             let h = original_image.height() as usize;

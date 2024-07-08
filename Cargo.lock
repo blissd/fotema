@@ -1252,6 +1252,7 @@ dependencies = [
  "glycin",
  "gtk",
  "h3o",
+ "half",
  "hf-hub",
  "image",
  "kamadak-exif",
