@@ -22,21 +22,30 @@ pub struct Rect {
 
 #[derive(Debug, Clone)]
 pub struct Face {
-    thumbnail: PathBuf,
+    /// Path to thumbnail generated from face bounds.
+    /// Normalized to be square and expanded to capture the whole head.
+    thumbnail_path: PathBuf,
+
+    /// Image cropped from bounds returned by face detection algorithm
+    bounds_path: PathBuf,
+
+    /// Bounds of detected face.
     bounds: Rect,
+
+    /// Confidence (0.0 to 1.0) that the detected face is actually a face.
     confidence: f32,
 }
 
 pub struct FaceExtractor {
-    base_face_path: PathBuf,
+    base_path: PathBuf,
 }
 
 impl FaceExtractor {
-    pub fn build(base_face_path: &Path, base_model_path: &Path) -> Result<FaceExtractor> {
-        let base_face_path = PathBuf::from(base_face_path).join("photo_faces");
-        std::fs::create_dir_all(&base_face_path)?;
+    pub fn build(base_path: &Path) -> Result<FaceExtractor> {
+        let base_path = PathBuf::from(base_path).join("photo_faces");
+        std::fs::create_dir_all(&base_path)?;
 
-        Ok(FaceExtractor { base_face_path })
+        Ok(FaceExtractor { base_path })
     }
 
     /// Identify faces in a photo and return a vector of paths of extracted face images.
@@ -59,9 +68,22 @@ impl FaceExtractor {
 
         println!("{:?} faces detections: {:?}", faces.len(), faces);
 
+        let base_path = {
+            // Create a directory per 1000 thumbnails
+            let partition = (picture_id.id() / 1000) as i32;
+            let partition = format!("{:0>4}", partition);
+            let file_name = format!("{}", picture_id);
+            self.base_path.join(partition).join(file_name)
+        };
+
         let faces = faces
             .into_iter()
-            .map(|f| {
+            .enumerate()
+            .map(|(index, f)| {
+                if !base_path.exists() {
+                    let _ = std::fs::create_dir_all(&base_path);
+                }
+
                 // Extract face and save to thumbnail.
                 // The bounding box is pretty tight, so make it a bit bigger.
                 // Also, make the box a square.
@@ -75,20 +97,29 @@ impl FaceExtractor {
                 let centre_x = (f.rect.x + (f.rect.width / 2.0)) as u32;
                 let centre_y = (f.rect.y + (f.rect.height / 2.0)) as u32;
 
-                // Square box around face.
+                let x: u32 = centre_x - half_longest;
+                let y: u32 = centre_y - half_longest;
+
+                let thumbnail = original_image.crop_imm(x, y, longest, longest);
+                let thumbnail_path = base_path.join(format!("{}_thumbnail.png", index));
+                let _ = thumbnail.save(&thumbnail_path);
+
                 let bounds = Rect {
-                    x: centre_x - half_longest,
-                    y: centre_y - half_longest,
-                    width: longest,
-                    height: longest,
+                    x: f.rect.x as u32,
+                    y: f.rect.y as u32,
+                    width: f.rect.width as u32,
+                    height: f.rect.height as u32,
                 };
 
-                let thumbnail =
+                let bounds_img =
                     original_image.crop_imm(bounds.x, bounds.y, bounds.width, bounds.height);
-                thumbnail.save("out.png");
+
+                let bounds_path = base_path.join(format!("{}_original.png", index));
+                let _ = bounds_img.save(&bounds_path);
 
                 Face {
-                    thumbnail: PathBuf::new(),
+                    thumbnail_path,
+                    bounds_path,
                     bounds,
                     confidence: f.confidence,
                 }
@@ -106,12 +137,13 @@ mod tests {
     #[test]
     fn test_find_faces() {
         let dir = env!("CARGO_MANIFEST_DIR");
-        let image_path = Path::new(dir).join("resources/test/Sandow.jpg");
+        // let image_path = Path::new(dir).join("resources/test/Sandow.jpg");
+        let image_path = Path::new(
+            "/var/home/david/Pictures/Ente/Recents/0400B8FC-B0FB-413A-BDDA-428499E5905C.JPG",
+        );
         let base_face_path = Path::new(".");
-        let base_model_path =
-            Path::new("/var/home/david/Projects/fotema/core/src/face/blaze_face/data");
 
-        let extractor = FaceExtractor::build(&base_face_path, &base_model_path).unwrap();
+        let extractor = FaceExtractor::build(&base_face_path).unwrap();
         extractor
             .extract_faces(&PictureId::new(0), &image_path)
             .unwrap();
