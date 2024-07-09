@@ -62,11 +62,25 @@ impl FaceExtractor {
         let faces = faces
             .into_iter()
             .map(|f| {
+                // Extract face and save to thumbnail.
+                // The bounding box is pretty tight, so make it a bit bigger.
+                // Also, make the box a square.
+                // TODO is there a better way to enlarge the box so we can be more sure
+                // it is always centred on the head?
+
+                let longest: u32 =
+                    (std::cmp::max(f.rect.width as u32, f.rect.height as u32) as f32 * 2.0) as u32;
+                let half_longest: u32 = longest / 2;
+
+                let centre_x = (f.rect.x + (f.rect.width / 2.0)) as u32;
+                let centre_y = (f.rect.y + (f.rect.height / 2.0)) as u32;
+
+                // Square box around face.
                 let bounds = Rect {
-                    x: f.rect.x as u32,
-                    y: f.rect.y as u32,
-                    width: f.rect.width as u32,
-                    height: f.rect.height as u32,
+                    x: centre_x - half_longest,
+                    y: centre_y - half_longest,
+                    width: longest,
+                    height: longest,
                 };
 
                 let thumbnail =
