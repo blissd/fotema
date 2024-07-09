@@ -7,13 +7,9 @@ use anyhow::*;
 
 use std::path::{Path, PathBuf};
 
-use candle_nn::{Module, VarBuilder};
-use candle_transformers::models::mobileone;
-use candle_core::Device;
-
-use crate::face::{
-    blaze_face,
-    blaze_face::utilities,
+use rust_faces::{
+    viz, BlazeFaceParams, FaceDetection, FaceDetectorBuilder, InferParams, Provider, ToArray3,
+    ToRgb8,
 };
 
 #[derive(Debug, Clone)]
@@ -28,14 +24,11 @@ pub struct Rect {
 pub struct Face {
     thumbnail: PathBuf,
     bounds: Rect,
+    confidence: f32,
 }
 
 pub struct FaceExtractor {
     base_face_path: PathBuf,
-    base_model_path: PathBuf,
-    model_type: blaze_face::ModelType,
-    model: blaze_face::BlazeFace,
-    device: Device,
 }
 
 impl FaceExtractor {
@@ -43,42 +36,52 @@ impl FaceExtractor {
         let base_face_path = PathBuf::from(base_face_path).join("photo_faces");
         std::fs::create_dir_all(&base_face_path)?;
 
-        // FIXME would be nice to try GPU and fallback to CPU.
-        let device = Device::Cpu;
-
-
-        // TODO try out front model when we know the front camera was used.
-        let model_type = blaze_face::ModelType::Back;
-
-        let model = utilities::load_model(base_model_path, model_type, 0.6, 0.3, &device)?;
-
-        Ok(FaceExtractor {
-            base_face_path,
-            base_model_path: base_model_path.into(),
-            model_type,
-            model,
-            device,
-        })
+        Ok(FaceExtractor { base_face_path })
     }
 
     /// Identify faces in a photo and return a vector of paths of extracted face images.
     pub fn extract_faces(&self, picture_id: &PictureId, picture_path: &Path) -> Result<Vec<Face>> {
+        let face_detector =
+            FaceDetectorBuilder::new(FaceDetection::BlazeFace640(BlazeFaceParams::default()))
+                .download()
+                .infer_params(InferParams {
+                    provider: Provider::OrtCpu,
+                    intra_threads: Some(5),
+                    ..Default::default()
+                })
+                .build()?;
 
-        let image = utilities::load_image(picture_path, self.model_type)?;
-        let image_tensor = utilities::convert_image_to_tensor(&image, &self.device)?;
-        dbg!(&image_tensor);
+        let original_image = image::open(picture_path)?;
 
-        let detections = self.model.predict_on_image(&image_tensor)?;
+        let image = original_image.clone().into_rgb8().into_array3();
 
-        let detections = blaze_face::FaceDetection::from_tensors(
-            detections.first()
-                .unwrap()
-                .clone(),
-        )?;
+        let faces = face_detector.detect(image.view().into_dyn())?;
 
-        println!("{:?} faces detections: {:?}", detections.len(), detections);
+        println!("{:?} faces detections: {:?}", faces.len(), faces);
 
-        todo!("do this")
+        let faces = faces
+            .into_iter()
+            .map(|f| {
+                let bounds = Rect {
+                    x: f.rect.x as u32,
+                    y: f.rect.y as u32,
+                    width: f.rect.width as u32,
+                    height: f.rect.height as u32,
+                };
+
+                let thumbnail =
+                    original_image.crop_imm(bounds.x, bounds.y, bounds.width, bounds.height);
+                thumbnail.save("out.png");
+
+                Face {
+                    thumbnail: PathBuf::new(),
+                    bounds,
+                    confidence: f.confidence,
+                }
+            })
+            .collect();
+
+        Ok(faces)
     }
 }
 
@@ -91,9 +94,12 @@ mod tests {
         let dir = env!("CARGO_MANIFEST_DIR");
         let image_path = Path::new(dir).join("resources/test/Sandow.jpg");
         let base_face_path = Path::new(".");
-        let base_model_path = Path::new("/var/home/david/Projects/fotema/core/src/face/blaze_face/data");
+        let base_model_path =
+            Path::new("/var/home/david/Projects/fotema/core/src/face/blaze_face/data");
 
         let extractor = FaceExtractor::build(&base_face_path, &base_model_path).unwrap();
-        extractor.extract_faces(&PictureId::new(0), &image_path).unwrap();
+        extractor
+            .extract_faces(&PictureId::new(0), &image_path)
+            .unwrap();
     }
 }

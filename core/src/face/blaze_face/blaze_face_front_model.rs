@@ -331,7 +331,8 @@ mod tests {
         let batch_size = 1;
 
         // Load the variables
-        let safetensors = safetensors::load("src/face/blaze_face/data/blazeface.pth", &device).unwrap();
+        let safetensors =
+            safetensors::load("src/face/blaze_face/data/blazeface.pth", &device).unwrap();
         let variables = candle_nn::VarBuilder::from_tensors(safetensors, dtype, &device);
 
         // Load the model

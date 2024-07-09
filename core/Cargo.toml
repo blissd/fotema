@@ -30,6 +30,7 @@ kamadak-exif = "0.5.5"
 rayon = "1.10.0"
 refinery = { version = "0.8.14", features = ["rusqlite"] }
 rusqlite = { version = "0.31.0", features = ["bundled", "chrono"] }
+rust-faces = {git = "https://github.com/blissd/rust-faces.git", branch = "patch", features = ["viz"]}
 sm_motion_photo = "0.1.5"
 strum = { version = "0.26.2", features = ["derive"] }
 tempfile = "3.10.1"

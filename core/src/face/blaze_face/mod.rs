@@ -13,6 +13,6 @@ pub mod final_blaze_block;
 pub mod non_max_suppression;
 pub mod utilities;
 
-pub use blaze_face::ModelType;
 pub use blaze_face::BlazeFace;
+pub use blaze_face::ModelType;
 pub use face_detection::FaceDetection;

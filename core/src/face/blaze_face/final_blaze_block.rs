@@ -126,8 +126,11 @@ mod tests {
         let height = 64;
 
         // Load the variables
-        let safetensors =
-            safetensors::load("src/face/blaze_face/data/blazefaceback.safetensors", &device).unwrap();
+        let safetensors = safetensors::load(
+            "src/face/blaze_face/data/blazefaceback.safetensors",
+            &device,
+        )
+        .unwrap();
         let variables = candle_nn::VarBuilder::from_tensors(safetensors, dtype, &device);
 
         // Instantiate the FinalBlazeBlock
