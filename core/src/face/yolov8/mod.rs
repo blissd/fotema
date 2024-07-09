@@ -2,6 +2,5 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-pub mod blaze_face;
-pub mod face_extractor;
-pub mod yolov8;
+pub mod model;
+pub mod run;
