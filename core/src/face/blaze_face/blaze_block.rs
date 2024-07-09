@@ -412,7 +412,7 @@ mod tests {
 
         // Load the variables
         let safetensors =
-            safetensors::load("src/blaze_face/data/blazeface.safetensors", &device).unwrap();
+            safetensors::load("src/face/blaze_face/data/blazeface.safetensors", &device).unwrap();
         let variables = candle_nn::VarBuilder::from_tensors(safetensors, dtype, &device);
 
         // Set up the input tensor

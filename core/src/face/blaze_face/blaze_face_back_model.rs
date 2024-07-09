@@ -502,7 +502,7 @@ mod tests {
         let batch_size = 1;
 
         let safetensors =
-            safetensors::load("src/blaze_face/data/blazefaceback.safetensors", &device).unwrap();
+            safetensors::load("src/face/blaze_face/data/blazefaceback.safetensors", &device).unwrap();
         let variables = candle_nn::VarBuilder::from_tensors(safetensors, dtype, &device);
 
         // Load the model

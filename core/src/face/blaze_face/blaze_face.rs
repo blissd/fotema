@@ -304,11 +304,11 @@ mod tests {
 
         // Load the variables
         let safetensors =
-            safetensors::load("src/blaze_face/data/blazefaceback.safetensors", &device).unwrap();
+            safetensors::load("src/face/blaze_face/data/blazefaceback.safetensors", &device).unwrap();
         let variables = candle_nn::VarBuilder::from_tensors(safetensors, dtype, &device);
 
         // Load the anchors
-        let anchors = Tensor::read_npy("src/blaze_face/data/anchorsback.npy").unwrap();
+        let anchors = Tensor::read_npy("src/face/blaze_face/data/anchorsback.npy").unwrap();
         assert_eq!(anchors.dims(), &[896, 4,]);
 
         // Load the model
@@ -333,7 +333,7 @@ mod tests {
 
         // Load the variables
         let safetensors =
-            safetensors::load("src/blaze_face/data/blazeface.safetensors", &device).unwrap();
+            safetensors::load("src/face/blaze_face/data/blazeface.safetensors", &device).unwrap();
         let variables = candle_nn::VarBuilder::from_tensors(safetensors, dtype, &device);
 
         // Load the anchors
@@ -362,7 +362,7 @@ mod tests {
         let batch_size = 1;
 
         // Set up the anchors and configuration
-        let anchors = Tensor::read_npy("src/blaze_face/data/anchorsback.npy")
+        let anchors = Tensor::read_npy("src/face/blaze_face/data/anchorsback.npy")
             .unwrap()
             .to_dtype(dtype)
             .unwrap();
@@ -437,7 +437,7 @@ mod tests {
 
         // Load the variables
         let safetensors =
-            safetensors::load("src/blaze_face/data/blazefaceback.safetensors", &device).unwrap();
+            safetensors::load("src/face/blaze_face/data/blazefaceback.safetensors", &device).unwrap();
         let variables = candle_nn::VarBuilder::from_tensors(safetensors, dtype, &device);
 
         // Load the anchors

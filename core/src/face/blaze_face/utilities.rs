@@ -5,8 +5,10 @@
 use super::{blaze_face::BlazeFace, blaze_face::ModelType, face_detection::FaceDetection};
 use candle_core::{safetensors, DType, Device, Result, Tensor};
 use image::{DynamicImage, Rgba, RgbaImage};
+use std::path::{Path, PathBuf};
 
 pub fn load_model(
+    base_dir: &Path,
     model_type: ModelType,
     min_score_threshold: f32,
     min_suppression_threshold: f32,
@@ -14,8 +16,8 @@ pub fn load_model(
 ) -> Result<BlazeFace> {
     let dtype = DType::F16;
     let safetensors_path = match model_type {
-        ModelType::Back => "src/blaze_face/data/blazefaceback.safetensors",
-        ModelType::Front => "src/blaze_face/data/blazeface.safetensors",
+        ModelType::Back => base_dir.join("blazefaceback.safetensors"),
+        ModelType::Front => base_dir.join("blazeface.safetensors"),
     };
     let safetensors = safetensors::load(safetensors_path, device)?;
 
@@ -23,8 +25,8 @@ pub fn load_model(
     let variables = candle_nn::VarBuilder::from_tensors(safetensors, dtype, device);
 
     let anchor_path = match model_type {
-        ModelType::Back => "src/blaze_face/data/anchorsback.npy",
-        ModelType::Front => "src/blaze_face/data/anchors.npy",
+        ModelType::Back => base_dir.join("anchorsback.npy"),
+        ModelType::Front => base_dir.join("anchors.npy"),
     };
 
     // Load the anchors
@@ -43,7 +45,7 @@ pub fn load_model(
     )
 }
 
-pub fn load_image(image_path: &str, model_type: ModelType) -> anyhow::Result<DynamicImage> {
+pub fn load_image(image_path: &Path, model_type: ModelType) -> anyhow::Result<DynamicImage> {
     let image = image::open(image_path)?;
     let image = match model_type {
         ModelType::Back => image.resize_to_fill(256, 256, image::imageops::FilterType::Nearest),
