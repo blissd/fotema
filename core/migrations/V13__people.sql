@@ -1,7 +1,7 @@
 
 
 -- People named by the user who will faces associated with them
-CREATE TABLE pictures_people (
+CREATE TABLE people (
         person_id      INTEGER PRIMARY KEY UNIQUE NOT NULL, -- unique ID for person
 
         thumbnail_path TEXT UNIQUE NOT NULL, -- path to primary person thumbnail
