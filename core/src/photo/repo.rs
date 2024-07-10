@@ -406,6 +406,33 @@ impl Repository {
         Ok(result)
     }
 
+    pub fn mark_face_scan_broken(&mut self, picture_id: &PictureId) -> Result<()> {
+        let mut con = self.con.lock().unwrap();
+        let tx = con.transaction()?;
+
+        {
+            let mut stmt = tx.prepare_cached(
+                "INSERT INTO pictures_face_scans (
+                    picture_id,
+                    is_broken,
+                    face_count,
+                    scan_ts
+                ) VALUES (
+                    ?1, TRUE, 0, CURRENT_TIMESTAMP
+                ) ON CONFLICT (picture_id) DO UPDATE SET
+                    is_broken = true,
+                    face_count = 0,
+                    scan_ts = CURRENT_TIMESTAMP
+                ",
+            )?;
+
+            stmt.execute(params![picture_id.id(),])?;
+        }
+
+        tx.commit()?;
+        Ok(())
+    }
+
     pub fn add_face_scans(&mut self, picture_id: &PictureId, faces: &Vec<Face>) -> Result<()> {
         let mut con = self.con.lock().unwrap();
         let tx = con.transaction()?;

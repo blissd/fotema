@@ -9,6 +9,7 @@ use rayon::prelude::*;
 use anyhow::*;
 use std::sync::Arc;
 use std::result::Result::Ok;
+use std::panic;
 use tracing::{error, info};
 use futures::executor::block_on;
 
@@ -79,16 +80,26 @@ impl PhotoDetectFaces {
             //.into_iter()
             .par_iter()
             .for_each(|photo| {
-                let result = block_on(async {self.extractor.extract_faces(&photo.picture_id, &photo.path).await});
+                let mut repo = self.repo.clone();
 
-                if let Ok(ref faces) = result {
-                    let mut repo = self.repo.clone();
-                    if let Err(e) = repo.add_face_scans(&photo.picture_id, &faces) {
-                        error!("Failed adding faces to repo: {:?}: Photo path: {:?}", e, photo.path);
-                    }
-                } else {
-                    error!("Failed extracting faces: {:?}: Photo path: {:?}", result, photo.path);
-                };
+                // Careful! panic::catch_unwind returns Ok(Err) if the evaluated expression returns
+                // an error but doesn't panic.
+                let result = panic::catch_unwind(|| {
+                    block_on(async {
+                        self.extractor.extract_faces(&photo.picture_id, &photo.path).await
+                    }).and_then(|faces| repo.clone().add_face_scans(&photo.picture_id, &faces))
+                });
+
+                // If we got an err, then there was a panic.
+                // If we got Ok(Err(e)) there wasn't a panic, but we still failed.
+                if let Ok(Err(e)) = result {
+                    error!("Failed detecting faces: {:?}: Photo path: {:?}", e, photo.path);
+                    let _ = repo.mark_face_scan_broken(&photo.picture_id);
+                } else if result.is_err() {
+                    error!("Panicked detecting faces: Photo path: {:?}", photo.path);
+                    let _ = repo.mark_face_scan_broken(&photo.picture_id);
+                }
+
 
                 self.progress_monitor.emit(ProgressMonitorInput::Advance);
             });
