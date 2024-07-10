@@ -8,8 +8,7 @@ use anyhow::*;
 use std::path::{Path, PathBuf};
 
 use rust_faces::{
-    viz, BlazeFaceParams, FaceDetection, FaceDetectorBuilder, InferParams, Provider, ToArray3,
-    ToRgb8,
+    BlazeFaceParams, FaceDetection, FaceDetectorBuilder, InferParams, Provider, ToArray3,
 };
 
 #[derive(Debug, Clone)]
@@ -34,6 +33,40 @@ pub struct Face {
 
     /// Confidence (0.0 to 1.0) that the detected face is actually a face.
     confidence: f32,
+
+    /// Facial landmarks.
+    /// I _think_ this is right eye, left eye, nose, right mouth corner, left mouth corner.
+    /// Note that left/right are from the subject's perspective, not the observer.
+    landmarks: Option<Vec<(f32, f32)>>,
+}
+
+impl Face {
+    fn landmark(&self, index: usize) -> Option<(u32, u32)> {
+        self.landmarks
+            .as_ref()
+            .filter(|x| x.len() == 5)
+            .map(|x| (x[index].0 as u32, x[index].1 as u32))
+    }
+
+    pub fn right_eye(&self) -> Option<(u32, u32)> {
+        self.landmark(0)
+    }
+
+    pub fn left_eye(&self) -> Option<(u32, u32)> {
+        self.landmark(1)
+    }
+
+    pub fn nose(&self) -> Option<(u32, u32)> {
+        self.landmark(2)
+    }
+
+    pub fn right_mouth_corner(&self) -> Option<(u32, u32)> {
+        self.landmark(3)
+    }
+
+    pub fn left_mouth_corner(&self) -> Option<(u32, u32)> {
+        self.landmark(4)
+    }
 }
 
 pub struct FaceExtractor {
@@ -87,15 +120,22 @@ impl FaceExtractor {
                 // Extract face and save to thumbnail.
                 // The bounding box is pretty tight, so make it a bit bigger.
                 // Also, make the box a square.
-                // TODO is there a better way to enlarge the box so we can be more sure
-                // it is always centred on the head?
 
                 let longest: u32 =
-                    (std::cmp::max(f.rect.width as u32, f.rect.height as u32) as f32 * 2.0) as u32;
+                    (std::cmp::max(f.rect.width as u32, f.rect.height as u32) as f32 * 1.6) as u32;
                 let half_longest: u32 = longest / 2;
 
-                let centre_x = (f.rect.x + (f.rect.width / 2.0)) as u32;
-                let centre_y = (f.rect.y + (f.rect.height / 2.0)) as u32;
+                let (centre_x, centre_y) = if let Some(ref landmarks) = f.landmarks {
+                    // If we have landmarks, then the first two are the right and left eyes.
+                    // Use the midpoint between the eyes as the centre of the thumbnail.
+                    let x = ((landmarks[0].0 + landmarks[1].0) / 2.0) as u32;
+                    let y = ((landmarks[0].1 + landmarks[1].1) / 2.0) as u32;
+                    (x, y)
+                } else {
+                    let x = (f.rect.x + (f.rect.width / 2.0)) as u32;
+                    let y = (f.rect.y + (f.rect.height / 2.0)) as u32;
+                    (x, y)
+                };
 
                 let x: u32 = centre_x - half_longest;
                 let y: u32 = centre_y - half_longest;
@@ -122,6 +162,7 @@ impl FaceExtractor {
                     bounds_path,
                     bounds,
                     confidence: f.confidence,
+                    landmarks: f.landmarks,
                 }
             })
             .collect();
