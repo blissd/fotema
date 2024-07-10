@@ -11,6 +11,8 @@ use rust_faces::{
     BlazeFaceParams, FaceDetection, FaceDetectorBuilder, InferParams, Provider, ToArray3,
 };
 
+use gdk4::prelude::TextureExt;
+use image::DynamicImage;
 use tracing::debug;
 
 #[derive(Debug, Clone)]
@@ -84,7 +86,11 @@ impl FaceExtractor {
     }
 
     /// Identify faces in a photo and return a vector of paths of extracted face images.
-    pub fn extract_faces(&self, picture_id: &PictureId, picture_path: &Path) -> Result<Vec<Face>> {
+    pub async fn extract_faces(
+        &self,
+        picture_id: &PictureId,
+        picture_path: &Path,
+    ) -> Result<Vec<Face>> {
         let face_detector =
             FaceDetectorBuilder::new(FaceDetection::BlazeFace640(BlazeFaceParams::default()))
                 .download()
@@ -95,7 +101,7 @@ impl FaceExtractor {
                 })
                 .build()?;
 
-        let original_image = image::open(picture_path)?;
+        let original_image = FaceExtractor::open_image(picture_path).await?;
 
         let image = original_image.clone().into_rgb8().into_array3();
 
@@ -175,6 +181,22 @@ impl FaceExtractor {
             .collect();
 
         Ok(faces)
+    }
+
+    async fn open_image(source_path: &Path) -> Result<DynamicImage> {
+        let file = gio::File::for_path(source_path);
+
+        let image = glycin::Loader::new(file).load().await?;
+
+        let frame = image.next_frame().await?;
+
+        let png_file = tempfile::Builder::new().suffix(".png").tempfile()?;
+
+        // FIXME can we avoid this step of saving to the file system and just
+        // load the image from memory?
+        frame.texture.save_to_png(png_file.path())?;
+
+        Ok(image::open(png_file.path())?)
     }
 }
 
