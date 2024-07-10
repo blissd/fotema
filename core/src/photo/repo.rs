@@ -416,14 +416,14 @@ impl Repository {
                 "INSERT INTO pictures_face_scans (
                     picture_id,
                     is_broken,
-                    face_count
-                    scan_ts,
+                    face_count,
+                    scan_ts
                 ) VALUES (
                     ?1, ?2, ?3, CURRENT_TIMESTAMP
                 ) ON CONFLICT (picture_id) DO UPDATE SET
                     is_broken = ?2,
-                    face_count = ?3
-                    scan_ts = CURRENT_TIMESTAMP,
+                    face_count = ?3,
+                    scan_ts = CURRENT_TIMESTAMP
                 ",
             )?;
 
@@ -462,8 +462,6 @@ impl Repository {
                     ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10,
                     ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, true
                 )
-                ON CONFLICT (thumbnail_path) DO REPLACE,
-                ON CONFLICT (bounds_path) DO REPLACE
                 ",
             )?;
 
