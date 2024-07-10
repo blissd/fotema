@@ -11,28 +11,30 @@ use rust_faces::{
     BlazeFaceParams, FaceDetection, FaceDetectorBuilder, InferParams, Provider, ToArray3,
 };
 
+use tracing::debug;
+
 #[derive(Debug, Clone)]
 pub struct Rect {
-    x: u32,
-    y: u32,
-    width: u32,
-    height: u32,
+    pub x: u32,
+    pub y: u32,
+    pub width: u32,
+    pub height: u32,
 }
 
 #[derive(Debug, Clone)]
 pub struct Face {
     /// Path to thumbnail generated from face bounds.
     /// Normalized to be square and expanded to capture the whole head.
-    thumbnail_path: PathBuf,
+    pub thumbnail_path: PathBuf,
 
     /// Image cropped from bounds returned by face detection algorithm
-    bounds_path: PathBuf,
+    pub bounds_path: PathBuf,
 
     /// Bounds of detected face.
-    bounds: Rect,
+    pub bounds: Rect,
 
     /// Confidence (0.0 to 1.0) that the detected face is actually a face.
-    confidence: f32,
+    pub confidence: f32,
 
     /// Facial landmarks.
     /// I _think_ this is right eye, left eye, nose, right mouth corner, left mouth corner.
@@ -99,7 +101,12 @@ impl FaceExtractor {
 
         let faces = face_detector.detect(image.view().into_dyn())?;
 
-        println!("{:?} faces detections: {:?}", faces.len(), faces);
+        debug!(
+            "Picture {} has {} faces. Found: {:?}",
+            picture_id,
+            faces.len(),
+            faces
+        );
 
         let base_path = {
             // Create a directory per 1000 thumbnails

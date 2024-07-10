@@ -19,6 +19,7 @@ pub enum TaskName {
     Thumbnail(MediaType),
     Transcode,
     MotionPhoto,
+    DetectFaces,
 
     /// FIXME figure out if 'Idle' will be used.
     Idle,

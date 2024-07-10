@@ -14,6 +14,7 @@ use fotema_core::database;
 use fotema_core::photo;
 use fotema_core::video;
 use fotema_core::visual;
+use fotema_core::machine_learning;
 
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
@@ -24,6 +25,7 @@ use super::{
     load_library::{LoadLibrary, LoadLibraryInput},
 
     photo_clean::{PhotoClean, PhotoCleanInput, PhotoCleanOutput},
+    photo_detect_faces::{PhotoDetectFaces, PhotoDetectFacesInput, PhotoDetectFacesOutput},
     photo_enrich::{PhotoEnrich, PhotoEnrichInput, PhotoEnrichOutput},
     photo_scan::{PhotoScan, PhotoScanInput, PhotoScanOutput},
     photo_thumbnail::{PhotoThumbnail, PhotoThumbnailInput, PhotoThumbnailOutput},
@@ -55,6 +57,7 @@ pub enum TaskName {
     MotionPhoto,
     Thumbnail(MediaType),
     Clean(MediaType),
+    DetectFaces,
 }
 
 #[derive(Debug)]
@@ -100,6 +103,8 @@ pub struct Bootstrap {
     video_thumbnail: WorkerController<VideoThumbnail>,
 
     photo_extract_motion: WorkerController<PhotoExtractMotion>,
+
+    photo_detect_faces: WorkerController<PhotoDetectFaces>,
 }
 
 impl Worker for Bootstrap {
@@ -144,6 +149,8 @@ impl Worker for Bootstrap {
             con.clone(),
         )
         .unwrap();
+
+        let face_extractor = machine_learning::face_extractor::FaceExtractor::build(&cache_dir).unwrap();
 
         let load_library = LoadLibrary::builder()
             .detach_worker((visual_repo.clone(), state))
@@ -212,6 +219,13 @@ impl Worker for Bootstrap {
                 VideoCleanOutput::Completed(count) => BootstrapInput::TaskCompleted(TaskName::Clean(MediaType::Video), Some(count)),
             });
 
+        let photo_detect_faces = PhotoDetectFaces::builder()
+            .detach_worker((face_extractor, photo_repo.clone(), progress_monitor.clone()))
+            .forward(sender.input_sender(), |msg| match msg {
+                PhotoDetectFacesOutput::Started => BootstrapInput::TaskStarted(TaskName::DetectFaces),
+                PhotoDetectFacesOutput::Completed(count) => BootstrapInput::TaskCompleted(TaskName::DetectFaces, Some(count)),
+            });
+
         Bootstrap {
             started_at: None,
             library_stale: false,
@@ -225,6 +239,7 @@ impl Worker for Bootstrap {
             video_clean,
             photo_thumbnail,
             video_thumbnail,
+            photo_detect_faces,
         }
     }
 
@@ -289,7 +304,7 @@ impl Worker for Bootstrap {
             BootstrapInput::TaskCompleted(TaskName::MotionPhoto, updated) => {
                 info!("photo thumbnails completed");
                 self.library_stale = self.library_stale || updated.is_some_and(|x| x > 0);
-                self.photo_clean.emit(PhotoCleanInput::Start);
+                self.photo_detect_faces.emit(PhotoDetectFacesInput::Start);
             }
             BootstrapInput::TaskStarted(task_name @ TaskName::Thumbnail(MediaType::Photo)) => {
                 info!("Photo thumbnails started");
@@ -309,6 +324,14 @@ impl Worker for Bootstrap {
                 info!("Video thumbnails completed in {:?}", duration);
                 self.library_stale = self.library_stale || updated.is_some_and(|x| x > 0);
                 self.photo_extract_motion.emit(PhotoExtractMotionInput::Start);
+            }
+            BootstrapInput::TaskStarted(task_name @ TaskName::DetectFaces) => {
+                info!("Photo face detection started.");
+                let _  = sender.output(BootstrapOutput::TaskStarted(task_name));
+            }
+            BootstrapInput::TaskCompleted(TaskName::DetectFaces, updated) => {
+                info!("Photo face detection completed.");
+                self.photo_clean.emit(PhotoCleanInput::Start);
             }
             BootstrapInput::TaskStarted(task_name @ TaskName::Clean(MediaType::Photo)) => {
                 info!("Photo cleanup started.");

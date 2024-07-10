@@ -209,6 +209,9 @@ progress-convert-videos = Converting videos.
 # Extracting motion photo videos
 progress-motion-photo = Processing motion photos.
 
+# Detect faces from photos
+progress-detect-faces-photos = Detecting faces in photos.
+
 # Not doing any background work
 progress-idle = Idle.
 
@@ -242,6 +245,9 @@ banner-clean-videos = Video database maintenance.
 
 # Extracting video component from Android motion photos
 banner-extract-motion-photos = Processing motion photos.
+
+# Detect and extract faces from photos
+banner-detect-faces-photos = Detecting faces in photos.
 
 ## Primary menu
 

@@ -731,6 +731,9 @@ impl SimpleComponent for App {
                     TaskName::Thumbnail(MediaType::Video) => {
                         self.banner.set_title(&fl!("banner-thumbnails-videos"));
                     },
+                    TaskName::DetectFaces => {
+                        self.banner.set_title(&fl!("banner-detect-faces-photos"));
+                    },
                     TaskName::Clean(MediaType::Photo) => {
                         self.banner.set_title(&fl!("banner-clean-photos"));
                     },

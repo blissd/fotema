@@ -8,6 +8,7 @@ use super::metadata;
 use super::model::MotionPhotoVideo;
 use super::motion_photo;
 use super::Metadata;
+use crate::machine_learning::face_extractor::Face;
 use crate::path_encoding;
 use anyhow::*;
 use rusqlite;
@@ -368,6 +369,137 @@ impl Repository {
                 )?;
 
                 stmt.execute(params![picture_id.id(), motion_photo::VERSION,])?;
+            }
+        }
+
+        tx.commit()?;
+        Ok(())
+    }
+
+    /// Gets all pictures that haven't been inspected for containing a motion photo.
+    pub fn find_need_face_scan(&self) -> Result<Vec<Picture>> {
+        let con = self.con.lock().unwrap();
+        let mut stmt = con.prepare(
+            "SELECT
+                    pictures.picture_id,
+                    pictures.picture_path_b64,
+                    pictures.thumbnail_path,
+                    COALESCE(
+                        pictures.exif_created_ts,
+                        pictures.exif_modified_ts,
+                        pictures.fs_created_ts,
+                        pictures.fs_modified_ts,
+                        CURRENT_TIMESTAMP
+                      ) AS ordering_ts,
+                    pictures.is_selfie
+                FROM pictures
+                FULL OUTER JOIN pictures_face_scans USING (picture_id)
+                WHERE pictures_face_scans.picture_id IS NULL
+                AND COALESCE(pictures.is_broken, FALSE) IS FALSE",
+        )?;
+
+        let result = stmt
+            .query_map([], |row| self.to_picture(row))?
+            .flatten()
+            .collect();
+
+        Ok(result)
+    }
+
+    pub fn add_face_scans(&mut self, picture_id: &PictureId, faces: &Vec<Face>) -> Result<()> {
+        let mut con = self.con.lock().unwrap();
+        let tx = con.transaction()?;
+
+        // Create a scope to make borrowing of tx not be an error.
+        {
+            let mut scan_insert_stmt = tx.prepare_cached(
+                "INSERT INTO pictures_face_scans (
+                    picture_id,
+                    is_broken,
+                    face_count
+                    scan_ts,
+                ) VALUES (
+                    ?1, ?2, ?3, CURRENT_TIMESTAMP
+                ) ON CONFLICT (picture_id) DO UPDATE SET
+                    is_broken = ?2,
+                    face_count = ?3
+                    scan_ts = CURRENT_TIMESTAMP,
+                ",
+            )?;
+
+            scan_insert_stmt.execute(params![picture_id.id(), false, faces.len(),])?;
+
+            let mut face_insert_stmt = tx.prepare_cached(
+                "INSERT INTO pictures_faces (
+                    picture_id,
+                    thumbnail_path,
+                    bounds_path,
+
+                    bounds_x,
+                    bounds_y,
+                    bounds_width,
+                    bounds_height,
+
+                    right_eye_x,
+                    right_eye_y,
+
+                    left_eye_x,
+                    left_eye_y,
+
+                    nose_x,
+                    nose_y,
+
+                    right_mouth_corner_x,
+                    right_mouth_corner_y,
+
+                    left_mouth_corner_x,
+                    left_mouth_corner_y,
+
+                    confidence,
+
+                    is_face
+                ) VALUES (
+                    ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10,
+                    ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, true
+                )
+                ON CONFLICT (thumbnail_path) DO REPLACE,
+                ON CONFLICT (bounds_path) DO REPLACE
+                ",
+            )?;
+
+            for face in faces {
+                // convert to relative path before saving to database
+                let thumbnail_path = face
+                    .thumbnail_path
+                    .strip_prefix(&self.cache_dir_base_path)?;
+                let bounds_path = face.bounds_path.strip_prefix(&self.cache_dir_base_path)?;
+
+                let right_eye = face.right_eye();
+                let left_eye = face.left_eye();
+                let nose = face.nose();
+                let right_mouth_corner = face.right_mouth_corner();
+                let left_mouth_corner = face.left_mouth_corner();
+
+                face_insert_stmt.execute(params![
+                    picture_id.id(),
+                    thumbnail_path.to_string_lossy(),
+                    bounds_path.to_string_lossy(),
+                    face.bounds.x,
+                    face.bounds.y,
+                    face.bounds.width,
+                    face.bounds.height,
+                    right_eye.map(|x| x.0),
+                    right_eye.map(|x| x.1),
+                    left_eye.map(|x| x.0),
+                    left_eye.map(|x| x.1),
+                    nose.map(|x| x.0),
+                    nose.map(|x| x.1),
+                    right_mouth_corner.map(|x| x.0),
+                    right_mouth_corner.map(|x| x.1),
+                    left_mouth_corner.map(|x| x.0),
+                    left_mouth_corner.map(|x| x.1),
+                    face.confidence
+                ])?;
             }
         }
 
