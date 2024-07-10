@@ -10,6 +10,7 @@ use anyhow::*;
 use std::sync::Arc;
 use std::result::Result::Ok;
 use tracing::{error, info};
+use futures::executor::block_on;
 
 use fotema_core::machine_learning::face_extractor::FaceExtractor;
 
@@ -35,8 +36,9 @@ pub enum PhotoDetectFacesOutput {
 
 }
 
+#[derive(Clone)]
 pub struct PhotoDetectFaces {
-    extractor: FaceExtractor,
+    extractor: Arc<FaceExtractor>,
 
     // Danger! Don't hold the repo mutex for too long as it blocks viewing images.
     repo: fotema_core::photo::Repository,
@@ -46,7 +48,7 @@ pub struct PhotoDetectFaces {
 
 impl PhotoDetectFaces {
 
-    fn detect(&mut self, sender: ComponentSender<Self>) -> Result<()>
+    fn detect(&self, sender: ComponentSender<Self>) -> Result<()>
      {
         let start = std::time::Instant::now();
 
@@ -74,15 +76,18 @@ impl PhotoDetectFaces {
         // Might need to consider constraining number of CPUs to use less memory or to
         // keep the computer more response while thumbnail generation is going on.
         unprocessed
-            .into_iter()
-            //.par_iter()
+            //.into_iter()
+            .par_iter()
             .for_each(|photo| {
-                let result = self.extractor.extract_faces(&photo.picture_id, &photo.path);
+                let result = block_on(async {self.extractor.extract_faces(&photo.picture_id, &photo.path).await});
 
-                if let Ok(faces) = result {
-                    self.repo.add_face_scans(&photo.picture_id, &faces);
+                if let Ok(ref faces) = result {
+                    let mut repo = self.repo.clone();
+                    if let Err(e) = repo.add_face_scans(&photo.picture_id, &faces) {
+                        error!("Failed adding faces to repo: {:?}: Photo path: {:?}", e, photo.path);
+                    }
                 } else {
-                    error!("Failed extracting motion photo: {:?}: Photo path: {:?}", result, photo.path);
+                    error!("Failed extracting faces: {:?}: Photo path: {:?}", result, photo.path);
                 };
 
                 self.progress_monitor.emit(ProgressMonitorInput::Advance);
@@ -105,7 +110,7 @@ impl Worker for PhotoDetectFaces {
 
     fn init((extractor, repo, progress_monitor): Self::Init, _sender: ComponentSender<Self>) -> Self  {
         PhotoDetectFaces {
-            extractor,
+            extractor: Arc::new(extractor),
             repo,
             progress_monitor,
         }
@@ -115,10 +120,14 @@ impl Worker for PhotoDetectFaces {
         match msg {
             PhotoDetectFacesInput::Start => {
                 info!("Extracting photo faces...");
+                let this = self.clone();
 
-                if let Err(e) = self.detect(sender) {
-                    error!("Failed to extract photo faces: {}", e);
-                }
+                // Avoid runtime panic from calling block_on
+                rayon::spawn(move || {
+                    if let Err(e) = this.detect(sender) {
+                        error!("Failed to extract photo faces: {}", e);
+                    }
+                });
             }
         };
     }
