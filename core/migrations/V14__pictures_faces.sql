@@ -34,6 +34,6 @@ CREATE TABLE pictures_faces (
         is_face    BOOLEAN NOT NULL CHECK (is_face IN (0, 1)) DEFAULT 1, -- is an actual face?
 
         FOREIGN KEY (picture_id) REFERENCES pictures (picture_id) ON DELETE CASCADE,
-        FOREIGN KEY (person_id) REFERENCES people (person_id) ON DELETE NULL
+        FOREIGN KEY (person_id) REFERENCES people (person_id) ON DELETE SET NULL
 );
 
