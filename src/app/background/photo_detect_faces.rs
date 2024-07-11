@@ -73,9 +73,6 @@ impl PhotoDetectFaces {
 
         self.progress_monitor.emit(ProgressMonitorInput::Start(TaskName::DetectFaces, count));
 
-        // One thread per CPU core... makes my laptop sluggish and hot... also likes memory.
-        // Might need to consider constraining number of CPUs to use less memory or to
-        // keep the computer more response while thumbnail generation is going on.
         unprocessed
             //.into_iter()
             .par_iter()

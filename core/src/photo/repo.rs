@@ -376,6 +376,7 @@ impl Repository {
         Ok(())
     }
 
+    /// FIXME should all the *face* functions move to a new repository?
     /// Gets all pictures that haven't been inspected for containing a motion photo.
     pub fn find_need_face_scan(&self) -> Result<Vec<Picture>> {
         let con = self.con.lock().unwrap();
