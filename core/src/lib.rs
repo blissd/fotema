@@ -5,6 +5,7 @@
 pub mod database;
 pub mod machine_learning;
 pub mod path_encoding;
+pub mod people;
 pub mod photo;
 pub mod time;
 pub mod video;

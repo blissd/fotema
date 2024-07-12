@@ -15,6 +15,7 @@ use fotema_core::photo;
 use fotema_core::video;
 use fotema_core::visual;
 use fotema_core::machine_learning;
+use fotema_core::people;
 
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
@@ -147,6 +148,12 @@ impl Worker for Bootstrap {
             &pic_base_dir,
             &cache_dir,
             con.clone(),
+        ).unwrap();
+
+        let people_repo = people::Repository::open(
+            &pic_base_dir,
+            &cache_dir,
+            con.clone(),
         )
         .unwrap();
 
@@ -220,7 +227,7 @@ impl Worker for Bootstrap {
             });
 
         let photo_detect_faces = PhotoDetectFaces::builder()
-            .detach_worker((face_extractor, photo_repo.clone(), progress_monitor.clone()))
+            .detach_worker((face_extractor, people_repo.clone(), progress_monitor.clone()))
             .forward(sender.input_sender(), |msg| match msg {
                 PhotoDetectFacesOutput::Started => BootstrapInput::TaskStarted(TaskName::DetectFaces),
                 PhotoDetectFacesOutput::Completed(count) => BootstrapInput::TaskCompleted(TaskName::DetectFaces, Some(count)),

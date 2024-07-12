@@ -14,6 +14,7 @@ use tracing::{error, info};
 use futures::executor::block_on;
 
 use fotema_core::machine_learning::face_extractor::FaceExtractor;
+use fotema_core::people;
 
 use crate::app::components::progress_monitor::{
     ProgressMonitor,
@@ -42,7 +43,7 @@ pub struct PhotoDetectFaces {
     extractor: Arc<FaceExtractor>,
 
     // Danger! Don't hold the repo mutex for too long as it blocks viewing images.
-    repo: fotema_core::photo::Repository,
+    repo: people::Repository,
 
     progress_monitor: Arc<Reducer<ProgressMonitor>>,
 }
@@ -112,7 +113,7 @@ impl PhotoDetectFaces {
 }
 
 impl Worker for PhotoDetectFaces {
-    type Init = (FaceExtractor, fotema_core::photo::Repository, Arc<Reducer<ProgressMonitor>>);
+    type Init = (FaceExtractor, people::Repository, Arc<Reducer<ProgressMonitor>>);
     type Input = PhotoDetectFacesInput;
     type Output = PhotoDetectFacesOutput;
 
