@@ -10,11 +10,13 @@ use anyhow::*;
 use std::sync::Arc;
 use std::result::Result::Ok;
 use std::panic;
+use std::path::PathBuf;
 use tracing::{error, info};
 use futures::executor::block_on;
 
 use fotema_core::machine_learning::face_extractor::FaceExtractor;
 use fotema_core::people;
+use fotema_core::photo::PictureId;
 
 use crate::app::components::progress_monitor::{
     ProgressMonitor,
@@ -54,10 +56,10 @@ impl PhotoDetectFaces {
      {
         let start = std::time::Instant::now();
 
-        let unprocessed: Vec<fotema_core::photo::model::Picture> = self.repo
+        let unprocessed: Vec<(PictureId, PathBuf)> = self.repo
             .find_need_face_scan()?
             .into_iter()
-            .filter(|pic| pic.path.exists())
+            .filter(|(_, path)| path.exists())
             .collect();
 
         let count = unprocessed.len();
@@ -77,25 +79,25 @@ impl PhotoDetectFaces {
         unprocessed
             //.into_iter()
             .par_iter()
-            .for_each(|photo| {
+            .for_each(|(picture_id, path)| {
                 let mut repo = self.repo.clone();
 
                 // Careful! panic::catch_unwind returns Ok(Err) if the evaluated expression returns
                 // an error but doesn't panic.
                 let result = panic::catch_unwind(|| {
                     block_on(async {
-                        self.extractor.extract_faces(&photo.picture_id, &photo.path).await
-                    }).and_then(|faces| repo.clone().add_face_scans(&photo.picture_id, &faces))
+                        self.extractor.extract_faces(&picture_id, &path).await
+                    }).and_then(|faces| repo.clone().add_face_scans(&picture_id, &faces))
                 });
 
                 // If we got an err, then there was a panic.
                 // If we got Ok(Err(e)) there wasn't a panic, but we still failed.
                 if let Ok(Err(e)) = result {
-                    error!("Failed detecting faces: {:?}: Photo path: {:?}", e, photo.path);
-                    let _ = repo.mark_face_scan_broken(&photo.picture_id);
+                    error!("Failed detecting faces: {:?}: Photo path: {:?}", e, path);
+                    let _ = repo.mark_face_scan_broken(&picture_id);
                 } else if result.is_err() {
-                    error!("Panicked detecting faces: Photo path: {:?}", photo.path);
-                    let _ = repo.mark_face_scan_broken(&photo.picture_id);
+                    error!("Panicked detecting faces: Photo path: {:?}", path);
+                    let _ = repo.mark_face_scan_broken(&picture_id);
                 }
 
 
