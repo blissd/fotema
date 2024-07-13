@@ -17,6 +17,7 @@ use crate::adaptive;
 use crate::fl;
 
 use fotema_core::Visual;
+use fotema_core::people;
 
 use std::sync::Arc;
 
@@ -83,7 +84,7 @@ pub struct ViewNav {
 
 #[relm4::component(pub async)]
 impl SimpleAsyncComponent for ViewNav {
-    type Init = (SharedState, Arc<Reducer<ProgressMonitor>>, Arc<adaptive::LayoutState>);
+    type Init = (SharedState, Arc<Reducer<ProgressMonitor>>, Arc<adaptive::LayoutState>, people::Repository);
     type Input = ViewNavInput;
     type Output = ViewNavOutput;
 
@@ -152,7 +153,7 @@ impl SimpleAsyncComponent for ViewNav {
     }
 
     async fn init(
-        (state, transcode_progress_monitor, layout_state): Self::Init,
+        (state, transcode_progress_monitor, layout_state, people_repo): Self::Init,
         root: Self::Root,
         sender: AsyncComponentSender<Self>,
     ) -> AsyncComponentParts<Self>  {
@@ -160,7 +161,7 @@ impl SimpleAsyncComponent for ViewNav {
         let split_view = adw::OverlaySplitView::new();
 
         let view_one = ViewOne::builder()
-            .launch(transcode_progress_monitor)
+            .launch((people_repo, transcode_progress_monitor))
             .forward(sender.input_sender(), |msg| match msg {
                 ViewOneOutput::PhotoShown(id, info) => ViewNavInput::ShowPhotoInfo(id, info),
                 ViewOneOutput::VideoShown(id) => ViewNavInput::ShowVideoInfo(id),

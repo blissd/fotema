@@ -4,8 +4,10 @@
 
 use crate::photo::model::PictureId;
 
-use crate::machine_learning::face_extractor::Face;
+use crate::machine_learning::face_extractor;
 use crate::path_encoding;
+use crate::people::model;
+use crate::people::FaceId;
 use anyhow::*;
 use rusqlite;
 use rusqlite::params;
@@ -65,7 +67,25 @@ impl Repository {
         )?;
 
         let result = stmt
-            .query_map([], |row| self.to_id_path_tuple(row))?
+            .query_map([], |row| self.to_picture_id_path_tuple(row))?
+            .flatten()
+            .collect();
+
+        Ok(result)
+    }
+
+    pub fn find_faces(&self, picture_id: &PictureId) -> Result<Vec<model::Face>> {
+        let con = self.con.lock().unwrap();
+        let mut stmt = con.prepare(
+            "SELECT
+                face_id,
+                thumbnail_path
+            FROM pictures_faces
+            WHERE picture_id = ?1",
+        )?;
+
+        let result = stmt
+            .query_map([picture_id.id()], |row| self.to_face(row))?
             .flatten()
             .collect();
 
@@ -99,7 +119,11 @@ impl Repository {
         Ok(())
     }
 
-    pub fn add_face_scans(&mut self, picture_id: &PictureId, faces: &Vec<Face>) -> Result<()> {
+    pub fn add_face_scans(
+        &mut self,
+        picture_id: &PictureId,
+        faces: &Vec<face_extractor::Face>,
+    ) -> Result<()> {
         let mut con = self.con.lock().unwrap();
         let tx = con.transaction()?;
 
@@ -198,7 +222,7 @@ impl Repository {
         Ok(())
     }
 
-    fn to_id_path_tuple(&self, row: &Row<'_>) -> rusqlite::Result<(PictureId, PathBuf)> {
+    fn to_picture_id_path_tuple(&self, row: &Row<'_>) -> rusqlite::Result<(PictureId, PathBuf)> {
         let picture_id = row.get("picture_id").map(PictureId::new)?;
 
         let picture_path: String = row.get("picture_path_b64")?;
@@ -207,5 +231,18 @@ impl Repository {
         let picture_path = self.library_base_path.join(picture_path);
 
         std::result::Result::Ok((picture_id, picture_path))
+    }
+
+    fn to_face(&self, row: &Row<'_>) -> rusqlite::Result<model::Face> {
+        let face_id = row.get("face_id").map(FaceId::new)?;
+
+        let thumbnail_path = row
+            .get("thumbnail_path")
+            .map(|p: String| self.cache_dir_base_path.join(p))?;
+
+        std::result::Result::Ok(model::Face {
+            face_id,
+            thumbnail_path,
+        })
     }
 }

@@ -8,7 +8,6 @@ use super::metadata;
 use super::model::MotionPhotoVideo;
 use super::motion_photo;
 use super::Metadata;
-use crate::machine_learning::face_extractor::Face;
 use crate::path_encoding;
 use anyhow::*;
 use rusqlite;

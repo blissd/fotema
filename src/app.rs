@@ -29,6 +29,7 @@ use crate::fl;
 use fotema_core::database;
 use fotema_core::video;
 use fotema_core::VisualId;
+use fotema_core::people;
 
 use h3o::CellIndex;
 
@@ -433,6 +434,12 @@ impl SimpleComponent for App {
             video::Repository::open(&pic_base_dir, &cache_dir, con.clone()).unwrap()
         };
 
+        let people_repo = people::Repository::open(
+            &pic_base_dir,
+            &cache_dir,
+            con.clone(),
+        ).unwrap();
+
         let state = SharedState::new(relm4::SharedState::new());
         let active_view = ActiveView::new(relm4::SharedState::new());
         let adaptive_layout = Arc::new(adaptive::LayoutState::new());
@@ -471,7 +478,7 @@ impl SimpleComponent for App {
             .detach();
 
         let view_nav = ViewNav::builder()
-            .launch((state.clone(), transcode_progress_monitor.clone(), adaptive_layout.clone()))
+            .launch((state.clone(), transcode_progress_monitor.clone(), adaptive_layout.clone(), people_repo))
             .forward(sender.input_sender(), |msg| match msg {
                 ViewNavOutput::TranscodeAll => AppMsg::TranscodeAll,
             });
