@@ -5,7 +5,10 @@
 use crate::photo::model::PictureId;
 use anyhow::*;
 
+use std::panic;
+use std::panic::UnwindSafe;
 use std::path::{Path, PathBuf};
+use std::result::Result::Ok;
 
 use rust_faces::{
     BlazeFaceParams, FaceDetection, FaceDetectorBuilder, InferParams, Provider, ToArray3,
@@ -77,6 +80,8 @@ pub struct FaceExtractor {
     base_path: PathBuf,
 }
 
+impl UnwindSafe for FaceExtractor {}
+
 impl FaceExtractor {
     pub fn build(base_path: &Path) -> Result<FaceExtractor> {
         let base_path = PathBuf::from(base_path).join("photo_faces");
@@ -91,21 +96,36 @@ impl FaceExtractor {
         picture_id: &PictureId,
         picture_path: &Path,
     ) -> Result<Vec<Face>> {
-        let face_detector =
-            FaceDetectorBuilder::new(FaceDetection::BlazeFace640(BlazeFaceParams::default()))
-                .download()
-                .infer_params(InferParams {
-                    provider: Provider::OrtCpu,
-                    intra_threads: Some(5),
-                    ..Default::default()
-                })
-                .build()?;
-
         let original_image = FaceExtractor::open_image(picture_path).await?;
 
         let image = original_image.clone().into_rgb8().into_array3();
 
-        let faces = face_detector.detect(image.view().into_dyn())?;
+        let faces = panic::catch_unwind(|| {
+            // I'd like to create the face detector once and put it into the FaceExtractor struct.
+            // However, detection can panic and the FaceDetector isn't UnwideSafe.
+            let face_detector =
+                FaceDetectorBuilder::new(FaceDetection::BlazeFace640(BlazeFaceParams::default()))
+                    .download()
+                    .infer_params(InferParams {
+                        provider: Provider::OrtCpu,
+                        intra_threads: Some(5),
+                        ..Default::default()
+                    })
+                    .build()?;
+            face_detector.detect(image.view().into_dyn())
+        });
+
+        let Ok(Ok(faces)) = faces else {
+            // If we got an err, then there was a panic.
+            // If we got Ok(Err(e)) there wasn't a panic, but we still failed.
+            let err = match faces {
+                Ok(Err(e)) => Err(anyhow!("Failed detecting faces: {:?}", e)),
+                Err(e) => Err(anyhow!("Panicked detecting faces: {:?}", e)),
+                _ => Err(anyhow!("Other error detecting faces")),
+            };
+
+            return err;
+        };
 
         debug!(
             "Picture {} has {} faces. Found: {:?}",
