@@ -5,13 +5,13 @@
 use crate::photo::model::PictureId;
 use anyhow::*;
 
-use std::panic;
-use std::panic::UnwindSafe;
+use std::panic::{self, AssertUnwindSafe};
 use std::path::{Path, PathBuf};
 use std::result::Result::Ok;
 
 use rust_faces::{
-    BlazeFaceParams, FaceDetection, FaceDetectorBuilder, InferParams, Provider, ToArray3,
+    BlazeFaceParams, FaceDetection, FaceDetectorBuilder, InferParams, MtCnnParams, Provider,
+    ToArray3,
 };
 
 use gdk4::prelude::TextureExt;
@@ -78,16 +78,40 @@ impl Face {
 
 pub struct FaceExtractor {
     base_path: PathBuf,
+    back_model: Box<dyn rust_faces::FaceDetector>,
+    front_model: Box<dyn rust_faces::FaceDetector>,
 }
-
-impl UnwindSafe for FaceExtractor {}
 
 impl FaceExtractor {
     pub fn build(base_path: &Path) -> Result<FaceExtractor> {
         let base_path = PathBuf::from(base_path).join("photo_faces");
         std::fs::create_dir_all(&base_path)?;
 
-        Ok(FaceExtractor { base_path })
+        let back_model =
+            FaceDetectorBuilder::new(FaceDetection::BlazeFace640(BlazeFaceParams::default()))
+                .download()
+                .infer_params(InferParams {
+                    provider: Provider::OrtCpu,
+                    intra_threads: Some(5),
+                    ..Default::default()
+                })
+                .build()?;
+
+        let front_model =
+            FaceDetectorBuilder::new(FaceDetection::BlazeFace320(BlazeFaceParams::default()))
+                .download()
+                .infer_params(InferParams {
+                    provider: Provider::OrtCpu,
+                    intra_threads: Some(5),
+                    ..Default::default()
+                })
+                .build()?;
+
+        Ok(FaceExtractor {
+            base_path,
+            back_model,
+            front_model,
+        })
     }
 
     /// Identify faces in a photo and return a vector of paths of extracted face images.
@@ -100,20 +124,20 @@ impl FaceExtractor {
 
         let image = original_image.clone().into_rgb8().into_array3();
 
-        let faces = panic::catch_unwind(|| {
-            // I'd like to create the face detector once and put it into the FaceExtractor struct.
-            // However, detection can panic and the FaceDetector isn't UnwideSafe.
-            let face_detector =
-                FaceDetectorBuilder::new(FaceDetection::BlazeFace640(BlazeFaceParams::default()))
-                    .download()
-                    .infer_params(InferParams {
-                        provider: Provider::OrtCpu,
-                        intra_threads: Some(5),
-                        ..Default::default()
-                    })
-                    .build()?;
-            face_detector.detect(image.view().into_dyn())
-        });
+        let faces = panic::catch_unwind(AssertUnwindSafe(|| {
+            self.back_model.detect(image.view().into_dyn())
+        }));
+
+        let faces = match faces {
+            Ok(Ok(ref fs)) if !fs.is_empty() => faces,
+            //Ok(Ok(_)) => faces,
+            _ => {
+                println!("Failed extracting faces with back model, using front model");
+                panic::catch_unwind(AssertUnwindSafe(|| {
+                    self.front_model.detect(image.view().into_dyn())
+                }))
+            }
+        };
 
         let Ok(Ok(faces)) = faces else {
             // If we got an err, then there was a panic.
@@ -170,8 +194,9 @@ impl FaceExtractor {
                     (x, y)
                 };
 
-                let x: u32 = centre_x - half_longest;
-                let y: u32 = centre_y - half_longest;
+                // Don't panic when x/y would be < zero
+                let x: u32 = centre_x.checked_sub(half_longest).unwrap_or(0);
+                let y: u32 = centre_y.checked_sub(half_longest).unwrap_or(0);
 
                 let thumbnail = original_image.crop_imm(x, y, longest, longest);
                 let thumbnail_path = base_path.join(format!("{}_thumbnail.png", index));
