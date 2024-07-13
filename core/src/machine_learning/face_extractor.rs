@@ -87,25 +87,28 @@ impl FaceExtractor {
         let base_path = PathBuf::from(base_path).join("photo_faces");
         std::fs::create_dir_all(&base_path)?;
 
-        let back_model =
-            FaceDetectorBuilder::new(FaceDetection::BlazeFace640(BlazeFaceParams::default()))
-                .download()
-                .infer_params(InferParams {
-                    provider: Provider::OrtCpu,
-                    intra_threads: Some(5),
-                    ..Default::default()
-                })
-                .build()?;
+        let bz_params = BlazeFaceParams {
+            score_threshold: 0.9, // lower allowed face confidence
+            ..BlazeFaceParams::default()
+        };
 
-        let front_model =
-            FaceDetectorBuilder::new(FaceDetection::BlazeFace320(BlazeFaceParams::default()))
-                .download()
-                .infer_params(InferParams {
-                    provider: Provider::OrtCpu,
-                    intra_threads: Some(5),
-                    ..Default::default()
-                })
-                .build()?;
+        let back_model = FaceDetectorBuilder::new(FaceDetection::BlazeFace640(bz_params.clone()))
+            .download()
+            .infer_params(InferParams {
+                provider: Provider::OrtCpu,
+                intra_threads: Some(5),
+                ..Default::default()
+            })
+            .build()?;
+
+        let front_model = FaceDetectorBuilder::new(FaceDetection::BlazeFace320(bz_params))
+            .download()
+            .infer_params(InferParams {
+                provider: Provider::OrtCpu,
+                intra_threads: Some(5),
+                ..Default::default()
+            })
+            .build()?;
 
         Ok(FaceExtractor {
             base_path,
@@ -194,11 +197,12 @@ impl FaceExtractor {
                     (x, y)
                 };
 
-                // Don't panic when x/y would be < zero
+                // Don't panic when x or y would be < zero
                 let x: u32 = centre_x.checked_sub(half_longest).unwrap_or(0);
                 let y: u32 = centre_y.checked_sub(half_longest).unwrap_or(0);
 
                 let thumbnail = original_image.crop_imm(x, y, longest, longest);
+                let thumbnail = thumbnail.thumbnail(200, 200);
                 let thumbnail_path = base_path.join(format!("{}_thumbnail.png", index));
                 let _ = thumbnail.save(&thumbnail_path);
 
