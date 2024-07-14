@@ -68,7 +68,7 @@ impl Repository {
                         CURRENT_TIMESTAMP
                     ) AS ordering_ts
                 FROM pictures
-                FULL OUTER JOIN pictures_face_scans USING (picture_id)
+                LEFT OUTER JOIN pictures_face_scans USING (picture_id)
                 WHERE pictures_face_scans.picture_id IS NULL
                 AND COALESCE(pictures.is_broken, FALSE) IS FALSE
                 ORDER BY ordering_ts DESC",
