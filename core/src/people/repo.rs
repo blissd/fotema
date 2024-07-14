@@ -59,11 +59,19 @@ impl Repository {
         let mut stmt = con.prepare(
             "SELECT
                     pictures.picture_id,
-                    pictures.picture_path_b64
+                    pictures.picture_path_b64,
+                    COALESCE(
+                        pictures.exif_created_ts,
+                        pictures.exif_modified_ts,
+                        pictures.fs_created_ts,
+                        pictures.fs_modified_ts,
+                        CURRENT_TIMESTAMP
+                    ) AS ordering_ts
                 FROM pictures
                 FULL OUTER JOIN pictures_face_scans USING (picture_id)
                 WHERE pictures_face_scans.picture_id IS NULL
-                AND COALESCE(pictures.is_broken, FALSE) IS FALSE",
+                AND COALESCE(pictures.is_broken, FALSE) IS FALSE
+                ORDER BY ordering_ts DESC",
         )?;
 
         let result = stmt
@@ -152,6 +160,8 @@ impl Repository {
                     thumbnail_path,
                     bounds_path,
 
+                    model_name,
+
                     bounds_x,
                     bounds_y,
                     bounds_width,
@@ -177,7 +187,7 @@ impl Repository {
                     is_face
                 ) VALUES (
                     ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10,
-                    ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, true
+                    ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, true
                 )
                 ",
             )?;
@@ -199,6 +209,7 @@ impl Repository {
                     picture_id.id(),
                     thumbnail_path.to_string_lossy(),
                     bounds_path.to_string_lossy(),
+                    face.model_name,
                     face.bounds.x,
                     face.bounds.y,
                     face.bounds.width,
