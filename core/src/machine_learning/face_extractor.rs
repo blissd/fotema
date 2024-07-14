@@ -10,13 +10,13 @@ use std::path::{Path, PathBuf};
 use std::result::Result::Ok;
 
 use rust_faces::{
-    BlazeFaceParams, FaceDetection, FaceDetectorBuilder, InferParams, MtCnnParams, Provider,
-    ToArray3,
+    BlazeFaceParams, Face as DetectedFace, FaceDetection, FaceDetectorBuilder, InferParams,
+    MtCnnParams, Provider, ToArray3,
 };
 
 use gdk4::prelude::TextureExt;
 use image::DynamicImage;
-use tracing::debug;
+use tracing::{debug, error};
 
 #[derive(Debug, Clone)]
 pub struct Rect {
@@ -45,6 +45,9 @@ pub struct Face {
     /// I _think_ this is right eye, left eye, nose, right mouth corner, left mouth corner.
     /// Note that left/right are from the subject's perspective, not the observer.
     landmarks: Option<Vec<(f32, f32)>>,
+
+    /// Name of model that detected this face.
+    pub model_name: String,
 }
 
 impl Face {
@@ -80,6 +83,8 @@ pub struct FaceExtractor {
     base_path: PathBuf,
     back_model: Box<dyn rust_faces::FaceDetector>,
     front_model: Box<dyn rust_faces::FaceDetector>,
+    slow_model: Box<dyn rust_faces::FaceDetector>,
+    is_mtcnn_enabled: bool,
 }
 
 impl FaceExtractor {
@@ -88,7 +93,7 @@ impl FaceExtractor {
         std::fs::create_dir_all(&base_path)?;
 
         let bz_params = BlazeFaceParams {
-            score_threshold: 0.9, // lower allowed face confidence
+            score_threshold: 0.95, // confidence match is a face
             ..BlazeFaceParams::default()
         };
 
@@ -105,7 +110,21 @@ impl FaceExtractor {
             .download()
             .infer_params(InferParams {
                 provider: Provider::OrtCpu,
-                intra_threads: Some(5),
+                //intra_threads: Some(5),
+                ..Default::default()
+            })
+            .build()?;
+
+        let mtcnn_params = MtCnnParams {
+            //thresholds: [0.6, 0.7, 0.7],
+            ..MtCnnParams::default()
+        };
+
+        let slow_model = FaceDetectorBuilder::new(FaceDetection::MtCnn(mtcnn_params))
+            .download()
+            .infer_params(InferParams {
+                provider: Provider::OrtCpu,
+                //intra_threads: Some(5),
                 ..Default::default()
             })
             .build()?;
@@ -114,6 +133,8 @@ impl FaceExtractor {
             base_path,
             back_model,
             front_model,
+            slow_model,
+            is_mtcnn_enabled: false,
         })
     }
 
@@ -123,36 +144,61 @@ impl FaceExtractor {
         picture_id: &PictureId,
         picture_path: &Path,
     ) -> Result<Vec<Face>> {
-        let original_image = FaceExtractor::open_image(picture_path).await?;
+        let original_image = Self::open_image(picture_path).await?;
 
         let image = original_image.clone().into_rgb8().into_array3();
 
-        let faces = panic::catch_unwind(AssertUnwindSafe(|| {
-            self.back_model.detect(image.view().into_dyn())
-        }));
+        let mut faces: Vec<(DetectedFace, String)> = vec![];
 
-        let faces = match faces {
-            Ok(Ok(ref fs)) if !fs.is_empty() => faces,
-            //Ok(Ok(_)) => faces,
-            _ => {
-                println!("Failed extracting faces with back model, using front model");
-                panic::catch_unwind(AssertUnwindSafe(|| {
-                    self.front_model.detect(image.view().into_dyn())
-                }))
+        let result = self.back_model.detect(image.view().into_dyn());
+        if let Ok(detected_faces) = result {
+            for f in detected_faces {
+                faces.push((f, "blaze_face_640".into()));
             }
-        };
+        } else {
+            error!("Failed extracting faces with back model: {:?}", result);
+        }
 
-        let Ok(Ok(faces)) = faces else {
-            // If we got an err, then there was a panic.
-            // If we got Ok(Err(e)) there wasn't a panic, but we still failed.
-            let err = match faces {
-                Ok(Err(e)) => Err(anyhow!("Failed detecting faces: {:?}", e)),
-                Err(e) => Err(anyhow!("Panicked detecting faces: {:?}", e)),
-                _ => Err(anyhow!("Other error detecting faces")),
-            };
+        let result = self.front_model.detect(image.view().into_dyn());
+        if let Ok(detected_faces) = result {
+            // Remove any duplicates where being a duplicate is determined by
+            // the distance between centres being below a certain threshold
 
-            return err;
-        };
+            let detected_faces: Vec<DetectedFace> = detected_faces
+                .into_iter()
+                .filter(|f1| {
+                    let nearest = faces.iter().min_by_key(|f2| {
+                        Self::distance(Self::centre(&f1), Self::centre(&f2.0)) as u32
+                    });
+                    nearest.is_none()
+                        || nearest.is_some_and(|f2| {
+                            Self::distance(Self::centre(&f1), Self::centre(&f2.0)) > 20.0
+                        })
+                })
+                .collect();
+
+            for f in detected_faces {
+                faces.push((f, "blaze_face_320".into()));
+            }
+        } else {
+            error!("Failed extracting faces with front model: {:?}", result);
+        }
+
+        if self.is_mtcnn_enabled && faces.is_empty() {
+            debug!("BlazeFace models detected zero faces so using slower MTCNN model");
+            let result = self.slow_model.detect(image.view().into_dyn());
+            if let Ok(detected_faces) = result {
+                let detected_faces: Vec<DetectedFace> = detected_faces
+                    .into_iter()
+                    .filter(|f| f.confidence >= 0.95)
+                    .collect();
+                for f in detected_faces {
+                    faces.push((f, "mtcnn".into()));
+                }
+            } else {
+                error!("Failed extracting faces with MTCNN model: {:?}", result);
+            }
+        }
 
         debug!(
             "Picture {} has {} faces. Found: {:?}",
@@ -172,7 +218,7 @@ impl FaceExtractor {
         let faces = faces
             .into_iter()
             .enumerate()
-            .map(|(index, f)| {
+            .map(|(index, (f, model_name))| {
                 if !base_path.exists() {
                     let _ = std::fs::create_dir_all(&base_path);
                 }
@@ -185,17 +231,9 @@ impl FaceExtractor {
                     (std::cmp::max(f.rect.width as u32, f.rect.height as u32) as f32 * 1.6) as u32;
                 let half_longest: u32 = longest / 2;
 
-                let (centre_x, centre_y) = if let Some(ref landmarks) = f.landmarks {
-                    // If we have landmarks, then the first two are the right and left eyes.
-                    // Use the midpoint between the eyes as the centre of the thumbnail.
-                    let x = ((landmarks[0].0 + landmarks[1].0) / 2.0) as u32;
-                    let y = ((landmarks[0].1 + landmarks[1].1) / 2.0) as u32;
-                    (x, y)
-                } else {
-                    let x = (f.rect.x + (f.rect.width / 2.0)) as u32;
-                    let y = (f.rect.y + (f.rect.height / 2.0)) as u32;
-                    (x, y)
-                };
+                let (centre_x, centre_y) = Self::centre(&f);
+                let centre_x = centre_x as u32;
+                let centre_y = centre_y as u32;
 
                 // Don't panic when x or y would be < zero
                 let x: u32 = centre_x.checked_sub(half_longest).unwrap_or(0);
@@ -225,11 +263,43 @@ impl FaceExtractor {
                     bounds,
                     confidence: f.confidence,
                     landmarks: f.landmarks,
+                    model_name,
                 }
             })
             .collect();
 
+        // Remove duplicates
+
         Ok(faces)
+    }
+
+    /// Computes Euclidean distance between two points
+    fn distance(coord1: (f32, f32), coord2: (f32, f32)) -> f32 {
+        let (x1, y1) = coord1;
+        let (x2, y2) = coord2;
+
+        let x = x1 - x2;
+        let x = x * x;
+
+        let y = y1 - y2;
+        let y = y * y;
+
+        f32::sqrt(x + y)
+    }
+
+    /// Computes the centre of a face preferring.
+    fn centre(f: &DetectedFace) -> (f32, f32) {
+        if let Some(ref landmarks) = f.landmarks {
+            // If we have landmarks, then the first two are the right and left eyes.
+            // Use the midpoint between the eyes as the centre of the thumbnail.
+            let x = (landmarks[0].0 + landmarks[1].0) / 2.0;
+            let y = (landmarks[0].1 + landmarks[1].1) / 2.0;
+            (x, y)
+        } else {
+            let x = f.rect.x + (f.rect.width / 2.0);
+            let y = f.rect.y + (f.rect.height / 2.0);
+            (x, y)
+        }
     }
 
     async fn open_image(source_path: &Path) -> Result<DynamicImage> {

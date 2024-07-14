@@ -2,6 +2,8 @@
 CREATE TABLE pictures_faces (
         face_id        INTEGER PRIMARY KEY UNIQUE NOT NULL, -- unique ID for face
 
+        model_name     TEXT NOT NULL, -- face detection model used
+
         picture_id     INTEGER NOT NULL, -- unique ID for picture
 
         person_id      INTEGER, -- person associated with face
