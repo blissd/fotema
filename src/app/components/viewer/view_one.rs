@@ -19,6 +19,7 @@ use crate::app::components::progress_monitor::ProgressMonitor;
 use crate::app::components::progress_panel::ProgressPanel;
 use crate::fl;
 use fotema_core::people;
+use super::face_thumbnails::{FaceThumbnails, FaceThumbnailsInput};
 
 use std::sync::Arc;
 
@@ -65,8 +66,6 @@ pub enum ViewOneOutput {
 }
 
 pub struct ViewOne {
-    people_repo: people::Repository,
-
     picture: gtk::Picture,
 
     video: Option<gtk::MediaFile>,
@@ -91,7 +90,7 @@ pub struct ViewOne {
 
     broken_status: adw::StatusPage,
 
-    face_thumbnails: gtk::Box,
+    face_thumbnails: AsyncController<FaceThumbnails>,
 }
 
 #[relm4::component(pub async)]
@@ -175,12 +174,12 @@ impl SimpleAsyncComponent for ViewOne {
                     },
                 },
 
-                #[local_ref]
-                add_overlay =  &face_thumbnails -> gtk::Box {
+                add_overlay = &gtk::Box {
                     set_orientation: gtk::Orientation::Horizontal,
                     set_halign: gtk::Align::Start,
                     set_valign: gtk::Align::End,
                     set_margin_all: 8,
+                    container_add: model.face_thumbnails.widget(),
                 },
 
                 #[wrap(Some)]
@@ -263,10 +262,11 @@ impl SimpleAsyncComponent for ViewOne {
 
         let broken_status = adw::StatusPage::new();
 
-        let face_thumbnails = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+        let face_thumbnails = FaceThumbnails::builder()
+            .launch(people_repo)
+            .detach();
 
         let model = ViewOne {
-            people_repo,
             picture: picture.clone(),
             video: None,
             video_controls: video_controls.clone(),
@@ -279,7 +279,7 @@ impl SimpleAsyncComponent for ViewOne {
             transcode_status: transcode_status.clone(),
             transcode_progress,
             broken_status: broken_status.clone(),
-            face_thumbnails: face_thumbnails.clone(),
+            face_thumbnails,
         };
 
         let widgets = view_output!();
@@ -329,7 +329,6 @@ impl SimpleAsyncComponent for ViewOne {
 
                 self.picture.set_paintable(None::<&gdk::Paintable>);
                 self.video = None;
-                self.face_thumbnails.remove_all();
 
                 // clear orientation transformation css classes
                 for orient in PictureOrientation::iter() {
@@ -440,33 +439,9 @@ impl SimpleAsyncComponent for ViewOne {
 
                 // Overlay faces in picture
                 if let Some(ref picture_id) = visual.picture_id {
-                    if let Ok(faces) = self.people_repo.find_faces(picture_id) {
-                        println!("Found {} faces", faces.len());
-                        faces.into_iter()
-                            .filter(|face| face.thumbnail_path.exists())
-                            .for_each(|face| {
-                                let thumbnail = gtk::Picture::for_filename(&face.thumbnail_path);
-                                thumbnail.set_width_request(50);
-                                thumbnail.set_height_request(50);
-                                //thumbnail.set_css_classes(&["face-small"]);
-
-                                let frame = gtk::Frame::new(None);
-                                frame.set_child(Some(&thumbnail));
-                                frame.add_css_class("face-small");
-
-                                self.face_thumbnails.append(&frame);
-                            });
-/*
-                        for face in faces {
-                            if self.visual.thumbnail_path.as_ref().is_some_and(|x| x.exists()) {
-                                widgets.picture.set_filename(self.visual.thumbnail_path.clone());
-
-                                // Add CSS class for orientation
-                                let orientation = self.visual.thumbnail_orientation();
-                                widgets.picture.add_css_class(orientation.as_ref());
-                            }
-                        }*/
-                    }
+                    self.face_thumbnails.emit(FaceThumbnailsInput::View(picture_id.clone()));
+                } else {
+                    self.face_thumbnails.emit(FaceThumbnailsInput::Hide);
                 }
             },
             ViewOneInput::Prepared => {

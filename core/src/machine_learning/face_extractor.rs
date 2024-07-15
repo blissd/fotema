@@ -5,7 +5,6 @@
 use crate::photo::model::PictureId;
 use anyhow::*;
 
-use std::panic::{self, AssertUnwindSafe};
 use std::path::{Path, PathBuf};
 use std::result::Result::Ok;
 
