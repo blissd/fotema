@@ -80,9 +80,18 @@ impl Face {
 
 pub struct FaceExtractor {
     base_path: PathBuf,
-    back_model: Box<dyn rust_faces::FaceDetector>,
-    front_model: Box<dyn rust_faces::FaceDetector>,
-    slow_model: Box<dyn rust_faces::FaceDetector>,
+
+    /// I think this is the "back model" trained on
+    /// photos taken by the back camera of phones.
+    blaze_face_640_model: Box<dyn rust_faces::FaceDetector>,
+
+    /// I think this is the "front model" trained on
+    /// photos taken by the selfie camera of phones.
+    blaze_face_320_model: Box<dyn rust_faces::FaceDetector>,
+
+    /// An alternative model with good results, but much slower than
+    /// BlazeFace.
+    mtcnn_model: Box<dyn rust_faces::FaceDetector>,
     is_mtcnn_enabled: bool,
 }
 
@@ -96,16 +105,17 @@ impl FaceExtractor {
             ..BlazeFaceParams::default()
         };
 
-        let back_model = FaceDetectorBuilder::new(FaceDetection::BlazeFace640(bz_params.clone()))
-            .download()
-            .infer_params(InferParams {
-                provider: Provider::OrtCpu,
-                intra_threads: Some(5),
-                ..Default::default()
-            })
-            .build()?;
+        let blaze_face_640_model =
+            FaceDetectorBuilder::new(FaceDetection::BlazeFace640(bz_params.clone()))
+                .download()
+                .infer_params(InferParams {
+                    provider: Provider::OrtCpu,
+                    intra_threads: Some(5),
+                    ..Default::default()
+                })
+                .build()?;
 
-        let front_model = FaceDetectorBuilder::new(FaceDetection::BlazeFace320(bz_params))
+        let blaze_face_320_model = FaceDetectorBuilder::new(FaceDetection::BlazeFace320(bz_params))
             .download()
             .infer_params(InferParams {
                 provider: Provider::OrtCpu,
@@ -119,7 +129,7 @@ impl FaceExtractor {
             ..MtCnnParams::default()
         };
 
-        let slow_model = FaceDetectorBuilder::new(FaceDetection::MtCnn(mtcnn_params))
+        let mtcnn_model = FaceDetectorBuilder::new(FaceDetection::MtCnn(mtcnn_params))
             .download()
             .infer_params(InferParams {
                 provider: Provider::OrtCpu,
@@ -130,9 +140,9 @@ impl FaceExtractor {
 
         Ok(FaceExtractor {
             base_path,
-            back_model,
-            front_model,
-            slow_model,
+            blaze_face_640_model,
+            blaze_face_320_model,
+            mtcnn_model,
             is_mtcnn_enabled: false,
         })
     }
@@ -149,7 +159,7 @@ impl FaceExtractor {
 
         let mut faces: Vec<(DetectedFace, String)> = vec![];
 
-        let result = self.back_model.detect(image.view().into_dyn());
+        let result = self.blaze_face_640_model.detect(image.view().into_dyn());
         if let Ok(detected_faces) = result {
             for f in detected_faces {
                 faces.push((f, "blaze_face_640".into()));
@@ -158,7 +168,7 @@ impl FaceExtractor {
             error!("Failed extracting faces with back model: {:?}", result);
         }
 
-        let result = self.front_model.detect(image.view().into_dyn());
+        let result = self.blaze_face_320_model.detect(image.view().into_dyn());
         if let Ok(detected_faces) = result {
             // Remove any duplicates where being a duplicate is determined by
             // the distance between centres being below a certain threshold
@@ -185,7 +195,7 @@ impl FaceExtractor {
 
         if self.is_mtcnn_enabled && faces.is_empty() {
             debug!("BlazeFace models detected zero faces so using slower MTCNN model");
-            let result = self.slow_model.detect(image.view().into_dyn());
+            let result = self.mtcnn_model.detect(image.view().into_dyn());
             if let Ok(detected_faces) = result {
                 let detected_faces: Vec<DetectedFace> = detected_faces
                     .into_iter()
@@ -238,6 +248,7 @@ impl FaceExtractor {
                 let x: u32 = centre_x.checked_sub(half_longest).unwrap_or(0);
                 let y: u32 = centre_y.checked_sub(half_longest).unwrap_or(0);
 
+                // FIXME use fast_image_resize instead of image-rs
                 let thumbnail = original_image.crop_imm(x, y, longest, longest);
                 let thumbnail = thumbnail.thumbnail(200, 200);
                 let thumbnail_path = base_path.join(format!("{}_thumbnail.png", index));
