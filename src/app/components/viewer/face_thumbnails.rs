@@ -89,10 +89,25 @@ impl SimpleAsyncComponent for FaceThumbnails {
                     debug!("Found {} faces", faces.len());
                     faces.into_iter()
                         .filter(|(face, _)| face.thumbnail_path.exists())
-                        .for_each(|(face, _)| {
+                        .for_each(|(face, person)| {
                             let menu_model = gio::Menu::new();
-                            let menu_item = gio::MenuItem::new(Some("test"), None);
-                            menu_model.insert_item(0, &menu_item);
+
+                            let menu_items = if let Some(person) = person {
+                                vec![
+                                    gio::MenuItem::new(Some(&fl!("people-view-more-photos", name = person.name)), None),
+                                    gio::MenuItem::new(Some(&fl!("people-set-key-face")), None),
+                                    gio::MenuItem::new(Some(&fl!("people-not-this-person")), None),
+                                ]
+                            } else {
+                                vec![
+                                    gio::MenuItem::new(Some(&fl!("people-set-name")), None),
+                                    gio::MenuItem::new(Some(&fl!("people-not-a-face")), None),
+                                ]
+                            };
+
+                            for item in menu_items {
+                                menu_model.append_item(&item);
+                            }
 
                             let pop = gtk::PopoverMenu::builder()
                                 .menu_model(&menu_model)
