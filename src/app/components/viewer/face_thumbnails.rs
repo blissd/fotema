@@ -2,9 +2,8 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use relm4::gtk;
-use relm4::adw::gdk;
-use relm4::gtk::prelude::*;
+use relm4::gtk::{self, prelude::*};
+use relm4::gtk::gio;
 use relm4::*;
 use relm4::prelude::*;
 use crate::fl;
@@ -85,15 +84,35 @@ impl SimpleAsyncComponent for FaceThumbnails {
                     faces.into_iter()
                         .filter(|face| face.thumbnail_path.exists())
                         .for_each(|face| {
+                            let menu_model = gio::Menu::new();
+                            let menu_item = gio::MenuItem::new(Some("test"), None);
+
+                            let pop = gtk::PopoverMenu::builder()
+                                .menu_model(&menu_model)
+                                .build();
+
                             let thumbnail = gtk::Picture::for_filename(&face.thumbnail_path);
                             thumbnail.set_content_fit(gtk::ContentFit::ScaleDown);
                             thumbnail.set_width_request(50);
                             thumbnail.set_height_request(50);
-                            //thumbnail.set_css_classes(&["face-small"]);
+
+                            let children = gtk::Box::new(gtk::Orientation::Vertical, 0);
+                            children.append(&thumbnail);
+                            children.append(&pop);
 
                             let frame = gtk::Frame::new(None);
-                            frame.set_child(Some(&thumbnail));
+                            frame.set_child(Some(&children));
                             frame.add_css_class("face-small");
+
+                            let click = gtk::GestureClick::new();
+                            click.connect_released(move |_click,_,_,_| {
+                                pop.popup();
+                            });
+
+                            // if we get a stop message, then we are not dealing with a single-click.
+                            click.connect_stopped(move |click| click.reset());
+
+                            frame.add_controller(click);
 
                             self.face_thumbnails.append(&frame);
                         });
