@@ -15,35 +15,65 @@
   ],
   "modules": [
     {
-            "name": "protobuf",
-            "buildsystem": "autotools",
-            "config-opts": [
-                "DIST_LANG=cpp"
-            ],
-            "cleanup": [
-                "/bin/protoc*",
-                "/lib/libprotoc*",
-                "/lib/libprotobuf-lite*"
-            ],
-            "sources": [
-                {
-                    "type": "archive",
-                    "url": "https://github.com/protocolbuffers/protobuf/releases/download/v3.17.3/protobuf-all-3.17.3.tar.gz",
-                    "sha256": "77ad26d3f65222fd96ccc18b055632b0bfedf295cb748b712a98ba1ac0b704b2"
-                }
-            ]
-        },
+      "name": "abseil-cpp",
+      "buildsystem": "cmake-ninja",
+      "config-opts": [
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DABSL_PROPAGATE_CXX_STD=ON"
+      ],
+      "sources": [
         {
-            "name": "protobuf-c",
-            "buildsystem": "autotools",
-            "sources": [
-                {
-                    "type": "archive",
-                    "url": "https://github.com/protobuf-c/protobuf-c/releases/download/v1.4.0/protobuf-c-1.4.0.tar.gz",
-                    "sha256": "26d98ee9bf18a6eba0d3f855ddec31dbe857667d269bc0b6017335572f85bbcb"
-                }
-            ]
+          "type": "archive",
+          "url": "https://github.com/abseil/abseil-cpp/archive/refs/tags/20240116.2.tar.gz",
+          "sha256": "733726b8c3a6d39a4120d7e45ea8b41a434cdacde401cba500f14236c49b39dc",
+          "x-checker-data": {
+            "type": "anitya",
+            "project-id": 115295,
+            "stable-only": true,
+            "url-template": "https://github.com/abseil/abseil-cpp/archive/refs/tags/$version.tar.gz"
+          }
         }
+      ]
+    },
+    {
+      "name": "protobuf",
+      "buildsystem": "cmake-ninja",
+      "config-opts": [
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-Dprotobuf_BUILD_TESTS=OFF",
+        "-Dprotobuf_ABSL_PROVIDER=package"
+      ],
+      "cleanup": [
+        "/include",
+        "/bin",
+        "/share",
+        "/lib/pkgconfig",
+        "/lib/*.la"
+      ],
+      "sources": [
+        {
+          "type": "archive",
+          "url": "https://github.com/protocolbuffers/protobuf/releases/download/v25.2/protobuf-25.2.tar.gz",
+          "sha256": "8ff511a64fc46ee792d3fe49a5a1bcad6f7dc50dfbba5a28b0e5b979c17f9871"
+        }
+      ]
+    },
+    {
+      "name": "protobuf-c",
+      "buildsystem": "autotools",
+      "sources": [
+        {
+          "type": "archive",
+          "url": "https://github.com/protobuf-c/protobuf-c/releases/download/v1.5.0/protobuf-c-1.5.0.tar.gz",
+          "sha256": "7b404c63361ed35b3667aec75cc37b54298d56dd2bcf369de3373212cc06fd98",
+          "x-checker-data": {
+            "type": "json",
+            "url": "https://api.github.com/repos/protobuf-c/protobuf-c/releases/latest",
+            "version-query": ".tag_name | sub(\"^v\"; \"\")",
+            "url-query": ".assets[] | select(.name==\"protobuf-c-\" + $version + \".tar.gz\") | .browser_download_url"
+          }
+        }
+      ]
+    }
   ]
 }
-

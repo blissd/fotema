@@ -18,8 +18,8 @@
     {
       "type": "git",
       "url": "https://github.com/strukturag/libheif.git",
-      "commit": "59b58566de0d8e2e9fea958abeba1d3346bda9de",
-      "tag": "v1.17.6",
+      "commit": "537d66852629e23ca778ef717343be8f657c0e79",
+      "tag": "v1.18.0",
       "x-checker-data": {
         "type": "git",
         "tag-pattern": "^v([\\d.]+)$"
