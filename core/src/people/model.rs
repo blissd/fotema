@@ -30,6 +30,7 @@ impl Display for FaceId {
 pub struct Person {
     pub person_id: PersonId,
     pub name: String,
+    pub thumbnail_path: PathBuf,
 }
 
 /// Database ID

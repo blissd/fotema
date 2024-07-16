@@ -6,4 +6,5 @@ pub mod model;
 pub mod repo;
 
 pub use model::FaceId;
+pub use model::PersonId;
 pub use repo::Repository;

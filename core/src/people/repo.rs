@@ -8,6 +8,7 @@ use crate::machine_learning::face_extractor;
 use crate::path_encoding;
 use crate::people::model;
 use crate::people::FaceId;
+use crate::people::PersonId;
 use anyhow::*;
 use rusqlite;
 use rusqlite::params;
@@ -82,18 +83,25 @@ impl Repository {
         Ok(result)
     }
 
-    pub fn find_faces(&self, picture_id: &PictureId) -> Result<Vec<model::Face>> {
+    pub fn find_faces(
+        &self,
+        picture_id: &PictureId,
+    ) -> Result<Vec<(model::Face, Option<model::Person>)>> {
         let con = self.con.lock().unwrap();
         let mut stmt = con.prepare(
             "SELECT
-                face_id,
-                thumbnail_path
+                pictures_faces.face_id AS face_id,
+                pictures_faces.thumbnail_path AS face_thumbnail_path,
+                people.person_id AS person_id,
+                people.name AS person_name,
+                people.thumbnail_path AS person_thumbnail_path
             FROM pictures_faces
+            LEFT OUTER JOIN people USING (person_id)
             WHERE picture_id = ?1",
         )?;
 
         let result = stmt
-            .query_map([picture_id.id()], |row| self.to_face(row))?
+            .query_map([picture_id.id()], |row| self.to_face_and_person(row))?
             .flatten()
             .collect();
 
@@ -244,16 +252,42 @@ impl Repository {
         std::result::Result::Ok((picture_id, picture_path))
     }
 
-    fn to_face(&self, row: &Row<'_>) -> rusqlite::Result<model::Face> {
+    fn to_face_and_person(
+        &self,
+        row: &Row<'_>,
+    ) -> rusqlite::Result<(model::Face, Option<model::Person>)> {
         let face_id = row.get("face_id").map(FaceId::new)?;
 
-        let thumbnail_path = row
-            .get("thumbnail_path")
+        let face_thumbnail_path = row
+            .get("face_thumbnail_path")
             .map(|p: String| self.cache_dir_base_path.join(p))?;
 
-        std::result::Result::Ok(model::Face {
+        let face = model::Face {
             face_id,
-            thumbnail_path,
-        })
+            thumbnail_path: face_thumbnail_path,
+        };
+
+        let person_id = row.get("person_id").map(PersonId::new).ok();
+
+        let person_name = row.get("person_name").ok();
+
+        let person_thumbnail_path = row
+            .get("person_thumbnail_path")
+            .map(|p: String| self.cache_dir_base_path.join(p))
+            .ok();
+
+        let person = if let (Some(person_id), Some(name), Some(thumbnail_path)) =
+            (person_id, person_name, person_thumbnail_path)
+        {
+            Some(model::Person {
+                person_id,
+                name,
+                thumbnail_path,
+            })
+        } else {
+            None
+        };
+
+        std::result::Result::Ok((face, person))
     }
 }

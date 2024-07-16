@@ -10,7 +10,7 @@ use crate::fl;
 use fotema_core::people;
 use fotema_core::PictureId;
 
-use tracing::{debug, info};
+use tracing::{debug, error, info};
 
 
 #[derive(Debug)]
@@ -79,11 +79,17 @@ impl SimpleAsyncComponent for FaceThumbnails {
 
                 self.face_thumbnails.remove_all();
 
-                if let Ok(faces) = self.people_repo.find_faces(&picture_id) {
+                let result = self.people_repo.find_faces(&picture_id);
+                if let Err(e) = result {
+                    error!("Failed getting faces: {}", e);
+                    return;
+                }
+
+                if let Ok(faces) = result {
                     debug!("Found {} faces", faces.len());
                     faces.into_iter()
-                        .filter(|face| face.thumbnail_path.exists())
-                        .for_each(|face| {
+                        .filter(|(face, _)| face.thumbnail_path.exists())
+                        .for_each(|(face, _)| {
                             let menu_model = gio::Menu::new();
                             let menu_item = gio::MenuItem::new(Some("test"), None);
                             menu_model.insert_item(0, &menu_item);
