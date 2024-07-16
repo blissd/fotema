@@ -86,6 +86,7 @@ impl SimpleAsyncComponent for FaceThumbnails {
                         .for_each(|face| {
                             let menu_model = gio::Menu::new();
                             let menu_item = gio::MenuItem::new(Some("test"), None);
+                            menu_model.insert_item(0, &menu_item);
 
                             let pop = gtk::PopoverMenu::builder()
                                 .menu_model(&menu_model)
