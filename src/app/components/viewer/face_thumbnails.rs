@@ -6,12 +6,18 @@ use relm4::gtk::{self, prelude::*};
 use relm4::gtk::gio;
 use relm4::*;
 use relm4::prelude::*;
+use relm4::actions::{AccelsPlus, ActionablePlus, RelmAction, RelmActionGroup};
 use crate::fl;
 use fotema_core::people;
 use fotema_core::PictureId;
 
 use tracing::{debug, error, info};
 
+
+relm4::new_action_group!(FaceActionGroup, "face");
+
+relm4::new_stateless_action!(FaceSetNameAction, FaceActionGroup, "set_name");
+relm4::new_stateless_action!(FaceNotFaceAction, FaceActionGroup, "not_a_face");
 
 #[derive(Debug)]
 pub enum FaceThumbnailsInput {
@@ -90,6 +96,8 @@ impl SimpleAsyncComponent for FaceThumbnails {
                     faces.into_iter()
                         .filter(|(face, _)| face.thumbnail_path.exists())
                         .for_each(|(face, person)| {
+                            let mut group = RelmActionGroup::<FaceActionGroup>::new();
+
                             let menu_model = gio::Menu::new();
 
                             let menu_items = if let Some(person) = person {
@@ -99,9 +107,25 @@ impl SimpleAsyncComponent for FaceThumbnails {
                                     gio::MenuItem::new(Some(&fl!("people-not-this-person")), None),
                                 ]
                             } else {
+                                let set_name: RelmAction<FaceSetNameAction> = {
+                                    RelmAction::new_stateless(move |_| {
+                                        println!("face set name! {}", face.face_id);
+                                       // sender.input(Msg::Increment);
+                                    })
+                                };
+                                group.add_action(set_name);
+
+                                let not_a_face: RelmAction<FaceNotFaceAction> = {
+                                    RelmAction::new_stateless(move |_| {
+                                        println!("not a face! {}", face.face_id);
+                                       // sender.input(Msg::Increment);
+                                    })
+                                };
+                                group.add_action(not_a_face);
+
                                 vec![
-                                    gio::MenuItem::new(Some(&fl!("people-set-name")), None),
-                                    gio::MenuItem::new(Some(&fl!("people-not-a-face")), None),
+                                    gio::MenuItem::new(Some(&fl!("people-set-name")), Some("face.set_name")),
+                                    gio::MenuItem::new(Some(&fl!("people-not-a-face")), Some("face.not_a_face")),
                                 ]
                             };
 
@@ -125,6 +149,7 @@ impl SimpleAsyncComponent for FaceThumbnails {
                             let frame = gtk::Frame::new(None);
                             frame.set_child(Some(&children));
                             frame.add_css_class("face-small");
+                            group.register_for_widget(&frame);
 
                             let click = gtk::GestureClick::new();
                             click.connect_released(move |_click,_,_,_| {
