@@ -97,7 +97,7 @@ impl Repository {
                 people.thumbnail_path AS person_thumbnail_path
             FROM pictures_faces
             LEFT OUTER JOIN people USING (person_id)
-            WHERE picture_id = ?1",
+            WHERE picture_id = ?1 AND pictures_faces.is_face = TRUE",
         )?;
 
         let result = stmt
@@ -235,6 +235,25 @@ impl Repository {
                     face.confidence
                 ])?;
             }
+        }
+
+        tx.commit()?;
+        Ok(())
+    }
+
+    pub fn mark_not_a_face(&mut self, face_id: FaceId) -> Result<()> {
+        let mut con = self.con.lock().unwrap();
+        let tx = con.transaction()?;
+
+        {
+            let mut stmt = tx.prepare_cached(
+                "UPDATE pictures_faces
+                SET
+                    is_face = FALSE
+                WHERE face_id = ?1",
+            )?;
+
+            stmt.execute(params![face_id.id(),])?;
         }
 
         tx.commit()?;

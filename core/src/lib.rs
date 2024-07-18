@@ -11,6 +11,7 @@ pub mod time;
 pub mod video;
 pub mod visual;
 
+pub use people::model::FaceId;
 pub use photo::model::PictureId;
 pub use time::Year;
 pub use time::YearMonth;

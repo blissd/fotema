@@ -10,14 +10,22 @@ use relm4::actions::{AccelsPlus, ActionablePlus, RelmAction, RelmActionGroup};
 use crate::fl;
 use fotema_core::people;
 use fotema_core::PictureId;
+use fotema_core::FaceId;
 
 use tracing::{debug, error, info};
 
 
 relm4::new_action_group!(FaceActionGroup, "face");
 
-relm4::new_stateless_action!(FaceSetNameAction, FaceActionGroup, "set_name");
+/// Associate face with a person.
+relm4::new_stateless_action!(FaceSetPersonAction, FaceActionGroup, "set_person");
+
+/// Disassociate a face from a person.
+relm4::new_stateless_action!(FaceNotPersonAction, FaceActionGroup, "not_person");
+
+/// Mark a face as not being a face.
 relm4::new_stateless_action!(FaceNotFaceAction, FaceActionGroup, "not_a_face");
+
 
 #[derive(Debug)]
 pub enum FaceThumbnailsInput {
@@ -26,6 +34,16 @@ pub enum FaceThumbnailsInput {
 
     // The photo/video page has been hidden so any playing media should stop.
     Hide,
+
+    /// Associate face with a person by name.
+    SetPerson(FaceId),
+
+    /// Disassociate face from person.
+    NotPerson(FaceId),
+
+    /// Mark that a face isn't actually a face.
+    NotFace(FaceId),
+
 }
 
 #[derive(Debug)]
@@ -75,7 +93,7 @@ impl SimpleAsyncComponent for FaceThumbnails {
         AsyncComponentParts { model, widgets }
     }
 
-    async fn update(&mut self, msg: Self::Input, _sender: AsyncComponentSender<Self>) {
+    async fn update(&mut self, msg: Self::Input, sender: AsyncComponentSender<Self>) {
         match msg {
             FaceThumbnailsInput::Hide => {
                 self.face_thumbnails.remove_all();
@@ -101,30 +119,38 @@ impl SimpleAsyncComponent for FaceThumbnails {
                             let menu_model = gio::Menu::new();
 
                             let menu_items = if let Some(person) = person {
+                                let not_person: RelmAction<FaceNotPersonAction> = {
+                                    let sender = sender.clone();
+                                    RelmAction::new_stateless(move |_| {
+                                        sender.input(FaceThumbnailsInput::NotPerson(face.face_id));
+                                    })
+                                };
+                                group.add_action(not_person);
+
                                 vec![
                                     gio::MenuItem::new(Some(&fl!("people-view-more-photos", name = person.name)), None),
-                                    gio::MenuItem::new(Some(&fl!("people-set-key-face")), None),
+                                    gio::MenuItem::new(Some(&fl!("people-set-key-face")), Some("face.not_person")),
                                     gio::MenuItem::new(Some(&fl!("people-not-this-person")), None),
                                 ]
                             } else {
-                                let set_name: RelmAction<FaceSetNameAction> = {
+                                let set_person: RelmAction<FaceSetPersonAction> = {
+                                    let sender = sender.clone();
                                     RelmAction::new_stateless(move |_| {
-                                        println!("face set name! {}", face.face_id);
-                                       // sender.input(Msg::Increment);
+                                        sender.input(FaceThumbnailsInput::SetPerson(face.face_id));
                                     })
                                 };
-                                group.add_action(set_name);
+                                group.add_action(set_person);
 
                                 let not_a_face: RelmAction<FaceNotFaceAction> = {
+                                    let sender = sender.clone();
                                     RelmAction::new_stateless(move |_| {
-                                        println!("not a face! {}", face.face_id);
-                                       // sender.input(Msg::Increment);
+                                        sender.input(FaceThumbnailsInput::NotFace(face.face_id));
                                     })
                                 };
                                 group.add_action(not_a_face);
 
                                 vec![
-                                    gio::MenuItem::new(Some(&fl!("people-set-name")), Some("face.set_name")),
+                                    gio::MenuItem::new(Some(&fl!("people-set-name")), Some("face.set_person")),
                                     gio::MenuItem::new(Some(&fl!("people-not-a-face")), Some("face.not_a_face")),
                                 ]
                             };
@@ -163,6 +189,18 @@ impl SimpleAsyncComponent for FaceThumbnails {
 
                             self.face_thumbnails.append(&frame);
                         });
+                }
+            },
+            FaceThumbnailsInput::SetPerson(face_id) => {
+                println!("set person for face {}", face_id);
+            },
+            FaceThumbnailsInput::NotPerson(face_id) => {
+                println!("set not person for face {}", face_id);
+            },
+            FaceThumbnailsInput::NotFace(face_id) => {
+                println!("not a face! {}", face_id);
+                if let Err(e) = self.people_repo.mark_not_a_face(face_id) {
+                    error!("Failed marking face as not a face: {}", e);
                 }
             },
         }
