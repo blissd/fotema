@@ -2,11 +2,12 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use relm4::gtk::{self, prelude::*};
-use relm4::gtk::gio;
+use relm4::adw::{self, prelude::*};
+use relm4::gtk::{self, gio};
 use relm4::*;
 use relm4::prelude::*;
-use relm4::actions::{AccelsPlus, ActionablePlus, RelmAction, RelmActionGroup};
+use relm4::actions::{RelmAction, RelmActionGroup};
+
 use crate::fl;
 use fotema_core::people;
 use fotema_core::PictureId;
@@ -14,16 +15,18 @@ use fotema_core::FaceId;
 
 use tracing::{debug, error, info};
 
+use std::path::PathBuf;
+
 
 relm4::new_action_group!(FaceActionGroup, "face");
 
-/// Associate face with a person.
+// Associate face with a person.
 relm4::new_stateless_action!(FaceSetPersonAction, FaceActionGroup, "set_person");
 
-/// Disassociate a face from a person.
+// Disassociate a face from a person.
 relm4::new_stateless_action!(FaceNotPersonAction, FaceActionGroup, "not_person");
 
-/// Mark a face as not being a face.
+// Mark a face as not being a face.
 relm4::new_stateless_action!(FaceNotFaceAction, FaceActionGroup, "not_a_face");
 
 
@@ -36,7 +39,7 @@ pub enum FaceThumbnailsInput {
     Hide,
 
     /// Associate face with a person by name.
-    SetPerson(FaceId),
+    SetPerson(FaceId, PathBuf),
 
     /// Disassociate face from person.
     NotPerson(FaceId),
@@ -55,6 +58,9 @@ pub struct FaceThumbnails {
     people_repo: people::Repository,
 
     face_thumbnails: gtk::Box,
+
+    person_dialog: adw::Dialog,
+    person_dialog_thumbnail: gtk::Picture,
 }
 
 #[relm4::component(pub async)]
@@ -79,15 +85,29 @@ impl SimpleAsyncComponent for FaceThumbnails {
 
         let widgets = view_output!();
 
-/*
-        let face_thumbnails = gtk::Box::builder()
-            .orientation(gtk::Orientation::Horizontal)
-            .spacing(8)
+        let person_dialog_thumbnail = gtk::Picture::builder()
+            .width_request(100)
+            .height_request(100)
+            .content_fit(gtk::ContentFit::Fill)
             .build();
-*/
+        person_dialog_thumbnail.add_css_class("face-small");
+
+        let dialog_items = gtk::Box::builder()
+            .orientation(gtk::Orientation::Vertical)
+            .build();
+
+        dialog_items.append(&person_dialog_thumbnail);
+
+        let person_dialog = adw::Dialog::builder()
+            .child(&dialog_items)
+            .build();
+
         let model = Self {
             people_repo,
             face_thumbnails: widgets.face_thumbnails.clone(),
+            person_dialog,
+            person_dialog_thumbnail,
+
         };
 
         AsyncComponentParts { model, widgets }
@@ -135,8 +155,9 @@ impl SimpleAsyncComponent for FaceThumbnails {
                             } else {
                                 let set_person: RelmAction<FaceSetPersonAction> = {
                                     let sender = sender.clone();
+                                    let thumbnail_path = face.thumbnail_path.clone();
                                     RelmAction::new_stateless(move |_| {
-                                        sender.input(FaceThumbnailsInput::SetPerson(face.face_id));
+                                        sender.input(FaceThumbnailsInput::SetPerson(face.face_id, thumbnail_path.clone()));
                                     })
                                 };
                                 group.add_action(set_person);
@@ -191,8 +212,14 @@ impl SimpleAsyncComponent for FaceThumbnails {
                         });
                 }
             },
-            FaceThumbnailsInput::SetPerson(face_id) => {
+            FaceThumbnailsInput::SetPerson(face_id, thumbnail) => {
                 println!("set person for face {}", face_id);
+                if let Some(root) = gtk::Widget::root(self.face_thumbnails.widget_ref()) {
+                    self.person_dialog_thumbnail.set_filename(Some(thumbnail));
+                    self.person_dialog.present(&root);
+                } else {
+                    error!("Couldn't get root widget!");
+                }
             },
             FaceThumbnailsInput::NotPerson(face_id) => {
                 println!("set not person for face {}", face_id);
