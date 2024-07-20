@@ -3,7 +3,7 @@ SPDX-FileCopyrightText: © 2024 David Bliss
 
 SPDX-License-Identifier: GFDL-1.3-or-later
 -->
-[![Available on Flathub](https://img.shields.io/flathub/downloads/app.fotema.Fotema?logo=flathub&labelColor=77767b&color=4a90d9)](https://flathub.org/apps/dev.bragefuglseth.Keypunch)
+[![Available on Flathub](https://img.shields.io/flathub/downloads/app.fotema.Fotema?logo=flathub&labelColor=77767b&color=4a90d9)](https://flathub.org/apps/app.fotema.Fotema)
 [![Translation status](https://hosted.weblate.org/widget/fotema/app/svg-badge.svg)](https://hosted.weblate.org/engage/fotema/)
 [![Please do not theme this app](https://stopthemingmy.app/badge.svg)](https://stopthemingmy.app)
 
