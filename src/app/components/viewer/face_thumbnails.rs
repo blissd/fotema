@@ -138,6 +138,8 @@ impl SimpleAsyncComponent for FaceThumbnails {
 
                             let menu_model = gio::Menu::new();
 
+                            let is_known_person = person.is_some();
+
                             let menu_items = if let Some(person) = person {
                                 let not_person: RelmAction<FaceNotPersonAction> = {
                                     let sender = sender.clone();
@@ -194,8 +196,39 @@ impl SimpleAsyncComponent for FaceThumbnails {
                             children.append(&pop);
 
                             let frame = gtk::Frame::new(None);
-                            frame.set_child(Some(&children));
                             frame.add_css_class("face-small");
+                            frame.set_child(Some(&children));
+
+                            let frame = if !is_known_person {
+
+                                let overlay = gtk::Overlay::builder()
+                                    .child(&frame)
+                                    .build();
+
+                                let label = gtk::Label::builder()
+                                    .label("?")
+                                    .css_classes(["face-thumbnail-label-text"])
+                                    .build();
+
+                                let label_frame = gtk::Frame::builder()
+                                    .halign(gtk::Align::End)
+                                    .valign(gtk::Align::End)
+                                    .css_classes(["face-thumbnail-label-frame"])
+                                    .child(&label)
+                                    .build();
+
+                                //label_frame.set_margin_all(4);
+
+                                overlay.add_overlay(&label_frame);
+
+                                let frame = gtk::Frame::new(None);
+                                frame.set_child(Some(&overlay));
+                                frame.add_css_class("face-thumbnail-overlay");
+                                frame
+                            } else {
+                                frame
+                            };
+
                             group.register_for_widget(&frame);
 
                             let click = gtk::GestureClick::new();

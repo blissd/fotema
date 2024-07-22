@@ -98,3 +98,17 @@
   border-radius: 50%;
 }
 
+.face-thumbnail-label-frame {
+  background-color: rgba(255, 140, 0, 1);
+  //border-radius: 50%;
+}
+
+.face-thumbnail-label-text {
+  color: rgba(255,255,255,0.8);
+  font-weight: bold;
+  font-size: 12px;
+}
+
+.face-thumbnail-overlay {
+  border-color: rgba(0,0,0,0);
+}
