@@ -20,7 +20,7 @@ gio = "0.19.5"
 glycin = "1.0.2"
 gtk = "0.18.1"
 h3o = "0.6.4"
-image = "0.25.0"
+image = "0.25.2"
 kamadak-exif = "0.5.5"
 rayon = "1.10.0"
 refinery = { version = "0.8.14", features = ["rusqlite"] }
