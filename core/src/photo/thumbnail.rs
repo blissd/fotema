@@ -6,10 +6,10 @@ use crate::photo::model::PictureId;
 use anyhow::*;
 
 use image::codecs::png::PngEncoder;
-use image::io::Reader as ImageReader;
 use image::DynamicImage;
 use image::ExtendedColorType;
 use image::ImageEncoder;
+use image::ImageReader;
 
 use fast_image_resize as fr;
 use fr::images::Image;
