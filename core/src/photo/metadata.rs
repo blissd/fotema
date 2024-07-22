@@ -90,14 +90,19 @@ fn from_exif(exif_data: Exif) -> Result<Metadata> {
         let date_time_field = date_time_field?;
 
         let mut date_time = match date_time_field.value {
-            exif::Value::Ascii(ref vec) => exif::DateTime::from_ascii(&vec[0]).ok(),
+            exif::Value::Ascii(ref vec) if !vec.is_empty() => {
+                exif::DateTime::from_ascii(&vec[0]).ok()
+            }
             _ => None,
         }?;
 
         if let Some(field) = time_offset_field {
-            if let exif::Value::Ascii(ref vec) = field.value {
-                let _ = date_time.parse_offset(&vec[0]);
-            }
+            match field.value {
+                exif::Value::Ascii(ref vec) if !vec.is_empty() => {
+                    let _ = date_time.parse_offset(&vec[0]);
+                }
+                _ => {}
+            };
         }
 
         let offset = date_time.offset.unwrap_or(0); // offset in minutes
@@ -225,7 +230,7 @@ fn ios_content_id(exif_data: &Exif) -> Option<String> {
         exif_data.get_field(exif::Tag(exif::Context::Tiff, 0x11), exif::In::PRIMARY)?;
 
     match content_id.value {
-        exif::Value::Ascii(ref vecs) => {
+        exif::Value::Ascii(ref vecs) if !vecs.is_empty() => {
             let mut bytes = Vec::with_capacity(vecs[0].len());
             bytes.extend_from_slice(&vecs[0]);
             String::from_utf8(bytes).ok()
