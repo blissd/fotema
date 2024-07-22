@@ -53,6 +53,14 @@
   </branding>
 
   <releases>
+    <release version="1.9.5" date="2024-07-22">
+      <description>
+        <ul>
+          <li>More robust latitude and longitude processing.</li>
+          <li>Update Turkish translation.</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.9.4" date="2024-07-04">
       <description>
         <ul>
