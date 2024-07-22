@@ -10,6 +10,8 @@ use anyhow::*;
 /// See https://gitlab.gnome.org/GNOME/loupe/-/blob/main/src/metadata/gps.rs
 use h3o::{CellIndex, LatLng, Resolution};
 
+use tracing::debug;
+
 #[derive(Debug, Clone, Copy)]
 pub struct GPSLocation {
     pub latitude: GPSCoord,
@@ -25,6 +27,9 @@ pub struct GPSCoord {
 }
 
 impl GPSCoord {
+    /// Convert to decimal degrees.
+    /// Careful! Might produce an is_nan() value,
+    /// which will break things like SQL not-null constraints.
     pub fn to_f64(&self) -> f64 {
         let sign = if self.sing { 1. } else { -1. };
 
@@ -32,6 +37,15 @@ impl GPSCoord {
         let sec = self.sec.unwrap_or_default();
 
         sign * (self.deg + min / 60. + sec / 60. / 60.)
+    }
+
+    pub fn to_f64_safe(&self) -> Option<f64> {
+        let decimal = self.to_f64();
+        if decimal == 0.0 || (decimal.is_normal() && !decimal.is_subnormal()) {
+            return Some(decimal);
+        } else {
+            return None;
+        }
     }
 
     fn latitude_sign(reference: &[Vec<u8>]) -> Option<bool> {
@@ -86,19 +100,39 @@ impl GPSLocation {
         let (lon_deg, lon_min, lon_sec) = GPSCoord::position_exif(longitude)?;
         let lon_sign = GPSCoord::longitude_sign(longitude_ref)?;
 
+        let latitude = GPSCoord {
+            sing: lat_sign,
+            deg: lat_deg,
+            min: lat_min,
+            sec: lat_sec,
+        };
+
+        let longitude = GPSCoord {
+            sing: lon_sign,
+            deg: lon_deg,
+            min: lon_min,
+            sec: lon_sec,
+        };
+
+        if latitude.to_f64_safe().is_none() {
+            debug!(
+                "Latitude {:?} cannot be converted to a useable f64, so skipping.",
+                latitude
+            );
+            return None;
+        }
+
+        if longitude.to_f64_safe().is_none() {
+            debug!(
+                "Longitude {:?} cannot be converted to a useable f64, so skipping",
+                longitude
+            );
+            return None;
+        }
+
         Some(Self {
-            latitude: GPSCoord {
-                sing: lat_sign,
-                deg: lat_deg,
-                min: lat_min,
-                sec: lat_sec,
-            },
-            longitude: GPSCoord {
-                sing: lon_sign,
-                deg: lon_deg,
-                min: lon_min,
-                sec: lon_sec,
-            },
+            latitude,
+            longitude,
         })
     }
 

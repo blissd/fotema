@@ -95,11 +95,14 @@ impl Repository {
                 ])?;
 
                 if let Some(location) = metadata.location {
-                    update_geo.execute(params![
-                        picture_id.id(),
-                        location.latitude.to_f64(),
-                        location.longitude.to_f64()
-                    ])?;
+                    // Belts and braces.
+                    // SQLite will treat a "nan" (not-a-number) as a null and cause
+                    // the not-null constraint to be violated.
+                    let latitude = location.latitude.to_f64_safe();
+                    let longitude = location.longitude.to_f64_safe();
+                    if latitude.is_some() && longitude.is_some() {
+                        update_geo.execute(params![picture_id.id(), latitude, longitude,])?;
+                    }
                 }
             }
         }
