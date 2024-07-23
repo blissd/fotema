@@ -53,6 +53,13 @@
   </branding>
 
   <releases>
+    <release version="1.9.6" date="2024-07-23">
+      <description>
+        <ul>
+          <li>Fix panic when parsing some photo EXIF metadata.</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.9.5" date="2024-07-22">
       <description>
         <ul>
