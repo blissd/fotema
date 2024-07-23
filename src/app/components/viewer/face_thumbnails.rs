@@ -205,7 +205,7 @@ impl SimpleAsyncComponent for FaceThumbnails {
                                     .child(&frame)
                                     .build();
 
-                                let label = gtk::Image::builder()
+                                let face_icon = gtk::Image::builder()
                                     .width_request(16)
                                     .height_request(16)
                                     .icon_name("reaction-add-symbolic")
@@ -215,10 +215,8 @@ impl SimpleAsyncComponent for FaceThumbnails {
                                     .halign(gtk::Align::End)
                                     .valign(gtk::Align::End)
                                     .css_classes(["face-thumbnail-label-frame"])
-                                    .child(&label)
+                                    .child(&face_icon)
                                     .build();
-
-                                //label_frame.set_margin_all(4);
 
                                 overlay.add_overlay(&label_frame);
 
