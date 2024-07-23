@@ -79,7 +79,7 @@ impl SimpleAsyncComponent for PersonSelect {
             .build();
 
         let face_name = gtk::Entry::builder()
-            .placeholder_text(fl!("people-person-name", "placeholder"))
+            .placeholder_text(fl!("people-person-search", "placeholder"))
             .primary_icon_name("reaction-add-symbolic")
             .build();
 
@@ -117,6 +117,7 @@ impl SimpleAsyncComponent for PersonSelect {
                 println!("set person for face {}", face_id);
 
                 {
+                    let sender = sender.clone();
                     let thumbnail = thumbnail.clone();
                     self.face_name.connect_activate(move |_| {
                         println!("Activated");
@@ -135,6 +136,9 @@ impl SimpleAsyncComponent for PersonSelect {
                         .size(50)
                         .build();
 
+                    let img = gdk::Texture::from_filename(&person.thumbnail_path).ok();
+                    avatar.set_custom_image(img.as_ref());
+
                     let label = gtk::Label::new(Some(&person.name));
 
                     let row_box = gtk::Box::builder()
@@ -148,6 +152,13 @@ impl SimpleAsyncComponent for PersonSelect {
                         .child(&row_box)
                         .activatable(true)
                         .build();
+
+                    {
+                        let sender = sender.clone();
+                        row.connect_activate(move |_| {
+                            sender.input(PersonSelectInput::Associate(face_id, person.person_id));
+                        });
+                    }
 
                     self.people.append(&row);
                 }

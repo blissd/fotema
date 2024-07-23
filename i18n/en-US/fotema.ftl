@@ -188,8 +188,9 @@ people-set-key-face = Use as thumbnail
 # Menu item to mark associate a face with a person.
 people-set-name = Set name
 
-# Placeholder text for setting a face name to create a new person
-people-person-name =
+# Placeholder text for text entry bar used to name a new person or
+# search for an existing person.
+people-person-search =
         .placeholder = Person name
 
 # Menu item to mark a an incorrectly matched face that is in fact

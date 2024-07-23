@@ -134,7 +134,7 @@ impl SimpleAsyncComponent for FaceThumbnails {
 
                             let is_known_person = person.is_some();
 
-                            let menu_items = if let Some(person) = person {
+                            let (menu_items, thumbnail) = if let Some(person) = person {
                                 let not_person: RelmAction<FaceNotPersonAction> = {
                                     let sender = sender.clone();
                                     RelmAction::new_stateless(move |_| {
@@ -143,11 +143,15 @@ impl SimpleAsyncComponent for FaceThumbnails {
                                 };
                                 group.add_action(not_person);
 
-                                vec![
+                                let menu_items = vec![
                                     gio::MenuItem::new(Some(&fl!("people-view-more-photos", name = person.name.clone())), None),
                                     gio::MenuItem::new(Some(&fl!("people-set-key-face")), Some("face.not_person")),
                                     gio::MenuItem::new(Some(&fl!("people-not-this-person", name = person.name.clone())), None),
-                                ]
+                                ];
+
+                                let thumbnail = gtk::Picture::for_filename(&person.thumbnail_path);
+
+                                (menu_items, thumbnail)
                             } else {
                                 let set_person: RelmAction<FaceSetPersonAction> = {
                                     let sender = sender.clone();
@@ -166,10 +170,14 @@ impl SimpleAsyncComponent for FaceThumbnails {
                                 };
                                 group.add_action(not_a_face);
 
-                                vec![
+                                let menu_items = vec![
                                     gio::MenuItem::new(Some(&fl!("people-set-name")), Some("face.set_person")),
                                     gio::MenuItem::new(Some(&fl!("people-not-a-face")), Some("face.not_a_face")),
-                                ]
+                                ];
+
+                                let thumbnail = gtk::Picture::for_filename(&face.thumbnail_path);
+
+                                (menu_items, thumbnail)
                             };
 
                             for item in menu_items {
@@ -180,7 +188,6 @@ impl SimpleAsyncComponent for FaceThumbnails {
                                 .menu_model(&menu_model)
                                 .build();
 
-                            let thumbnail = gtk::Picture::for_filename(&face.thumbnail_path);
                             thumbnail.set_content_fit(gtk::ContentFit::ScaleDown);
                             thumbnail.set_width_request(50);
                             thumbnail.set_height_request(50);
