@@ -205,9 +205,10 @@ impl SimpleAsyncComponent for FaceThumbnails {
                                     .child(&frame)
                                     .build();
 
-                                let label = gtk::Label::builder()
-                                    .label("?")
-                                    .css_classes(["face-thumbnail-label-text"])
+                                let label = gtk::Image::builder()
+                                    .width_request(16)
+                                    .height_request(16)
+                                    .icon_name("reaction-add-symbolic")
                                     .build();
 
                                 let label_frame = gtk::Frame::builder()

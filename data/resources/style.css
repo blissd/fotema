@@ -99,8 +99,8 @@
 }
 
 .face-thumbnail-label-frame {
-  background-color: rgba(255, 140, 0, 1);
-  //border-radius: 50%;
+  background-color: white;
+  color: black;
 }
 
 .face-thumbnail-label-text {

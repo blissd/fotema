@@ -143,9 +143,9 @@ impl FaceExtractor {
             base_path,
             blaze_face_640_model,
             blaze_face_320_model,
-            is_blaze_face_enabled: false,
+            is_blaze_face_enabled: true,
             mtcnn_model,
-            is_mtcnn_enabled: true,
+            is_mtcnn_enabled: false,
         })
     }
 
@@ -168,7 +168,7 @@ impl FaceExtractor {
                     faces.push((f, "blaze_face_640".into()));
                 }
             } else {
-                error!("Failed extracting faces with back model: {:?}", result);
+                error!("Failed extracting faces with blaze_face_640: {:?}", result);
             }
 
             let result = self.blaze_face_320_model.detect(image.view().into_dyn());
@@ -192,7 +192,7 @@ impl FaceExtractor {
                     faces.push((f, "blaze_face_320".into()));
                 }
             } else {
-                error!("Failed extracting faces with front model: {:?}", result);
+                error!("Failed extracting faces with blaze_face_320: {:?}", result);
             }
         }
 
