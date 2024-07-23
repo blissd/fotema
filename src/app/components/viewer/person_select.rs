@@ -80,10 +80,10 @@ impl SimpleAsyncComponent for PersonSelect {
 
         let face_name = gtk::Entry::builder()
             .placeholder_text(fl!("people-person-search", "placeholder"))
-            .primary_icon_name("reaction-add-symbolic")
             .build();
 
         let people = gtk::ListBox::builder()
+            .css_classes(["boxed-list"])
             .build();
 
         let widgets = view_output!();
@@ -144,19 +144,11 @@ impl SimpleAsyncComponent for PersonSelect {
                     let img = gdk::Texture::from_filename(&person.thumbnail_path).ok();
                     avatar.set_custom_image(img.as_ref());
 
-                    let label = gtk::Label::new(Some(&person.name));
-
-                    let row_box = gtk::Box::builder()
-                        .orientation(gtk::Orientation::Horizontal)
+                    let row = adw::ActionRow::builder()
+                        .title(person.name)
                         .build();
 
-                    row_box.append(&avatar);
-                    row_box.append(&label);
-
-                    let row = gtk::ListBoxRow::builder()
-                        .child(&row_box)
-                        .activatable(true)
-                        .build();
+                    row.add_prefix(&avatar);
 
                     {
                         let sender = sender.clone();

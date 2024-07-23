@@ -158,7 +158,7 @@ impl SimpleAsyncComponent for FaceThumbnails {
 
                             let is_known_person = person.is_some();
 
-                            let (menu_items, thumbnail) = if let Some(person) = person {
+                            let (menu_items, thumbnail_path) = if let Some(person) = person {
                                 let not_person: RelmAction<FaceNotPersonAction> = {
                                     let sender = sender.clone();
                                     RelmAction::new_stateless(move |_| {
@@ -181,9 +181,7 @@ impl SimpleAsyncComponent for FaceThumbnails {
                                     gio::MenuItem::new(Some(&fl!("people-not-this-person", name = person.name.clone())), Some("face.not_person")),
                                 ];
 
-                                let thumbnail = gtk::Picture::for_filename(&person.thumbnail_path);
-
-                                (menu_items, thumbnail)
+                                (menu_items, person.thumbnail_path)
                             } else {
                                 let set_person: RelmAction<FaceSetPersonAction> = {
                                     let sender = sender.clone();
@@ -207,9 +205,7 @@ impl SimpleAsyncComponent for FaceThumbnails {
                                     gio::MenuItem::new(Some(&fl!("people-not-a-face")), Some("face.not_a_face")),
                                 ];
 
-                                let thumbnail = gtk::Picture::for_filename(&face.thumbnail_path);
-
-                                (menu_items, thumbnail)
+                                (menu_items, face.thumbnail_path)
                             };
 
                             for item in menu_items {
@@ -220,6 +216,7 @@ impl SimpleAsyncComponent for FaceThumbnails {
                                 .menu_model(&menu_model)
                                 .build();
 
+                            let thumbnail = gtk::Picture::for_filename(&thumbnail_path);
                             thumbnail.set_content_fit(gtk::ContentFit::ScaleDown);
                             thumbnail.set_width_request(50);
                             thumbnail.set_height_request(50);
