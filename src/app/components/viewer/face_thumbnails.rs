@@ -14,7 +14,7 @@ use fotema_core::PictureId;
 use fotema_core::FaceId;
 use fotema_core::PersonId;
 
-use super::person_select::{PersonSelect, PersonSelectInput};
+use super::person_select::{PersonSelect, PersonSelectInput, PersonSelectOutput};
 
 use tracing::{debug, error, info};
 
@@ -37,10 +37,13 @@ relm4::new_stateless_action!(FaceThumbnailAction, FaceActionGroup, "thumbnail");
 
 #[derive(Debug)]
 pub enum FaceThumbnailsInput {
-    // View an item.
+    /// View an item.
     View(PictureId),
 
-    // The photo/video page has been hidden so any playing media should stop.
+    /// Reload face and person data for current picture
+    Refresh,
+
+    /// The photo/video page has been hidden so any playing media should stop.
     Hide,
 
     /// Associate face with a person by name.
@@ -65,6 +68,8 @@ pub enum FaceThumbnailsOutput {
 pub struct FaceThumbnails {
     people_repo: people::Repository,
 
+    picture_id: Option<PictureId>,
+
     face_thumbnails: gtk::Box,
 
     person_dialog: adw::Dialog,
@@ -88,14 +93,16 @@ impl SimpleAsyncComponent for FaceThumbnails {
     async fn init(
         people_repo: Self::Init,
         root: Self::Root,
-        _sender: AsyncComponentSender<Self>,
+        sender: AsyncComponentSender<Self>,
     ) -> AsyncComponentParts<Self>  {
 
         let widgets = view_output!();
 
         let person_select = PersonSelect::builder()
             .launch(people_repo.clone())
-            .detach();
+            .forward(sender.input_sender(), |msg| match msg {
+                PersonSelectOutput::Done => FaceThumbnailsInput::Refresh,
+            });
 
         let person_dialog = adw::Dialog::builder()
             .child(person_select.widget())
@@ -103,6 +110,7 @@ impl SimpleAsyncComponent for FaceThumbnails {
             .build();
 
         let model = Self {
+            picture_id: None,
             people_repo,
             face_thumbnails: widgets.face_thumbnails.clone(),
             person_dialog,
@@ -119,9 +127,19 @@ impl SimpleAsyncComponent for FaceThumbnails {
                 self.face_thumbnails.remove_all();
             },
             FaceThumbnailsInput::View(picture_id) => {
-                info!("Showing faces for {}", picture_id);
+                self.picture_id = Some(picture_id);
+                sender.input(FaceThumbnailsInput::Refresh);
+            },
+            FaceThumbnailsInput::Refresh => {
 
                 self.face_thumbnails.remove_all();
+                self.person_dialog.close();
+
+                let Some(picture_id) = self.picture_id else {
+                    return;
+                };
+
+                info!("Showing faces for {}", picture_id);
 
                 let result = self.people_repo.find_faces(&picture_id);
                 if let Err(e) = result {
@@ -260,31 +278,36 @@ impl SimpleAsyncComponent for FaceThumbnails {
                 }
             },
             FaceThumbnailsInput::SetPerson(face_id, thumbnail) => {
-                println!("Set person for face {}", face_id);
+                debug!("Set person for face {}", face_id);
                 if let Some(root) = gtk::Widget::root(self.face_thumbnails.widget_ref()) {
+
                     self.person_select.emit(PersonSelectInput::Activate(face_id, thumbnail));
                     self.person_dialog.present(&root);
                 } else {
                     error!("Couldn't get root widget!");
                 }
+                //sender.input(FaceThumbnailsInput::Refresh);
             },
             FaceThumbnailsInput::SetThumbnail(person_id, thumbnail) => {
-                println!("Set thumbnail for face {}", person_id);
+                debug!("Set thumbnail for face {}", person_id);
                 if let Err(e) = self.people_repo.set_person_thumbnail(person_id, &thumbnail) {
                     error!("Failed setting thumbnail: {}", e);
                 }
+                sender.input(FaceThumbnailsInput::Refresh);
             },
             FaceThumbnailsInput::NotPerson(face_id) => {
-                println!("Set not person for face: {}", face_id);
+                debug!("Set not person for face: {}", face_id);
                 if let Err(e) = self.people_repo.mark_not_person(face_id) {
                     error!("Failed marking face as not person: {}", e);
                 }
+                sender.input(FaceThumbnailsInput::Refresh);
             },
             FaceThumbnailsInput::NotFace(face_id) => {
-                println!("Set not a face: {}", face_id);
+                debug!("Set not a face: {}", face_id);
                 if let Err(e) = self.people_repo.mark_not_a_face(face_id) {
                     error!("Failed marking face as not a face: {}", e);
                 }
+                sender.input(FaceThumbnailsInput::Refresh);
             },
         }
     }

@@ -105,6 +105,7 @@ impl SimpleAsyncComponent for PersonSelect {
                 if let Err(e) = self.people_repo.mark_as_person(face_id, person_id) {
                     error!("Failed associating face with person: {:?}", e);
                 }
+                let _ = sender.output(PersonSelectOutput::Done);
             },
             PersonSelectInput::NewPerson(face_id, thumbnail) => {
                 debug!("Face {} is a new person", face_id);
@@ -112,15 +113,16 @@ impl SimpleAsyncComponent for PersonSelect {
                 if let Err(e) = self.people_repo.add_person(face_id, &thumbnail, &name) {
                     error!("Failed adding new person: {:?}", e);
                 }
+                let _ = sender.output(PersonSelectOutput::Done);
             },
             PersonSelectInput::Activate(face_id, thumbnail) => {
-                println!("set person for face {}", face_id);
+                debug!("Set person for face {}", face_id);
 
                 {
                     let sender = sender.clone();
                     let thumbnail = thumbnail.clone();
                     self.face_name.connect_activate(move |_| {
-                        println!("Activated");
+                        debug!("Activated");
                         sender.input(PersonSelectInput::NewPerson(face_id, thumbnail.clone()));
                     });
                 }
@@ -132,6 +134,7 @@ impl SimpleAsyncComponent for PersonSelect {
                 self.face_name.set_text("");
 
                 let people = self.people_repo.all_people().unwrap_or(vec![]);
+
                 for person in people {
                     let avatar = adw::Avatar::builder()
                         .size(50)
