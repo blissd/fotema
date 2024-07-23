@@ -179,7 +179,7 @@ infobar-dimensions = Dimensions
 # Menu item to view more photos of a person.
 # Variables:
 #   $name - name of person
-people-view-more-photos = View album for {$name}
+people-view-more-photos = View album for { $name }
 
 # Menu item to mark a face as the most import face for a person
 # and to use it as a thumbnail
@@ -188,6 +188,10 @@ people-set-key-face = Use as thumbnail
 # Menu item to mark associate a face with a person.
 people-set-name = Set name
 
+# Placeholder text for setting a face name to create a new person
+people-person-name =
+        .placeholder = Person name
+
 # Menu item to mark a an incorrectly matched face that is in fact
 # some other artefact in the photo
 people-not-a-face = Not a face
@@ -195,7 +199,7 @@ people-not-a-face = Not a face
 # Menu item to dis-associate a face with a person.
 # Variables:
 #   $name - name of person
-people-not-this-person = Not {$name}
+people-not-this-person = Not { $name }
 
 ## Preferences
 

@@ -285,7 +285,7 @@ impl Repository {
         let tx = con.transaction()?;
 
         {
-            let mut stmt = tx.prepare_cached(
+            let mut insert_person = tx.prepare_cached(
                 "INSERT INTO people (
                     thumbnail_path,
                     name
@@ -295,7 +295,19 @@ impl Repository {
                 ",
             )?;
 
-            stmt.execute(params![thumbnail.to_string_lossy(), name])?;
+            let thumbnail = thumbnail.strip_prefix(&self.cache_dir_base_path)?;
+
+            insert_person.execute(params![thumbnail.to_string_lossy(), name])?;
+            let person_id = tx.last_insert_rowid();
+
+            let mut update_face = tx.prepare_cached(
+                "UPDATE pictures_faces
+                SET
+                    person_id = ?2
+                WHERE face_id = ?1",
+            )?;
+
+            update_face.execute(params![face_id.id(), person_id,])?;
         }
 
         tx.commit()?;

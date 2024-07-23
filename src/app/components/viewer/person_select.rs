@@ -25,7 +25,7 @@ pub enum PersonSelectInput {
     Activate(FaceId, PathBuf),
 
     /// Create a new person to associate with a face.
-    NewPerson(FaceId, PathBuf, String),
+    NewPerson(FaceId, PathBuf),
 
     /// Associate a face with a person.
     Associate(FaceId, PersonId),
@@ -79,7 +79,7 @@ impl SimpleAsyncComponent for PersonSelect {
             .build();
 
         let face_name = gtk::Entry::builder()
-            .placeholder_text("Person name")
+            .placeholder_text(fl!("people-person-name", "placeholder"))
             .primary_icon_name("reaction-add-symbolic")
             .build();
 
@@ -106,14 +106,23 @@ impl SimpleAsyncComponent for PersonSelect {
                     error!("Failed associating face with person: {:?}", e);
                 }
             },
-            PersonSelectInput::NewPerson(face_id, thumbnail, name) => {
+            PersonSelectInput::NewPerson(face_id, thumbnail) => {
                 debug!("Face {} is a new person", face_id);
+                let name = self.face_name.text().to_string();
                 if let Err(e) = self.people_repo.add_person(face_id, &thumbnail, &name) {
                     error!("Failed adding new person: {:?}", e);
                 }
             },
             PersonSelectInput::Activate(face_id, thumbnail) => {
                 println!("set person for face {}", face_id);
+
+                {
+                    let thumbnail = thumbnail.clone();
+                    self.face_name.connect_activate(move |_| {
+                        println!("Activated");
+                        sender.input(PersonSelectInput::NewPerson(face_id, thumbnail.clone()));
+                    });
+                }
 
                 let img = gdk::Texture::from_filename(&thumbnail).ok();
                 self.face_thumbnail.set_custom_image(img.as_ref());
