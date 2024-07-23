@@ -354,7 +354,7 @@ impl SimpleComponent for App {
                                             container_add: model.people_page.widget(),
                                         } -> {
                                             set_title: &fl!("people-page"),
-                                            set_name: ViewName::Places.into(),
+                                            set_name: ViewName::People.into(),
                                         },
 
                                         add_child = &gtk::Box {
@@ -491,7 +491,7 @@ impl SimpleComponent for App {
             .detach();
 
         let view_nav = ViewNav::builder()
-            .launch((state.clone(), transcode_progress_monitor.clone(), adaptive_layout.clone(), people_repo))
+            .launch((state.clone(), transcode_progress_monitor.clone(), adaptive_layout.clone(), people_repo.clone()))
             .forward(sender.input_sender(), |msg| match msg {
                 ViewNavOutput::TranscodeAll => AppMsg::TranscodeAll,
             });
@@ -526,7 +526,7 @@ impl SimpleComponent for App {
         adaptive_layout.subscribe(videos_page.sender(), |layout| AlbumInput::Adapt(*layout));
 
         let people_page = PeopleAlbum::builder()
-            .launch((state.clone(), active_view.clone()))
+            .launch((people_repo.clone(), active_view.clone()))
             .forward(
             sender.input_sender(),
             |msg| match msg {

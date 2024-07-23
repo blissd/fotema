@@ -5,6 +5,8 @@
 use gtk::prelude::OrientableExt;
 
 use fotema_core::visual::model::PictureOrientation;
+use fotema_core::people;
+
 use strum::IntoEnumIterator;
 
 use itertools::Itertools;
@@ -32,20 +34,20 @@ const WIDE_EDGE_LENGTH: i32 = 200;
 
 #[derive(Debug)]
 struct PhotoGridItem {
-    folder_name: String,
 
-    // Folder album cover
-    picture: Arc<fotema_core::visual::Visual>,
+    /// Person for avatar
+    person: people::Person,
 
     // Length of thumbnail edge to allow for resizing when layout changes.
     edge_length: I32Binding,
 }
 
 struct Widgets {
-    picture: gtk::Picture,
+    avatar: adw::Avatar,
+
     label: gtk::Label,
 
-    // If the gtk::Picture has been bound to edge_length.
+    // If the avatar has been bound to edge_length.
     is_bound: bool,
 }
 #[derive(Debug)]
@@ -53,7 +55,7 @@ pub enum PeopleAlbumInput {
     Activate,
 
     // Reload photos from database
-    Refresh,
+    //Refresh,
 
     Selected(u32), // Index into photo grid vector
 
@@ -80,15 +82,11 @@ impl RelmGridItem for PhotoGridItem {
         relm4::view! {
            my_box = gtk::Box {
                 set_orientation: gtk::Orientation::Vertical,
-                gtk::AspectFrame {
-                    gtk::Frame {
-                        #[name(picture)]
-                        gtk::Picture {
-                            set_can_shrink: true,
-                            set_width_request: NARROW_EDGE_LENGTH,
-                            set_height_request: NARROW_EDGE_LENGTH,
-                        }
-                    }
+
+                #[name(avatar)]
+                adw::Avatar {
+                    set_size: NARROW_EDGE_LENGTH,
+                    set_show_initials: true,
                 },
 
                 #[name(label)]
@@ -101,7 +99,7 @@ impl RelmGridItem for PhotoGridItem {
         }
 
         let widgets = Widgets {
-            picture,
+            avatar,
             label,
             is_bound: false,
         };
@@ -112,48 +110,32 @@ impl RelmGridItem for PhotoGridItem {
     fn bind(&mut self, widgets: &mut Self::Widgets, _root: &mut Self::Root) {
         widgets
             .label
-            .set_text(&self.folder_name.to_string());
+            .set_text(&self.person.name);
 
         // If we repeatedly bind, then Fotema will die with the following error:
         // (fotema:2): GLib-GObject-CRITICAL **: 13:26:14.297: Too many GWeakRef registered
         // GLib-GObject:ERROR:../gobject/gbinding.c:805:g_binding_constructed: assertion failed: (source != NULL)
         // Bail out! GLib-GObject:ERROR:../gobject/gbinding.c:805:g_binding_constructed: assertion failed: (source != NULL)
         if !widgets.is_bound {
-            widgets.picture.add_write_only_binding(&self.edge_length, "width-request");
-            widgets.picture.add_write_only_binding(&self.edge_length, "height-request");
+            widgets.avatar.add_write_only_binding(&self.edge_length, "size");
             widgets.is_bound = true;
         }
 
-        if self.picture.thumbnail_path.as_ref().is_some_and(|x| x.exists())
-        {
-            widgets
-                .picture
-                .set_filename(self.picture.thumbnail_path.clone());
+        widgets.avatar.set_text(Some(&self.person.name));
 
-            // Add CSS class for orientation
-            let orientation = self.picture.thumbnail_orientation();
-            widgets.picture.add_css_class(orientation.as_ref());
-        } else {
-            let pb = gdk_pixbuf::Pixbuf::from_resource_at_scale(
-                "/app/fotema/Fotema/icons/scalable/actions/image-missing-symbolic.svg",
-                200, 200, true
-            ).unwrap();
-            let img = gdk::Texture::for_pixbuf(&pb);
-            widgets.picture.set_paintable(Some(&img));
+        if self.person.thumbnail_path.exists() {
+            let img = gdk::Texture::from_filename(&self.person.thumbnail_path).ok();
+            widgets.avatar.set_custom_image(img.as_ref());
         }
     }
 
     fn unbind(&mut self, widgets: &mut Self::Widgets, _root: &mut Self::Root) {
-        widgets.picture.set_filename(None::<&path::Path>);
-        // clear orientation transformation css classes
-        for orient in PictureOrientation::iter() {
-            widgets.picture.remove_css_class(orient.as_ref());
-        }
+        widgets.avatar.set_custom_image(None::<&gdk::Paintable>);
     }
 }
 
 pub struct PeopleAlbum {
-    state: SharedState,
+    repo: people::Repository,
     active_view: ActiveView,
     photo_grid: TypedGridView<PhotoGridItem, gtk::SingleSelection>,
     edge_length: I32Binding,
@@ -161,7 +143,7 @@ pub struct PeopleAlbum {
 
 #[relm4::component(pub)]
 impl SimpleComponent for PeopleAlbum {
-    type Init = (SharedState, ActiveView);
+    type Init = (people::Repository, ActiveView);
     type Input = PeopleAlbumInput;
     type Output = PeopleAlbumOutput;
 
@@ -182,14 +164,14 @@ impl SimpleComponent for PeopleAlbum {
     }
 
     fn init(
-        (state, active_view): Self::Init,
+        (repo, active_view): Self::Init,
         _root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
         let photo_grid = TypedGridView::new();
 
         let model = PeopleAlbum {
-            state,
+            repo,
             active_view,
             photo_grid,
             edge_length: I32Binding::new(NARROW_EDGE_LENGTH),
@@ -208,31 +190,19 @@ impl SimpleComponent for PeopleAlbum {
                 info!("No-op received... so doing nothing. As expected :-/");
             },
             PeopleAlbumInput::Activate => {
+                info!("Activating people view");
                 *self.active_view.write() = ViewName::People;
-                if self.photo_grid.is_empty() {
-                    self.refresh();
-                }
-            },
-            PeopleAlbumInput::Refresh => {
-                if *self.active_view.read() == ViewName::People {
-                    info!("Folders view is active so refreshing");
-                    self.refresh();
-
-                    // Work-around to make grid appear.
-                    sender.input(PeopleAlbumInput::Noop);
-                } else {
-                    info!("Folders view is inactive so clearing");
-                    self.photo_grid.clear();
-                }
+                self.refresh();
             },
             PeopleAlbumInput::Selected(index) => {
                 event!(Level::DEBUG, "Person selected index: {}", index);
                 if let Some(item) = self.photo_grid.get_visible(index) {
                     let item = item.borrow();
-                    event!(Level::DEBUG, "Folder selected item: {}", item.folder_name);
-
+                    event!(Level::DEBUG, "Person selected item: {}", item.person.person_id);
+/*
                     let _ = sender
-                        .output(PeopleAlbumOutput::Selected(item.picture.parent_path.clone()));
+                        .output(PeopleAlbumOutput::Selected(item.person.parent_path.clone()));
+                        */
                 }
             },
             PeopleAlbumInput::Adapt(adaptive::Layout::Narrow) => {
@@ -247,31 +217,23 @@ impl SimpleComponent for PeopleAlbum {
 
 impl PeopleAlbum {
     fn refresh(&mut self) {
-        let all = {
-            let data = self.state.read();
-            data.clone()
-                .into_iter()
-                .sorted_by_key(|pic| pic.parent_path.clone())
-                .chunk_by(|pic| pic.parent_path.clone())
-        };
-
-        let mut pictures = Vec::new();
-
-        for (_key, mut group) in &all {
-            let first = group.nth(0).expect("Groups can't be empty");
-            let album = PhotoGridItem {
-                folder_name: first.folder_name().unwrap_or("-".to_string()),
-                picture: first.clone(),
-                edge_length: self.edge_length.clone(),
-            };
-            pictures.push(album);
-        }
-
-        pictures.sort_by_key(|pic| pic.folder_name.clone());
+        let mut people = self.repo.all_people().unwrap_or(vec![]);
+        people.sort_by_key(|p| p.name.clone());
 
         self.photo_grid.clear();
-        self.photo_grid.extend_from_iter(pictures);
 
-        // NOTE folder view is not sorted by a timestamp, so don't scroll to end.
+        let mut items = vec![];
+        for person in people {
+            let item = PhotoGridItem {
+                person,
+                edge_length: self.edge_length.clone(),
+            };
+
+            items.push(item);
+        }
+
+        self.photo_grid.extend_from_iter(items.into_iter());
+
+        // NOTE view is not sorted by a timestamp, so don't scroll to end.
     }
 }
