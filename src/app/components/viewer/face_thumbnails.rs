@@ -12,6 +12,7 @@ use crate::fl;
 use fotema_core::people;
 use fotema_core::PictureId;
 use fotema_core::FaceId;
+use fotema_core::PersonId;
 
 use super::person_select::{PersonSelect, PersonSelectInput};
 
@@ -31,6 +32,8 @@ relm4::new_stateless_action!(FaceNotPersonAction, FaceActionGroup, "not_person")
 // Mark a face as not being a face.
 relm4::new_stateless_action!(FaceNotFaceAction, FaceActionGroup, "not_a_face");
 
+// Associate person with new face thumbnail.
+relm4::new_stateless_action!(FaceThumbnailAction, FaceActionGroup, "thumbnail");
 
 #[derive(Debug)]
 pub enum FaceThumbnailsInput {
@@ -48,6 +51,9 @@ pub enum FaceThumbnailsInput {
 
     /// Mark that a face isn't actually a face.
     NotFace(FaceId),
+
+    /// Set new thumbnail for person
+    SetThumbnail(PersonId, PathBuf),
 
 }
 
@@ -143,10 +149,18 @@ impl SimpleAsyncComponent for FaceThumbnails {
                                 };
                                 group.add_action(not_person);
 
+                                let set_thumbnail: RelmAction<FaceThumbnailAction> = {
+                                    let sender = sender.clone();
+                                    RelmAction::new_stateless(move |_| {
+                                        sender.input(FaceThumbnailsInput::SetThumbnail(person.person_id, face.thumbnail_path.clone()));
+                                    })
+                                };
+                                group.add_action(set_thumbnail);
+
                                 let menu_items = vec![
                                     gio::MenuItem::new(Some(&fl!("people-view-more-photos", name = person.name.clone())), None),
-                                    gio::MenuItem::new(Some(&fl!("people-set-key-face")), Some("face.not_person")),
-                                    gio::MenuItem::new(Some(&fl!("people-not-this-person", name = person.name.clone())), None),
+                                    gio::MenuItem::new(Some(&fl!("people-set-face-thumbnail")), Some("face.thumbnail")),
+                                    gio::MenuItem::new(Some(&fl!("people-not-this-person", name = person.name.clone())), Some("face.not_person")),
                                 ];
 
                                 let thumbnail = gtk::Picture::for_filename(&person.thumbnail_path);
@@ -246,7 +260,7 @@ impl SimpleAsyncComponent for FaceThumbnails {
                 }
             },
             FaceThumbnailsInput::SetPerson(face_id, thumbnail) => {
-                println!("set person for face {}", face_id);
+                println!("Set person for face {}", face_id);
                 if let Some(root) = gtk::Widget::root(self.face_thumbnails.widget_ref()) {
                     self.person_select.emit(PersonSelectInput::Activate(face_id, thumbnail));
                     self.person_dialog.present(&root);
@@ -254,11 +268,20 @@ impl SimpleAsyncComponent for FaceThumbnails {
                     error!("Couldn't get root widget!");
                 }
             },
+            FaceThumbnailsInput::SetThumbnail(person_id, thumbnail) => {
+                println!("Set thumbnail for face {}", person_id);
+                if let Err(e) = self.people_repo.set_person_thumbnail(person_id, &thumbnail) {
+                    error!("Failed setting thumbnail: {}", e);
+                }
+            },
             FaceThumbnailsInput::NotPerson(face_id) => {
-                println!("set not person for face {}", face_id);
+                println!("Set not person for face: {}", face_id);
+                if let Err(e) = self.people_repo.mark_not_person(face_id) {
+                    error!("Failed marking face as not person: {}", e);
+                }
             },
             FaceThumbnailsInput::NotFace(face_id) => {
-                println!("not a face! {}", face_id);
+                println!("Set not a face: {}", face_id);
                 if let Err(e) = self.people_repo.mark_not_a_face(face_id) {
                     error!("Failed marking face as not a face: {}", e);
                 }

@@ -333,6 +333,46 @@ impl Repository {
         Ok(())
     }
 
+    pub fn mark_not_person(&mut self, face_id: FaceId) -> Result<()> {
+        let mut con = self.con.lock().unwrap();
+        let tx = con.transaction()?;
+
+        {
+            let mut stmt = tx.prepare_cached(
+                "UPDATE pictures_faces
+                SET
+                    person_id = null
+                WHERE face_id = ?1",
+            )?;
+
+            stmt.execute(params![face_id.id(),])?;
+        }
+
+        tx.commit()?;
+        Ok(())
+    }
+
+    pub fn set_person_thumbnail(&mut self, person_id: PersonId, thumbnail: &Path) -> Result<()> {
+        let mut con = self.con.lock().unwrap();
+        let tx = con.transaction()?;
+
+        {
+            let mut stmt = tx.prepare_cached(
+                "UPDATE people
+                SET
+                    thumbnail_path = ?2
+                WHERE person_id = ?1",
+            )?;
+
+            let thumbnail = thumbnail.strip_prefix(&self.cache_dir_base_path)?;
+
+            stmt.execute(params![person_id.id(), thumbnail.to_string_lossy(),])?;
+        }
+
+        tx.commit()?;
+        Ok(())
+    }
+
     fn to_picture_id_path_tuple(&self, row: &Row<'_>) -> rusqlite::Result<(PictureId, PathBuf)> {
         let picture_id = row.get("picture_id").map(PictureId::new)?;
 

@@ -186,7 +186,7 @@ people-view-more-photos = View album for { $name }
 
 # Menu item to mark a face as the most import face for a person
 # and to use it as a thumbnail
-people-set-key-face = Use as thumbnail
+people-set-face-thumbnail = Use as thumbnail
 
 # Menu item to mark associate a face with a person.
 people-set-name = Set name
