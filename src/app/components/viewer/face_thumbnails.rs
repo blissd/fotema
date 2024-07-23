@@ -93,6 +93,7 @@ impl SimpleAsyncComponent for FaceThumbnails {
 
         let person_dialog = adw::Dialog::builder()
             .child(person_select.widget())
+            .presentation_mode(adw::DialogPresentationMode::BottomSheet)
             .build();
 
         let model = Self {
@@ -240,7 +241,7 @@ impl SimpleAsyncComponent for FaceThumbnails {
             FaceThumbnailsInput::SetPerson(face_id, thumbnail) => {
                 println!("set person for face {}", face_id);
                 if let Some(root) = gtk::Widget::root(self.face_thumbnails.widget_ref()) {
-                    self.person_select.emit(PersonSelectInput::SetPerson(face_id, thumbnail));
+                    self.person_select.emit(PersonSelectInput::Activate(face_id, thumbnail));
                     self.person_dialog.present(&root);
                 } else {
                     error!("Couldn't get root widget!");

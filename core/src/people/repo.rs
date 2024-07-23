@@ -108,6 +108,45 @@ impl Repository {
         Ok(result)
     }
 
+    pub fn all_people(&self) -> Result<Vec<model::Person>> {
+        let con = self.con.lock().unwrap();
+        let mut stmt = con.prepare(
+            "SELECT
+                people.person_id AS person_id,
+                people.name AS person_name,
+                people.thumbnail_path AS person_thumbnail_path
+            FROM  people
+            ORDER BY name ASC",
+        )?;
+
+        let result: Vec<model::Person> = stmt
+            .query_map([], |row| self.to_person(row))?
+            .flatten()
+            .collect();
+
+        Ok(result)
+    }
+
+    // FIXME probably need a mechanism to undo this in the likely event of user error.
+    pub fn mark_not_a_face(&mut self, face_id: FaceId) -> Result<()> {
+        let mut con = self.con.lock().unwrap();
+        let tx = con.transaction()?;
+
+        {
+            let mut stmt = tx.prepare_cached(
+                "UPDATE pictures_faces
+                SET
+                    is_face = FALSE
+                WHERE face_id = ?1",
+            )?;
+
+            stmt.execute(params![face_id.id(),])?;
+        }
+
+        tx.commit()?;
+        Ok(())
+    }
+
     pub fn mark_face_scan_broken(&mut self, picture_id: &PictureId) -> Result<()> {
         let mut con = self.con.lock().unwrap();
         let tx = con.transaction()?;
@@ -241,8 +280,29 @@ impl Repository {
         Ok(())
     }
 
-    // FIXME probably need a mechanism to undo this in the likely event of user error.
-    pub fn mark_not_a_face(&mut self, face_id: FaceId) -> Result<()> {
+    pub fn add_person(&mut self, face_id: FaceId, thumbnail: &Path, name: &str) -> Result<()> {
+        let mut con = self.con.lock().unwrap();
+        let tx = con.transaction()?;
+
+        {
+            let mut stmt = tx.prepare_cached(
+                "INSERT INTO people (
+                    thumbnail_path,
+                    name
+                ) VALUES (
+                    ?1, ?2
+                )
+                ",
+            )?;
+
+            stmt.execute(params![thumbnail.to_string_lossy(), name])?;
+        }
+
+        tx.commit()?;
+        Ok(())
+    }
+
+    pub fn mark_as_person(&mut self, face_id: FaceId, person_id: PersonId) -> Result<()> {
         let mut con = self.con.lock().unwrap();
         let tx = con.transaction()?;
 
@@ -250,11 +310,11 @@ impl Repository {
             let mut stmt = tx.prepare_cached(
                 "UPDATE pictures_faces
                 SET
-                    is_face = FALSE
+                    person_id = ?2
                 WHERE face_id = ?1",
             )?;
 
-            stmt.execute(params![face_id.id(),])?;
+            stmt.execute(params![face_id.id(), person_id.id(),])?;
         }
 
         tx.commit()?;
@@ -309,5 +369,21 @@ impl Repository {
         };
 
         std::result::Result::Ok((face, person))
+    }
+
+    fn to_person(&self, row: &Row<'_>) -> rusqlite::Result<model::Person> {
+        let person_id = row.get("person_id").map(PersonId::new)?;
+
+        let name = row.get("person_name")?;
+
+        let thumbnail_path = row
+            .get("person_thumbnail_path")
+            .map(|p: String| self.cache_dir_base_path.join(p))?;
+
+        std::result::Result::Ok(model::Person {
+            person_id,
+            name,
+            thumbnail_path,
+        })
     }
 }

@@ -13,6 +13,7 @@ use crate::fl;
 use fotema_core::people;
 use fotema_core::PictureId;
 use fotema_core::FaceId;
+use fotema_core::PersonId;
 
 use tracing::{debug, error, info};
 
@@ -20,18 +21,27 @@ use std::path::PathBuf;
 
 #[derive(Debug)]
 pub enum PersonSelectInput {
-    /// Associate face with a person by name.
-    SetPerson(FaceId, PathBuf),
+    /// Present person selector for a give face.
+    Activate(FaceId, PathBuf),
+
+    /// Create a new person to associate with a face.
+    NewPerson(FaceId, PathBuf, String),
+
+    /// Associate a face with a person.
+    Associate(FaceId, PersonId),
 }
 
 #[derive(Debug)]
 pub enum PersonSelectOutput {
-
+    /// Face and person association either completed or dismissed.
+    Done,
 }
 
 pub struct PersonSelect {
     people_repo: people::Repository,
     face_thumbnail: adw::Avatar,
+    face_name: gtk::Entry,
+    people: gtk::ListBox,
 }
 
 #[relm4::component(pub async)]
@@ -44,9 +54,16 @@ impl SimpleAsyncComponent for PersonSelect {
         gtk::Box {
             set_orientation: gtk::Orientation::Vertical,
             set_spacing: 8,
+            set_margin_all: 12,
 
             #[local_ref]
             face_thumbnail -> adw::Avatar,
+
+            #[local_ref]
+            face_name -> gtk::Entry,
+
+            #[local_ref]
+            people -> gtk::ListBox,
         }
     }
 
@@ -61,11 +78,21 @@ impl SimpleAsyncComponent for PersonSelect {
             .show_initials(false)
             .build();
 
+        let face_name = gtk::Entry::builder()
+            .placeholder_text("Person name")
+            .primary_icon_name("reaction-add-symbolic")
+            .build();
+
+        let people = gtk::ListBox::builder()
+            .build();
+
         let widgets = view_output!();
 
         let model = Self {
             people_repo,
             face_thumbnail,
+            face_name,
+            people,
         };
 
         AsyncComponentParts { model, widgets }
@@ -73,11 +100,48 @@ impl SimpleAsyncComponent for PersonSelect {
 
     async fn update(&mut self, msg: Self::Input, sender: AsyncComponentSender<Self>) {
         match msg {
-            PersonSelectInput::SetPerson(face_id, thumbnail) => {
+            PersonSelectInput::Associate(face_id, person_id) => {
+                debug!("Associating face {} with person {}", face_id, person_id);
+                if let Err(e) = self.people_repo.mark_as_person(face_id, person_id) {
+                    error!("Failed associating face with person: {:?}", e);
+                }
+            },
+            PersonSelectInput::NewPerson(face_id, thumbnail, name) => {
+                debug!("Face {} is a new person", face_id);
+                if let Err(e) = self.people_repo.add_person(face_id, &thumbnail, &name) {
+                    error!("Failed adding new person: {:?}", e);
+                }
+            },
+            PersonSelectInput::Activate(face_id, thumbnail) => {
                 println!("set person for face {}", face_id);
 
                 let img = gdk::Texture::from_filename(&thumbnail).ok();
                 self.face_thumbnail.set_custom_image(img.as_ref());
+
+                self.people.remove_all();
+
+                let people = self.people_repo.all_people().unwrap_or(vec![]);
+                for person in people {
+                    let avatar = adw::Avatar::builder()
+                        .size(50)
+                        .build();
+
+                    let label = gtk::Label::new(Some(&person.name));
+
+                    let row_box = gtk::Box::builder()
+                        .orientation(gtk::Orientation::Horizontal)
+                        .build();
+
+                    row_box.append(&avatar);
+                    row_box.append(&label);
+
+                    let row = gtk::ListBoxRow::builder()
+                        .child(&row_box)
+                        .activatable(true)
+                        .build();
+
+                    self.people.append(&row);
+                }
             },
         }
     }
