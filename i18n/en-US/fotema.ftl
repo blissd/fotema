@@ -36,6 +36,9 @@ folder-album = Folder
 # Title for places page which shows photos overlayed onto a map.
 places-page = Places
 
+# Title for people page which shows an album of faces.
+people-page = People
+
 ## Thumbnail decorations
 
 # Label on month album thumbnails.

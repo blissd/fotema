@@ -50,6 +50,7 @@ use self::components::{
         album::{Album, AlbumInput, AlbumOutput},
         album_filter::AlbumFilter,
         folders_album::{FoldersAlbum, FoldersAlbumInput, FoldersAlbumOutput},
+        people_album::{PeopleAlbum, PeopleAlbumInput, PeopleAlbumOutput},
         places_album::{PlacesAlbum, PlacesAlbumInput, PlacesAlbumOutput},
     },
     library::{Library, LibraryInput, LibraryOutput},
@@ -84,6 +85,7 @@ pub enum ViewName {
     Animated,
     Folders,
     Folder,
+    People,
     Places,
     Selfies,
 }
@@ -112,6 +114,9 @@ pub(super) struct App {
     selfies_page: Controller<Album>,
     videos_page: Controller<Album>,
     motion_page: Controller<Album>,
+
+    /// Album with photos overlayed onto a map
+    people_page: Controller<PeopleAlbum>,
 
     /// Album with photos overlayed onto a map
     places_page: Controller<PlacesAlbum>,
@@ -346,6 +351,14 @@ impl SimpleComponent for App {
 
                                         add_child = &gtk::Box {
                                             set_orientation: gtk::Orientation::Vertical,
+                                            container_add: model.people_page.widget(),
+                                        } -> {
+                                            set_title: &fl!("people-page"),
+                                            set_name: ViewName::Places.into(),
+                                        },
+
+                                        add_child = &gtk::Box {
+                                            set_orientation: gtk::Orientation::Vertical,
                                             container_add: model.places_page.widget(),
                                         } -> {
                                             set_title: &fl!("places-page"),
@@ -512,6 +525,17 @@ impl SimpleComponent for App {
         state.subscribe(videos_page.sender(), |_| AlbumInput::Refresh);
         adaptive_layout.subscribe(videos_page.sender(), |layout| AlbumInput::Adapt(*layout));
 
+        let people_page = PeopleAlbum::builder()
+            .launch((state.clone(), active_view.clone()))
+            .forward(
+            sender.input_sender(),
+            |msg| match msg {
+                PeopleAlbumOutput::Selected(_) => todo!("Die"),
+            },
+        );
+
+        adaptive_layout.subscribe(people_page.sender(), |layout| PeopleAlbumInput::Adapt(*layout));
+
         let places_page = PlacesAlbum::builder()
             .launch((state.clone(), active_view.clone()))
             .forward(sender.input_sender(), |msg| match msg {
@@ -577,6 +601,7 @@ impl SimpleComponent for App {
             view_nav,
             motion_page,
             videos_page,
+            people_page,
             places_page,
             selfies_page,
             show_selfies,
@@ -685,6 +710,7 @@ impl SimpleComponent for App {
                     ViewName::Animated => self.motion_page.emit(AlbumInput::Activate),
                     ViewName::Folders => self.folders_album.emit(FoldersAlbumInput::Activate),
                     ViewName::Folder => self.folder_album.emit(AlbumInput::Activate),
+                    ViewName::People => self.people_page.emit(PeopleAlbumInput::Activate),
                     ViewName::Places => self.places_page.emit(PlacesAlbumInput::Activate),
                     ViewName::Nothing => event!(Level::WARN, "Nothing activated... which should not happen"),
                 }
