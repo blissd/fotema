@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use relm4::adw::{self, prelude::*};
-use relm4::gtk::{self, gio};
+use relm4::gtk::{self, gio, gdk, gdk_pixbuf};
 use relm4::*;
 use relm4::prelude::*;
 use relm4::actions::{RelmAction, RelmActionGroup};
@@ -240,7 +240,6 @@ impl SimpleAsyncComponent for FaceThumbnails {
             FaceThumbnailsInput::SetPerson(face_id, thumbnail) => {
                 println!("set person for face {}", face_id);
                 if let Some(root) = gtk::Widget::root(self.face_thumbnails.widget_ref()) {
-                    //self.person_dialog_thumbnail.set_filename(Some(thumbnail));
                     self.person_select.emit(PersonSelectInput::SetPerson(face_id, thumbnail));
                     self.person_dialog.present(&root);
                 } else {
