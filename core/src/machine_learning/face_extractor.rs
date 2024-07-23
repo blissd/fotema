@@ -88,6 +88,7 @@ pub struct FaceExtractor {
     /// I think this is the "front model" trained on
     /// photos taken by the selfie camera of phones.
     blaze_face_320_model: Box<dyn rust_faces::FaceDetector>,
+    is_blaze_face_enabled: bool,
 
     /// An alternative model with good results, but much slower than
     /// BlazeFace.
@@ -142,8 +143,9 @@ impl FaceExtractor {
             base_path,
             blaze_face_640_model,
             blaze_face_320_model,
+            is_blaze_face_enabled: false,
             mtcnn_model,
-            is_mtcnn_enabled: false,
+            is_mtcnn_enabled: true,
         })
     }
 
@@ -159,48 +161,60 @@ impl FaceExtractor {
 
         let mut faces: Vec<(DetectedFace, String)> = vec![];
 
-        let result = self.blaze_face_640_model.detect(image.view().into_dyn());
-        if let Ok(detected_faces) = result {
-            for f in detected_faces {
-                faces.push((f, "blaze_face_640".into()));
+        if self.is_blaze_face_enabled {
+            let result = self.blaze_face_640_model.detect(image.view().into_dyn());
+            if let Ok(detected_faces) = result {
+                for f in detected_faces {
+                    faces.push((f, "blaze_face_640".into()));
+                }
+            } else {
+                error!("Failed extracting faces with back model: {:?}", result);
             }
-        } else {
-            error!("Failed extracting faces with back model: {:?}", result);
+
+            let result = self.blaze_face_320_model.detect(image.view().into_dyn());
+            if let Ok(detected_faces) = result {
+                // Remove any duplicates where being a duplicate is determined by
+                // the distance between centres being below a certain threshold
+                let detected_faces: Vec<DetectedFace> = detected_faces
+                    .into_iter()
+                    .filter(|f1| {
+                        let nearest = faces.iter().min_by_key(|f2| {
+                            Self::distance(Self::centre(&f1), Self::centre(&f2.0)) as u32
+                        });
+                        nearest.is_none()
+                            || nearest.is_some_and(|f2| {
+                                Self::distance(Self::centre(&f1), Self::centre(&f2.0)) > 20.0
+                            })
+                    })
+                    .collect();
+
+                for f in detected_faces {
+                    faces.push((f, "blaze_face_320".into()));
+                }
+            } else {
+                error!("Failed extracting faces with front model: {:?}", result);
+            }
         }
 
-        let result = self.blaze_face_320_model.detect(image.view().into_dyn());
-        if let Ok(detected_faces) = result {
-            // Remove any duplicates where being a duplicate is determined by
-            // the distance between centres being below a certain threshold
-
-            let detected_faces: Vec<DetectedFace> = detected_faces
-                .into_iter()
-                .filter(|f1| {
-                    let nearest = faces.iter().min_by_key(|f2| {
-                        Self::distance(Self::centre(&f1), Self::centre(&f2.0)) as u32
-                    });
-                    nearest.is_none()
-                        || nearest.is_some_and(|f2| {
-                            Self::distance(Self::centre(&f1), Self::centre(&f2.0)) > 20.0
-                        })
-                })
-                .collect();
-
-            for f in detected_faces {
-                faces.push((f, "blaze_face_320".into()));
-            }
-        } else {
-            error!("Failed extracting faces with front model: {:?}", result);
-        }
-
-        if self.is_mtcnn_enabled && faces.is_empty() {
-            debug!("BlazeFace models detected zero faces so using slower MTCNN model");
+        if self.is_mtcnn_enabled {
             let result = self.mtcnn_model.detect(image.view().into_dyn());
             if let Ok(detected_faces) = result {
+                // Remove any duplicates where being a duplicate is determined by
+                // the distance between centres being below a certain threshold
                 let detected_faces: Vec<DetectedFace> = detected_faces
                     .into_iter()
                     .filter(|f| f.confidence >= 0.95)
+                    .filter(|f1| {
+                        let nearest = faces.iter().min_by_key(|f2| {
+                            Self::distance(Self::centre(&f1), Self::centre(&f2.0)) as u32
+                        });
+                        nearest.is_none()
+                            || nearest.is_some_and(|f2| {
+                                Self::distance(Self::centre(&f1), Self::centre(&f2.0)) > 20.0
+                            })
+                    })
                     .collect();
+
                 for f in detected_faces {
                     faces.push((f, "mtcnn".into()));
                 }
@@ -236,13 +250,33 @@ impl FaceExtractor {
                 // The bounding box is pretty tight, so make it a bit bigger.
                 // Also, make the box a square.
 
-                let longest: u32 =
+                let mut longest: u32 =
                     (std::cmp::max(f.rect.width as u32, f.rect.height as u32) as f32 * 1.6) as u32;
-                let half_longest: u32 = longest / 2;
+                let mut half_longest: u32 = longest / 2;
 
                 let (centre_x, centre_y) = Self::centre(&f);
                 let centre_x = centre_x as u32;
                 let centre_y = centre_y as u32;
+
+                // Normalize thumbnail to be a square.
+                if original_image.width() < centre_x + half_longest {
+                    half_longest = original_image.width() - centre_x;
+                    longest = half_longest * 2;
+                }
+                if original_image.height() < centre_y + half_longest {
+                    half_longest = original_image.height() - centre_y;
+                    longest = half_longest * 2;
+                }
+
+                if centre_x < half_longest {
+                    half_longest = centre_x;
+                    longest = half_longest * 2;
+                }
+
+                if centre_y < half_longest {
+                    half_longest = centre_y;
+                    longest = half_longest * 2;
+                }
 
                 // Don't panic when x or y would be < zero
                 let x: u32 = centre_x.checked_sub(half_longest).unwrap_or(0);
@@ -251,7 +285,8 @@ impl FaceExtractor {
                 // FIXME use fast_image_resize instead of image-rs
                 let thumbnail = original_image.crop_imm(x, y, longest, longest);
                 let thumbnail = thumbnail.thumbnail(200, 200);
-                let thumbnail_path = base_path.join(format!("{}_thumbnail.png", index));
+                let thumbnail_path =
+                    base_path.join(format!("{}_{}_thumbnail.png", index, model_name));
                 let _ = thumbnail.save(&thumbnail_path);
 
                 let bounds = Rect {
