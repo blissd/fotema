@@ -6,3 +6,4 @@ pub mod view_info;
 pub mod view_nav;
 pub mod view_one;
 pub mod face_thumbnails;
+pub mod person_select;

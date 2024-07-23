@@ -13,6 +13,8 @@ use fotema_core::people;
 use fotema_core::PictureId;
 use fotema_core::FaceId;
 
+use super::person_select::{PersonSelect, PersonSelectInput};
+
 use tracing::{debug, error, info};
 
 use std::path::PathBuf;
@@ -60,7 +62,7 @@ pub struct FaceThumbnails {
     face_thumbnails: gtk::Box,
 
     person_dialog: adw::Dialog,
-    person_dialog_thumbnail: gtk::Picture,
+    person_select: AsyncController<PersonSelect>,
 }
 
 #[relm4::component(pub async)]
@@ -85,28 +87,19 @@ impl SimpleAsyncComponent for FaceThumbnails {
 
         let widgets = view_output!();
 
-        let person_dialog_thumbnail = gtk::Picture::builder()
-            .width_request(100)
-            .height_request(100)
-            .content_fit(gtk::ContentFit::Fill)
-            .build();
-        person_dialog_thumbnail.add_css_class("face-small");
-
-        let dialog_items = gtk::Box::builder()
-            .orientation(gtk::Orientation::Vertical)
-            .build();
-
-        dialog_items.append(&person_dialog_thumbnail);
+        let person_select = PersonSelect::builder()
+            .launch(people_repo.clone())
+            .detach();
 
         let person_dialog = adw::Dialog::builder()
-            .child(&dialog_items)
+            .child(person_select.widget())
             .build();
 
         let model = Self {
             people_repo,
             face_thumbnails: widgets.face_thumbnails.clone(),
             person_dialog,
-            person_dialog_thumbnail,
+            person_select,
 
         };
 
@@ -247,7 +240,8 @@ impl SimpleAsyncComponent for FaceThumbnails {
             FaceThumbnailsInput::SetPerson(face_id, thumbnail) => {
                 println!("set person for face {}", face_id);
                 if let Some(root) = gtk::Widget::root(self.face_thumbnails.widget_ref()) {
-                    self.person_dialog_thumbnail.set_filename(Some(thumbnail));
+                    //self.person_dialog_thumbnail.set_filename(Some(thumbnail));
+                    self.person_select.emit(PersonSelectInput::SetPerson(face_id, thumbnail));
                     self.person_dialog.present(&root);
                 } else {
                     error!("Couldn't get root widget!");
