@@ -116,6 +116,7 @@ impl SimpleAsyncComponent for PersonSelect {
                 if let Err(e) = self.people_repo.mark_as_person(face_id, person_id) {
                     error!("Failed associating face with person: {:?}", e);
                 }
+                self.people.remove_all();
                 let _ = sender.output(PersonSelectOutput::Done);
             },
             PersonSelectInput::NewPerson(face_id, thumbnail) => {
@@ -124,10 +125,14 @@ impl SimpleAsyncComponent for PersonSelect {
                 if let Err(e) = self.people_repo.add_person(face_id, &thumbnail, &name) {
                     error!("Failed adding new person: {:?}", e);
                 }
+                self.people.remove_all();
                 let _ = sender.output(PersonSelectOutput::Done);
             },
             PersonSelectInput::Activate(face_id, thumbnail) => {
                 debug!("Set person for face {}", face_id);
+
+                self.people.remove_all();
+                self.face_name.set_text("");
 
                 {
                     let sender = sender.clone();
@@ -140,9 +145,6 @@ impl SimpleAsyncComponent for PersonSelect {
 
                 let img = gdk::Texture::from_filename(&thumbnail).ok();
                 self.face_thumbnail.set_custom_image(img.as_ref());
-
-                self.people.remove_all();
-                self.face_name.set_text("");
 
                 let people = self.people_repo.all_people().unwrap_or(vec![]);
 

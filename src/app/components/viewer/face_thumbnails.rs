@@ -58,6 +58,9 @@ pub enum FaceThumbnailsInput {
     /// Set new thumbnail for person
     SetThumbnail(PersonId, PathBuf),
 
+    /// The person selection dialog has selected or created a new person and should be dismissed.
+    PersonSelected,
+
 }
 
 #[derive(Debug)]
@@ -101,7 +104,7 @@ impl SimpleAsyncComponent for FaceThumbnails {
         let person_select = PersonSelect::builder()
             .launch(people_repo.clone())
             .forward(sender.input_sender(), |msg| match msg {
-                PersonSelectOutput::Done => FaceThumbnailsInput::Refresh,
+                PersonSelectOutput::Done => FaceThumbnailsInput::PersonSelected,
             });
 
         let person_dialog = adw::Dialog::builder()
@@ -133,7 +136,6 @@ impl SimpleAsyncComponent for FaceThumbnails {
             FaceThumbnailsInput::Refresh => {
 
                 self.face_thumbnails.remove_all();
-                self.person_dialog.close();
 
                 let Some(picture_id) = self.picture_id else {
                     return;
@@ -223,11 +225,6 @@ impl SimpleAsyncComponent for FaceThumbnails {
                             let img = gdk::Texture::from_filename(&thumbnail_path).ok();
                             avatar.set_custom_image(img.as_ref());
 
-                            /*let thumbnail = gtk::Picture::for_filename(&thumbnail_path);
-                            thumbnail.set_content_fit(gtk::ContentFit::ScaleDown);
-                            thumbnail.set_width_request(50);
-                            thumbnail.set_height_request(50);*/
-
                             let children = gtk::Box::new(gtk::Orientation::Vertical, 0);
                             children.append(&avatar);
                             children.append(&pop);
@@ -311,6 +308,11 @@ impl SimpleAsyncComponent for FaceThumbnails {
                 if let Err(e) = self.people_repo.mark_not_a_face(face_id) {
                     error!("Failed marking face as not a face: {}", e);
                 }
+                sender.input(FaceThumbnailsInput::Refresh);
+            },
+            FaceThumbnailsInput::PersonSelected => {
+                debug!("Dismissing dialog.");
+                self.person_dialog.close();
                 sender.input(FaceThumbnailsInput::Refresh);
             },
         }
