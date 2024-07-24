@@ -38,8 +38,9 @@ impl PhotoClean {
         // Scrub pics from database if they no longer exist on the file system.
         let pics: Vec<fotema_core::photo::model::Picture> = self.repo.all()?;
 
-        let count = pics.len();
-        info!("Found {} photos as candidates for cleaning", count);
+        info!("Found {} photos as candidates for cleaning", pics.len());
+
+        let count = pics.par_iter().filter(|p| !p.path.exists()).count();
 
         // Short-circuit before sending progress messages to stop
         // banner from appearing and disappearing.

@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use relm4::adw::{self, prelude::*};
-use relm4::gtk::{self, gio, gdk, gdk_pixbuf};
+use relm4::gtk::{self, gio, gdk};
 use relm4::*;
 use relm4::prelude::*;
 use relm4::actions::{RelmAction, RelmActionGroup};
@@ -290,7 +290,7 @@ impl SimpleAsyncComponent for FaceThumbnails {
                 } else {
                     error!("Couldn't get root widget!");
                 }
-                //sender.input(FaceThumbnailsInput::Refresh);
+                sender.input(FaceThumbnailsInput::Refresh);
             },
             FaceThumbnailsInput::SetThumbnail(person_id, thumbnail) => {
                 debug!("Set thumbnail for face {}", person_id);

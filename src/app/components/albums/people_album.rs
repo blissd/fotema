@@ -52,12 +52,6 @@ pub enum PeopleAlbumInput {
 
     // Adapt to layout
     Adapt(adaptive::Layout),
-
-    /// No-op. After refreshing the thumbnail grid, the screen would be blank and thumbnails
-    /// would not appear until clicking to another view and back. I don't know why this happens,
-    /// and have only observed this behaviour on the folders album view. As a work around, send
-    /// a no-op message to trigger a view redraw.
-    Noop,
 }
 
 #[derive(Debug)]
@@ -177,9 +171,6 @@ impl SimpleComponent for PeopleAlbum {
 
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
-            PeopleAlbumInput::Noop => {
-                info!("No-op received... so doing nothing. As expected :-/");
-            },
             PeopleAlbumInput::Activate => {
                 info!("Activating people view");
                 *self.active_view.write() = ViewName::People;

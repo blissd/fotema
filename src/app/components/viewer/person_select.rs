@@ -3,15 +3,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use relm4::adw::{self, prelude::*};
-use relm4::gtk::{self, gio, gdk, gdk_pixbuf};
+use relm4::gtk::{self, gdk};
 use relm4::*;
 use relm4::prelude::*;
-use relm4::actions::{RelmAction, RelmActionGroup};
 
 
 use crate::fl;
 use fotema_core::people;
-use fotema_core::PictureId;
 use fotema_core::FaceId;
 use fotema_core::PersonId;
 

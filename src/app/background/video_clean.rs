@@ -38,8 +38,9 @@ impl VideoClean {
         // Scrub vids from database if they no longer exist on the file system.
         let vids: Vec<fotema_core::video::model::Video> = self.repo.all()?;
 
-        let count = vids.len();
-        info!("Found {} videos as candidates for cleaning", count);
+        info!("Found {} videos as candidates for cleaning", vids.len());
+
+        let count = vids.par_iter().filter(|v| !v.path.exists()).count();
 
         // Short-circuit before sending progress messages to stop
         // banner from appearing and disappearing.
