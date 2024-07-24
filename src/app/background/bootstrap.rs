@@ -368,6 +368,8 @@ impl Worker for Bootstrap {
                 if let Ok(mut tasks) = self.pending_tasks.lock() {
                     if let Some(task) = tasks.pop_front() {
                         task();
+                    } else {
+                        let _ = sender.output(BootstrapOutput::Completed);
                     }
                 }
             },
@@ -385,7 +387,6 @@ impl Worker for Bootstrap {
                     } else {
                         // This is the last background task to complete. Refresh library if there
                         // has been a visible change to the library state.
-                        self.library_stale = self.library_stale || updated.is_some_and(|x| x > 0);
                         if self.library_stale {
                             info!("Refreshing library final task completion.");
                             self.load_library.emit(LoadLibraryInput::Refresh);
