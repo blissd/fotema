@@ -216,13 +216,20 @@ impl SimpleAsyncComponent for FaceThumbnails {
                                 .menu_model(&menu_model)
                                 .build();
 
-                            let thumbnail = gtk::Picture::for_filename(&thumbnail_path);
+                            let avatar = adw::Avatar::builder()
+                                .size(50)
+                                .build();
+
+                            let img = gdk::Texture::from_filename(&thumbnail_path).ok();
+                            avatar.set_custom_image(img.as_ref());
+
+                            /*let thumbnail = gtk::Picture::for_filename(&thumbnail_path);
                             thumbnail.set_content_fit(gtk::ContentFit::ScaleDown);
                             thumbnail.set_width_request(50);
-                            thumbnail.set_height_request(50);
+                            thumbnail.set_height_request(50);*/
 
                             let children = gtk::Box::new(gtk::Orientation::Vertical, 0);
-                            children.append(&thumbnail);
+                            children.append(&avatar);
                             children.append(&pop);
 
                             let frame = gtk::Frame::new(None);

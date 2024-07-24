@@ -135,7 +135,7 @@ impl SimpleAsyncComponent for PersonSelect {
                     let sender = sender.clone();
                     let thumbnail = thumbnail.clone();
                     self.face_name.connect_activate(move |_| {
-                        debug!("Activated");
+                        debug!("Face name entry activated.");
                         sender.input(PersonSelectInput::NewPerson(face_id, thumbnail.clone()));
                     });
                 }

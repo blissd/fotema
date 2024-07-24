@@ -38,6 +38,7 @@ pub enum AlbumFilter {
     GeographicArea(CellIndex),
 
     /// Show photos who's picture_id is in a set. Used for person filtering.
+    /// FIXME should probably be a Set of some kind... but that mucks up PartialEq and Eq.
     Any(Vec<PictureId>)
 }
 

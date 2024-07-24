@@ -127,6 +127,25 @@ impl Repository {
         Ok(result)
     }
 
+    pub fn find_pictures_for_person(&self, person_id: PersonId) -> Result<Vec<PictureId>> {
+        let con = self.con.lock().unwrap();
+        let mut stmt = con.prepare(
+            "SELECT DISTINCT
+                picture_id
+            FROM  pictures_faces
+            WHERE person_id == ?1",
+        )?;
+
+        let result: Vec<PictureId> = stmt
+            .query_map([person_id.id()], |row| {
+                row.get("picture_id").map(PictureId::new)
+            })?
+            .flatten()
+            .collect();
+
+        Ok(result)
+    }
+
     // FIXME probably need a mechanism to undo this in the likely event of user error.
     pub fn mark_not_a_face(&mut self, face_id: FaceId) -> Result<()> {
         let mut con = self.con.lock().unwrap();
