@@ -23,10 +23,14 @@ pub enum PersonSelectInput {
     Activate(FaceId, PathBuf),
 
     /// Create a new person to associate with a face.
-    NewPerson(FaceId, PathBuf),
+    NewPerson(PathBuf),
 
-    /// Associate a face with a person.
-    Associate(FaceId, PersonId),
+    /// Associate a face with a person. Used when user selects person with return key.
+    Associate(PersonId),
+
+    /// Associate a face with a person. Used when user clicks person with mouse.
+    /// usize is index into vector of people
+    AssociateByIndex(usize),
 }
 
 #[derive(Debug)]
@@ -39,7 +43,16 @@ pub struct PersonSelect {
     people_repo: people::Repository,
     face_thumbnail: adw::Avatar,
     face_name: gtk::Entry,
-    people: gtk::ListBox,
+
+    /// List of avatars for people
+    people_list: gtk::ListBox,
+
+    /// List of person IDs of people.
+    /// MUST be in same order as people_list.
+    all_people: Vec<PersonId>,
+
+    /// ID of face to associate with person,
+    face_id: Option<FaceId>,
 }
 
 #[relm4::component(pub async)]
@@ -64,7 +77,7 @@ impl SimpleAsyncComponent for PersonSelect {
                 set_vexpand: true,
 
                 #[local_ref]
-                people -> gtk::ListBox,
+                people_list -> gtk::ListBox,
             }
         }
     }
@@ -72,7 +85,7 @@ impl SimpleAsyncComponent for PersonSelect {
     async fn init(
         people_repo: Self::Init,
         root: Self::Root,
-        _sender: AsyncComponentSender<Self>,
+        sender: AsyncComponentSender<Self>,
     ) -> AsyncComponentParts<Self>  {
 
         let face_thumbnail = adw::Avatar::builder()
@@ -84,16 +97,26 @@ impl SimpleAsyncComponent for PersonSelect {
             .placeholder_text(fl!("people-person-search", "placeholder"))
             .build();
 
-        let people = gtk::ListBox::builder()
+        let people_list = gtk::ListBox::builder()
             .css_classes(["boxed-list"])
             .activate_on_single_click(true)
             .build();
 
-        people.connect_row_activated(|_, row| {
-            debug!("activated = {:?}", row);
-        });
+        {
+            let people_list2 = people_list.clone();
+            people_list.connect_row_activated(move |_, row| {
+                debug!("activated = {:?}", row);
+                if let Some(index) = people_list2.index_of_child(row) {
+                    if index >= 0 {
+                        sender.input(PersonSelectInput::AssociateByIndex(index as usize));
+                    } else {
+                        error!("Invalid vector index: {}", index);
+                    }
+                }
+            });
+        }
 
-        people.connect_row_selected(|_, row| {
+        people_list.connect_row_selected(|_, row| {
             debug!("selected = {:?}", row);
         });
 
@@ -103,7 +126,9 @@ impl SimpleAsyncComponent for PersonSelect {
             people_repo,
             face_thumbnail,
             face_name,
-            people,
+            people_list,
+            all_people: vec![],
+            face_id: None,
         };
 
         AsyncComponentParts { model, widgets }
@@ -111,35 +136,20 @@ impl SimpleAsyncComponent for PersonSelect {
 
     async fn update(&mut self, msg: Self::Input, sender: AsyncComponentSender<Self>) {
         match msg {
-            PersonSelectInput::Associate(face_id, person_id) => {
-                debug!("Associating face {} with person {}", face_id, person_id);
-                if let Err(e) = self.people_repo.mark_as_person(face_id, person_id) {
-                    error!("Failed associating face with person: {:?}", e);
-                }
-                self.people.remove_all();
-                let _ = sender.output(PersonSelectOutput::Done);
-            },
-            PersonSelectInput::NewPerson(face_id, thumbnail) => {
-                debug!("Face {} is a new person", face_id);
-                let name = self.face_name.text().to_string();
-                if let Err(e) = self.people_repo.add_person(face_id, &thumbnail, &name) {
-                    error!("Failed adding new person: {:?}", e);
-                }
-                self.people.remove_all();
-                let _ = sender.output(PersonSelectOutput::Done);
-            },
             PersonSelectInput::Activate(face_id, thumbnail) => {
                 debug!("Set person for face {}", face_id);
 
-                self.people.remove_all();
+                self.people_list.remove_all();
+                self.all_people.clear();
                 self.face_name.set_text("");
+                self.face_id = Some(face_id);
 
                 {
                     let sender = sender.clone();
                     let thumbnail = thumbnail.clone();
                     self.face_name.connect_activate(move |_| {
                         debug!("Face name entry activated.");
-                        sender.input(PersonSelectInput::NewPerson(face_id, thumbnail.clone()));
+                        sender.input(PersonSelectInput::NewPerson(thumbnail.clone()));
                     });
                 }
 
@@ -167,12 +177,47 @@ impl SimpleAsyncComponent for PersonSelect {
                     {
                         let sender = sender.clone();
                         row.connect_activate(move |_| {
-                            sender.input(PersonSelectInput::Associate(face_id, person.person_id));
+                            sender.input(PersonSelectInput::Associate(person.person_id));
                         });
                     }
 
-                    self.people.append(&row);
+                    self.people_list.append(&row);
+                    self.all_people.push(person.person_id);
                 }
+            },
+            PersonSelectInput::Associate(person_id) => {
+                if let Some(face_id) = self.face_id {
+                    debug!("Associating face {} with person {}", face_id, person_id);
+                    if let Err(e) = self.people_repo.mark_as_person(face_id, person_id) {
+                        error!("Failed associating face with person: {:?}", e);
+                    }
+                }
+                self.people_list.remove_all();
+                self.all_people.clear();
+                let _ = sender.output(PersonSelectOutput::Done);
+            },
+            PersonSelectInput::AssociateByIndex(person_id_index) => {
+                if let (Some(face_id), Some(person_id)) = (self.face_id, self.all_people.get(person_id_index)) {
+                    debug!("Associating face {} with person {} by idnex", face_id, person_id);
+                    if let Err(e) = self.people_repo.mark_as_person(face_id, *person_id) {
+                        error!("Failed associating face with person: {:?}", e);
+                    }
+                }
+                self.people_list.remove_all();
+                self.all_people.clear();
+                let _ = sender.output(PersonSelectOutput::Done);
+            },
+            PersonSelectInput::NewPerson(thumbnail) => {
+                if let Some(face_id) = self.face_id {
+                    debug!("Face {} is a new person", face_id);
+                    let name = self.face_name.text().to_string();
+                    if let Err(e) = self.people_repo.add_person(face_id, &thumbnail, &name) {
+                        error!("Failed adding new person: {:?}", e);
+                    }
+                }
+                self.people_list.remove_all();
+                self.all_people.clear();
+                let _ = sender.output(PersonSelectOutput::Done);
             },
         }
     }
