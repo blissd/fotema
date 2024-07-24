@@ -62,8 +62,12 @@ impl SimpleAsyncComponent for PersonSelect {
             #[local_ref]
             face_name -> gtk::Entry,
 
-            #[local_ref]
-            people -> gtk::ListBox,
+            gtk::ScrolledWindow {
+                set_vexpand: true,
+
+                #[local_ref]
+                people -> gtk::ListBox,
+            }
         }
     }
 
@@ -84,7 +88,16 @@ impl SimpleAsyncComponent for PersonSelect {
 
         let people = gtk::ListBox::builder()
             .css_classes(["boxed-list"])
+            .activate_on_single_click(true)
             .build();
+
+        people.connect_row_activated(|_, row| {
+            debug!("activated = {:?}", row);
+        });
+
+        people.connect_row_selected(|_, row| {
+            debug!("selected = {:?}", row);
+        });
 
         let widgets = view_output!();
 
@@ -146,6 +159,7 @@ impl SimpleAsyncComponent for PersonSelect {
 
                     let row = adw::ActionRow::builder()
                         .title(person.name)
+                        .activatable(true)
                         .build();
 
                     row.add_prefix(&avatar);
