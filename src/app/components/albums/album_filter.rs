@@ -59,7 +59,7 @@ impl AlbumFilter {
                     false
                 }
             },
-            AlbumFilter::Any(picture_ids) => v.picture_id.is_some_and(|id| picture_ids.iter().any(|x| x == &id)),
+            AlbumFilter::Any(picture_ids) => v.picture_id.is_some_and(|id| picture_ids.contains(&id)),
         }
     }
 }
