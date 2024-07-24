@@ -15,7 +15,7 @@ use fotema_core::PictureId;
 use fotema_core::FaceId;
 use fotema_core::PersonId;
 
-use tracing::{debug, error, info};
+use tracing::{debug, error};
 
 use std::path::PathBuf;
 

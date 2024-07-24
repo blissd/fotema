@@ -30,6 +30,8 @@ use fotema_core::database;
 use fotema_core::video;
 use fotema_core::VisualId;
 use fotema_core::people;
+use fotema_core::PersonId;
+use fotema_core::PictureId;
 
 use h3o::CellIndex;
 
@@ -170,6 +172,8 @@ pub(super) enum AppMsg {
     ViewFolder(PathBuf),
 
     ViewGeographicArea(CellIndex),
+
+    ViewPerson(PersonId, Vec<PictureId>),
 
     // A background task has started.
     TaskStarted(TaskName),
@@ -530,7 +534,7 @@ impl SimpleComponent for App {
             .forward(
             sender.input_sender(),
             |msg| match msg {
-                PeopleAlbumOutput::Selected(_) => todo!("Die"),
+                PeopleAlbumOutput::Selected(person_id, picture_ids) => AppMsg::ViewPerson(person_id, picture_ids),
             },
         );
 
@@ -671,7 +675,7 @@ impl SimpleComponent for App {
                 let show = self.main_navigation.shows_sidebar();
                 self.main_navigation.set_show_sidebar(!show);
                 self.spinner.set_visible(show);
-            }
+            },
             AppMsg::SwitchView => {
                 let child = self.main_stack.visible_child();
                 let child_name = self.main_stack.visible_child_name()
@@ -714,29 +718,34 @@ impl SimpleComponent for App {
                     ViewName::Places => self.places_page.emit(PlacesAlbumInput::Activate),
                     ViewName::Nothing => event!(Level::WARN, "Nothing activated... which should not happen"),
                 }
-            }
+            },
             AppMsg::View(visual_id, filter) => {
                 // Send message to show image
                 self.view_nav.emit(ViewNavInput::View(visual_id, filter));
 
                 // Display navigation page for viewing an individual photo.
                 self.picture_navigation_view.push_by_tag("picture");
-            }
+            },
             AppMsg::ViewHidden => {
                 self.view_nav.emit(ViewNavInput::Hidden);
-            }
+            },
             AppMsg::ViewFolder(path) => {
                 self.folder_album.emit(AlbumInput::Activate);
                 self.folder_album.emit(AlbumInput::Filter(AlbumFilter::Folder(path)));
                 self.picture_navigation_view.push_by_tag("album");
-
-            }
+            },
             AppMsg::ViewGeographicArea(cell_index) => {
                 self.folder_album.emit(AlbumInput::Activate);
                 self.folder_album.emit(AlbumInput::Filter(AlbumFilter::GeographicArea(cell_index)));
                 self.picture_navigation_view.push_by_tag("album");
 
-            }
+            },
+            AppMsg::ViewPerson(_person_id, picture_ids) => {
+                info!("picture_ids = {:?}", picture_ids);
+                self.folder_album.emit(AlbumInput::Activate);
+                self.folder_album.emit(AlbumInput::Filter(AlbumFilter::Any(picture_ids)));
+                self.picture_navigation_view.push_by_tag("album");
+            },
             AppMsg::TaskStarted(task_name) => {
                 self.spinner.start();
                 self.spinner.set_visible(!self.main_navigation.shows_sidebar());
@@ -774,12 +783,12 @@ impl SimpleComponent for App {
                         self.banner.set_title(&fl!("banner-clean-videos"));
                     },
                 };
-            }
+            },
             AppMsg::BootstrapCompleted => {
                 event!(Level::INFO, "Bootstrap completed.");
                 self.spinner.stop();
                 self.banner.set_revealed(false);
-            }
+            },
             AppMsg::TranscodeAll => {
                 event!(Level::INFO, "Transcode all");
                 self.video_transcode.emit(VideoTranscodeInput::All);

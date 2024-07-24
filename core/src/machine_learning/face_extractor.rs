@@ -143,9 +143,9 @@ impl FaceExtractor {
             base_path,
             blaze_face_640_model,
             blaze_face_320_model,
-            is_blaze_face_enabled: true,
+            is_blaze_face_enabled: false,
             mtcnn_model,
-            is_mtcnn_enabled: false,
+            is_mtcnn_enabled: true,
         })
     }
 

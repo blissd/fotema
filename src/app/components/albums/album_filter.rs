@@ -3,9 +3,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use std::path::PathBuf;
+
 use fotema_core::Visual;
 use h3o::CellIndex;
 use fotema_core::VisualId;
+use fotema_core::PictureId;
 
 // An album is a view applied over the whole collection of messages.
 // An AlbumFilter defines the filter to apply to produce an album.
@@ -34,6 +36,9 @@ pub enum AlbumFilter {
 
     // Show photos in a geographic area
     GeographicArea(CellIndex),
+
+    /// Show photos who's picture_id is in a set. Used for person filtering.
+    Any(Vec<PictureId>)
 }
 
 impl AlbumFilter {
@@ -54,6 +59,7 @@ impl AlbumFilter {
                     false
                 }
             },
+            AlbumFilter::Any(picture_ids) => v.picture_id.is_some_and(|id| picture_ids.iter().any(|x| x == &id)),
         }
     }
 }

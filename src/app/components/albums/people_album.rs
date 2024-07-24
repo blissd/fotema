@@ -4,26 +4,17 @@
 
 use gtk::prelude::OrientableExt;
 
-use fotema_core::visual::model::PictureOrientation;
-use fotema_core::people;
-
-use strum::IntoEnumIterator;
-
-use itertools::Itertools;
+use fotema_core::people::{self, PersonId};
+use fotema_core::PictureId;
 
 use relm4::gtk;
 use relm4::gtk::gdk;
-use relm4::gtk::gdk_pixbuf;
 use relm4::gtk::prelude::WidgetExt;
 use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
 use relm4::*;
 use relm4::binding::*;
 
-use std::path;
-use std::sync::Arc;
-
 use crate::adaptive;
-use crate::app::SharedState;
 use crate::app::ActiveView;
 use crate::app::ViewName;
 
@@ -71,7 +62,7 @@ pub enum PeopleAlbumInput {
 
 #[derive(Debug)]
 pub enum PeopleAlbumOutput {
-    Selected(path::PathBuf),
+    Selected(PersonId, Vec<PictureId>),
 }
 
 impl RelmGridItem for PhotoGridItem {
@@ -199,10 +190,9 @@ impl SimpleComponent for PeopleAlbum {
                 if let Some(item) = self.photo_grid.get_visible(index) {
                     let item = item.borrow();
                     event!(Level::DEBUG, "Person selected item: {}", item.person.person_id);
-/*
-                    let _ = sender
-                        .output(PeopleAlbumOutput::Selected(item.person.parent_path.clone()));
-                        */
+                    let picture_ids = self.repo.find_pictures_for_person(item.person.person_id).unwrap_or(vec![]);
+
+                    let _ = sender.output(PeopleAlbumOutput::Selected(item.person.person_id, picture_ids));
                 }
             },
             PeopleAlbumInput::Adapt(adaptive::Layout::Narrow) => {

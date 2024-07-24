@@ -23,7 +23,7 @@ use crate::app::ActiveView;
 use crate::app::ViewName;
 use super::album_filter::AlbumFilter;
 
-use tracing::{event, Level, info};
+use tracing::{debug, info};
 
 const NARROW_EDGE_LENGTH: i32 = 112;
 const WIDE_EDGE_LENGTH: i32 = 200;
@@ -288,21 +288,21 @@ impl SimpleComponent for Album {
                 self.update_filter();
             }
             AlbumInput::Selected(index) => {
-                // Photos are filters so must use get_visible(...) over get(...), otherwise
+                // Albums are filters so must use get_visible(...) over get(...), otherwise
                 // wrong photo is displayed.
                 if let Some(item) = self.photo_grid.get_visible(index) {
                     let visual_id = item.borrow().visual.visual_id.clone();
-                    event!(Level::DEBUG, "index {} has visual_id {}", index, visual_id);
+                    debug!("index {} has visual_id {}", index, visual_id);
                     let _ = sender.output(AlbumOutput::Selected(visual_id, self.filter.clone()));
                 }
             }
             AlbumInput::GoToMonth(ym) => {
-                event!(Level::INFO, "Showing for month: {}", ym);
+                info!("Showing for month: {}", ym);
                 let index_opt = self.photo_grid.find(|p| p.visual.year_month() == ym);
-                event!(Level::DEBUG, "Found: {:?}", index_opt);
+                debug!("Found: {:?}", index_opt);
                 if let Some(index) = index_opt {
                     let flags = gtk::ListScrollFlags::SELECT;
-                    event!(Level::DEBUG, "Scrolling to {}", index);
+                    debug!("Scrolling to {}", index);
                     self.photo_grid.view.scroll_to(index, flags, None);
                 }
             },
