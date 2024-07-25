@@ -116,80 +116,56 @@ pub struct Bootstrap {
 
 impl Bootstrap {
     fn add_task_photo_scan(&mut self)  {
-        let worker = self.photo_scan.clone();
-        let task = Box::new(move || worker.emit(PhotoScanInput::Start));
-        if let Ok(mut vec) = self.pending_tasks.lock() {
-            vec.push_back(task);
-        }
+        let sender = self.photo_scan.sender().clone();
+        self.enqueue(Box::new(move || sender.emit(PhotoScanInput::Start)));
     }
 
     fn add_task_video_scan(&mut self) {
-        let worker = self.video_scan.clone();
-        let task =  Box::new(move || worker.emit(VideoScanInput::Start));
-        if let Ok(mut vec) = self.pending_tasks.lock() {
-            vec.push_back(task);
-        }
+        let sender = self.video_scan.sender().clone();
+        self.enqueue(Box::new(move || sender.emit(VideoScanInput::Start)));
     }
 
     fn add_task_photo_enrich(&mut self) {
-        let worker = self.photo_enrich.clone();
-        let task =  Box::new(move || worker.emit(PhotoEnrichInput::Start));
-        if let Ok(mut vec) = self.pending_tasks.lock() {
-            vec.push_back(task);
-        }
+        let sender = self.photo_enrich.sender().clone();
+        self.enqueue(Box::new(move || sender.emit(PhotoEnrichInput::Start)));
     }
 
     fn add_task_video_enrich(&mut self) {
-        let worker = self.video_enrich.clone();
-        let task =  Box::new(move || worker.emit(VideoEnrichInput::Start));
-        if let Ok(mut vec) = self.pending_tasks.lock() {
-            vec.push_back(task);
-        }
+        let sender = self.video_enrich.sender().clone();
+        self.enqueue(Box::new(move || sender.emit(VideoEnrichInput::Start)));
     }
 
     fn add_task_photo_thumbnail(&mut self) {
-        let worker = self.photo_thumbnail.clone();
-        let task =  Box::new(move || worker.emit(PhotoThumbnailInput::Start));
-        if let Ok(mut vec) = self.pending_tasks.lock() {
-            vec.push_back(task);
-        }
+        let sender = self.photo_thumbnail.sender().clone();
+        self.enqueue(Box::new(move || sender.emit(PhotoThumbnailInput::Start)));
     }
 
     fn add_task_video_thumbnail(&mut self) {
-        let worker = self.video_thumbnail.clone();
-        let task =  Box::new(move || worker.emit(VideoThumbnailInput::Start));
-        if let Ok(mut vec) = self.pending_tasks.lock() {
-            vec.push_back(task);
-        }
+        let sender = self.video_thumbnail.sender().clone();
+        self.enqueue(Box::new(move || sender.emit(VideoThumbnailInput::Start)));
     }
 
     fn add_task_photo_clean(&mut self) {
-        let worker = self.photo_clean.clone();
-        let task =  Box::new(move || worker.emit(PhotoCleanInput::Start));
-        if let Ok(mut vec) = self.pending_tasks.lock() {
-            vec.push_back(task);
-        }
+        let sender = self.photo_clean.sender().clone();
+        self.enqueue(Box::new(move || sender.emit(PhotoCleanInput::Start)));
     }
 
     fn add_task_video_clean(&mut self) {
-        let worker = self.video_clean.clone();
-        let task =  Box::new(move || worker.emit(VideoCleanInput::Start));
-        if let Ok(mut vec) = self.pending_tasks.lock() {
-            vec.push_back(task);
-        }
+        let sender = self.video_clean.sender().clone();
+        self.enqueue(Box::new(move || sender.emit(VideoCleanInput::Start)));
     }
 
     fn add_task_photo_extract_motion(&mut self) {
-        let worker = self.photo_extract_motion.clone();
-        let task =  Box::new(move || worker.emit(PhotoExtractMotionInput::Start));
-        if let Ok(mut vec) = self.pending_tasks.lock() {
-            vec.push_back(task);
-        }
+        let sender = self.photo_extract_motion.sender().clone();
+        self.enqueue(Box::new(move || sender.emit(PhotoExtractMotionInput::Start)));
     }
 
     fn add_task_photo_detect_faces(&mut self) {
-        let worker = self.photo_detect_faces.clone();
-        let task =  Box::new(move || worker.emit(PhotoDetectFacesInput::Start));
+        let sender = self.photo_detect_faces.sender().clone();
+        self.enqueue(Box::new(move || sender.emit(PhotoDetectFacesInput::Start)));
+    }
+
+    fn enqueue(&mut self, task: Box<dyn Fn() + Send + Sync>) {
         if let Ok(mut vec) = self.pending_tasks.lock() {
             vec.push_back(task);
         }
