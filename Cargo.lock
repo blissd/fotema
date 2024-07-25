@@ -833,9 +833,9 @@ checksum = "7360491ce676a36bf9bb3c56c1aa791658183a54d2744120f27285738d90465a"
 
 [[package]]
 name = "fast_image_resize"
-version = "4.2.0"
+version = "4.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "81cd2f79218cdfe398519739df6872a6f5747ca08e1f4fd3179f4b053a0b05f9"
+checksum = "2ca4b58827213977eabab8ee8d8258db8441338f3a1832a1c0f2de3372175531"
 dependencies = [
  "bytemuck",
  "cfg-if",
