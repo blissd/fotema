@@ -23,7 +23,7 @@ pub enum PersonSelectInput {
     Activate(FaceId, PathBuf),
 
     /// Create a new person to associate with a face.
-    NewPerson(PathBuf),
+    NewPerson,
 
     /// Associate a face with a person. Used when user selects person with return key.
     Associate(PersonId),
@@ -41,7 +41,11 @@ pub enum PersonSelectOutput {
 
 pub struct PersonSelect {
     people_repo: people::Repository,
-    face_thumbnail: adw::Avatar,
+
+    /// Avatar for face to associate with person.
+    avatar: adw::Avatar,
+
+    /// Input box for new person name... and search, if I can get it to work.
     face_name: gtk::Entry,
 
     /// List of avatars for people
@@ -53,6 +57,9 @@ pub struct PersonSelect {
 
     /// ID of face to associate with person,
     face_id: Option<FaceId>,
+
+    /// Face thumbnail
+    face_thumbnail: Option<PathBuf>,
 }
 
 #[relm4::component(pub async)]
@@ -68,7 +75,7 @@ impl SimpleAsyncComponent for PersonSelect {
             set_margin_all: 12,
 
             #[local_ref]
-            face_thumbnail -> adw::Avatar,
+            avatar -> adw::Avatar,
 
             #[local_ref]
             face_name -> gtk::Entry,
@@ -88,7 +95,7 @@ impl SimpleAsyncComponent for PersonSelect {
         sender: AsyncComponentSender<Self>,
     ) -> AsyncComponentParts<Self>  {
 
-        let face_thumbnail = adw::Avatar::builder()
+        let avatar = adw::Avatar::builder()
             .size(100)
             .show_initials(false)
             .build();
@@ -124,11 +131,12 @@ impl SimpleAsyncComponent for PersonSelect {
 
         let model = Self {
             people_repo,
-            face_thumbnail,
+            avatar,
             face_name,
             people_list,
             all_people: vec![],
             face_id: None,
+            face_thumbnail: None,
         };
 
         AsyncComponentParts { model, widgets }
@@ -143,18 +151,18 @@ impl SimpleAsyncComponent for PersonSelect {
                 self.all_people.clear();
                 self.face_name.set_text("");
                 self.face_id = Some(face_id);
+                self.face_thumbnail = Some(thumbnail.clone());
 
                 {
                     let sender = sender.clone();
-                    let thumbnail = thumbnail.clone();
                     self.face_name.connect_activate(move |_| {
                         debug!("Face name entry activated.");
-                        sender.input(PersonSelectInput::NewPerson(thumbnail.clone()));
+                        sender.input(PersonSelectInput::NewPerson);
                     });
                 }
 
                 let img = gdk::Texture::from_filename(&thumbnail).ok();
-                self.face_thumbnail.set_custom_image(img.as_ref());
+                self.avatar.set_custom_image(img.as_ref());
 
                 let people = self.people_repo.all_people().unwrap_or(vec![]);
 
@@ -207,8 +215,8 @@ impl SimpleAsyncComponent for PersonSelect {
                 self.all_people.clear();
                 let _ = sender.output(PersonSelectOutput::Done);
             },
-            PersonSelectInput::NewPerson(thumbnail) => {
-                if let Some(face_id) = self.face_id {
+            PersonSelectInput::NewPerson => {
+                if let (Some(face_id), Some(thumbnail)) = (self.face_id, self.face_thumbnail.as_ref()) {
                     debug!("Face {} is a new person", face_id);
                     let name = self.face_name.text().to_string();
                     if let Err(e) = self.people_repo.add_person(face_id, &thumbnail, &name) {
