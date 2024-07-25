@@ -261,6 +261,7 @@ impl SimpleAsyncComponent for ViewNav {
                     return;
                 }
 
+                self.view_one.emit(ViewOneInput::Hidden);
                 sender.input(ViewNavInput::ViewByIndex(index - 1));
             },
             ViewNavInput::GoRight => {
@@ -272,6 +273,7 @@ impl SimpleAsyncComponent for ViewNav {
                     return;
                 }
 
+                self.view_one.emit(ViewOneInput::Hidden);
                 sender.input(ViewNavInput::ViewByIndex(index + 1));
             },
             ViewNavInput::Adapt(adaptive::Layout::Narrow) => {

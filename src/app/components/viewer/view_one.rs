@@ -292,6 +292,7 @@ impl SimpleAsyncComponent for ViewOne {
             ViewOneInput::Hidden => {
                 self.video = None;
                 self.picture.set_paintable(None::<&gdk::Paintable>);
+                self.face_thumbnails.emit(FaceThumbnailsInput::Hide);
             },
             ViewOneInput::View(visual) => {
                 event!(Level::INFO, "Showing item for {}", visual.visual_id);

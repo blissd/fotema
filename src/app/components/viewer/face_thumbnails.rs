@@ -178,7 +178,7 @@ impl SimpleAsyncComponent for FaceThumbnails {
                                 group.add_action(set_thumbnail);
 
                                 let menu_items = vec![
-                                    gio::MenuItem::new(Some(&fl!("people-view-more-photos", name = person.name.clone())), None),
+                                  //  gio::MenuItem::new(Some(&fl!("people-view-more-photos", name = person.name.clone())), None),
                                     gio::MenuItem::new(Some(&fl!("people-set-face-thumbnail")), Some("face.thumbnail")),
                                     gio::MenuItem::new(Some(&fl!("people-not-this-person", name = person.name.clone())), Some("face.not_person")),
                                 ];
