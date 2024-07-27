@@ -183,7 +183,7 @@ impl FaceExtractor {
                         });
                         nearest.is_none()
                             || nearest.is_some_and(|f2| {
-                                Self::distance(Self::centre(&f1), Self::centre(&f2.0)) > 20.0
+                                Self::distance(Self::centre(&f1), Self::centre(&f2.0)) > 40.0
                             })
                     })
                     .collect();
@@ -210,7 +210,7 @@ impl FaceExtractor {
                         });
                         nearest.is_none()
                             || nearest.is_some_and(|f2| {
-                                Self::distance(Self::centre(&f1), Self::centre(&f2.0)) > 20.0
+                                Self::distance(Self::centre(&f1), Self::centre(&f2.0)) > 40.0
                             })
                     })
                     .collect();
