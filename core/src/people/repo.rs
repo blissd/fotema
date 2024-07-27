@@ -147,7 +147,7 @@ impl Repository {
     }
 
     // FIXME probably need a mechanism to undo this in the likely event of user error.
-    pub fn mark_not_a_face(&mut self, face_id: FaceId) -> Result<()> {
+    pub fn mark_ignore(&mut self, face_id: FaceId) -> Result<()> {
         let mut con = self.con.lock().unwrap();
         let tx = con.transaction()?;
 

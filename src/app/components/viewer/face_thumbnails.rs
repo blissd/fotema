@@ -30,7 +30,7 @@ relm4::new_stateless_action!(FaceSetPersonAction, FaceActionGroup, "set_person")
 relm4::new_stateless_action!(FaceNotPersonAction, FaceActionGroup, "not_person");
 
 // Mark a face as not being a face.
-relm4::new_stateless_action!(FaceNotFaceAction, FaceActionGroup, "not_a_face");
+relm4::new_stateless_action!(FaceIgnoreAction, FaceActionGroup, "ignore");
 
 // Associate person with new face thumbnail.
 relm4::new_stateless_action!(FaceThumbnailAction, FaceActionGroup, "thumbnail");
@@ -52,8 +52,8 @@ pub enum FaceThumbnailsInput {
     /// Disassociate face from person.
     NotPerson(FaceId),
 
-    /// Mark that a face isn't actually a face.
-    NotFace(FaceId),
+    /// Ignore a face.
+    Ignore(FaceId),
 
     /// Set new thumbnail for person
     SetThumbnail(PersonId, PathBuf),
@@ -194,17 +194,17 @@ impl SimpleAsyncComponent for FaceThumbnails {
                                 };
                                 group.add_action(set_person);
 
-                                let not_a_face: RelmAction<FaceNotFaceAction> = {
+                                let not_a_face: RelmAction<FaceIgnoreAction> = {
                                     let sender = sender.clone();
                                     RelmAction::new_stateless(move |_| {
-                                        sender.input(FaceThumbnailsInput::NotFace(face.face_id));
+                                        sender.input(FaceThumbnailsInput::Ignore(face.face_id));
                                     })
                                 };
                                 group.add_action(not_a_face);
 
                                 let menu_items = vec![
                                     gio::MenuItem::new(Some(&fl!("people-set-name")), Some("face.set_person")),
-                                    gio::MenuItem::new(Some(&fl!("people-not-a-face")), Some("face.not_a_face")),
+                                    gio::MenuItem::new(Some(&fl!("people-face-ignore")), Some("face.ignore")),
                                 ];
 
                                 (menu_items, face.thumbnail_path)
@@ -303,9 +303,9 @@ impl SimpleAsyncComponent for FaceThumbnails {
                 }
                 sender.input(FaceThumbnailsInput::Refresh);
             },
-            FaceThumbnailsInput::NotFace(face_id) => {
-                debug!("Set not a face: {}", face_id);
-                if let Err(e) = self.people_repo.mark_not_a_face(face_id) {
+            FaceThumbnailsInput::Ignore(face_id) => {
+                debug!("Ignoring face: {}", face_id);
+                if let Err(e) = self.people_repo.mark_ignore(face_id) {
                     error!("Failed marking face as not a face: {}", e);
                 }
                 sender.input(FaceThumbnailsInput::Refresh);

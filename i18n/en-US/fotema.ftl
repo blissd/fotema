@@ -196,9 +196,8 @@ people-set-name = Set name
 people-person-search =
         .placeholder = Person name
 
-# Menu item to mark a an incorrectly matched face that is in fact
-# some other artefact in the photo
-people-not-a-face = Not a face
+# Menu item to ignore a face match because it is a random face or not a face.
+people-face-ignore = Ignore
 
 # Menu item to dis-associate a face with a person.
 # Variables:
