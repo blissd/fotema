@@ -1,0 +1,32 @@
+{
+  "name": "opencv",
+  "buildsystem": "cmake-ninja",
+  "builddir": true,
+  "cleanup": [
+    "/bin"
+  ],
+  "config-opts": [
+    "-D BUILD_LIST=objdetect,imgcodecs",
+    "-D CMAKE_BUILD_TYPE=RELEASE",
+    "-D BUILD_PERF_TESTS=OFF",
+    "-D BUILD_EXAMPLES=OFF",
+    "-D BUILD_PROTOBUF=OFF",
+    "-D BUILD_opencv_apps=OFF",
+    "-D BUILD_JAVA=OFF",
+    "-D BUILD_opencv_python2=OFF",
+    "-D BUILD_opencv_python3=OFF"
+  ],
+  "sources": [
+    {
+      "type": "archive",
+      "url": "https://github.com/opencv/opencv/archive/4.10.0.tar.gz",
+      "sha256": "b2171af5be6b26f7a06b1229948bbb2bdaa74fcf5cd097e0af6378fce50a6eb9",
+      "x-checker-data": {
+        "type": "anitya",
+        "project-id": 6615,
+        "stable-only": true,
+        "url-template": "https://github.com/opencv/opencv/archive/$version.tar.gz"
+      }
+    }
+  ]
+}
