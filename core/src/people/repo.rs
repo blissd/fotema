@@ -97,7 +97,7 @@ impl Repository {
                 people.thumbnail_path AS person_thumbnail_path
             FROM pictures_faces
             LEFT OUTER JOIN people USING (person_id)
-            WHERE picture_id = ?1 AND pictures_faces.is_face = TRUE",
+            WHERE picture_id = ?1 AND pictures_faces.is_ignored = FALSE",
         )?;
 
         let result = stmt
@@ -155,7 +155,7 @@ impl Repository {
             let mut stmt = tx.prepare_cached(
                 "UPDATE pictures_faces
                 SET
-                    is_face = FALSE
+                    is_ignored = TRUE
                 WHERE face_id = ?1",
             )?;
 
@@ -250,10 +250,10 @@ impl Repository {
 
                     confidence,
 
-                    is_face
+                    is_ignored
                 ) VALUES (
                     ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10,
-                    ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, true
+                    ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, false
                 )
                 ",
             )?;

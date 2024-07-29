@@ -86,3 +86,25 @@ pub struct Face {
         left_mouth_corner: Option<(u32, u32)>,
     */
 }
+
+/// A face that is for an unknown person, containing the appropriate details to perform
+/// a recognition upon the face.
+pub struct UnknownFace {
+    pub face_id: FaceId,
+
+    /// Path to originally detected face, with no transformations applied
+    pub face_path: PathBuf,
+
+    /// Bounds around face in source image.
+    /// NOTE: this is not the same image as is pointed at by face_path.
+    bounds: Rect,
+
+    /// Landmarks relative to the source image, not relative to the bounds.
+    right_eye: (u32, u32),
+    left_eye: (u32, u32),
+    nose: (u32, u32),
+    right_mouth_corner: (u32, u32),
+    left_mouth_corner: (u32, u32),
+
+    confidence: f32,
+}

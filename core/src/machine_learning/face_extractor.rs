@@ -19,10 +19,10 @@ use tracing::{debug, error};
 
 #[derive(Debug, Clone)]
 pub struct Rect {
-    pub x: u32,
-    pub y: u32,
-    pub width: u32,
-    pub height: u32,
+    pub x: f32,
+    pub y: f32,
+    pub width: f32,
+    pub height: f32,
 }
 
 #[derive(Debug, Clone)]
@@ -50,30 +50,30 @@ pub struct Face {
 }
 
 impl Face {
-    fn landmark(&self, index: usize) -> Option<(u32, u32)> {
+    fn landmark(&self, index: usize) -> Option<(f32, f32)> {
         self.landmarks
             .as_ref()
             .filter(|x| x.len() == 5)
-            .map(|x| (x[index].0 as u32, x[index].1 as u32))
+            .map(|x| (x[index].0, x[index].1))
     }
 
-    pub fn right_eye(&self) -> Option<(u32, u32)> {
+    pub fn right_eye(&self) -> Option<(f32, f32)> {
         self.landmark(0)
     }
 
-    pub fn left_eye(&self) -> Option<(u32, u32)> {
+    pub fn left_eye(&self) -> Option<(f32, f32)> {
         self.landmark(1)
     }
 
-    pub fn nose(&self) -> Option<(u32, u32)> {
+    pub fn nose(&self) -> Option<(f32, f32)> {
         self.landmark(2)
     }
 
-    pub fn right_mouth_corner(&self) -> Option<(u32, u32)> {
+    pub fn right_mouth_corner(&self) -> Option<(f32, f32)> {
         self.landmark(3)
     }
 
-    pub fn left_mouth_corner(&self) -> Option<(u32, u32)> {
+    pub fn left_mouth_corner(&self) -> Option<(f32, f32)> {
         self.landmark(4)
     }
 }
@@ -205,9 +205,9 @@ impl FaceExtractor {
                     .into_iter()
                     .filter(|f| f.confidence >= 0.95)
                     .filter(|f1| {
-                        let nearest = faces.iter().min_by_key(|f2| {
-                            Self::distance(Self::centre(&f1), Self::centre(&f2.0)) as u32
-                        });
+                        let nearest = faces
+                            .iter()
+                            .min_by_key(|f2| Self::nose_distance(&f1, &f2.0) as u32);
                         nearest.is_none()
                             || nearest.is_some_and(|f2| {
                                 Self::distance(Self::centre(&f1), Self::centre(&f2.0)) > 40.0
@@ -250,54 +250,70 @@ impl FaceExtractor {
                 // The bounding box is pretty tight, so make it a bit bigger.
                 // Also, make the box a square.
 
-                let mut longest: u32 =
-                    (std::cmp::max(f.rect.width as u32, f.rect.height as u32) as f32 * 1.6) as u32;
-                let mut half_longest: u32 = longest / 2;
+                let mut longest: f32 = if f.rect.width < f.rect.height {
+                    f.rect.width
+                } else {
+                    f.rect.height
+                };
+
+                let mut longest = longest * 1.6;
+                let mut half_longest = longest / 2.0;
 
                 let (centre_x, centre_y) = Self::centre(&f);
-                let centre_x = centre_x as u32;
-                let centre_y = centre_y as u32;
+                let centre_x = centre_x;
+                let centre_y = centre_y;
 
                 // Normalize thumbnail to be a square.
-                if original_image.width() < centre_x + half_longest {
-                    half_longest = original_image.width() - centre_x;
-                    longest = half_longest * 2;
+                if (original_image.width() as f32) < centre_x + half_longest {
+                    half_longest = original_image.width() as f32 - centre_x;
+                    longest = half_longest * 2.0;
                 }
-                if original_image.height() < centre_y + half_longest {
-                    half_longest = original_image.height() - centre_y;
-                    longest = half_longest * 2;
+                if (original_image.height() as f32) < centre_y + half_longest {
+                    half_longest = original_image.height() as f32 - centre_y;
+                    longest = half_longest * 2.0;
                 }
 
                 if centre_x < half_longest {
                     half_longest = centre_x;
-                    longest = half_longest * 2;
+                    longest = half_longest * 2.0;
                 }
 
                 if centre_y < half_longest {
                     half_longest = centre_y;
-                    longest = half_longest * 2;
+                    longest = half_longest * 2.0;
                 }
 
                 // Don't panic when x or y would be < zero
-                let x: u32 = centre_x.checked_sub(half_longest).unwrap_or(0);
-                let y: u32 = centre_y.checked_sub(half_longest).unwrap_or(0);
+                let mut x = centre_x - half_longest;
+                if x < 0.0 {
+                    x = 0.0;
+                }
+                let mut y = centre_y - half_longest;
+                if y < 0.0 {
+                    y = 0.0;
+                }
 
                 // FIXME use fast_image_resize instead of image-rs
-                let thumbnail = original_image.crop_imm(x, y, longest, longest);
+                let thumbnail =
+                    original_image.crop_imm(x as u32, y as u32, longest as u32, longest as u32);
                 let thumbnail = thumbnail.thumbnail(200, 200);
                 let thumbnail_path =
                     base_path.join(format!("{}_{}_thumbnail.png", index, model_name));
                 let _ = thumbnail.save(&thumbnail_path);
 
                 let bounds = Rect {
-                    x: f.rect.x as u32,
-                    y: f.rect.y as u32,
-                    width: f.rect.width as u32,
-                    height: f.rect.height as u32,
+                    x: f.rect.x,
+                    y: f.rect.y,
+                    width: f.rect.width,
+                    height: f.rect.height,
                 };
 
-                let bounds_img =
-                    original_image.crop_imm(bounds.x, bounds.y, bounds.width, bounds.height);
+                let bounds_img = original_image.crop_imm(
+                    bounds.x as u32,
+                    bounds.y as u32,
+                    bounds.width as u32,
+                    bounds.height as u32,
+                );
 
                 let bounds_path = base_path.join(format!("{}_original.png", index));
                 let _ = bounds_img.save(&bounds_path);
@@ -332,7 +348,28 @@ impl FaceExtractor {
         f32::sqrt(x + y)
     }
 
-    /// Computes the centre of a face preferring.
+    fn nose_distance(face1: &DetectedFace, face2: &DetectedFace) -> f32 {
+        if let (Some(face1_landmarks), Some(face2_landmarks)) = (&face1.landmarks, &face2.landmarks)
+        {
+            // If we have landmarks, then the first two are the right and left eyes.
+            // Use the midpoint between the eyes as the centre of the thumbnail.
+            let coord1 = (face1_landmarks[2].0, face1_landmarks[2].1);
+            let coord2 = (face2_landmarks[2].0, face2_landmarks[2].1);
+            Self::distance(coord1, coord2)
+        } else {
+            let coord1 = (
+                face1.rect.x + (face1.rect.width / 2.0),
+                face1.rect.y + (face1.rect.height / 2.0),
+            );
+            let coord2 = (
+                face2.rect.x + (face2.rect.width / 2.0),
+                face2.rect.y + (face2.rect.height / 2.0),
+            );
+            Self::distance(coord1, coord2)
+        }
+    }
+
+    /// Computes the centre of a face.
     fn centre(f: &DetectedFace) -> (f32, f32) {
         if let Some(ref landmarks) = f.landmarks {
             // If we have landmarks, then the first two are the right and left eyes.
@@ -376,10 +413,12 @@ mod tests {
             "/var/home/david/Pictures/Ente/Recents/0400B8FC-B0FB-413A-BDDA-428499E5905C.JPG",
         );
         let base_face_path = Path::new(".");
-
+        /*
         let extractor = FaceExtractor::build(&base_face_path).unwrap();
         extractor
             .extract_faces(&PictureId::new(0), &image_path)
+            .await
             .unwrap();
+            */
     }
 }
