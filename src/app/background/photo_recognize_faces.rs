@@ -76,21 +76,27 @@ impl PhotoRecognizeFaces {
 
         people
             .into_iter()
-            //.par_iter()
             .for_each(|(person_id, person_face)| {
-                let mut repo = self.repo.clone();
+                // FIXME unwrap
+               // let mut recognizer = FaceRecognizer::build(&person_face).unwrap();
 
                 // FIXME unwrap
-                let mut recognizer = FaceRecognizer::build(&person_face).unwrap();
-
-                // FIXME unwrap
-                let unknown_faces = repo.find_unknown_faces_for_person(person_id).unwrap();
+                let unknown_faces = self.repo.find_unknown_faces_for_person(person_id).unwrap();
                 info!("Recognizing person {} against {} unknown faces.", person_id, unknown_faces.len());
 
-                for unknown_face in unknown_faces {
-                    let result = recognizer.recognize(&unknown_face);
-                    info!("Recognize result = {:?}", result);
-                }
+                unknown_faces
+                    .into_par_iter()
+                    .for_each(|unknown_face| {
+                        let mut recognizer = FaceRecognizer::build(&person_face).unwrap();
+                        let is_match = recognizer.recognize(&unknown_face);
+                        if let Ok(true) = is_match {
+                            let mut repo = self.repo.clone();
+                            let result = repo.mark_as_person_unconfirmed(unknown_face.face_id, person_id);
+                            if let Err(e) = result {
+                                error!("Failed marking face {} as person: {:?}", unknown_face.face_id, e);
+                            }
+                        }
+                    });
 
 /*
                 if result.is_err() {

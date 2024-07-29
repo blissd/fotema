@@ -219,8 +219,7 @@ impl Repository {
                 confidence
             FROM  pictures_faces
             WHERE person_id IS NULL
-            AND is_ignored = FALSE
-            LIMIT 1",
+            AND is_ignored = FALSE",
         )?;
 
         let result: Vec<model::DetectedFace> = stmt
@@ -439,6 +438,7 @@ impl Repository {
         Ok(())
     }
 
+    /// User is manually marking a face as a person
     pub fn mark_as_person(&mut self, face_id: FaceId, person_id: PersonId) -> Result<()> {
         let mut con = self.con.lock().unwrap();
         let tx = con.transaction()?;
@@ -449,6 +449,27 @@ impl Repository {
                 SET
                     person_id = ?2,
                     is_confirmed = TRUE
+                WHERE face_id = ?1",
+            )?;
+
+            stmt.execute(params![face_id.id(), person_id.id(),])?;
+        }
+
+        tx.commit()?;
+        Ok(())
+    }
+
+    /// Face recognition is automatically marking a face as a person
+    pub fn mark_as_person_unconfirmed(&mut self, face_id: FaceId, person_id: PersonId) -> Result<()> {
+        let mut con = self.con.lock().unwrap();
+        let tx = con.transaction()?;
+
+        {
+            let mut stmt = tx.prepare_cached(
+                "UPDATE pictures_faces
+                SET
+                    person_id = ?2,
+                    is_confirmed = FALSE
                 WHERE face_id = ?1",
             )?;
 
