@@ -74,6 +74,7 @@ pub struct Face {
 
 /// A face hat has been detected, containing the appropriate landmarks to perform
 /// a recognition upon the face.
+#[derive(Debug, Clone)]
 pub struct DetectedFace {
     pub face_id: FaceId,
 
@@ -82,37 +83,41 @@ pub struct DetectedFace {
 
     /// Bounds around face in source image.
     /// NOTE: this is not the same image as is pointed at by face_path.
-    bounds: Rect,
+    pub bounds: Rect,
 
     /// Landmarks relative to the source image, not relative to the bounds.
-    right_eye: (f32, f32),
-    left_eye: (f32, f32),
-    nose: (f32, f32),
-    right_mouth_corner: (f32, f32),
-    left_mouth_corner: (f32, f32),
+    pub right_eye: (f32, f32),
+    pub left_eye: (f32, f32),
+    pub nose: (f32, f32),
+    pub right_mouth_corner: (f32, f32),
+    pub left_mouth_corner: (f32, f32),
 
-    confidence: f32,
+    pub confidence: f32,
 }
 
 impl DetectedFace {
     pub fn landmarks_as_mat(&self) -> Mat {
-        Mat::from_slice_2d(&[[
-            self.bounds.x,
-            self.bounds.y,
-            self.bounds.width,
-            self.bounds.height,
-            self.right_eye.0,
-            self.right_eye.1,
-            self.left_eye.0,
-            self.left_eye.1,
-            self.nose.0,
-            self.nose.1,
-            self.right_mouth_corner.0,
-            self.right_mouth_corner.1,
-            self.left_mouth_corner.0,
-            self.left_mouth_corner.1,
-            self.confidence,
-        ]])
+        // NOTE landmarks are relative to source image, not the bounds, so must translate x and y.
+        Mat::from_exact_iter(
+            vec![
+                0.0,
+                0.0,
+                self.bounds.width,
+                self.bounds.height,
+                self.right_eye.0 - self.bounds.x,
+                self.right_eye.1 - self.bounds.y,
+                self.left_eye.0 - self.bounds.x,
+                self.left_eye.1 - self.bounds.y,
+                self.nose.0 - self.bounds.x,
+                self.nose.1 - self.bounds.y,
+                self.right_mouth_corner.0 - self.bounds.x,
+                self.right_mouth_corner.1 - self.bounds.y,
+                self.left_mouth_corner.0 - self.bounds.x,
+                self.left_mouth_corner.1 - self.bounds.y,
+                self.confidence,
+            ]
+            .into_iter(),
+        )
         .unwrap()
     }
 }

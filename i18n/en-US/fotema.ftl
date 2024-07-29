@@ -242,6 +242,9 @@ progress-motion-photo = Processing motion photos.
 # Detect faces from photos
 progress-detect-faces-photos = Detecting faces in photos.
 
+# Recognize faces in photos as known people
+progress-recognize-faces-photos = Recognizing faces in photos.
+
 # Not doing any background work
 progress-idle = Idle.
 

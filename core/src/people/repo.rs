@@ -7,6 +7,7 @@ use crate::photo::model::PictureId;
 use crate::machine_learning::face_extractor;
 use crate::path_encoding;
 use crate::people::model;
+use crate::people::model::Rect;
 use crate::people::FaceId;
 use crate::people::PersonId;
 use anyhow::*;
@@ -127,6 +128,109 @@ impl Repository {
         Ok(result)
     }
 
+    /// All known people that must have a face recognition performed.
+    /// Select the best face for recognition, where "best" is the face with
+    /// the highest confidence for a face that the user has confirmed is a particular person.
+    pub fn find_people_for_recognition(&self) -> Result<Vec<(PersonId, model::DetectedFace)>> {
+        let con = self.con.lock().unwrap();
+
+        // NOTE: this is non-standard SQL that might not work in DBs that aren't SQLite.
+        let mut stmt = con.prepare(
+            "SELECT
+                face_id,
+                person_id,
+
+                bounds_path,
+
+                bounds_x,
+                bounds_y,
+                bounds_width,
+                bounds_height,
+
+                right_eye_x,
+                right_eye_y,
+
+                left_eye_x,
+                left_eye_y,
+
+                nose_x,
+                nose_y,
+
+                right_mouth_corner_x,
+                right_mouth_corner_y,
+
+                left_mouth_corner_x,
+                left_mouth_corner_y,
+
+                max(confidence) AS confidence
+            FROM  pictures_faces
+            WHERE person_id IS NOT NULL
+            AND is_confirmed = TRUE
+            GROUP BY person_id",
+        )?;
+
+        let result: Vec<(PersonId, model::DetectedFace)> = stmt
+            .query_map([], |row| {
+                let person_id = row.get("person_id").map(PersonId::new);
+                let face = self.to_detected_face(row);
+                face.and_then(|fc| person_id.map(|pid| (pid, fc)))
+            })?
+            .flatten()
+            .collect();
+
+        Ok(result)
+    }
+
+    /// Find new faces as candidates for face recognition for a given person.
+    /// Only returns faces that haven't been recognized before for the person.
+    pub fn find_unknown_faces_for_person(
+        &self,
+        person_id: PersonId,
+    ) -> Result<Vec<model::DetectedFace>> {
+        let con = self.con.lock().unwrap();
+
+        // NOTE: this is non-standard SQL that might not work in DBs that aren't SQLite.
+        let mut stmt = con.prepare(
+            "SELECT
+                face_id,
+
+                bounds_path,
+
+                bounds_x,
+                bounds_y,
+                bounds_width,
+                bounds_height,
+
+                right_eye_x,
+                right_eye_y,
+
+                left_eye_x,
+                left_eye_y,
+
+                nose_x,
+                nose_y,
+
+                right_mouth_corner_x,
+                right_mouth_corner_y,
+
+                left_mouth_corner_x,
+                left_mouth_corner_y,
+
+                confidence
+            FROM  pictures_faces
+            WHERE person_id IS NULL
+            AND is_ignored = FALSE
+            LIMIT 1",
+        )?;
+
+        let result: Vec<model::DetectedFace> = stmt
+            .query_map([], |row| self.to_detected_face(row))?
+            .flatten()
+            .collect();
+
+        Ok(result)
+    }
+
     pub fn find_pictures_for_person(&self, person_id: PersonId) -> Result<Vec<PictureId>> {
         let con = self.con.lock().unwrap();
         let mut stmt = con.prepare(
@@ -155,7 +259,8 @@ impl Repository {
             let mut stmt = tx.prepare_cached(
                 "UPDATE pictures_faces
                 SET
-                    is_ignored = TRUE
+                    is_ignored = TRUE,
+                    is_confirmed = FALSE
                 WHERE face_id = ?1",
             )?;
 
@@ -322,7 +427,8 @@ impl Repository {
             let mut update_face = tx.prepare_cached(
                 "UPDATE pictures_faces
                 SET
-                    person_id = ?2
+                    person_id = ?2,
+                    is_confirmed = TRUE
                 WHERE face_id = ?1",
             )?;
 
@@ -341,7 +447,8 @@ impl Repository {
             let mut stmt = tx.prepare_cached(
                 "UPDATE pictures_faces
                 SET
-                    person_id = ?2
+                    person_id = ?2,
+                    is_confirmed = TRUE
                 WHERE face_id = ?1",
             )?;
 
@@ -360,7 +467,8 @@ impl Repository {
             let mut stmt = tx.prepare_cached(
                 "UPDATE pictures_faces
                 SET
-                    person_id = null
+                    person_id = NULL,
+                    is_confirmed = FALSE
                 WHERE face_id = ?1",
             )?;
 
@@ -456,5 +564,51 @@ impl Repository {
             name,
             thumbnail_path,
         })
+    }
+
+    fn to_detected_face(&self, row: &Row<'_>) -> rusqlite::Result<model::DetectedFace> {
+        let face_id = row.get("face_id").map(FaceId::new)?;
+
+        let face_path = row
+            .get("bounds_path")
+            .map(|p: String| self.cache_dir_base_path.join(p))?;
+
+        let bounds = Rect {
+            x: row.get("bounds_x")?,
+            y: row.get("bounds_y")?,
+            width: row.get("bounds_width")?,
+            height: row.get("bounds_height")?,
+        };
+
+        let right_eye_x = row.get("right_eye_x")?;
+        let right_eye_y = row.get("right_eye_y")?;
+
+        let left_eye_x = row.get("left_eye_x")?;
+        let left_eye_y = row.get("left_eye_y")?;
+
+        let nose_x = row.get("nose_x")?;
+        let nose_y = row.get("nose_y")?;
+
+        let right_mouth_corner_x = row.get("right_mouth_corner_x")?;
+        let right_mouth_corner_y = row.get("right_mouth_corner_y")?;
+
+        let left_mouth_corner_x = row.get("left_mouth_corner_x")?;
+        let left_mouth_corner_y = row.get("left_mouth_corner_y")?;
+
+        let confidence = row.get("confidence")?;
+
+        let face = model::DetectedFace {
+            face_id,
+            face_path,
+            bounds,
+            right_eye: (right_eye_x, right_eye_y),
+            left_eye: (left_eye_x, left_eye_y),
+            nose: (nose_x, nose_y),
+            right_mouth_corner: (right_mouth_corner_x, right_mouth_corner_y),
+            left_mouth_corner: (left_mouth_corner_x, left_mouth_corner_y),
+            confidence,
+        };
+
+        std::result::Result::Ok(face)
     }
 }

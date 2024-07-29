@@ -13,8 +13,10 @@ use std::path::PathBuf;
 use tracing::{error, info};
 use futures::executor::block_on;
 
-use fotema_core::machine_learning::face_extractor::FaceExtractor;
+use fotema_core::machine_learning::face_recognizer::FaceRecognizer;
 use fotema_core::people;
+use fotema_core::PersonId;
+use fotema_core::people::model::DetectedFace;
 use fotema_core::photo::PictureId;
 
 use crate::app::components::progress_monitor::{
@@ -41,8 +43,6 @@ pub enum PhotoRecognizeFacesOutput {
 
 #[derive(Clone)]
 pub struct PhotoRecognizeFaces {
-    extractor: Arc<FaceExtractor>,
-
     // Danger! Don't hold the repo mutex for too long as it blocks viewing images.
     repo: people::Repository,
 
@@ -51,18 +51,17 @@ pub struct PhotoRecognizeFaces {
 
 impl PhotoRecognizeFaces {
 
-    fn detect(&self, sender: ComponentSender<Self>) -> Result<()>
+    fn recognize(&self, sender: ComponentSender<Self>) -> Result<()>
      {
         let start = std::time::Instant::now();
 
-        let unprocessed: Vec<(PictureId, PathBuf)> = self.repo
-            .find_need_face_scan()?
+        let people: Vec<(PersonId, DetectedFace)> = self.repo
+            .find_people_for_recognition()?
             .into_iter()
-            .filter(|(_, path)| path.exists())
             .collect();
 
-        let count = unprocessed.len();
-         info!("Found {} photos as candidates for face recognition", count);
+        let count = people.len();
+         info!("Found {} people as candidates for face recognition", count);
 
         // Short-circuit before sending progress messages to stop
         // banner from appearing and disappearing.
@@ -73,29 +72,36 @@ impl PhotoRecognizeFaces {
 
         let _ = sender.output(PhotoRecognizeFacesOutput::Started);
 
-        self.progress_monitor.emit(ProgressMonitorInput::Start(TaskName::DetectFaces, count));
+        self.progress_monitor.emit(ProgressMonitorInput::Start(TaskName::RecognizeFaces, count));
 
-        unprocessed
-            //.into_iter()
-            .par_iter()
-            .for_each(|(picture_id, path)| {
+        people
+            .into_iter()
+            //.par_iter()
+            .for_each(|(person_id, person_face)| {
                 let mut repo = self.repo.clone();
 
-                // Careful! panic::catch_unwind returns Ok(Err) if the evaluated expression returns
-                // an error but doesn't panic.
-                let result = block_on(async {
-                        self.extractor.extract_faces(&picture_id, &path).await
-                    }).and_then(|faces| repo.clone().add_face_scans(&picture_id, &faces));
+                // FIXME unwrap
+                let mut recognizer = FaceRecognizer::build(&person_face).unwrap();
 
+                // FIXME unwrap
+                let unknown_faces = repo.find_unknown_faces_for_person(person_id).unwrap();
+                info!("Recognizing person {} against {} unknown faces.", person_id, unknown_faces.len());
+
+                for unknown_face in unknown_faces {
+                    let result = recognizer.recognize(&unknown_face);
+                    info!("Recognize result = {:?}", result);
+                }
+
+/*
                 if result.is_err() {
                     error!("Failed detecting faces: Photo path: {:?}. Error: {:?}", path, result);
                     let _ = repo.mark_face_scan_broken(&picture_id);
-                }
+                }*/
 
                 self.progress_monitor.emit(ProgressMonitorInput::Advance);
             });
 
-        info!("Detected faces in {} photos in {} seconds.", count, start.elapsed().as_secs());
+        info!("Recognized people in {} seconds.", start.elapsed().as_secs());
 
         self.progress_monitor.emit(ProgressMonitorInput::Complete);
 
@@ -106,13 +112,12 @@ impl PhotoRecognizeFaces {
 }
 
 impl Worker for PhotoRecognizeFaces {
-    type Init = (FaceExtractor, people::Repository, Arc<Reducer<ProgressMonitor>>);
+    type Init = (people::Repository, Arc<Reducer<ProgressMonitor>>);
     type Input = PhotoRecognizeFacesInput;
     type Output = PhotoRecognizeFacesOutput;
 
-    fn init((extractor, repo, progress_monitor): Self::Init, _sender: ComponentSender<Self>) -> Self  {
+    fn init((repo, progress_monitor): Self::Init, _sender: ComponentSender<Self>) -> Self  {
         PhotoRecognizeFaces {
-            extractor: Arc::new(extractor),
             repo,
             progress_monitor,
         }
@@ -126,7 +131,7 @@ impl Worker for PhotoRecognizeFaces {
 
                 // Avoid runtime panic from calling block_on
                 rayon::spawn(move || {
-                    if let Err(e) = this.detect(sender) {
+                    if let Err(e) = this.recognize(sender) {
                         error!("Failed to recognize photo faces: {}", e);
                     }
                 });

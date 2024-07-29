@@ -6,11 +6,10 @@
     "/bin"
   ],
   "config-opts": [
-    "-D BUILD_LIST=objdetect,imgcodecs",
+    "-D BUILD_LIST=objdetect,imgcodecs,dnn",
     "-D CMAKE_BUILD_TYPE=RELEASE",
     "-D BUILD_PERF_TESTS=OFF",
     "-D BUILD_EXAMPLES=OFF",
-    "-D BUILD_PROTOBUF=OFF",
     "-D BUILD_opencv_apps=OFF",
     "-D BUILD_JAVA=OFF",
     "-D BUILD_opencv_python2=OFF",

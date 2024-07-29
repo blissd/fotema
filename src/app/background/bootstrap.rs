@@ -29,6 +29,7 @@ use super::{
     photo_clean::{PhotoClean, PhotoCleanInput, PhotoCleanOutput},
     photo_detect_faces::{PhotoDetectFaces, PhotoDetectFacesInput, PhotoDetectFacesOutput},
     photo_enrich::{PhotoEnrich, PhotoEnrichInput, PhotoEnrichOutput},
+    photo_recognize_faces::{PhotoRecognizeFaces, PhotoRecognizeFacesInput, PhotoRecognizeFacesOutput},
     photo_scan::{PhotoScan, PhotoScanInput, PhotoScanOutput},
     photo_thumbnail::{PhotoThumbnail, PhotoThumbnailInput, PhotoThumbnailOutput},
     photo_extract_motion::{PhotoExtractMotion, PhotoExtractMotionInput, PhotoExtractMotionOutput},
@@ -109,6 +110,7 @@ pub struct Bootstrap {
     photo_extract_motion: Arc<WorkerController<PhotoExtractMotion>>,
 
     photo_detect_faces: Arc<WorkerController<PhotoDetectFaces>>,
+    photo_recognize_faces: Arc<WorkerController<PhotoRecognizeFaces>>,
 
     /// Pending ordered tasks to process
     /// Wow... figuring out a type signature that would compile was a nightmare.
@@ -164,6 +166,11 @@ impl Bootstrap {
     fn add_task_photo_detect_faces(&mut self) {
         let sender = self.photo_detect_faces.sender().clone();
         self.enqueue(Box::new(move || sender.emit(PhotoDetectFacesInput::Start)));
+    }
+
+    fn add_task_photo_recognize_faces(&mut self) {
+        let sender = self.photo_recognize_faces.sender().clone();
+        self.enqueue(Box::new(move || sender.emit(PhotoRecognizeFacesInput::Start)));
     }
 
     fn enqueue(&mut self, task: Box<dyn Fn() + Send + Sync>) {
@@ -298,6 +305,13 @@ impl Worker for Bootstrap {
                 PhotoDetectFacesOutput::Completed(count) => BootstrapInput::TaskCompleted(TaskName::DetectFaces, Some(count)),
             });
 
+        let photo_recognize_faces = PhotoRecognizeFaces::builder()
+            .detach_worker((people_repo.clone(), progress_monitor.clone()))
+            .forward(sender.input_sender(), |msg| match msg {
+                PhotoRecognizeFacesOutput::Started => BootstrapInput::TaskStarted(TaskName::RecognizeFaces),
+                PhotoRecognizeFacesOutput::Completed(count) => BootstrapInput::TaskCompleted(TaskName::RecognizeFaces, Some(count)),
+            });
+
         let mut bootstrap = Self {
             started_at: None,
             library_stale: false,
@@ -312,6 +326,7 @@ impl Worker for Bootstrap {
             photo_thumbnail: Arc::new(photo_thumbnail),
             video_thumbnail: Arc::new(video_thumbnail),
             photo_detect_faces: Arc::new(photo_detect_faces),
+            photo_recognize_faces: Arc::new(photo_recognize_faces),
             pending_tasks: Arc::new(Mutex::new(VecDeque::new())),
         };
 
@@ -326,7 +341,7 @@ impl Worker for Bootstrap {
         bootstrap.add_task_video_clean();
         bootstrap.add_task_photo_extract_motion();
         bootstrap.add_task_photo_detect_faces();
-
+        bootstrap.add_task_photo_recognize_faces();
 
         bootstrap
     }

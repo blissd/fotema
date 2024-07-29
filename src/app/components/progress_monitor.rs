@@ -20,6 +20,7 @@ pub enum TaskName {
     Transcode,
     MotionPhoto,
     DetectFaces,
+    RecognizeFaces,
 
     /// FIXME figure out if 'Idle' will be used.
     Idle,
