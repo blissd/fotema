@@ -279,6 +279,9 @@ banner-extract-motion-photos = Processing motion photos.
 # Detect and extract faces from photos
 banner-detect-faces-photos = Detecting faces in photos.
 
+# Recognize faces as people
+banner-recognize-faces-photos = Recognizing faces in photos.
+
 ## Primary menu
 
 # The "hamburger" menu on the main app navigation sidebar.

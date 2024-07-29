@@ -36,6 +36,7 @@ strum = { version = "0.26.2", features = ["derive"] }
 tempfile = "3.10.1"
 tracing = "0.1.40"
 walkdir = "2.5.0"
+opencv = {version = "0.92.1", default-features = false, features = ["clang-runtime", "objdetect", "imgcodecs"]}
 
 [dev-dependencies]
 tempfile = "3.10.1"

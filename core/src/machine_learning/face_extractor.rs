@@ -250,7 +250,7 @@ impl FaceExtractor {
                 // The bounding box is pretty tight, so make it a bit bigger.
                 // Also, make the box a square.
 
-                let mut longest: f32 = if f.rect.width < f.rect.height {
+                let longest: f32 = if f.rect.width < f.rect.height {
                     f.rect.width
                 } else {
                     f.rect.height
@@ -260,8 +260,6 @@ impl FaceExtractor {
                 let mut half_longest = longest / 2.0;
 
                 let (centre_x, centre_y) = Self::centre(&f);
-                let centre_x = centre_x;
-                let centre_y = centre_y;
 
                 // Normalize thumbnail to be a square.
                 if (original_image.width() as f32) < centre_x + half_longest {
@@ -348,6 +346,8 @@ impl FaceExtractor {
         f32::sqrt(x + y)
     }
 
+    /// Distance between the nose landmarks of two faces.
+    /// Will fallback to centre of face bounds if no landmarks.
     fn nose_distance(face1: &DetectedFace, face2: &DetectedFace) -> f32 {
         if let (Some(face1_landmarks), Some(face2_landmarks)) = (&face1.landmarks, &face2.landmarks)
         {

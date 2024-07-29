@@ -9,6 +9,7 @@ pub mod photo_clean;
 pub mod photo_detect_faces;
 pub mod photo_enrich;
 pub mod photo_extract_motion;
+pub mod photo_recognize_faces;
 pub mod photo_scan;
 pub mod photo_thumbnail;
 

@@ -776,6 +776,9 @@ impl SimpleComponent for App {
                     TaskName::DetectFaces => {
                         self.banner.set_title(&fl!("banner-detect-faces-photos"));
                     },
+                    TaskName::RecognizeFaces => {
+                        self.banner.set_title(&fl!("banner-recognize-faces-photos"));
+                    },
                     TaskName::Clean(MediaType::Photo) => {
                         self.banner.set_title(&fl!("banner-clean-photos"));
                     },

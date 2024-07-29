@@ -60,6 +60,7 @@ pub enum TaskName {
     Thumbnail(MediaType),
     Clean(MediaType),
     DetectFaces,
+    RecognizeFaces,
 }
 
 #[derive(Debug)]

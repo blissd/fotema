@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+use opencv::core::Mat;
 use std::fmt::Display;
 use std::path::PathBuf;
 
@@ -56,10 +57,10 @@ impl Display for PersonId {
 
 #[derive(Debug, Clone)]
 pub struct Rect {
-    pub x: u32,
-    pub y: u32,
-    pub width: u32,
-    pub height: u32,
+    pub x: f32,
+    pub y: f32,
+    pub width: f32,
+    pub height: f32,
 }
 
 #[derive(Debug, Clone)]
@@ -69,27 +70,11 @@ pub struct Face {
     /// Path to thumbnail generated from face bounds.
     /// Normalized to be square and expanded to capture the whole head.
     pub thumbnail_path: PathBuf,
-    /*
-        /// Image cropped from bounds returned by face detection algorithm
-        pub bounds_path: PathBuf,
-
-        /// Bounds of detected face.
-        pub bounds: Rect,
-
-        /// Confidence (0.0 to 1.0) that the detected face is actually a face.
-        pub confidence: f32,
-
-        right_eye: Option<(u32, u32)>,
-        left_eye: Option<(u32, u32)>,
-        nose: Option<(u32, u32)>,
-        right_mouth_corner: Option<(u32, u32)>,
-        left_mouth_corner: Option<(u32, u32)>,
-    */
 }
 
-/// A face that is for an unknown person, containing the appropriate details to perform
+/// A face hat has been detected, containing the appropriate landmarks to perform
 /// a recognition upon the face.
-pub struct UnknownFace {
+pub struct DetectedFace {
     pub face_id: FaceId,
 
     /// Path to originally detected face, with no transformations applied
@@ -100,11 +85,34 @@ pub struct UnknownFace {
     bounds: Rect,
 
     /// Landmarks relative to the source image, not relative to the bounds.
-    right_eye: (u32, u32),
-    left_eye: (u32, u32),
-    nose: (u32, u32),
-    right_mouth_corner: (u32, u32),
-    left_mouth_corner: (u32, u32),
+    right_eye: (f32, f32),
+    left_eye: (f32, f32),
+    nose: (f32, f32),
+    right_mouth_corner: (f32, f32),
+    left_mouth_corner: (f32, f32),
 
     confidence: f32,
+}
+
+impl DetectedFace {
+    pub fn landmarks_as_mat(&self) -> Mat {
+        Mat::from_slice_2d(&[[
+            self.bounds.x,
+            self.bounds.y,
+            self.bounds.width,
+            self.bounds.height,
+            self.right_eye.0,
+            self.right_eye.1,
+            self.left_eye.0,
+            self.left_eye.1,
+            self.nose.0,
+            self.nose.1,
+            self.right_mouth_corner.0,
+            self.right_mouth_corner.1,
+            self.left_mouth_corner.0,
+            self.left_mouth_corner.1,
+            self.confidence,
+        ]])
+        .unwrap()
+    }
 }
