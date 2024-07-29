@@ -88,7 +88,7 @@ impl PhotoDetectFaces {
                     }).and_then(|faces| repo.clone().add_face_scans(&picture_id, &faces));
 
                 if result.is_err() {
-                    error!("Failed detecting faces: Photo path: {:?}", path);
+                    error!("Failed detecting faces: Photo path: {:?}. Error: {:?}", path, result);
                     let _ = repo.mark_face_scan_broken(&picture_id);
                 }
 
