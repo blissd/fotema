@@ -57,9 +57,6 @@ pub struct PersonSelect {
 
     /// ID of face to associate with person,
     face_id: Option<FaceId>,
-
-    /// Face thumbnail
-    face_thumbnail: Option<PathBuf>,
 }
 
 #[relm4::component(pub async)]
@@ -136,7 +133,6 @@ impl SimpleAsyncComponent for PersonSelect {
             people_list,
             all_people: vec![],
             face_id: None,
-            face_thumbnail: None,
         };
 
         AsyncComponentParts { model, widgets }
@@ -151,7 +147,6 @@ impl SimpleAsyncComponent for PersonSelect {
                 self.all_people.clear();
                 self.face_name.set_text("");
                 self.face_id = Some(face_id);
-                self.face_thumbnail = Some(thumbnail.clone());
 
                 {
                     let sender = sender.clone();
@@ -216,10 +211,10 @@ impl SimpleAsyncComponent for PersonSelect {
                 let _ = sender.output(PersonSelectOutput::Done);
             },
             PersonSelectInput::NewPerson => {
-                if let (Some(face_id), Some(thumbnail)) = (self.face_id, self.face_thumbnail.as_ref()) {
+                if let Some(face_id) = self.face_id {
                     debug!("Face {} is a new person", face_id);
                     let name = self.face_name.text().to_string();
-                    if let Err(e) = self.people_repo.add_person(face_id, &thumbnail, &name) {
+                    if let Err(e) = self.people_repo.add_person(face_id, &name) {
                         error!("Failed adding new person: {:?}", e);
                     }
                 }

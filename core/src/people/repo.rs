@@ -220,7 +220,7 @@ impl Repository {
             INNER JOIN people ON people.person_id = ?1
             WHERE faces.person_id IS NULL
             AND faces.is_ignored = FALSE
-            AND people.recognize_scan_at < faces.detected_at",
+            AND people.recognized_at < faces.detected_at",
         )?;
 
         let result: Vec<model::DetectedFace> = stmt
@@ -405,24 +405,23 @@ impl Repository {
         Ok(())
     }
 
-    pub fn add_person(&mut self, face_id: FaceId, thumbnail: &Path, name: &str) -> Result<()> {
+    /// Add a new named person derived from a face.
+    pub fn add_person(&mut self, face_id: FaceId, name: &str) -> Result<()> {
         let mut con = self.con.lock().unwrap();
         let tx = con.transaction()?;
 
         {
             let mut insert_person = tx.prepare_cached(
-                "INSERT INTO people (
-                    thumbnail_path,
-                    name
-                ) VALUES (
-                    ?1, ?2
+                "
+                WITH face(name, thumbnail_path) AS (
+                    SELECT ?2 as name, thumbnail_path FROM pictures_faces WHERE face_id = ?1
                 )
+                INSERT INTO people (name, thumbnail_path)
+                SELECT name, thumbnail_path FROM face
                 ",
             )?;
 
-            let thumbnail = thumbnail.strip_prefix(&self.cache_dir_base_path)?;
-
-            insert_person.execute(params![thumbnail.to_string_lossy(), name])?;
+            insert_person.execute(params![face_id.id(), name])?;
             let person_id = tx.last_insert_rowid();
 
             let mut update_face = tx.prepare_cached(
@@ -494,7 +493,7 @@ impl Repository {
             let mut stmt = tx.prepare_cached(
                 "UPDATE people
                 SET
-                    recognize_scan_at = CURRENT_TIMESTAMP
+                    recognized_at = CURRENT_TIMESTAMP
                 WHERE person_id = ?1",
             )?;
 
