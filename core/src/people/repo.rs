@@ -675,7 +675,6 @@ impl Repository {
     ) -> rusqlite::Result<model::PersonForRecognition> {
         let person_id = row.get("person_id").map(PersonId::new)?;
         let recognized_at = row.get("recognized_at")?;
-        dbg!(recognized_at);
         let face = self.to_detected_face(row)?;
 
         let person = PersonForRecognition {

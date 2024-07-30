@@ -65,6 +65,7 @@ impl FaceRecognizer {
         let best_person_and_score = self
             .people
             .iter()
+            .filter(|(p, _)| p.recognized_at <= unknown_face.detected_at)
             .map(|(person, person_face_features)| {
                 let l2_score = face_recognizer.match_(
                     &person_face_features,

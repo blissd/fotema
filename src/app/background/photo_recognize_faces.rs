@@ -75,11 +75,14 @@ impl PhotoRecognizeFaces {
         let _ = sender.output(PhotoRecognizeFacesOutput::Started);
         self.progress_monitor.emit(ProgressMonitorInput::Start(TaskName::RecognizeFaces, unprocessed.len()));
 
-        let recognizer = FaceRecognizer::build(people.clone()).unwrap();
+        let recognizer = FaceRecognizer::build(people.clone())?;
+
+        let min_recognized_at = people.iter().map(|x| x.recognized_at).min().unwrap();
 
         unprocessed
             //.into_iter()
             .into_par_iter()
+            .filter(|unknown_face| unknown_face.detected_at > min_recognized_at)
             .for_each(|unknown_face| {
                 // FIXME unwrap
                 let is_match = recognizer.recognize(&unknown_face);
