@@ -6,6 +6,8 @@ CREATE TABLE pictures_faces (
 
         picture_id     INTEGER NOT NULL, -- unique ID for picture
 
+        is_confirmed   BOOLEAN NOT NULL CHECK (is_confirmed IN (0, 1)) DEFAULT 0, -- person_id confirmed by user?
+
         detected_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, -- timestamp when face was detected
 
         person_id      INTEGER, -- person associated with face
