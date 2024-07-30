@@ -13,7 +13,7 @@ use tracing::{error, info};
 
 use fotema_core::machine_learning::face_recognizer::FaceRecognizer;
 use fotema_core::people;
-use fotema_core::people::model::PersonForRecognition;
+use fotema_core::people::model::{PersonForRecognition, DetectedFace};
 
 use crate::app::components::progress_monitor::{
     ProgressMonitor,
@@ -65,7 +65,12 @@ impl PhotoRecognizeFaces {
             return Ok(());
         }
 
-        let unprocessed = self.repo.find_unknown_faces()?;
+        let min_recognized_at = people.iter().map(|x| x.recognized_at).min().unwrap();
+
+        let unprocessed: Vec<DetectedFace> = self.repo.find_unknown_faces()?
+            .into_iter()
+            .filter(|unknown_face| unknown_face.detected_at > min_recognized_at)
+            .collect();
 
         if unprocessed.len() == 0 {
             let _ = sender.output(PhotoRecognizeFacesOutput::Completed(0));
@@ -77,12 +82,9 @@ impl PhotoRecognizeFaces {
 
         let recognizer = FaceRecognizer::build(people.clone())?;
 
-        let min_recognized_at = people.iter().map(|x| x.recognized_at).min().unwrap();
-
         unprocessed
             //.into_iter()
             .into_par_iter()
-            .filter(|unknown_face| unknown_face.detected_at > min_recognized_at)
             .for_each(|unknown_face| {
                 // FIXME unwrap
                 let is_match = recognizer.recognize(&unknown_face);
