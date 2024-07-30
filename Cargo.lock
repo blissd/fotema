@@ -1337,6 +1337,7 @@ dependencies = [
  "half",
  "hf-hub",
  "image 0.25.2",
+ "itertools 0.13.0",
  "kamadak-exif",
  "opencv",
  "rayon",

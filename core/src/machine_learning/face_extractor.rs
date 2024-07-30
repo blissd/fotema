@@ -15,6 +15,7 @@ use rust_faces::{
 
 use gdk4::prelude::TextureExt;
 use image::DynamicImage;
+use itertools::*;
 use tracing::{debug, error};
 
 #[derive(Debug, Clone)]
@@ -238,10 +239,22 @@ impl FaceExtractor {
             self.base_path.join(partition).join(file_name)
         };
 
-        let faces = faces
+        let mut faces = faces;
+        faces.sort_by_key(|x| x.1.clone());
+
+        let mut faces_flat_grouped: Vec<(String, usize, DetectedFace)> = Vec::new();
+
+        for (model_name, chunk) in &faces.into_iter().chunk_by(|x| x.1.clone()) {
+            let mut vs = chunk
+                .enumerate()
+                .map(|(i, x)| (model_name.clone(), i, x.0))
+                .collect::<Vec<(String, usize, DetectedFace)>>();
+            faces_flat_grouped.append(&mut vs);
+        }
+
+        let faces = faces_flat_grouped
             .into_iter()
-            .enumerate()
-            .map(|(index, (f, model_name))| {
+            .map(|(model_name, index, f)| {
                 if !base_path.exists() {
                     let _ = std::fs::create_dir_all(&base_path);
                 }
@@ -313,7 +326,7 @@ impl FaceExtractor {
                     bounds.height as u32,
                 );
 
-                let bounds_path = base_path.join(format!("{}_original.png", index));
+                let bounds_path = base_path.join(format!("{}_{}_original.png", index, model_name));
                 let _ = bounds_img.save(&bounds_path);
 
                 Face {
