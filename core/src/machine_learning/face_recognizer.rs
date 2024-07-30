@@ -1,8 +1,6 @@
 use anyhow::Result;
-use std::path::Path;
-use std::path::PathBuf;
 
-use opencv::core::{Mat, Ptr};
+use opencv::core::Mat;
 use opencv::imgcodecs;
 use opencv::objdetect::{FaceRecognizerSF, FaceRecognizerSF_DisType};
 use opencv::prelude::*;
@@ -16,15 +14,16 @@ pub struct FaceRecognizer {
 }
 
 impl FaceRecognizer {
-    const cosine_similar_thresh: f64 = 0.363;
-    const l2norm_similar_thresh: f64 = 1.128;
-    const model_path: &'static str = &"/var/home/david/Pictures/face_recognition_sface_2021dec.onnx";
+    //const COSINE_SIMILAR_THRESH: f64 = 0.363;
+    const L2NORM_SIMILAR_THRESH: f64 = 1.128;
+    const MODEL_PATH: &'static str =
+        &"/var/home/david/Pictures/face_recognition_sface_2021dec.onnx";
 
     pub fn build(person: &DetectedFace) -> Result<Self> {
         //face_recognition_sface_2021dec.onnx
         // FIXME download and cache at runtime
         //let model_path = Path::new("/var/home/david/Pictures/face_recognition_sface_2021dec.onnx");
-        let mut face_recognizer = FaceRecognizerSF::create_def(Self::model_path, "")?;
+        let mut face_recognizer = FaceRecognizerSF::create_def(Self::MODEL_PATH, "")?;
 
         let face_img = imgcodecs::imread_def(&person.face_path.to_string_lossy())?;
 
@@ -38,26 +37,24 @@ impl FaceRecognizer {
         face_recognizer.feature(&aligned_face, &mut face_features)?;
 
         Ok(Self {
-           // model_path: PathBuf::from("/var/home/david/Pictures/face_recognition_sface_2021dec.onnx"),
+            // model_path: PathBuf::from("/var/home/david/Pictures/face_recognition_sface_2021dec.onnx"),
             person_face_feature: face_features,
         })
     }
 
     pub fn recognize(&mut self, unknown_face: &DetectedFace) -> Result<bool> {
-        let mut face_recognizer = FaceRecognizerSF::create_def(Self::model_path, "")?;
+        let mut face_recognizer = FaceRecognizerSF::create_def(Self::MODEL_PATH, "")?;
 
         let face_img = imgcodecs::imread_def(&unknown_face.face_path.to_string_lossy())?;
 
         let face_landmarks = unknown_face.landmarks_as_mat();
 
         let mut aligned_face = Mat::default();
-        face_recognizer
-            .align_crop(&face_img, &face_landmarks, &mut aligned_face)?;
+        face_recognizer.align_crop(&face_img, &face_landmarks, &mut aligned_face)?;
 
         // Run feature extraction with given aligned_face
         let mut face_features = Mat::default();
-        face_recognizer
-            .feature(&aligned_face, &mut face_features)?;
+        face_recognizer.feature(&aligned_face, &mut face_features)?;
 
         /*
         let cos_score = face_recognizer.match_(
@@ -65,7 +62,7 @@ impl FaceRecognizer {
             &face_features,
             FaceRecognizerSF_DisType::FR_COSINE.into(),
         )?;
-		*/
+        */
 
         let l2_score = face_recognizer.match_(
             &self.person_face_feature,
@@ -74,7 +71,7 @@ impl FaceRecognizer {
         )?;
 
         // The internet said the l2norm should give better results than the cosine.
-        Ok(l2_score <= Self::l2norm_similar_thresh)
+        Ok(l2_score <= Self::L2NORM_SIMILAR_THRESH)
     }
 }
 

@@ -163,10 +163,9 @@ impl Repository {
                 left_mouth_corner_y,
 
                 max(confidence) AS confidence
-            FROM  pictures_faces
-            WHERE person_id IS NOT NULL
-            AND is_confirmed = TRUE
-            GROUP BY person_id",
+            FROM  pictures_faces AS faces
+            WHERE faces.is_confirmed = TRUE
+            GROUP BY faces.person_id",
         )?;
 
         let result: Vec<(PersonId, model::DetectedFace)> = stmt
@@ -217,13 +216,15 @@ impl Repository {
                 left_mouth_corner_y,
 
                 confidence
-            FROM  pictures_faces
-            WHERE person_id IS NULL
-            AND is_ignored = FALSE",
+            FROM  pictures_faces AS faces
+            INNER JOIN people ON people.person_id = ?1
+            WHERE faces.person_id IS NULL
+            AND faces.is_ignored = FALSE
+            AND people.recognize_scan_at < faces.detected_at",
         )?;
 
         let result: Vec<model::DetectedFace> = stmt
-            .query_map([], |row| self.to_detected_face(row))?
+            .query_map([person_id.id()], |row| self.to_detected_face(row))?
             .flatten()
             .collect();
 
@@ -259,7 +260,8 @@ impl Repository {
                 "UPDATE pictures_faces
                 SET
                     is_ignored = TRUE,
-                    is_confirmed = FALSE
+                    is_confirmed = FALSE,
+                    person_id = NULL
                 WHERE face_id = ?1",
             )?;
 
@@ -460,7 +462,11 @@ impl Repository {
     }
 
     /// Face recognition is automatically marking a face as a person
-    pub fn mark_as_person_unconfirmed(&mut self, face_id: FaceId, person_id: PersonId) -> Result<()> {
+    pub fn mark_as_person_unconfirmed(
+        &mut self,
+        face_id: FaceId,
+        person_id: PersonId,
+    ) -> Result<()> {
         let mut con = self.con.lock().unwrap();
         let tx = con.transaction()?;
 
@@ -474,6 +480,25 @@ impl Repository {
             )?;
 
             stmt.execute(params![face_id.id(), person_id.id(),])?;
+        }
+
+        tx.commit()?;
+        Ok(())
+    }
+
+    pub fn mark_face_recognition_complete(&mut self, person_id: PersonId) -> Result<()> {
+        let mut con = self.con.lock().unwrap();
+        let tx = con.transaction()?;
+
+        {
+            let mut stmt = tx.prepare_cached(
+                "UPDATE people
+                SET
+                    recognize_scan_at = CURRENT_TIMESTAMP
+                WHERE person_id = ?1",
+            )?;
+
+            stmt.execute(params![person_id.id(),])?;
         }
 
         tx.commit()?;
@@ -505,6 +530,7 @@ impl Repository {
         let tx = con.transaction()?;
 
         {
+            // FIXME should also set face that provided the thumbnail as confirmed.
             let mut stmt = tx.prepare_cached(
                 "UPDATE people
                 SET

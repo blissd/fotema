@@ -9,15 +9,12 @@ use rayon::prelude::*;
 use anyhow::*;
 use std::sync::Arc;
 use std::result::Result::Ok;
-use std::path::PathBuf;
 use tracing::{error, info};
-use futures::executor::block_on;
 
 use fotema_core::machine_learning::face_recognizer::FaceRecognizer;
 use fotema_core::people;
 use fotema_core::PersonId;
 use fotema_core::people::model::DetectedFace;
-use fotema_core::photo::PictureId;
 
 use crate::app::components::progress_monitor::{
     ProgressMonitor,
@@ -70,23 +67,22 @@ impl PhotoRecognizeFaces {
             return Ok(());
         }
 
-        let _ = sender.output(PhotoRecognizeFacesOutput::Started);
-
-        self.progress_monitor.emit(ProgressMonitorInput::Start(TaskName::RecognizeFaces, count));
-
         people
             .into_iter()
             .for_each(|(person_id, person_face)| {
-                // FIXME unwrap
-               // let mut recognizer = FaceRecognizer::build(&person_face).unwrap();
+
+                let _ = sender.output(PhotoRecognizeFacesOutput::Started);
 
                 // FIXME unwrap
                 let unknown_faces = self.repo.find_unknown_faces_for_person(person_id).unwrap();
                 info!("Recognizing person {} against {} unknown faces.", person_id, unknown_faces.len());
 
+                self.progress_monitor.emit(ProgressMonitorInput::Start(TaskName::RecognizeFaces, unknown_faces.len()));
+
                 unknown_faces
                     .into_par_iter()
                     .for_each(|unknown_face| {
+                        // FIXME unwrap
                         let mut recognizer = FaceRecognizer::build(&person_face).unwrap();
                         let is_match = recognizer.recognize(&unknown_face);
                         if let Ok(true) = is_match {
@@ -96,22 +92,22 @@ impl PhotoRecognizeFaces {
                                 error!("Failed marking face {} as person: {:?}", unknown_face.face_id, e);
                             }
                         }
+
+                        self.progress_monitor.emit(ProgressMonitorInput::Advance);
                     });
 
-/*
-                if result.is_err() {
-                    error!("Failed detecting faces: Photo path: {:?}. Error: {:?}", path, result);
-                    let _ = repo.mark_face_scan_broken(&picture_id);
-                }*/
-
-                self.progress_monitor.emit(ProgressMonitorInput::Advance);
+                let mut repo = self.repo.clone();
+                if let Err(e) = repo.mark_face_recognition_complete(person_id) {
+                    error!("Failed marking face recognition complete for person {}: {:?}", person_id, e);
+                }
             });
+
 
         info!("Recognized people in {} seconds.", start.elapsed().as_secs());
 
         self.progress_monitor.emit(ProgressMonitorInput::Complete);
 
-        let _ = sender.output(PhotoRecognizeFacesOutput::Completed(count));
+        let _ = sender.output(PhotoRecognizeFacesOutput::Completed(0)); // FIXME zero
 
         Ok(())
     }
