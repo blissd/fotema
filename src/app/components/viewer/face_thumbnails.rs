@@ -56,7 +56,7 @@ pub enum FaceThumbnailsInput {
     Ignore(FaceId),
 
     /// Set new thumbnail for person
-    SetThumbnail(PersonId, PathBuf),
+    SetThumbnail(PersonId, FaceId),
 
     /// The person selection dialog has selected or created a new person and should be dismissed.
     PersonSelected,
@@ -172,7 +172,7 @@ impl SimpleAsyncComponent for FaceThumbnails {
                                 let set_thumbnail: RelmAction<FaceThumbnailAction> = {
                                     let sender = sender.clone();
                                     RelmAction::new_stateless(move |_| {
-                                        sender.input(FaceThumbnailsInput::SetThumbnail(person.person_id, face.thumbnail_path.clone()));
+                                        sender.input(FaceThumbnailsInput::SetThumbnail(person.person_id, face.face_id));
                                     })
                                 };
                                 group.add_action(set_thumbnail);
@@ -289,9 +289,9 @@ impl SimpleAsyncComponent for FaceThumbnails {
                 }
                 sender.input(FaceThumbnailsInput::Refresh);
             },
-            FaceThumbnailsInput::SetThumbnail(person_id, thumbnail) => {
-                debug!("Set thumbnail for face {}", person_id);
-                if let Err(e) = self.people_repo.set_person_thumbnail(person_id, &thumbnail) {
+            FaceThumbnailsInput::SetThumbnail(person_id, face_id) => {
+                debug!("Set face {} as thumbnail for person {}", face_id, person_id);
+                if let Err(e) = self.people_repo.set_person_thumbnail(person_id, face_id) {
                     error!("Failed setting thumbnail: {}", e);
                 }
                 sender.input(FaceThumbnailsInput::Refresh);

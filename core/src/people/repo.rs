@@ -525,22 +525,30 @@ impl Repository {
         Ok(())
     }
 
-    pub fn set_person_thumbnail(&mut self, person_id: PersonId, thumbnail: &Path) -> Result<()> {
+    pub fn set_person_thumbnail(&mut self, person_id: PersonId, face_id: FaceId) -> Result<()> {
         let mut con = self.con.lock().unwrap();
         let tx = con.transaction()?;
 
         {
-            // FIXME should also set face that provided the thumbnail as confirmed.
             let mut stmt = tx.prepare_cached(
                 "UPDATE people
                 SET
-                    thumbnail_path = ?2
-                WHERE person_id = ?1",
+                    thumbnail_path = face.thumbnail_path
+                FROM pictures_faces AS faces
+                WHERE people.person_id = ?1
+                AND faces.face_id = ?2",
             )?;
 
-            let thumbnail = thumbnail.strip_prefix(&self.cache_dir_base_path)?;
+            stmt.execute(params![person_id.id(), face_id.id(),])?;
 
-            stmt.execute(params![person_id.id(), thumbnail.to_string_lossy(),])?;
+            let mut stmt = tx.prepare_cached(
+                "UPDATE pictures_faces
+                SET
+                    is_confirmed = TRUE
+                WHERE face_id = ?1",
+            )?;
+
+            stmt.execute(params![face_id.id(),])?;
         }
 
         tx.commit()?;
