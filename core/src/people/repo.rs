@@ -7,14 +7,17 @@ use crate::photo::model::PictureId;
 use crate::machine_learning::face_extractor;
 use crate::path_encoding;
 use crate::people::model;
+use crate::people::model::PersonForRecognition;
 use crate::people::model::Rect;
 use crate::people::FaceId;
 use crate::people::PersonId;
+
 use anyhow::*;
 use rusqlite;
 use rusqlite::params;
 use rusqlite::Row;
 use std::path::{Path, PathBuf};
+use std::result::Result::Ok;
 use std::sync::{Arc, Mutex};
 
 /// Repository of people data.
@@ -131,14 +134,17 @@ impl Repository {
     /// All known people that must have a face recognition performed.
     /// Select the best face for recognition, where "best" is the face with
     /// the highest confidence for a face that the user has confirmed is a particular person.
-    pub fn find_people_for_recognition(&self) -> Result<Vec<(PersonId, model::DetectedFace)>> {
+    pub fn find_people_for_recognition(&self) -> Result<Vec<model::PersonForRecognition>> {
         let con = self.con.lock().unwrap();
 
         // NOTE: this is non-standard SQL that might not work in DBs that aren't SQLite.
         let mut stmt = con.prepare(
             "SELECT
-                face_id,
                 person_id,
+                recognized_at,
+
+                face_id,
+                detected_at,
 
                 bounds_path,
 
@@ -164,16 +170,13 @@ impl Repository {
 
                 max(confidence) AS confidence
             FROM  pictures_faces AS faces
+            INNER JOIN people USING (person_id)
             WHERE faces.is_confirmed = TRUE
             GROUP BY faces.person_id",
         )?;
 
-        let result: Vec<(PersonId, model::DetectedFace)> = stmt
-            .query_map([], |row| {
-                let person_id = row.get("person_id").map(PersonId::new);
-                let face = self.to_detected_face(row);
-                face.and_then(|fc| person_id.map(|pid| (pid, fc)))
-            })?
+        let result: Vec<model::PersonForRecognition> = stmt
+            .query_map([], |row| self.to_person_for_recognition(row))?
             .flatten()
             .collect();
 
@@ -182,16 +185,14 @@ impl Repository {
 
     /// Find new faces as candidates for face recognition for a given person.
     /// Only returns faces that haven't been recognized before for the person.
-    pub fn find_unknown_faces_for_person(
-        &self,
-        person_id: PersonId,
-    ) -> Result<Vec<model::DetectedFace>> {
+    pub fn find_unknown_faces(&self) -> Result<Vec<model::DetectedFace>> {
         let con = self.con.lock().unwrap();
 
         // NOTE: this is non-standard SQL that might not work in DBs that aren't SQLite.
         let mut stmt = con.prepare(
             "SELECT
                 face_id,
+                detected_at,
 
                 bounds_path,
 
@@ -217,20 +218,19 @@ impl Repository {
 
                 confidence
             FROM  pictures_faces AS faces
-            INNER JOIN people ON people.person_id = ?1
             WHERE faces.person_id IS NULL
-            AND faces.is_ignored = FALSE
-            AND people.recognized_at < faces.detected_at",
+            AND faces.is_ignored = FALSE",
         )?;
 
         let result: Vec<model::DetectedFace> = stmt
-            .query_map([person_id.id()], |row| self.to_detected_face(row))?
+            .query_map([], |row| self.to_detected_face(row))?
             .flatten()
             .collect();
 
         Ok(result)
     }
 
+    /// Finds all pictures that feature a known person.
     pub fn find_pictures_for_person(&self, person_id: PersonId) -> Result<Vec<PictureId>> {
         let con = self.con.lock().unwrap();
         let mut stmt = con.prepare(
@@ -532,7 +532,7 @@ impl Repository {
             let mut stmt = tx.prepare_cached(
                 "UPDATE people
                 SET
-                    thumbnail_path = face.thumbnail_path
+                    thumbnail_path = faces.thumbnail_path
                 FROM pictures_faces AS faces
                 WHERE people.person_id = ?1
                 AND faces.face_id = ?2",
@@ -651,6 +651,8 @@ impl Repository {
 
         let confidence = row.get("confidence")?;
 
+        let detected_at = row.get("detected_at")?;
+
         let face = model::DetectedFace {
             face_id,
             face_path,
@@ -661,8 +663,27 @@ impl Repository {
             right_mouth_corner: (right_mouth_corner_x, right_mouth_corner_y),
             left_mouth_corner: (left_mouth_corner_x, left_mouth_corner_y),
             confidence,
+            detected_at,
         };
 
         std::result::Result::Ok(face)
+    }
+
+    fn to_person_for_recognition(
+        &self,
+        row: &Row<'_>,
+    ) -> rusqlite::Result<model::PersonForRecognition> {
+        let person_id = row.get("person_id").map(PersonId::new)?;
+        let recognized_at = row.get("recognized_at")?;
+        dbg!(recognized_at);
+        let face = self.to_detected_face(row)?;
+
+        let person = PersonForRecognition {
+            person_id,
+            recognized_at,
+            face,
+        };
+
+        std::result::Result::Ok(person)
     }
 }

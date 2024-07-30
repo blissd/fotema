@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+use chrono::{DateTime, Utc};
 use opencv::core::Mat;
 use std::fmt::Display;
 use std::path::PathBuf;
@@ -81,6 +82,9 @@ pub struct DetectedFace {
     /// Path to originally detected face, with no transformations applied
     pub face_path: PathBuf,
 
+    /// When face was detected
+    pub detected_at: DateTime<Utc>,
+
     /// Bounds around face in source image.
     /// NOTE: this is not the same image as is pointed at by face_path.
     pub bounds: Rect,
@@ -120,4 +124,17 @@ impl DetectedFace {
         )
         .unwrap()
     }
+}
+
+/// A person to perform face recognition for
+#[derive(Debug, Clone)]
+pub struct PersonForRecognition {
+    /// ID of person
+    pub person_id: PersonId,
+
+    /// Time of last recognition
+    pub recognized_at: DateTime<Utc>,
+
+    /// "Best" confirmed face for person.
+    pub face: DetectedFace,
 }

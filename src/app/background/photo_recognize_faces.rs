@@ -13,8 +13,7 @@ use tracing::{error, info};
 
 use fotema_core::machine_learning::face_recognizer::FaceRecognizer;
 use fotema_core::people;
-use fotema_core::PersonId;
-use fotema_core::people::model::DetectedFace;
+use fotema_core::people::model::PersonForRecognition;
 
 use crate::app::components::progress_monitor::{
     ProgressMonitor,
@@ -52,56 +51,56 @@ impl PhotoRecognizeFaces {
      {
         let start = std::time::Instant::now();
 
-        let people: Vec<(PersonId, DetectedFace)> = self.repo
+        let people: Vec<PersonForRecognition> = self.repo
             .find_people_for_recognition()?
             .into_iter()
             .collect();
 
-        let count = people.len();
-         info!("Found {} people as candidates for face recognition", count);
+         info!("Found {} people as candidates for face recognition", people.len());
 
         // Short-circuit before sending progress messages to stop
         // banner from appearing and disappearing.
-        if count == 0 {
-            let _ = sender.output(PhotoRecognizeFacesOutput::Completed(count));
+        if people.len() == 0 {
+            let _ = sender.output(PhotoRecognizeFacesOutput::Completed(0));
             return Ok(());
         }
 
-        people
-            .into_iter()
-            .for_each(|(person_id, person_face)| {
+        let unprocessed = self.repo.find_unknown_faces()?;
 
-                let _ = sender.output(PhotoRecognizeFacesOutput::Started);
+        if unprocessed.len() == 0 {
+            let _ = sender.output(PhotoRecognizeFacesOutput::Completed(0));
+            return Ok(());
+        }
 
+        let _ = sender.output(PhotoRecognizeFacesOutput::Started);
+        self.progress_monitor.emit(ProgressMonitorInput::Start(TaskName::RecognizeFaces, unprocessed.len()));
+
+        let recognizer = FaceRecognizer::build(people.clone()).unwrap();
+
+        unprocessed
+            //.into_iter()
+            .into_par_iter()
+            .for_each(|unknown_face| {
                 // FIXME unwrap
-                let unknown_faces = self.repo.find_unknown_faces_for_person(person_id).unwrap();
-                info!("Recognizing person {} against {} unknown faces.", person_id, unknown_faces.len());
-
-                self.progress_monitor.emit(ProgressMonitorInput::Start(TaskName::RecognizeFaces, unknown_faces.len()));
-
-                unknown_faces
-                    .into_par_iter()
-                    .for_each(|unknown_face| {
-                        // FIXME unwrap
-                        let mut recognizer = FaceRecognizer::build(&person_face).unwrap();
-                        let is_match = recognizer.recognize(&unknown_face);
-                        if let Ok(true) = is_match {
-                            let mut repo = self.repo.clone();
-                            let result = repo.mark_as_person_unconfirmed(unknown_face.face_id, person_id);
-                            if let Err(e) = result {
-                                error!("Failed marking face {} as person: {:?}", unknown_face.face_id, e);
-                            }
-                        }
-
-                        self.progress_monitor.emit(ProgressMonitorInput::Advance);
-                    });
-
-                let mut repo = self.repo.clone();
-                if let Err(e) = repo.mark_face_recognition_complete(person_id) {
-                    error!("Failed marking face recognition complete for person {}: {:?}", person_id, e);
+                let is_match = recognizer.recognize(&unknown_face);
+                if let Ok(Some(person_id)) = is_match {
+                    info!("Face {} looks like person {}", unknown_face.face_id, person_id);
+                    let mut repo = self.repo.clone();
+                    let result = repo.mark_as_person_unconfirmed(unknown_face.face_id, person_id);
+                    if let Err(e) = result {
+                        error!("Failed marking face {} as person: {:?}", unknown_face.face_id, e);
+                    }
                 }
+
+                self.progress_monitor.emit(ProgressMonitorInput::Advance);
             });
 
+        let mut repo = self.repo.clone();
+        for person in people {
+            if let Err(e) = repo.mark_face_recognition_complete(person.person_id) {
+                error!("Failed marking face recognition complete for person {}: {:?}", person.person_id, e);
+            }
+        }
 
         info!("Recognized people in {} seconds.", start.elapsed().as_secs());
 
