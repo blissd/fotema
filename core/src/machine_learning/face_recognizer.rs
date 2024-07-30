@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: © 2024 David Bliss
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 use anyhow::Result;
 
 use opencv::core::Mat;
