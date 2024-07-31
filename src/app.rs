@@ -453,7 +453,7 @@ impl SimpleComponent for App {
 
         let people_repo = people::Repository::open(
             &pic_base_dir,
-            &cache_dir,
+            &data_dir,
             con.clone(),
         ).unwrap();
 
