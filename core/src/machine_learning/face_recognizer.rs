@@ -77,6 +77,7 @@ impl FaceRecognizer {
                     l2_score.unwrap_or(Self::L2NORM_SIMILAR_THRESH + 100.0),
                 )
             })
+            // FIXME do we need to filter out NaNs?
             .min_by_key(|x| (x.1 * 10000.0) as i32); // f64 doesn't implement Ord.
 
         if let Some((person, l2_score)) = best_person_and_score {

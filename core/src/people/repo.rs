@@ -87,6 +87,8 @@ impl Repository {
         Ok(result)
     }
 
+    /// Finds faces and people for the thumbnail bar.
+    /// Faces are ordered from left to right, top to bottom.
     pub fn find_faces(
         &self,
         picture_id: &PictureId,
@@ -94,14 +96,15 @@ impl Repository {
         let con = self.con.lock().unwrap();
         let mut stmt = con.prepare(
             "SELECT
-                pictures_faces.face_id AS face_id,
-                pictures_faces.thumbnail_path AS face_thumbnail_path,
+                faces.face_id AS face_id,
+                faces.thumbnail_path AS face_thumbnail_path,
                 people.person_id AS person_id,
                 people.name AS person_name,
                 people.thumbnail_path AS person_thumbnail_path
-            FROM pictures_faces
+            FROM pictures_faces AS faces
             LEFT OUTER JOIN people USING (person_id)
-            WHERE picture_id = ?1 AND pictures_faces.is_ignored = FALSE",
+            WHERE picture_id = ?1 AND faces.is_ignored = FALSE
+            ORDER BY faces.nose_x ASC, faces.nose_y ASC",
         )?;
 
         let result = stmt
