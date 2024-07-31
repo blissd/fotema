@@ -150,6 +150,28 @@ impl FaceExtractor {
         })
     }
 
+    /// Remove any duplicates where being a duplicate is determined by
+    /// the distance between centres being below a certain threshold
+    fn remove_duplicates(
+        detected_faces: Vec<DetectedFace>,
+        existing_faces: &Vec<(DetectedFace, String)>,
+    ) -> Vec<DetectedFace> {
+        detected_faces
+            .into_iter()
+            .filter(|f| f.confidence >= 0.95)
+            .filter(|f1| {
+                let nearest = existing_faces
+                    .iter()
+                    .min_by_key(|f2| Self::nose_distance(&f1, &f2.0) as u32);
+
+                nearest.is_none()
+                    || nearest.is_some_and(|f2| {
+                        Self::distance(Self::centre(&f1), Self::centre(&f2.0)) > 150.0
+                    })
+            })
+            .collect()
+    }
+
     /// Identify faces in a photo and return a vector of paths of extracted face images.
     pub async fn extract_faces(
         &self,
@@ -162,9 +184,22 @@ impl FaceExtractor {
 
         let mut faces: Vec<(DetectedFace, String)> = vec![];
 
+        if self.is_mtcnn_enabled {
+            let result = self.mtcnn_model.detect(image.view().into_dyn());
+            if let Ok(detected_faces) = result {
+                let detected_faces = Self::remove_duplicates(detected_faces, &faces);
+                for f in detected_faces {
+                    faces.push((f, "mtcnn".into()));
+                }
+            } else {
+                error!("Failed extracting faces with MTCNN model: {:?}", result);
+            }
+        }
+
         if self.is_blaze_face_enabled {
             let result = self.blaze_face_640_model.detect(image.view().into_dyn());
             if let Ok(detected_faces) = result {
+                let detected_faces = Self::remove_duplicates(detected_faces, &faces);
                 for f in detected_faces {
                     faces.push((f, "blaze_face_640".into()));
                 }
@@ -174,53 +209,12 @@ impl FaceExtractor {
 
             let result = self.blaze_face_320_model.detect(image.view().into_dyn());
             if let Ok(detected_faces) = result {
-                // Remove any duplicates where being a duplicate is determined by
-                // the distance between centres being below a certain threshold
-                let detected_faces: Vec<DetectedFace> = detected_faces
-                    .into_iter()
-                    .filter(|f1| {
-                        let nearest = faces.iter().min_by_key(|f2| {
-                            Self::distance(Self::centre(&f1), Self::centre(&f2.0)) as u32
-                        });
-                        nearest.is_none()
-                            || nearest.is_some_and(|f2| {
-                                Self::distance(Self::centre(&f1), Self::centre(&f2.0)) > 150.0
-                            })
-                    })
-                    .collect();
-
+                let detected_faces = Self::remove_duplicates(detected_faces, &faces);
                 for f in detected_faces {
                     faces.push((f, "blaze_face_320".into()));
                 }
             } else {
                 error!("Failed extracting faces with blaze_face_320: {:?}", result);
-            }
-        }
-
-        if self.is_mtcnn_enabled {
-            let result = self.mtcnn_model.detect(image.view().into_dyn());
-            if let Ok(detected_faces) = result {
-                // Remove any duplicates where being a duplicate is determined by
-                // the distance between centres being below a certain threshold
-                let detected_faces: Vec<DetectedFace> = detected_faces
-                    .into_iter()
-                    .filter(|f| f.confidence >= 0.95)
-                    .filter(|f1| {
-                        let nearest = faces
-                            .iter()
-                            .min_by_key(|f2| Self::nose_distance(&f1, &f2.0) as u32);
-                        nearest.is_none()
-                            || nearest.is_some_and(|f2| {
-                                Self::distance(Self::centre(&f1), Self::centre(&f2.0)) > 150.0
-                            })
-                    })
-                    .collect();
-
-                for f in detected_faces {
-                    faces.push((f, "mtcnn".into()));
-                }
-            } else {
-                error!("Failed extracting faces with MTCNN model: {:?}", result);
             }
         }
 

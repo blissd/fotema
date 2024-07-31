@@ -28,7 +28,7 @@ pub struct Repository {
     library_base_path: PathBuf,
 
     /// Base path for photo thumbnails and motion photo videos
-    cache_dir_base_path: PathBuf,
+    data_dir_base_path: PathBuf,
 
     /// Connection to backing Sqlite database.
     con: Arc<Mutex<rusqlite::Connection>>,
@@ -38,7 +38,7 @@ impl Repository {
     /// Builds a Repository and creates operational tables.
     pub fn open(
         library_base_path: &Path,
-        cache_dir_base_path: &Path,
+        data_dir_base_path: &Path,
         con: Arc<Mutex<rusqlite::Connection>>,
     ) -> Result<Repository> {
         if !library_base_path.is_dir() {
@@ -46,11 +46,11 @@ impl Repository {
         }
 
         let library_base_path = PathBuf::from(library_base_path);
-        let cache_dir_base_path = PathBuf::from(cache_dir_base_path);
+        let data_dir_base_path = PathBuf::from(data_dir_base_path);
 
         let repo = Repository {
             library_base_path,
-            cache_dir_base_path,
+            data_dir_base_path,
             con,
         };
 
@@ -366,10 +366,8 @@ impl Repository {
 
             for face in faces {
                 // convert to relative path before saving to database
-                let thumbnail_path = face
-                    .thumbnail_path
-                    .strip_prefix(&self.cache_dir_base_path)?;
-                let bounds_path = face.bounds_path.strip_prefix(&self.cache_dir_base_path)?;
+                let thumbnail_path = face.thumbnail_path.strip_prefix(&self.data_dir_base_path)?;
+                let bounds_path = face.bounds_path.strip_prefix(&self.data_dir_base_path)?;
 
                 let right_eye = face.right_eye();
                 let left_eye = face.left_eye();
@@ -573,7 +571,7 @@ impl Repository {
 
         let face_thumbnail_path = row
             .get("face_thumbnail_path")
-            .map(|p: String| self.cache_dir_base_path.join(p))?;
+            .map(|p: String| self.data_dir_base_path.join(p))?;
 
         let face = model::Face {
             face_id,
@@ -586,7 +584,7 @@ impl Repository {
 
         let person_thumbnail_path = row
             .get("person_thumbnail_path")
-            .map(|p: String| self.cache_dir_base_path.join(p))
+            .map(|p: String| self.data_dir_base_path.join(p))
             .ok();
 
         let person = if let (Some(person_id), Some(name), Some(thumbnail_path)) =
@@ -611,7 +609,7 @@ impl Repository {
 
         let thumbnail_path = row
             .get("person_thumbnail_path")
-            .map(|p: String| self.cache_dir_base_path.join(p))?;
+            .map(|p: String| self.data_dir_base_path.join(p))?;
 
         std::result::Result::Ok(model::Person {
             person_id,
@@ -625,7 +623,7 @@ impl Repository {
 
         let face_path = row
             .get("bounds_path")
-            .map(|p: String| self.cache_dir_base_path.join(p))?;
+            .map(|p: String| self.data_dir_base_path.join(p))?;
 
         let bounds = Rect {
             x: row.get("bounds_x")?,

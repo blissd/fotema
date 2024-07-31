@@ -187,7 +187,7 @@ impl Worker for Bootstrap {
 
     fn init((con, state, progress_monitor): Self::Init, sender: ComponentSender<Self>) -> Self  {
         let data_dir = glib::user_data_dir().join(APP_ID);
-        let _ = std::fs::create_dir_all(data_dir);
+        let _ = std::fs::create_dir_all(&data_dir);
 
         let cache_dir = glib::user_cache_dir().join(APP_ID);
         let _ = std::fs::create_dir_all(&cache_dir);
@@ -224,12 +224,12 @@ impl Worker for Bootstrap {
 
         let people_repo = people::Repository::open(
             &pic_base_dir,
-            &cache_dir,
+            &data_dir,
             con.clone(),
         )
         .unwrap();
 
-        let face_extractor = machine_learning::face_extractor::FaceExtractor::build(&cache_dir).unwrap();
+        let face_extractor = machine_learning::face_extractor::FaceExtractor::build(&data_dir).unwrap();
 
         let load_library = LoadLibrary::builder()
             .detach_worker((visual_repo.clone(), state))
