@@ -67,6 +67,7 @@
     "modules/ffmpeg.json",
     "modules/libshumate.json",
     "modules/opencv.json",
+    "modules/libonnxruntime.json",
     {
       "name": "fotema",
       "buildsystem": "meson",

@@ -21,6 +21,7 @@
   ],
   "build-options": {
     "append-path": "/usr/lib/sdk/rust-stable/bin:/usr/lib/sdk/llvm18/bin",
+    "prepend-ld-library-path": "/usr/lib/sdk/llvm18/lib",
     "build-args": [
       "--share=network"
     ],
@@ -63,10 +64,20 @@
     "modules/glycin-loaders.json",
     "modules/ffmpeg.json",
     "modules/libshumate.json",
+    "modules/opencv.json",
+    "modules/libonnxruntime.json",
     {
       "name": "fotema",
       "buildsystem": "meson",
       "run-tests": false,
+      "build-options": {
+        "append-path": "/usr/lib/sdk/rust-stable/bin:/usr/lib/sdk/llvm18/bin",
+        "prepend-ld-library-path": "/usr/lib/sdk/llvm18/lib",
+        "env": {
+            "OPENCV_INCLUDE_PATHS": "/app/include/opencv4",
+            "LIBCLANG_PATH": "/usr/lib/sdk/llvm18/lib"
+        }
+      },
       "config-opts": [
         "-Dprofile=default"
       ],

@@ -56,15 +56,6 @@ cargo_build = custom_target(
     cargo_options,
     '&&',
     'cp', 'src' / rust_target / meson.project_name(), '@OUTPUT@',
-    '&&',
-    # Copy libonnx library provided by the 'ort' dependency of 'rust-faces'
-    'cp', 'src' / rust_target / 'libonnxruntime.so', libdir,
-
   ]
 )
-
-# Copy libonnx library provided by the 'ort' dependency of 'rust-faces'
-#fs.copyfile(meson.project_build_root() / 'src' / rust_target / 'libonnxruntime.so', 'lib')
-#fs.copyfile('src' / rust_target / 'libonnxruntime.so, libdir)
-#install_data('src' / rust_target / 'libonnxruntime.so', libdir)
 
