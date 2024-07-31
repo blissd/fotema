@@ -243,7 +243,7 @@ progress-motion-photo = Processing motion photos.
 progress-detect-faces-photos = Detecting faces in photos.
 
 # Recognize faces in photos as known people
-progress-recognize-faces-photos = Recognizing faces in photos.
+progress-recognize-faces-photos = Recognizing people in photos.
 
 # Not doing any background work
 progress-idle = Idle.
@@ -283,7 +283,7 @@ banner-extract-motion-photos = Processing motion photos.
 banner-detect-faces-photos = Detecting faces in photos.
 
 # Recognize faces as people
-banner-recognize-faces-photos = Recognizing faces in photos.
+banner-recognize-faces-photos = Recognizing people in photos.
 
 ## Primary menu
 
