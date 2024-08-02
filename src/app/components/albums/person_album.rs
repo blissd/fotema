@@ -57,11 +57,9 @@ pub enum PersonAlbumOutput {
 }
 
 pub struct PersonAlbum {
-    state: SharedState,
     repo: people::Repository,
     picture_ids: Vec<PictureId>,
     album: Controller<Album>,
-    root: gtk::Box,
     avatar: adw::Avatar,
     active_view: ActiveView,
     edge_length: I32Binding,
@@ -74,15 +72,29 @@ impl SimpleComponent for PersonAlbum {
     type Output = PersonAlbumOutput;
 
     view! {
-        gtk::Box {
-            set_orientation: gtk::Orientation::Vertical,
-            set_vexpand: true,
-            set_spacing: 12,
+        adw::ToolbarView {
+            add_top_bar = &adw::HeaderBar {
+                #[wrap(Some)]
+                set_title_widget = &gtk::Label {
+                    //set_label: &fl!("folder-album"),
+                    set_label: "Person album",
+                    add_css_class: "title",
+                },
 
-            #[local_ref]
-            avatar -> adw::Avatar,
+                pack_end: &gtk::Label::new(Some("foo")),
+            },
 
-            model.album.widget(),
+            #[wrap(Some)]
+            set_content = &gtk::Box {
+                set_orientation: gtk::Orientation::Vertical,
+                set_vexpand: true,
+                set_spacing: 12,
+
+                #[local_ref]
+                avatar -> adw::Avatar,
+
+                model.album.widget(),
+            }
         }
     }
 
@@ -105,9 +117,7 @@ impl SimpleComponent for PersonAlbum {
             });
 
         let model = PersonAlbum {
-            state,
             repo,
-            root: root.clone(),
             avatar: avatar.clone(),
             album,
             active_view,
@@ -164,7 +174,6 @@ impl SimpleComponent for PersonAlbum {
             PersonAlbumInput::ScrollOffset(offset) => {
                 if offset >= 210.0 && self.avatar.is_visible() {
                     self.avatar.set_visible(false);
-                    self.root.queue_draw();
                 } else if offset == 0.0 && !self.avatar.is_visible() {
                     self.avatar.set_visible(true);
                 }

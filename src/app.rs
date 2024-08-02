@@ -425,19 +425,7 @@ impl SimpleComponent for App {
 
                 adw::NavigationPage {
                     set_tag: Some("person_album"),
-                    adw::ToolbarView {
-                        add_top_bar = &adw::HeaderBar {
-                            #[wrap(Some)]
-                            set_title_widget = &gtk::Label {
-                                //set_label: &fl!("folder-album"),
-                                set_label: "Person album",
-                                add_css_class: "title",
-                            }
-                        },
-
-                        #[wrap(Some)]
-                        set_content = model.person_album.widget(),
-                    }
+                    model.person_album.widget(),
                 },
 
                 // Page for showing a single photo.
