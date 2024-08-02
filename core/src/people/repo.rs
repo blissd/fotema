@@ -115,6 +115,25 @@ impl Repository {
         Ok(result)
     }
 
+    pub fn get_person(&self, person_id: PersonId) -> Result<Option<model::Person>> {
+        let con = self.con.lock().unwrap();
+        let mut stmt = con.prepare(
+            "SELECT
+                people.person_id AS person_id,
+                people.name AS person_name,
+                people.thumbnail_path AS person_thumbnail_path
+            FROM  people
+            WHERE person_id = ?1",
+        )?;
+
+        let result: Option<model::Person> = stmt
+            .query_map([person_id.id()], |row| self.to_person(row))?
+            .flatten()
+            .nth(0);
+
+        Ok(result)
+    }
+
     pub fn all_people(&self) -> Result<Vec<model::Person>> {
         let con = self.con.lock().unwrap();
         let mut stmt = con.prepare(

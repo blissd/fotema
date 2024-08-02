@@ -126,35 +126,26 @@ impl SimpleComponent for PersonAlbum {
         match msg {
             PersonAlbumInput::Activate => {
                 *self.active_view.write() = ViewName::Person;
-                /*if self.photo_grid.is_empty() {
-                    self.refresh();
-                }*/
+                self.album.sender().emit(AlbumInput::Activate);
             }
             PersonAlbumInput::Refresh => {
-                if *self.active_view.read() == ViewName::Person {
-                    info!("Person view is active so refreshing");
-                    self.refresh();
-                } else {
-                    info!("Person view is inactive so clearing");
-                   // self.photo_grid.clear();
-                }
+                self.album.sender().emit(AlbumInput::Refresh);
             }
             PersonAlbumInput::View(person) => {
                 info!("Viewing album for person: {}", person.person_id);
+
+                let img = gdk::Texture::from_filename(&person.thumbnail_path).ok();
+                self.avatar.set_custom_image(img.as_ref());
+                self.avatar.set_text(Some(&person.name));
 
                 if !self.avatar.is_visible() {
                     self.avatar.set_visible(true);
                 }
 
-                self.album.sender().emit(AlbumInput::Activate);
-                let img = gdk::Texture::from_filename(&person.thumbnail_path).ok();
-                self.avatar.set_custom_image(img.as_ref());
-                self.avatar.set_text(Some(&person.name));
-
                 self.picture_ids = self.repo.find_pictures_for_person(person.person_id).unwrap_or(vec![]);
                 info!("Person {} has {} items to view.", person.person_id, self.picture_ids.len());
+                self.album.sender().emit(AlbumInput::Activate);
                 self.album.sender().emit(AlbumInput::Filter(AlbumFilter::Any(self.picture_ids.clone())));
-
                 self.album.sender().emit(AlbumInput::GoToFirst);
             }
             PersonAlbumInput::Selected(visual_id) => {
@@ -182,9 +173,3 @@ impl SimpleComponent for PersonAlbum {
     }
 }
 
-impl PersonAlbum {
-
-    fn refresh(&mut self) {
-
-    }
-}
