@@ -4,8 +4,7 @@
 
 use gtk::prelude::OrientableExt;
 
-use fotema_core::people::{self, PersonId};
-use fotema_core::PictureId;
+use fotema_core::people;
 
 use relm4::gtk;
 use relm4::gtk::gdk;
@@ -18,7 +17,7 @@ use crate::adaptive;
 use crate::app::ActiveView;
 use crate::app::ViewName;
 
-use tracing::{event, Level, info};
+use tracing::{debug, info};
 
 const NARROW_EDGE_LENGTH: i32 = 170;
 const WIDE_EDGE_LENGTH: i32 = 200;
@@ -56,7 +55,7 @@ pub enum PeopleAlbumInput {
 
 #[derive(Debug)]
 pub enum PeopleAlbumOutput {
-    Selected(PersonId, Vec<PictureId>),
+    Selected(people::Person),
 }
 
 impl RelmGridItem for PhotoGridItem {
@@ -116,6 +115,7 @@ impl RelmGridItem for PhotoGridItem {
 
     fn unbind(&mut self, widgets: &mut Self::Widgets, _root: &mut Self::Root) {
         widgets.avatar.set_custom_image(None::<&gdk::Paintable>);
+        widgets.avatar.set_text(None);
     }
 }
 
@@ -177,13 +177,13 @@ impl SimpleComponent for PeopleAlbum {
                 self.refresh();
             },
             PeopleAlbumInput::Selected(index) => {
-                event!(Level::DEBUG, "Person selected index: {}", index);
+                debug!("Person selected index: {}", index);
                 if let Some(item) = self.photo_grid.get_visible(index) {
                     let item = item.borrow();
-                    event!(Level::DEBUG, "Person selected item: {}", item.person.person_id);
-                    let picture_ids = self.repo.find_pictures_for_person(item.person.person_id).unwrap_or(vec![]);
+                    debug!("Person selected item: {}", item.person.person_id);
+                    //let picture_ids = self.repo.find_pictures_for_person(item.person.person_id).unwrap_or(vec![]);
 
-                    let _ = sender.output(PeopleAlbumOutput::Selected(item.person.person_id, picture_ids));
+                    let _ = sender.output(PeopleAlbumOutput::Selected(item.person.clone()));
                 }
             },
             PeopleAlbumInput::Adapt(adaptive::Layout::Narrow) => {

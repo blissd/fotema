@@ -30,8 +30,6 @@ use fotema_core::database;
 use fotema_core::video;
 use fotema_core::VisualId;
 use fotema_core::people;
-use fotema_core::PersonId;
-use fotema_core::PictureId;
 
 use h3o::CellIndex;
 
@@ -53,6 +51,7 @@ use self::components::{
         album_filter::AlbumFilter,
         folders_album::{FoldersAlbum, FoldersAlbumInput, FoldersAlbumOutput},
         people_album::{PeopleAlbum, PeopleAlbumInput, PeopleAlbumOutput},
+        person_album::{PersonAlbum, PersonAlbumInput, PersonAlbumOutput},
         places_album::{PlacesAlbum, PlacesAlbumInput, PlacesAlbumOutput},
     },
     library::{Library, LibraryInput, LibraryOutput},
@@ -88,6 +87,7 @@ pub enum ViewName {
     Folders,
     Folder,
     People,
+    Person,
     Places,
     Selfies,
 }
@@ -119,6 +119,9 @@ pub(super) struct App {
 
     /// Album with photos overlayed onto a map
     people_page: Controller<PeopleAlbum>,
+
+    // Album for individual person.
+    person_album: Controller<PersonAlbum>,
 
     /// Album with photos overlayed onto a map
     places_page: Controller<PlacesAlbum>,
@@ -157,6 +160,9 @@ pub(super) enum AppMsg {
 
     Quit,
 
+    /// Ignore event
+    Ignore,
+
     // Toggle visibility of sidebar
     ToggleSidebar,
 
@@ -173,7 +179,7 @@ pub(super) enum AppMsg {
 
     ViewGeographicArea(CellIndex),
 
-    ViewPerson(PersonId, Vec<PictureId>),
+    ViewPerson(people::Person),
 
     // A background task has started.
     TaskStarted(TaskName),
@@ -417,6 +423,23 @@ impl SimpleComponent for App {
                     }
                 },
 
+                adw::NavigationPage {
+                    set_tag: Some("person_album"),
+                    adw::ToolbarView {
+                        add_top_bar = &adw::HeaderBar {
+                            #[wrap(Some)]
+                            set_title_widget = &gtk::Label {
+                                //set_label: &fl!("folder-album"),
+                                set_label: "Person album",
+                                add_css_class: "title",
+                            }
+                        },
+
+                        #[wrap(Some)]
+                        set_content = model.person_album.widget(),
+                    }
+                },
+
                 // Page for showing a single photo.
                 adw::NavigationPage {
                     set_tag: Some("picture"),
@@ -504,6 +527,7 @@ impl SimpleComponent for App {
             .launch((state.clone(), active_view.clone(), ViewName::Selfies, AlbumFilter::Selfies))
             .forward(sender.input_sender(), |msg| match msg {
                 AlbumOutput::Selected(id, filter) => AppMsg::View(id, filter),
+                AlbumOutput::ScrollOffset(_) => AppMsg::Ignore,
             });
 
         state.subscribe(selfies_page.sender(), |_| AlbumInput::Refresh);
@@ -515,6 +539,7 @@ impl SimpleComponent for App {
             .launch((state.clone(), active_view.clone(), ViewName::Animated, AlbumFilter::Motion))
             .forward(sender.input_sender(), |msg| match msg {
                 AlbumOutput::Selected(id, filter) => AppMsg::View(id, filter),
+                AlbumOutput::ScrollOffset(_) => AppMsg::Ignore,
             });
 
         state.subscribe(motion_page.sender(), |_| AlbumInput::Refresh);
@@ -524,6 +549,7 @@ impl SimpleComponent for App {
             .launch((state.clone(), active_view.clone(), ViewName::Videos, AlbumFilter::Videos))
             .forward(sender.input_sender(), |msg| match msg {
                 AlbumOutput::Selected(id, filter) => AppMsg::View(id, filter),
+                AlbumOutput::ScrollOffset(_) => AppMsg::Ignore,
             });
 
         state.subscribe(videos_page.sender(), |_| AlbumInput::Refresh);
@@ -534,11 +560,20 @@ impl SimpleComponent for App {
             .forward(
             sender.input_sender(),
             |msg| match msg {
-                PeopleAlbumOutput::Selected(person_id, picture_ids) => AppMsg::ViewPerson(person_id, picture_ids),
+                PeopleAlbumOutput::Selected(person) => AppMsg::ViewPerson(person),
             },
         );
 
         adaptive_layout.subscribe(people_page.sender(), |layout| PeopleAlbumInput::Adapt(*layout));
+
+        let person_album = PersonAlbum::builder()
+            .launch((state.clone(), people_repo.clone(), active_view.clone()))
+            .forward(sender.input_sender(), |msg| match msg {
+                PersonAlbumOutput::Selected(id, filter) => AppMsg::View(id, filter),
+            });
+
+        state.subscribe(person_album.sender(), |_| PersonAlbumInput::Refresh);
+        adaptive_layout.subscribe(person_album.sender(), |layout| PersonAlbumInput::Adapt(*layout));
 
         let places_page = PlacesAlbum::builder()
             .launch((state.clone(), active_view.clone()))
@@ -566,6 +601,7 @@ impl SimpleComponent for App {
             .launch((state.clone(), active_view.clone(), ViewName::Folder, AlbumFilter::None))
             .forward(sender.input_sender(), |msg| match msg {
                 AlbumOutput::Selected(id, filter) => AppMsg::View(id, filter),
+                AlbumOutput::ScrollOffset(_) => AppMsg::Ignore,
             });
 
         state.subscribe(folder_album.sender(), |_| AlbumInput::Refresh);
@@ -606,6 +642,7 @@ impl SimpleComponent for App {
             motion_page,
             videos_page,
             people_page,
+            person_album,
             places_page,
             selfies_page,
             show_selfies,
@@ -671,6 +708,9 @@ impl SimpleComponent for App {
                 }
             },
             AppMsg::Quit => main_application().quit(),
+            AppMsg::Ignore => {
+                // info!("Intentionally ignoring a message");
+            },
             AppMsg::ToggleSidebar => {
                 let show = self.main_navigation.shows_sidebar();
                 self.main_navigation.set_show_sidebar(!show);
@@ -715,6 +755,7 @@ impl SimpleComponent for App {
                     ViewName::Folders => self.folders_album.emit(FoldersAlbumInput::Activate),
                     ViewName::Folder => self.folder_album.emit(AlbumInput::Activate),
                     ViewName::People => self.people_page.emit(PeopleAlbumInput::Activate),
+                    ViewName::Person => self.person_album.emit(PersonAlbumInput::Activate),
                     ViewName::Places => self.places_page.emit(PlacesAlbumInput::Activate),
                     ViewName::Nothing => event!(Level::WARN, "Nothing activated... which should not happen"),
                 }
@@ -740,11 +781,12 @@ impl SimpleComponent for App {
                 self.picture_navigation_view.push_by_tag("album");
 
             },
-            AppMsg::ViewPerson(_person_id, picture_ids) => {
-                info!("picture_ids = {:?}", picture_ids);
-                self.folder_album.emit(AlbumInput::Activate);
-                self.folder_album.emit(AlbumInput::Filter(AlbumFilter::Any(picture_ids)));
-                self.picture_navigation_view.push_by_tag("album");
+            AppMsg::ViewPerson(person) => {
+                //info!("picture_ids = {:?}", picture_ids);
+                info!("Viewing person: {}", person.person_id);
+                self.person_album.emit(PersonAlbumInput::Activate);
+                self.person_album.emit(PersonAlbumInput::View(person));
+                self.picture_navigation_view.push_by_tag("person_album");
             },
             AppMsg::TaskStarted(task_name) => {
                 self.spinner.start();

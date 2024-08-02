@@ -22,10 +22,13 @@ use super::albums::album_filter::AlbumFilter;
 use super::albums::months_album::{MonthsAlbum, MonthsAlbumInput, MonthsAlbumOutput};
 use super::albums::years_album::{YearsAlbum, YearsAlbumInput, YearsAlbumOutput};
 
-use tracing::{event, Level};
+use tracing::error;
 
 #[derive(Debug)]
 pub enum LibraryInput {
+    /// Ignore an event
+    Ignore,
+
     // Library view is activated
     Activate,
 
@@ -90,6 +93,7 @@ impl SimpleComponent for Library {
             .launch((state.clone(), active_view.clone(), ViewName::All, AlbumFilter::All))
             .forward(sender.input_sender(), |msg| match msg {
                 AlbumOutput::Selected(id, _) => LibraryInput::View(id),
+                AlbumOutput::ScrollOffset(_) => LibraryInput::Ignore,
             });
 
         state.subscribe(all_album.sender(), |_| AlbumInput::Refresh);
@@ -129,6 +133,9 @@ impl SimpleComponent for Library {
 
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
+            LibraryInput::Ignore => {
+                // info!("Intentionally ignoring a message");
+            },
             LibraryInput::Activate => {
                 let child_name = self.stack.visible_child_name()
                     .and_then(|x| LibraryViewName::from_str(x.as_str()).ok())
@@ -138,9 +145,9 @@ impl SimpleComponent for Library {
                     LibraryViewName::All => self.all_album.emit(AlbumInput::Activate),
                     LibraryViewName::Month => self.months_album.emit(MonthsAlbumInput::Activate),
                     LibraryViewName::Year => self.years_album.emit(YearsAlbumInput::Activate),
-                    LibraryViewName::Nothing => event!(Level::ERROR, "Nothing activated for library view :-/"),
+                    LibraryViewName::Nothing => error!("Nothing activated for library view :-/"),
                 }
-            }
+            },
             LibraryInput::GoToMonth(ym) => {
                 // Display all photos view.
                 self.stack.set_visible_child_name(LibraryViewName::All.into());

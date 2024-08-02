@@ -10,6 +10,7 @@ use strum::IntoEnumIterator;
 use relm4::gtk;
 use relm4::gtk::gdk;
 use relm4::gtk::prelude::*;
+use relm4::gtk::prelude::AdjustmentExt;
 use relm4::gtk::gdk_pixbuf;
 use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
 use relm4::*;
@@ -43,6 +44,10 @@ pub enum AlbumInput {
     // Scroll to first photo of year/month.
     GoToMonth(YearMonth),
 
+    GoToFirst,
+
+    GoToLast,
+
     // I'd like to pass a closure of Fn(Picture)->bool for the filter... but Rust
     // is making that too hard.
 
@@ -51,12 +56,18 @@ pub enum AlbumInput {
 
     // Adapt to layout
     Adapt(adaptive::Layout),
+
+    // Scroll offset, in pixels.
+    ScrollOffset(f64),
 }
 
 #[derive(Debug)]
 pub enum AlbumOutput {
     /// User has selected photo or video in grid view
     Selected(VisualId, AlbumFilter),
+
+    // Scroll offset, in pixels.
+    ScrollOffset(f64),
 }
 
 #[derive(Debug)]
@@ -239,7 +250,16 @@ impl SimpleComponent for Album {
                 connect_activate[sender] => move |_, idx| {
                     sender.input(AlbumInput::Selected(idx))
                 },
-            }
+            },
+
+            #[wrap(Some)]
+            set_vadjustment = &gtk::Adjustment {
+                // Emit scroll events so PersonAlbum can determine when to hide avatar.
+                // FIXME maybe just emit one event at a boundary, instead of emitting an
+                // event for every scroll?
+                connect_value_changed[sender] => move |v| sender.input(AlbumInput::ScrollOffset(v.value())),
+            },
+
         }
     }
 
@@ -306,11 +326,20 @@ impl SimpleComponent for Album {
                     self.photo_grid.view.scroll_to(index, flags, None);
                 }
             },
+            AlbumInput::GoToFirst => {
+                self.go_to_first();
+            },
+            AlbumInput::GoToLast => {
+                self.go_to_last();
+            },
             AlbumInput::Adapt(adaptive::Layout::Narrow) => {
                 self.edge_length.set_value(NARROW_EDGE_LENGTH);
             },
             AlbumInput::Adapt(adaptive::Layout::Wide) => {
                 self.edge_length.set_value(WIDE_EDGE_LENGTH);
+            },
+            AlbumInput::ScrollOffset(offset) => {
+                let _ = sender.output(AlbumOutput::ScrollOffset(offset));
             },
         }
     }
@@ -335,6 +364,28 @@ impl Album {
         //self.photo_grid.add_filter(move |item| (self.photo_grid_filter)(&item.picture));
         self.photo_grid.extend_from_iter(all);
 
+        self.go_to_last();
+    }
+
+    fn go_to_first(&mut self) {
+        if !self.photo_grid.is_empty() {
+            // We must scroll to a valid index... but we can't get the index of the
+            // last item if filters are enabled. So as a workaround disable filters,
+            // scroll to end, and then enable filters.
+
+            self.disable_filters();
+
+            self.photo_grid.view.scroll_to(
+                0,
+                gtk::ListScrollFlags::SELECT,
+                None,
+            );
+
+            self.enable_filters();
+        }
+    }
+
+    fn go_to_last(&mut self) {
         if !self.photo_grid.is_empty() {
             // We must scroll to a valid index... but we can't get the index of the
             // last item if filters are enabled. So as a workaround disable filters,
