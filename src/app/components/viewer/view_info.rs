@@ -60,9 +60,6 @@ pub struct ViewInfo {
     video_file_size: adw::ActionRow,
     video_originally_created_at: adw::ActionRow,
     video_duration: adw::ActionRow,
-
-    //people: adw::PreferencesGroup,
-
 }
 
 

@@ -77,6 +77,12 @@ about-translator-credits =
 # Tooltip for (i) button to show photo/video information sidebar
 viewer-info-tooltip = Show properties
 
+viewer-faces-menu =
+  .tooltip = Faces menu
+  .restore-ignored = Restore all ignored faces
+  .ignore-unknown = Ignore all unknown faces
+  .scan = Scan for more faces
+
 # Go to next button when viewing photo or video.
 # Attributes:
 #  .tooltip - Tooltip on mouse hover.
@@ -178,11 +184,6 @@ infobar-audio-codec = Audio Codec
 infobar-dimensions = Dimensions
 
 ## Faces and People
-
-# Menu item to view more photos of a person.
-# Variables:
-#   $name - name of person
-people-view-more-photos = View album for { $name }
 
 # Menu item to mark a face as the most import face for a person
 # and to use it as a thumbnail

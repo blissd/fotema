@@ -23,6 +23,17 @@ use std::sync::Arc;
 
 use tracing::{event, Level};
 
+relm4::new_action_group!(ViewNavActionGroup, "viewnav");
+
+// Restore all ignored faces.
+relm4::new_stateless_action!(RestoreIgnoredFacesAction, ViewNavActionGroup, "restore_ignored");
+
+// Ignore all faces that aren't associated with a person.
+relm4::new_stateless_action!(IgnoreUnknownFacesAction, ViewNavActionGroup, "ignore_unknown");
+
+// Scan file for faces again.
+relm4::new_stateless_action!(RescanForFacesAction, ViewNavActionGroup, "rescan_for_faces");
+
 #[derive(Debug)]
 pub enum ViewNavInput {
     // View an item after applying an album filter.
@@ -88,13 +99,33 @@ impl SimpleAsyncComponent for ViewNav {
     type Input = ViewNavInput;
     type Output = ViewNavOutput;
 
+    menu! {
+        primary_menu: {
+            section! {
+                // FIXME I would like to have the person's name in these menu items.
+                &fl!("viewer-faces-menu", "restore-ignored") => RestoreIgnoredFacesAction,
+                &fl!("viewer-faces-menu", "ignore-unknown") => IgnoreUnknownFacesAction,
+                &fl!("viewer-faces-menu", "scan") => RescanForFacesAction,
+            }
+        }
+    }
+
     view! {
         adw::ToolbarView {
             add_top_bar = &adw::HeaderBar {
-                pack_end = &gtk::Button {
-                    set_icon_name: "info-outline-symbolic",
-                    set_tooltip_text: Some(&fl!("viewer-info-tooltip")),
-                    connect_clicked => ViewNavInput::ToggleInfo,
+                pack_end = &gtk::Box {
+                    set_orientation: gtk::Orientation::Horizontal,
+
+                    gtk::MenuButton {
+                        set_icon_name: "sentiment-very-satisfied-symbolic",
+                        set_menu_model: Some(&primary_menu),
+                    },
+
+                    gtk::Button {
+                        set_icon_name: "info-outline-symbolic",
+                        set_tooltip_text: Some(&fl!("viewer-info-tooltip")),
+                        connect_clicked => ViewNavInput::ToggleInfo,
+                    },
                 }
             },
 
