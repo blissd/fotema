@@ -74,9 +74,11 @@ pub enum PersonAlbumOutput {
 
 pub struct PersonAlbum {
     repo: people::Repository,
+    person: Option<people::Person>,
     picture_ids: Vec<PictureId>,
     album: Controller<Album>,
     avatar: adw::Avatar,
+    title: gtk::Label,
     active_view: ActiveView,
     edge_length: I32Binding,
 }
@@ -101,9 +103,8 @@ impl SimpleComponent for PersonAlbum {
         adw::ToolbarView {
             add_top_bar = &adw::HeaderBar {
                 #[wrap(Some)]
-                set_title_widget = &gtk::Label {
-                    //set_label: &fl!("folder-album"),
-                    set_label: "Person album",
+                #[local_ref]
+                set_title_widget = &title -> gtk::Label {
                     add_css_class: "title",
                 },
 
@@ -145,9 +146,14 @@ impl SimpleComponent for PersonAlbum {
                 AlbumOutput::ScrollOffset(offset) => PersonAlbumInput::ScrollOffset(offset),
             });
 
+        let title = gtk::Label::builder()
+            .build();
+
         let model = PersonAlbum {
             repo,
+            person: None,
             avatar: avatar.clone(),
+            title: title.clone(),
             album,
             active_view,
             picture_ids: vec![],
@@ -205,6 +211,9 @@ impl SimpleComponent for PersonAlbum {
                 self.album.sender().emit(AlbumInput::Activate);
                 self.album.sender().emit(AlbumInput::Filter(AlbumFilter::Any(self.picture_ids.clone())));
                 self.album.sender().emit(AlbumInput::GoToFirst);
+
+                self.title.set_label(&person.name);
+                self.person = Some(person);
             }
             PersonAlbumInput::Selected(visual_id) => {
                 let _ = sender.output(PersonAlbumOutput::Selected(visual_id, AlbumFilter::Any(self.picture_ids.clone())));
