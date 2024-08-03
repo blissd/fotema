@@ -10,6 +10,7 @@ use relm4::*;
 use relm4::binding::*;
 use relm4::adw;
 use relm4::gtk::gdk;
+use relm4::actions::{RelmAction, RelmActionGroup};
 
 use crate::app::adaptive;
 use crate::app::SharedState;
@@ -22,11 +23,20 @@ use crate::app::components::albums:: {
 
 use fotema_core::people;
 use fotema_core::PictureId;
+use crate::fl;
 
 use tracing::info;
 
 const NARROW_EDGE_LENGTH: i32 = 50;
 const WIDE_EDGE_LENGTH: i32 = 200;
+
+relm4::new_action_group!(PersonActionGroup, "person");
+
+// Rename a person
+relm4::new_stateless_action!(RenameAction, PersonActionGroup, "rename");
+
+// Delete a person
+relm4::new_stateless_action!(DeleteAction, PersonActionGroup, "delete");
 
 #[derive(Debug)]
 pub enum PersonAlbumInput {
@@ -48,6 +58,12 @@ pub enum PersonAlbumInput {
 
     /// Picture selected in underlying album
     Selected(VisualId),
+
+    /// Rename person
+    Rename,
+
+    /// Delete person
+    Delete,
 }
 
 #[derive(Debug)]
@@ -71,6 +87,16 @@ impl SimpleComponent for PersonAlbum {
     type Input = PersonAlbumInput;
     type Output = PersonAlbumOutput;
 
+    menu! {
+        primary_menu: {
+            section! {
+                // FIXME I would like to have the person's name in these menu items.
+                &fl!("person-menu-rename") => RenameAction,
+                &fl!("person-menu-delete") => DeleteAction,
+            }
+        }
+    }
+
     view! {
         adw::ToolbarView {
             add_top_bar = &adw::HeaderBar {
@@ -81,7 +107,10 @@ impl SimpleComponent for PersonAlbum {
                     add_css_class: "title",
                 },
 
-                pack_end: &gtk::Label::new(Some("foo")),
+                pack_end = &gtk::MenuButton {
+                    set_icon_name: "open-menu-symbolic",
+                    set_menu_model: Some(&primary_menu),
+                },
             },
 
             #[wrap(Some)]
@@ -126,8 +155,27 @@ impl SimpleComponent for PersonAlbum {
         };
 
         model.avatar.add_write_only_binding(&model.edge_length, "size");
-
         let widgets = view_output!();
+
+        let mut actions = RelmActionGroup::<PersonActionGroup>::new();
+
+        let rename_action = {
+            let sender = sender.clone();
+            RelmAction::<RenameAction>::new_stateless(move |_| {
+                let _ = sender.input(PersonAlbumInput::Rename);
+            })
+        };
+
+        let delete_action = {
+            let sender = sender.clone();
+            RelmAction::<DeleteAction>::new_stateless(move |_| {
+                let _ = sender.input(PersonAlbumInput::Delete);
+            })
+        };
+
+        actions.add_action(rename_action);
+        actions.add_action(delete_action);
+        actions.register_for_widget(root);
 
         ComponentParts { model, widgets }
     }
@@ -177,7 +225,13 @@ impl SimpleComponent for PersonAlbum {
                 } else if offset == 0.0 && !self.avatar.is_visible() {
                     self.avatar.set_visible(true);
                 }
-            }
+            },
+            PersonAlbumInput::Rename => {
+                info!("Renaming person");
+            },
+            PersonAlbumInput::Delete => {
+                info!("Deleting person");
+            },
         }
     }
 }

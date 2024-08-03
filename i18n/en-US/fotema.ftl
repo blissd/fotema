@@ -294,3 +294,11 @@ primary-menu-preferences = Preferences
 
 # Menu item to show "about" dialog
 primary-menu-about = About {-app-name}
+
+## Person menu
+
+# Menu item to rename a person
+person-menu-rename = Rename person
+
+# Menu item to delete a person
+person-menu-delete = Delete person
