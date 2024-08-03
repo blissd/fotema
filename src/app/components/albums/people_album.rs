@@ -45,7 +45,7 @@ pub enum PeopleAlbumInput {
     Activate,
 
     // Reload photos from database
-    //Refresh,
+    Refresh,
 
     Selected(u32), // Index into photo grid vector
 
@@ -192,6 +192,9 @@ impl SimpleComponent for PeopleAlbum {
             PeopleAlbumInput::Adapt(adaptive::Layout::Wide) => {
                 self.edge_length.set_value(WIDE_EDGE_LENGTH);
             },
+            PeopleAlbumInput::Refresh => {
+                self.refresh();
+            },
         }
     }
 }
@@ -214,7 +217,5 @@ impl PeopleAlbum {
         }
 
         self.photo_grid.extend_from_iter(items.into_iter());
-
-        // NOTE view is not sorted by a timestamp, so don't scroll to end.
     }
 }

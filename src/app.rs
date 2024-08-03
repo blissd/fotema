@@ -181,6 +181,8 @@ pub(super) enum AppMsg {
 
     ViewPerson(people::Person),
 
+    PersonDeleted,
+
     // A background task has started.
     TaskStarted(TaskName),
 
@@ -558,6 +560,7 @@ impl SimpleComponent for App {
             .launch((state.clone(), people_repo.clone(), active_view.clone()))
             .forward(sender.input_sender(), |msg| match msg {
                 PersonAlbumOutput::Selected(id, filter) => AppMsg::View(id, filter),
+                PersonAlbumOutput::Deleted => AppMsg::PersonDeleted,
             });
 
         state.subscribe(person_album.sender(), |_| PersonAlbumInput::Refresh);
@@ -775,6 +778,10 @@ impl SimpleComponent for App {
                 self.person_album.emit(PersonAlbumInput::Activate);
                 self.person_album.emit(PersonAlbumInput::View(person));
                 self.picture_navigation_view.push_by_tag("person_album");
+            },
+            AppMsg::PersonDeleted => {
+                self.picture_navigation_view.pop();
+                self.people_page.emit(PeopleAlbumInput::Refresh);
             },
             AppMsg::TaskStarted(task_name) => {
                 self.spinner.start();

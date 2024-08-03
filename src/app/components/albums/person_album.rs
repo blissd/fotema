@@ -9,6 +9,7 @@ use relm4::gtk::prelude::*;
 use relm4::*;
 use relm4::binding::*;
 use relm4::adw;
+use relm4::adw::prelude::*;
 use relm4::gtk::gdk;
 use relm4::actions::{RelmAction, RelmActionGroup};
 
@@ -25,7 +26,7 @@ use fotema_core::people;
 use fotema_core::PictureId;
 use crate::fl;
 
-use tracing::info;
+use tracing::{error, info};
 
 const NARROW_EDGE_LENGTH: i32 = 50;
 const WIDE_EDGE_LENGTH: i32 = 200;
@@ -59,10 +60,16 @@ pub enum PersonAlbumInput {
     /// Picture selected in underlying album
     Selected(VisualId),
 
-    /// Rename person
-    Rename,
+    /// Start rename person flow
+    RenameDialog,
 
-    /// Delete person
+    /// Actually rename person
+    Rename(String),
+
+    /// Start delete person flow.
+    DeleteDialog,
+
+    /// Actually delete person.
     Delete,
 }
 
@@ -70,6 +77,9 @@ pub enum PersonAlbumInput {
 pub enum PersonAlbumOutput {
     /// User has selected photo or video in grid view
     Selected(VisualId, AlbumFilter),
+
+    /// Person deleted.
+    Deleted,
 }
 
 pub struct PersonAlbum {
@@ -133,7 +143,6 @@ impl SimpleComponent for PersonAlbum {
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-
         let avatar = adw::Avatar::builder()
             .size(NARROW_EDGE_LENGTH)
             .show_initials(true)
@@ -168,14 +177,14 @@ impl SimpleComponent for PersonAlbum {
         let rename_action = {
             let sender = sender.clone();
             RelmAction::<RenameAction>::new_stateless(move |_| {
-                let _ = sender.input(PersonAlbumInput::Rename);
+                let _ = sender.input(PersonAlbumInput::RenameDialog);
             })
         };
 
         let delete_action = {
             let sender = sender.clone();
             RelmAction::<DeleteAction>::new_stateless(move |_| {
-                let _ = sender.input(PersonAlbumInput::Delete);
+                let _ = sender.input(PersonAlbumInput::DeleteDialog);
             })
         };
 
@@ -235,11 +244,62 @@ impl SimpleComponent for PersonAlbum {
                     self.avatar.set_visible(true);
                 }
             },
-            PersonAlbumInput::Rename => {
-                info!("Renaming person");
+            PersonAlbumInput::RenameDialog => {
+                let Some(ref person) = self.person else {
+                    info!("Asked to rename person, but no person for album");
+                    return;
+                };
+                info!("Renaming {}", person.person_id);
+
+            },
+            PersonAlbumInput::Rename(name) => {
+            },
+            PersonAlbumInput::DeleteDialog => {
+                let Some(ref person) = self.person else {
+                    info!("Asked to delete person, but no person for album");
+                    return;
+                };
+                info!("Starting delete flow for person: {}", person.person_id);
+
+                let dialog = adw::AlertDialog::builder()
+                    .heading("Delete person?")
+                    .body("No pictures or videos will be deleted.")
+                    .close_response("cancel")
+                    .default_response("delete")
+                    .build();
+
+                dialog.add_response("cancel", "Cancel");
+                dialog.set_default_response(Some("cancel"));
+                dialog.set_close_response("cancel");
+
+                dialog.add_response("delete", "Delete");
+                dialog.set_response_appearance("delete", adw::ResponseAppearance::Destructive);
+
+                dialog.connect_response(None, move |_, response| {
+                    if response == "delete" {
+                       let _ = sender.input(PersonAlbumInput::Delete);
+                    }
+                });
+
+                if let Some(root) = gtk::Widget::root(self.avatar.widget_ref()) {
+                    dialog.present(&root);
+                } else {
+                    error!("Couldn't get root widget!");
+                }
             },
             PersonAlbumInput::Delete => {
-                info!("Deleting person");
+                let Some(ref person) = self.person else {
+                    info!("Asked to delete person, but no person for album");
+                    return;
+                };
+                info!("Deleting person: {}", person.person_id);
+                if let Err(e) = self.repo.delete_person(person.person_id) {
+                    error!("Failed to delete person: {}", e);
+                    return;
+                }
+                self.person = None;
+                self.picture_ids.clear();
+                let _ = sender.output(PersonAlbumOutput::Deleted);
             },
         }
     }
