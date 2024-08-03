@@ -133,6 +133,7 @@ impl Repository {
 
         Ok(result)
     }
+
     pub fn delete_person(&mut self, person_id: PersonId) -> Result<()> {
         let mut con = self.con.lock().unwrap();
         let tx = con.transaction()?;
@@ -148,6 +149,24 @@ impl Repository {
 
             let mut stmt = tx.prepare_cached("DELETE FROM people WHERE person_id = ?1")?;
             stmt.execute(params![person_id.id(),])?;
+        }
+
+        tx.commit()?;
+        Ok(())
+    }
+
+    pub fn rename_person(&mut self, person_id: PersonId, name: &str) -> Result<()> {
+        let mut con = self.con.lock().unwrap();
+        let tx = con.transaction()?;
+
+        {
+            let mut stmt = tx.prepare_cached(
+                "UPDATE people
+                SET
+                    name = ?2
+                WHERE person_id = ?1",
+            )?;
+            stmt.execute(params![person_id.id(), name,])?;
         }
 
         tx.commit()?;

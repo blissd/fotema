@@ -80,6 +80,9 @@ pub enum PersonAlbumOutput {
 
     /// Person deleted.
     Deleted,
+
+    /// Person renamed.
+    Renamed,
 }
 
 pub struct PersonAlbum {
@@ -251,8 +254,69 @@ impl SimpleComponent for PersonAlbum {
                 };
                 info!("Renaming {}", person.person_id);
 
+                let person_name = gtk::Entry::builder()
+                    .placeholder_text(fl!("person-rename-dialog", "placeholder"))
+                    .build();
+
+                let dialog = adw::AlertDialog::builder()
+                    .heading(fl!("person-rename-dialog", "heading"))
+                    .close_response("cancel")
+                    .default_response("rename")
+                    .extra_child(&person_name)
+                    .build();
+
+
+                dialog.add_response("cancel", "Cancel");
+                dialog.set_default_response(Some("cancel"));
+                dialog.set_close_response("cancel");
+
+                dialog.add_response("rename", "Rename");
+                dialog.set_response_appearance("rename", adw::ResponseAppearance::Suggested);
+
+                {
+                    let person_name = person_name.clone();
+                    let sender = sender.clone();
+                    dialog.connect_response(None, move |_, response| {
+                        if response == "rename" {
+                            let name = person_name.text();
+                            let _ = sender.input(PersonAlbumInput::Rename(name.into()));
+                        }
+                    });
+                }
+
+                {
+                    let person_name = person_name.clone();
+                    let sender = sender.clone();
+                    let dialog = dialog.clone();
+                    person_name.clone().connect_activate(move |_| {
+                        dialog.close();
+                        let name = person_name.text();
+                        let _ = sender.input(PersonAlbumInput::Rename(name.into()));
+                    });
+                }
+
+                if let Some(root) = gtk::Widget::root(self.avatar.widget_ref()) {
+                    dialog.present(&root);
+                    person_name.grab_focus();
+                } else {
+                    error!("Couldn't get root widget!");
+                }
             },
             PersonAlbumInput::Rename(name) => {
+                 let Some(ref mut person) = self.person else {
+                    info!("Asked to rename person, but no person for album");
+                    return;
+                };
+
+                info!("Renaming {} to {}", person.name, name);
+
+                 if let Err(e) = self.repo.rename_person(person.person_id, &name) {
+                    error!("Failed to rename person: {}", e);
+                    return;
+                }
+                self.title.set_label(&name);
+                person.name = name.into();
+                let _ = sender.output(PersonAlbumOutput::Renamed);
             },
             PersonAlbumInput::DeleteDialog => {
                 let Some(ref person) = self.person else {
@@ -262,17 +326,17 @@ impl SimpleComponent for PersonAlbum {
                 info!("Starting delete flow for person: {}", person.person_id);
 
                 let dialog = adw::AlertDialog::builder()
-                    .heading("Delete person?")
-                    .body("No pictures or videos will be deleted.")
+                    .heading(fl!("person-delete-dialog", "heading"))
+                    .body(fl!("person-delete-dialog", "body"))
                     .close_response("cancel")
                     .default_response("delete")
                     .build();
 
-                dialog.add_response("cancel", "Cancel");
+                dialog.add_response("cancel", &fl!("person-delete-dialog", "cancel-button"));
                 dialog.set_default_response(Some("cancel"));
                 dialog.set_close_response("cancel");
 
-                dialog.add_response("delete", "Delete");
+                dialog.add_response("delete", &fl!("person-delete-dialog", "delete-button"));
                 dialog.set_response_appearance("delete", adw::ResponseAppearance::Destructive);
 
                 dialog.connect_response(None, move |_, response| {

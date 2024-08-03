@@ -302,3 +302,18 @@ person-menu-rename = Rename person
 
 # Menu item to delete a person
 person-menu-delete = Delete person
+
+# Person delete dialog
+person-delete-dialog =
+  .heading = Delete person?
+  .body = No pictures or videos will be deleted.
+  .cancel-button = Cancel
+  .delete-button = Delete
+
+# Person delete dialog
+person-rename-dialog =
+  .heading = Rename person?
+  .placeholder = New name
+  .body = No pictures or videos will be deleted.
+  .cancel-button = Cancel
+  .rename-button = Rename
