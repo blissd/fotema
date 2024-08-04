@@ -257,8 +257,6 @@ impl Worker for Bootstrap {
         )
         .unwrap();
 
-        let face_extractor = machine_learning::face_extractor::FaceExtractor::build(&data_dir).unwrap();
-
         let load_library = LoadLibrary::builder()
             .detach_worker((visual_repo.clone(), state))
             .detach();
