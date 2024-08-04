@@ -9,6 +9,7 @@ use rayon::prelude::*;
 use anyhow::*;
 use std::sync::Arc;
 use std::result::Result::Ok;
+use std::path::{Path, PathBuf};
 use tracing::{error, info};
 
 use fotema_core::machine_learning::face_recognizer::FaceRecognizer;
@@ -43,6 +44,8 @@ pub struct PhotoRecognizeFaces {
     repo: people::Repository,
 
     progress_monitor: Arc<Reducer<ProgressMonitor>>,
+
+    cache_dir: PathBuf,
 }
 
 impl PhotoRecognizeFaces {
@@ -80,7 +83,7 @@ impl PhotoRecognizeFaces {
         let _ = sender.output(PhotoRecognizeFacesOutput::Started);
         self.progress_monitor.emit(ProgressMonitorInput::Start(TaskName::RecognizeFaces, unprocessed.len()));
 
-        let recognizer = FaceRecognizer::build(people.clone())?;
+        let recognizer = FaceRecognizer::build(&self.cache_dir, people.clone())?;
 
         unprocessed
             //.into_iter()
@@ -118,12 +121,13 @@ impl PhotoRecognizeFaces {
 }
 
 impl Worker for PhotoRecognizeFaces {
-    type Init = (people::Repository, Arc<Reducer<ProgressMonitor>>);
+    type Init = (PathBuf, people::Repository, Arc<Reducer<ProgressMonitor>>);
     type Input = PhotoRecognizeFacesInput;
     type Output = PhotoRecognizeFacesOutput;
 
-    fn init((repo, progress_monitor): Self::Init, _sender: ComponentSender<Self>) -> Self  {
+    fn init((cache_dir, repo, progress_monitor): Self::Init, _sender: ComponentSender<Self>) -> Self  {
         PhotoRecognizeFaces {
+            cache_dir: cache_dir.into(),
             repo,
             progress_monitor,
         }

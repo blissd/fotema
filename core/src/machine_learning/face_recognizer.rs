@@ -2,35 +2,57 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use anyhow::Result;
+use std::fs::File;
+use std::io::BufWriter;
+use std::path::Path;
+use std::path::PathBuf;
+
+use anyhow::{anyhow, Result};
 
 use opencv::core::Mat;
 use opencv::imgcodecs;
 use opencv::objdetect::{FaceRecognizerSF, FaceRecognizerSF_DisType};
 use opencv::prelude::*;
 
+use reqwest::header::{HeaderMap, HeaderValue, ACCEPT};
+
+use tracing::info;
+
 use crate::people::model::{DetectedFace, PersonForRecognition, PersonId};
 
 pub struct FaceRecognizer {
     /// Person recognition data and a opencv matrix of aligned face features.
     people: Vec<(PersonForRecognition, Mat)>,
+
+    /// Path to OpenCV face recognition model
+    model_path: PathBuf,
 }
 
 impl FaceRecognizer {
     //const COSINE_SIMILAR_THRESH: f64 = 0.363;
     const L2NORM_SIMILAR_THRESH: f64 = 1.128;
 
-    //face_recognition_sface_2021dec.onnx
-    // FIXME download and cache at runtime
-    const MODEL_PATH: &'static str =
-        &"/var/home/david/Pictures/face_recognition_sface_2021dec.onnx";
+    const MODEL_URL: &'static str =
+        &"https://github.com/blissd/fotema-opencv_zoo/raw/fotema-1.0/models/face_recognition_sface/face_recognition_sface_2021dec.onnx";
 
-    pub fn build(people: Vec<PersonForRecognition>) -> Result<Self> {
-        let mut recognizer = Self { people: vec![] };
+    pub fn build(cache_dir: &Path, people: Vec<PersonForRecognition>) -> Result<Self> {
+        let model_path = {
+            let base_path = cache_dir.join("opencv_models");
+            std::fs::create_dir_all(&base_path)?;
+            base_path.join("face_recognition_sface_2021dec.onnx")
+        };
+
+        Self::download_model(Self::MODEL_URL, &model_path)?;
+
+        let mut recognizer = Self {
+            people: vec![],
+            model_path,
+        };
 
         for person in people {
             // WARNING cannot re-use recognizer. MUST use a separate one for each person.
-            let mut opencv_face_recognizer = FaceRecognizerSF::create_def(Self::MODEL_PATH, "")?;
+            let mut opencv_face_recognizer =
+                FaceRecognizerSF::create_def(&recognizer.model_path.to_string_lossy(), "")?;
 
             let face_img = imgcodecs::imread_def(&person.face.face_path.to_string_lossy())?;
 
@@ -50,7 +72,8 @@ impl FaceRecognizer {
     }
 
     pub fn recognize(&self, unknown_face: &DetectedFace) -> Result<Option<PersonId>> {
-        let mut face_recognizer = FaceRecognizerSF::create_def(Self::MODEL_PATH, "")?;
+        let mut face_recognizer =
+            FaceRecognizerSF::create_def(&self.model_path.to_string_lossy(), "")?;
 
         let face_img = imgcodecs::imread_def(&unknown_face.face_path.to_string_lossy())?;
 
@@ -88,6 +111,41 @@ impl FaceRecognizer {
         }
 
         Ok(None)
+    }
+
+    fn download_model(url: &str, destination: &Path) -> Result<()> {
+        if destination.exists() {
+            return Ok(());
+        }
+
+        let headers = {
+            let mut headers = HeaderMap::new();
+            headers.insert(ACCEPT, HeaderValue::from_static("*/*"));
+            headers
+        };
+
+        let client = reqwest::blocking::Client::new();
+        let mut response = client.get(url).headers(headers).send()?;
+
+        if response.status().is_success() {
+            let tmp_path = destination.with_extension("tmp");
+            let tmp_file = File::create(&tmp_path)?;
+            let mut writer = BufWriter::new(tmp_file);
+            while let Ok(bytes_read) = response.copy_to(&mut writer) {
+                if bytes_read == 0 {
+                    break;
+                }
+            }
+            info!("Face recognition model successfully downloaded.");
+            std::fs::rename(tmp_path, destination)?;
+
+            Ok(())
+        } else {
+            Err(anyhow!(
+                "Failed to download face recognition model: {}",
+                response.status()
+            ))
+        }
     }
 }
 

@@ -332,7 +332,7 @@ impl Worker for Bootstrap {
             });
 
         let photo_recognize_faces = PhotoRecognizeFaces::builder()
-            .detach_worker((people_repo.clone(), progress_monitor.clone()))
+            .detach_worker((cache_dir.clone(), people_repo.clone(), progress_monitor.clone()))
             .forward(sender.input_sender(), |msg| match msg {
                 PhotoRecognizeFacesOutput::Started => BootstrapInput::TaskStarted(TaskName::RecognizeFaces),
                 PhotoRecognizeFacesOutput::Completed(count) => BootstrapInput::TaskCompleted(TaskName::RecognizeFaces, Some(count)),
