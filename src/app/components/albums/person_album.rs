@@ -193,7 +193,7 @@ impl SimpleComponent for PersonAlbum {
 
         actions.add_action(rename_action);
         actions.add_action(delete_action);
-        actions.register_for_widget(root);
+        actions.register_for_widget(&root);
 
         ComponentParts { model, widgets }
     }
