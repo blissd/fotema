@@ -29,6 +29,7 @@ use crate::fl;
 use fotema_core::database;
 use fotema_core::video;
 use fotema_core::VisualId;
+use fotema_core::PictureId;
 use fotema_core::people;
 
 use h3o::CellIndex;
@@ -195,6 +196,8 @@ pub(super) enum AppMsg {
     BootstrapCompleted,
 
     TranscodeAll,
+
+    ScanForFaces(PictureId),
 
     // Adapt to layout change
     Adapt(adaptive::Layout),
@@ -513,6 +516,7 @@ impl SimpleComponent for App {
             .launch((state.clone(), transcode_progress_monitor.clone(), adaptive_layout.clone(), people_repo.clone()))
             .forward(sender.input_sender(), |msg| match msg {
                 ViewNavOutput::TranscodeAll => AppMsg::TranscodeAll,
+                ViewNavOutput::ScanForFaces(picture_id) => AppMsg::ScanForFaces(picture_id),
             });
 
         let selfies_page = Album::builder()
@@ -838,6 +842,10 @@ impl SimpleComponent for App {
             AppMsg::TranscodeAll => {
                 event!(Level::INFO, "Transcode all");
                 self.video_transcode.emit(VideoTranscodeInput::All);
+            },
+            AppMsg::ScanForFaces(picture_id) => {
+                info!("Scan picture for faces: {}", picture_id);
+                self.bootstrap.emit(BootstrapInput::ScanForFaces(picture_id));
             },
             AppMsg::PreferencesUpdated => {
                 event!(Level::INFO, "Preferences updated.");

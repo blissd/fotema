@@ -26,7 +26,8 @@ use crate::app::components::progress_monitor::{
 
 #[derive(Debug)]
 pub enum PhotoDetectFacesInput {
-    Start,
+    DetectForAllPictures,
+    DetectForOnePicture(PictureId),
 }
 
 #[derive(Debug)]
@@ -51,15 +52,29 @@ pub struct PhotoDetectFaces {
 
 impl PhotoDetectFaces {
 
-    fn detect(&self, sender: ComponentSender<Self>) -> Result<()>
-     {
-        let start = std::time::Instant::now();
+    fn detect_for_one(&self, sender: ComponentSender<Self>, picture_id: PictureId) -> Result<()> {
+        self.repo.delete_faces(picture_id)?;
+        let result = self.repo.get_file_to_scan(picture_id)?;
+        if let Some(picture_path) = result {
+            let unprocessed = vec![(picture_id, picture_path)];
+            self.detect(sender, unprocessed)
+        } else {
+            Err(anyhow!("No file to scan"))
+        }
+    }
 
+    fn detect_for_all(&self, sender: ComponentSender<Self>) -> Result<()> {
         let unprocessed: Vec<(PictureId, PathBuf)> = self.repo
             .find_need_face_scan()?
             .into_iter()
             .filter(|(_, path)| path.exists())
             .collect();
+
+        self.detect(sender, unprocessed)
+    }
+
+    fn detect(&self, sender: ComponentSender<Self>, unprocessed: Vec<(PictureId, PathBuf)>) -> Result<()> {
+        let start = std::time::Instant::now();
 
         let count = unprocessed.len();
          info!("Found {} photos as candidates for face detection", count);
@@ -120,17 +135,29 @@ impl Worker for PhotoDetectFaces {
 
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
-            PhotoDetectFacesInput::Start => {
-                info!("Extracting photo faces...");
+            PhotoDetectFacesInput::DetectForAllPictures => {
+                info!("Extracting faces for all pictures...");
                 let this = self.clone();
 
                 // Avoid runtime panic from calling block_on
                 rayon::spawn(move || {
-                    if let Err(e) = this.detect(sender) {
+                    if let Err(e) = this.detect_for_all(sender) {
                         error!("Failed to extract photo faces: {}", e);
                     }
                 });
-            }
+            },
+
+            PhotoDetectFacesInput::DetectForOnePicture(picture_id) => {
+                info!("Extracting faces for one picture...");
+                let this = self.clone();
+
+                // Avoid runtime panic from calling block_on
+                rayon::spawn(move || {
+                    if let Err(e) = this.detect_for_one(sender, picture_id) {
+                        error!("Failed to extract photo faces: {}", e);
+                    }
+                });
+            },
         };
     }
 }

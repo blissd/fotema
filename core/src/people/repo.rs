@@ -87,6 +87,40 @@ impl Repository {
         Ok(result)
     }
 
+    pub fn get_file_to_scan(&self, picture_id: PictureId) -> Result<Option<PathBuf>> {
+        let con = self.con.lock().unwrap();
+        let mut stmt = con.prepare(
+            "SELECT
+                    pictures.picture_id,
+                    pictures.picture_path_b64
+                FROM pictures
+                WHERE pictures.picture_id = ?1",
+        )?;
+
+        let result = stmt
+            .query_map([picture_id.id()], |row| self.to_picture_id_path_tuple(row))?
+            .flatten()
+            .nth(0)
+            .map(|x| x.1);
+
+        Ok(result)
+    }
+
+    /// Deletes faces for a picture so a picture can be re-scanned and new faces.
+    /// We must delete before re-scanning a picture for faces to avoid a unique constraint
+    /// violation on the bounds_path.
+    pub fn delete_faces(&self, picture_id: PictureId) -> Result<()> {
+        let con = self.con.lock().unwrap();
+        let mut stmt = con.prepare(
+            "DELETE FROM pictures_faces
+            WHERE pictures_faces.picture_id = ?1",
+        )?;
+
+        stmt.execute([picture_id.id()])?;
+
+        Ok(())
+    }
+
     /// Finds faces and people for the thumbnail bar.
     /// Faces are ordered from left to right, top to bottom.
     pub fn find_faces(

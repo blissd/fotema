@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use fotema_core::VisualId;
 use relm4::gtk;
 use relm4::gtk::prelude::*;
 use relm4::*;
@@ -19,6 +18,8 @@ use crate::fl;
 
 use fotema_core::Visual;
 use fotema_core::people;
+use fotema_core::PictureId;
+use fotema_core::VisualId;
 
 use std::sync::Arc;
 
@@ -82,6 +83,7 @@ pub enum ViewNavInput {
 #[derive(Debug)]
 pub enum ViewNavOutput {
     TranscodeAll,
+    ScanForFaces(PictureId),
 }
 
 pub struct ViewNav {
@@ -404,8 +406,20 @@ impl SimpleAsyncComponent for ViewNav {
                 self.view_one.emit(ViewOneInput::Refresh);
             },
             ViewNavInput::ScanForFaces => {
+ let Some(index) = self.current_index else {
+                    return;
+                };
 
-                info!("Scanning for more faces");
+                if index == 0 {
+                    return;
+                }
+
+                info!("Scan for more faces");
+
+                let visual = &self.filtered_items[index];
+                if let Some(picture_id) = visual.picture_id {
+                    let _ = sender.output(ViewNavOutput::ScanForFaces(picture_id));
+                }
             },
         }
     }

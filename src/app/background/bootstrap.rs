@@ -16,6 +16,7 @@ use fotema_core::video;
 use fotema_core::visual;
 use fotema_core::machine_learning;
 use fotema_core::people;
+use fotema_core::PictureId;
 
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
@@ -66,13 +67,18 @@ pub enum TaskName {
 
 #[derive(Debug)]
 pub enum BootstrapInput {
+
+    /// Start the initial background processes for setting up Fotema.
     Start,
 
-    // A background task has started
+    /// Queue task for scanning picture for more faces.
+    ScanForFaces(PictureId),
+
+    /// A background task has started.
     TaskStarted(TaskName),
 
-    // A background task has completed.
-    // usize is count of processed items.
+    /// A background task has completed.
+    /// usize is count of processed items.
     TaskCompleted(TaskName, Option<usize>),
 }
 
@@ -115,6 +121,9 @@ pub struct Bootstrap {
     /// Pending ordered tasks to process
     /// Wow... figuring out a type signature that would compile was a nightmare.
     pending_tasks: Arc<Mutex<VecDeque<Box<dyn Fn() + Send + Sync>>>>,
+
+    // Is a task currently running?
+    is_running: bool,
 }
 
 impl Bootstrap {
@@ -165,7 +174,12 @@ impl Bootstrap {
 
     fn add_task_photo_detect_faces(&mut self) {
         let sender = self.photo_detect_faces.sender().clone();
-        self.enqueue(Box::new(move || sender.emit(PhotoDetectFacesInput::Start)));
+        self.enqueue(Box::new(move || sender.emit(PhotoDetectFacesInput::DetectForAllPictures)));
+    }
+
+    fn add_and_run_task_photo_detect_faces_for_one(&mut self, picture_id: PictureId) {
+        let sender = self.photo_detect_faces.sender().clone();
+        self.enqueue_or_run(Box::new(move || sender.emit(PhotoDetectFacesInput::DetectForOnePicture(picture_id))));
     }
 
     fn add_task_photo_recognize_faces(&mut self) {
@@ -176,6 +190,20 @@ impl Bootstrap {
     fn enqueue(&mut self, task: Box<dyn Fn() + Send + Sync>) {
         if let Ok(mut vec) = self.pending_tasks.lock() {
             vec.push_back(task);
+        }
+    }
+
+    /// Enqueues task, or runs task immediately if no other tasks pending
+    fn enqueue_or_run(&mut self, task: Box<dyn Fn() + Send + Sync>) {
+        if let Ok(mut vec) = self.pending_tasks.lock() {
+            if self.is_running {
+                info!("Enqueing new task");
+                vec.push_back(task);
+            } else {
+                info!("Running new task right now");
+                self.is_running = true;
+                task();
+            }
         }
     }
 }
@@ -328,6 +356,7 @@ impl Worker for Bootstrap {
             photo_detect_faces: Arc::new(photo_detect_faces),
             photo_recognize_faces: Arc::new(photo_recognize_faces),
             pending_tasks: Arc::new(Mutex::new(VecDeque::new())),
+            is_running: false,
         };
 
         // Tasks will execute in the order added.
@@ -359,11 +388,17 @@ impl Worker for Bootstrap {
 
                 if let Ok(mut tasks) = self.pending_tasks.lock() {
                     if let Some(task) = tasks.pop_front() {
+                        self.is_running = true;
                         task();
                     } else {
+                        self.is_running = false;
                         let _ = sender.output(BootstrapOutput::Completed);
                     }
                 }
+            },
+            BootstrapInput::ScanForFaces(picture_id) => {
+                info!("Queueing task to scan picture {} for faces", picture_id);
+                self.add_and_run_task_photo_detect_faces_for_one(picture_id);
             },
             BootstrapInput::TaskStarted(task_name) => {
                 info!("Task started: {:?}", task_name);
@@ -375,6 +410,7 @@ impl Worker for Bootstrap {
 
                 if let Ok(mut tasks) = self.pending_tasks.lock() {
                     if let Some(task) = tasks.pop_front() {
+                        self.is_running = true;
                         task();
                     } else {
                         // This is the last background task to complete. Refresh library if there
@@ -384,6 +420,7 @@ impl Worker for Bootstrap {
                             self.load_library.emit(LoadLibraryInput::Refresh);
                         }
                         self.library_stale = false;
+                        self.is_running = false;
                         let _ = sender.output(BootstrapOutput::Completed);
                     }
                 }
