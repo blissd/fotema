@@ -115,8 +115,12 @@ impl FaceRecognizer {
 
     fn download_model(url: &str, destination: &Path) -> Result<()> {
         if destination.exists() {
+            info!("Face recognition model already downloaded.");
             return Ok(());
         }
+
+        info!("Downloading face recognition model from {}", url);
+        info!("Model is approximately 40MB.");
 
         let headers = {
             let mut headers = HeaderMap::new();
