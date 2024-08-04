@@ -43,7 +43,8 @@ pub enum PhotoDetectFacesOutput {
 
 #[derive(Clone)]
 pub struct PhotoDetectFaces {
-    extractor: Arc<FaceExtractor>,
+    /// Base directory for storing photo faces
+    base_dir: PathBuf,
 
     // Danger! Don't hold the repo mutex for too long as it blocks viewing images.
     repo: people::Repository,
@@ -77,6 +78,13 @@ impl PhotoDetectFaces {
     fn detect(&self, sender: ComponentSender<Self>, extract_mode: ExtractMode, unprocessed: Vec<(PictureId, PathBuf)>) -> Result<()> {
         let start = std::time::Instant::now();
 
+        // Must build face extractor here rather than in Boostrap's init function because
+        // the face detection models will be downloaded on creation and that mustn't happen
+        // on the main thread.
+        // Also, this has the advantage of extractor being dropped after use, which means
+        // the face detection models will be unloaded from memory.
+        let extractor = FaceExtractor::build(&self.base_dir)?;
+
         let count = unprocessed.len();
          info!("Found {} photos as candidates for face detection", count);
 
@@ -100,7 +108,7 @@ impl PhotoDetectFaces {
                 // Careful! panic::catch_unwind returns Ok(Err) if the evaluated expression returns
                 // an error but doesn't panic.
                 let result = block_on(async {
-                        self.extractor.extract_faces(&picture_id, &path, extract_mode).await
+                        extractor.extract_faces(&picture_id, &path, extract_mode).await
                     }).and_then(|faces| repo.clone().add_face_scans(&picture_id, &faces));
 
                 if result.is_err() {
@@ -122,13 +130,13 @@ impl PhotoDetectFaces {
 }
 
 impl Worker for PhotoDetectFaces {
-    type Init = (FaceExtractor, people::Repository, Arc<Reducer<ProgressMonitor>>);
+    type Init = (PathBuf, people::Repository, Arc<Reducer<ProgressMonitor>>);
     type Input = PhotoDetectFacesInput;
     type Output = PhotoDetectFacesOutput;
 
-    fn init((extractor, repo, progress_monitor): Self::Init, _sender: ComponentSender<Self>) -> Self  {
+    fn init((base_dir, repo, progress_monitor): Self::Init, _sender: ComponentSender<Self>) -> Self  {
         PhotoDetectFaces {
-            extractor: Arc::new(extractor),
+            base_dir,
             repo,
             progress_monitor,
         }

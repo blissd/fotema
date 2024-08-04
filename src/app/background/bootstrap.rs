@@ -327,7 +327,7 @@ impl Worker for Bootstrap {
             });
 
         let photo_detect_faces = PhotoDetectFaces::builder()
-            .detach_worker((face_extractor, people_repo.clone(), progress_monitor.clone()))
+            .detach_worker((data_dir, people_repo.clone(), progress_monitor.clone()))
             .forward(sender.input_sender(), |msg| match msg {
                 PhotoDetectFacesOutput::Started => BootstrapInput::TaskStarted(TaskName::DetectFaces),
                 PhotoDetectFacesOutput::Completed(count) => BootstrapInput::TaskCompleted(TaskName::DetectFaces, Some(count)),
