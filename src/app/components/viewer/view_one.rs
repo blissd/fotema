@@ -36,6 +36,10 @@ pub enum ViewOneInput {
     // The photo/video page has been hidden so any playing media should stop.
     Hidden,
 
+    /// Refresh view. Probably because face thumbnails have updated elsewhere.
+    /// FIXME not sure I like view_nav.rs being responsible for ignoring/restoring faces.
+    Refresh,
+
     // Transcode all incompatible videos
     TranscodeAll,
 
@@ -536,6 +540,9 @@ impl SimpleAsyncComponent for ViewOne {
                 event!(Level::INFO, "Transcode all");
                 self.transcode_button.set_visible(false);
                 let _ = sender.output(ViewOneOutput::TranscodeAll);
+            },
+            ViewOneInput::Refresh => {
+                self.face_thumbnails.emit(FaceThumbnailsInput::Refresh);
             },
         }
     }

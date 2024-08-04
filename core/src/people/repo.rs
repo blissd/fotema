@@ -115,6 +115,42 @@ impl Repository {
         Ok(result)
     }
 
+    pub fn ignore_unknown_faces(&mut self, picture_id: PictureId) -> Result<()> {
+        let mut con = self.con.lock().unwrap();
+        let tx = con.transaction()?;
+
+        {
+            let mut stmt = tx.prepare_cached(
+                "UPDATE pictures_faces
+                SET
+                    is_ignored = TRUE
+                WHERE picture_id = ?1 AND person_id IS NULL",
+            )?;
+            stmt.execute(params![picture_id.id(),])?;
+        }
+
+        tx.commit()?;
+        Ok(())
+    }
+
+    pub fn restore_ignored_faces(&mut self, picture_id: PictureId) -> Result<()> {
+        let mut con = self.con.lock().unwrap();
+        let tx = con.transaction()?;
+
+        {
+            let mut stmt = tx.prepare_cached(
+                "UPDATE pictures_faces
+                SET
+                    is_ignored = FALSE
+                WHERE picture_id = ?1",
+            )?;
+            stmt.execute(params![picture_id.id(),])?;
+        }
+
+        tx.commit()?;
+        Ok(())
+    }
+
     pub fn get_person(&self, person_id: PersonId) -> Result<Option<model::Person>> {
         let con = self.con.lock().unwrap();
         let mut stmt = con.prepare(

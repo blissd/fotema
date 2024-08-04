@@ -364,12 +364,47 @@ impl SimpleAsyncComponent for ViewNav {
                 self.split_view.set_show_sidebar(show);
             },
             ViewNavInput::RestoreIgnoredFaces => {
+                let Some(index) = self.current_index else {
+                    return;
+                };
+
+                if index == 0 {
+                    return;
+                }
+
                 info!("Restoring unknown faces for");
+
+                let visual = &self.filtered_items[index];
+                if let Some(picture_id) = visual.picture_id {
+                    if let Err(e) = self.people_repo.restore_ignored_faces(picture_id) {
+                        error!("Failed restoring ignored faces: {}", e);
+                    }
+                }
+
+                self.view_one.emit(ViewOneInput::Refresh);
             },
             ViewNavInput::IgnoreUnknownFaces => {
+                let Some(index) = self.current_index else {
+                    return;
+                };
+
+                if index == 0 {
+                    return;
+                }
+
                 info!("Ignoring unknown faces");
+
+                let visual = &self.filtered_items[index];
+                if let Some(picture_id) = visual.picture_id {
+                    if let Err(e) = self.people_repo.ignore_unknown_faces(picture_id) {
+                        error!("Failed ignoring unknown faces: {}", e);
+                    }
+                }
+
+                self.view_one.emit(ViewOneInput::Refresh);
             },
             ViewNavInput::ScanForFaces => {
+
                 info!("Scanning for more faces");
             },
         }
