@@ -281,10 +281,10 @@ banner-clean-videos = Video database maintenance.
 banner-extract-motion-photos = Processing motion photos.
 
 # Detect and extract faces from photos
-banner-detect-faces-photos = Detecting faces in photos.
+banner-detect-faces-photos = Detecting faces in photos. This will take a while.
 
 # Recognize faces as people
-banner-recognize-faces-photos = Recognizing people in photos.
+banner-recognize-faces-photos = Recognizing people in photos. This will take a while.
 
 ## Primary menu
 

@@ -14,6 +14,7 @@ use tracing::{error, info};
 use futures::executor::block_on;
 
 use fotema_core::machine_learning::face_extractor::FaceExtractor;
+use fotema_core::machine_learning::face_extractor::ExtractMode;
 use fotema_core::people;
 use fotema_core::photo::PictureId;
 
@@ -57,7 +58,7 @@ impl PhotoDetectFaces {
         let result = self.repo.get_file_to_scan(picture_id)?;
         if let Some(picture_path) = result {
             let unprocessed = vec![(picture_id, picture_path)];
-            self.detect(sender, unprocessed)
+            self.detect(sender, ExtractMode::Heavyweight, unprocessed)
         } else {
             Err(anyhow!("No file to scan"))
         }
@@ -70,10 +71,10 @@ impl PhotoDetectFaces {
             .filter(|(_, path)| path.exists())
             .collect();
 
-        self.detect(sender, unprocessed)
+        self.detect(sender, ExtractMode::Lightweight, unprocessed)
     }
 
-    fn detect(&self, sender: ComponentSender<Self>, unprocessed: Vec<(PictureId, PathBuf)>) -> Result<()> {
+    fn detect(&self, sender: ComponentSender<Self>, extract_mode: ExtractMode, unprocessed: Vec<(PictureId, PathBuf)>) -> Result<()> {
         let start = std::time::Instant::now();
 
         let count = unprocessed.len();
@@ -99,7 +100,7 @@ impl PhotoDetectFaces {
                 // Careful! panic::catch_unwind returns Ok(Err) if the evaluated expression returns
                 // an error but doesn't panic.
                 let result = block_on(async {
-                        self.extractor.extract_faces(&picture_id, &path).await
+                        self.extractor.extract_faces(&picture_id, &path, extract_mode).await
                     }).and_then(|faces| repo.clone().add_face_scans(&picture_id, &faces));
 
                 if result.is_err() {

@@ -89,12 +89,19 @@ pub struct FaceExtractor {
     /// I think this is the "front model" trained on
     /// photos taken by the selfie camera of phones.
     blaze_face_320_model: Box<dyn rust_faces::FaceDetector>,
-    is_blaze_face_enabled: bool,
 
-    /// An alternative model with good results, but much slower than
-    /// BlazeFace.
+    /// An alternative model with good results, but much slower than BlazeFace.
     mtcnn_model: Box<dyn rust_faces::FaceDetector>,
-    is_mtcnn_enabled: bool,
+}
+
+/// What kind of face extraction model to use.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ExtractMode {
+    /// A fast but less accurate model suitable for mobile devices.
+    Lightweight,
+
+    /// A slow but more accurate model suitable for desktop devices.
+    Heavyweight,
 }
 
 impl FaceExtractor {
@@ -144,32 +151,8 @@ impl FaceExtractor {
             base_path,
             blaze_face_640_model,
             blaze_face_320_model,
-            is_blaze_face_enabled: true,
             mtcnn_model,
-            is_mtcnn_enabled: false,
         })
-    }
-
-    /// Remove any duplicates where being a duplicate is determined by
-    /// the distance between centres being below a certain threshold
-    fn remove_duplicates(
-        detected_faces: Vec<DetectedFace>,
-        existing_faces: &Vec<(DetectedFace, String)>,
-    ) -> Vec<DetectedFace> {
-        detected_faces
-            .into_iter()
-            .filter(|f| f.confidence >= 0.95)
-            .filter(|f1| {
-                let nearest = existing_faces
-                    .iter()
-                    .min_by_key(|f2| Self::nose_distance(&f1, &f2.0) as u32);
-
-                nearest.is_none()
-                    || nearest.is_some_and(|f2| {
-                        Self::distance(Self::centre(&f1), Self::centre(&f2.0)) > 150.0
-                    })
-            })
-            .collect()
     }
 
     /// Identify faces in a photo and return a vector of paths of extracted face images.
@@ -177,6 +160,7 @@ impl FaceExtractor {
         &self,
         picture_id: &PictureId,
         picture_path: &Path,
+        extract_mode: ExtractMode,
     ) -> Result<Vec<Face>> {
         let original_image = Self::open_image(picture_path).await?;
 
@@ -184,7 +168,7 @@ impl FaceExtractor {
 
         let mut faces: Vec<(DetectedFace, String)> = vec![];
 
-        if self.is_mtcnn_enabled {
+        if extract_mode == ExtractMode::Heavyweight {
             let result = self.mtcnn_model.detect(image.view().into_dyn());
             if let Ok(detected_faces) = result {
                 let detected_faces = Self::remove_duplicates(detected_faces, &faces);
@@ -196,7 +180,9 @@ impl FaceExtractor {
             }
         }
 
-        if self.is_blaze_face_enabled {
+        if extract_mode == ExtractMode::Lightweight
+        /* || extract_mode == ExtractMode::Heavyweight */
+        {
             let result = self.blaze_face_640_model.detect(image.view().into_dyn());
             if let Ok(detected_faces) = result {
                 let detected_faces = Self::remove_duplicates(detected_faces, &faces);
@@ -337,6 +323,28 @@ impl FaceExtractor {
         // Remove duplicates
 
         Ok(faces)
+    }
+
+    /// Remove any duplicates where being a duplicate is determined by
+    /// the distance between centres being below a certain threshold
+    fn remove_duplicates(
+        detected_faces: Vec<DetectedFace>,
+        existing_faces: &Vec<(DetectedFace, String)>,
+    ) -> Vec<DetectedFace> {
+        detected_faces
+            .into_iter()
+            .filter(|f| f.confidence >= 0.95)
+            .filter(|f1| {
+                let nearest = existing_faces
+                    .iter()
+                    .min_by_key(|f2| Self::nose_distance(&f1, &f2.0) as u32);
+
+                nearest.is_none()
+                    || nearest.is_some_and(|f2| {
+                        Self::distance(Self::centre(&f1), Self::centre(&f2.0)) > 150.0
+                    })
+            })
+            .collect()
     }
 
     /// Computes Euclidean distance between two points

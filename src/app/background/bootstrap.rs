@@ -177,9 +177,9 @@ impl Bootstrap {
         self.enqueue(Box::new(move || sender.emit(PhotoDetectFacesInput::DetectForAllPictures)));
     }
 
-    fn add_and_run_task_photo_detect_faces_for_one(&mut self, picture_id: PictureId) {
+    fn add_task_photo_detect_faces_for_one(&mut self, picture_id: PictureId) {
         let sender = self.photo_detect_faces.sender().clone();
-        self.enqueue_or_run(Box::new(move || sender.emit(PhotoDetectFacesInput::DetectForOnePicture(picture_id))));
+        self.enqueue(Box::new(move || sender.emit(PhotoDetectFacesInput::DetectForOnePicture(picture_id))));
     }
 
     fn add_task_photo_recognize_faces(&mut self) {
@@ -193,14 +193,14 @@ impl Bootstrap {
         }
     }
 
-    /// Enqueues task, or runs task immediately if no other tasks pending
-    fn enqueue_or_run(&mut self, task: Box<dyn Fn() + Send + Sync>) {
-        if let Ok(mut vec) = self.pending_tasks.lock() {
-            if self.is_running {
-                info!("Enqueing new task");
-                vec.push_back(task);
-            } else {
-                info!("Running new task right now");
+    /// Run next task if no tasks running
+    fn run_if_idle(&mut self) {
+        if self.is_running {
+            return;
+        }
+        if let Ok(mut tasks) = self.pending_tasks.lock() {
+            if let Some(task) = tasks.pop_front() {
+                info!("Running task right now");
                 self.is_running = true;
                 task();
             }
@@ -398,7 +398,9 @@ impl Worker for Bootstrap {
             },
             BootstrapInput::ScanForFaces(picture_id) => {
                 info!("Queueing task to scan picture {} for faces", picture_id);
-                self.add_and_run_task_photo_detect_faces_for_one(picture_id);
+                self.add_task_photo_detect_faces_for_one(picture_id);
+                self.add_task_photo_recognize_faces();
+                self.run_if_idle();
             },
             BootstrapInput::TaskStarted(task_name) => {
                 info!("Task started: {:?}", task_name);
