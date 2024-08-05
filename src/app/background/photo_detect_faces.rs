@@ -108,12 +108,12 @@ impl PhotoDetectFaces {
                 // Careful! panic::catch_unwind returns Ok(Err) if the evaluated expression returns
                 // an error but doesn't panic.
                 let result = block_on(async {
-                        extractor.extract_faces(&picture_id, &path, extract_mode).await
-                    }).and_then(|faces| repo.clone().add_face_scans(&picture_id, &faces));
+                        extractor.extract_faces(picture_id, path, extract_mode).await
+                    }).and_then(|faces| repo.clone().add_face_scans(picture_id, &faces));
 
                 if result.is_err() {
                     error!("Failed detecting faces: Photo path: {:?}. Error: {:?}", path, result);
-                    let _ = repo.mark_face_scan_broken(&picture_id);
+                    let _ = repo.mark_face_scan_broken(picture_id);
                 }
 
                 self.progress_monitor.emit(ProgressMonitorInput::Advance);

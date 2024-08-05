@@ -245,21 +245,21 @@ impl SimpleAsyncComponent for ViewNav {
         let restore_action = {
             let sender = sender.clone();
             RelmAction::<RestoreIgnoredFacesAction>::new_stateless(move |_| {
-                let _ = sender.input(ViewNavInput::RestoreIgnoredFaces);
+                sender.input(ViewNavInput::RestoreIgnoredFaces);
             })
         };
 
         let ignore_unknown_faces_action = {
             let sender = sender.clone();
             RelmAction::<IgnoreUnknownFacesAction>::new_stateless(move |_| {
-                let _ = sender.input(ViewNavInput::IgnoreUnknownFaces);
+                sender.input(ViewNavInput::IgnoreUnknownFaces);
             })
         };
 
         let scan_faces_action = {
             let sender = sender.clone();
             RelmAction::<ScanForFacesAction>::new_stateless(move |_| {
-                let _ = sender.input(ViewNavInput::ScanForFaces);
+                sender.input(ViewNavInput::ScanForFaces);
             })
         };
 

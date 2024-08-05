@@ -17,7 +17,7 @@ use relm4::binding::*;
 use crate::adaptive;
 use crate::app::ActiveView;
 use crate::app::ViewName;
-use crate::app::{Settings, SettingsState};
+use crate::app::SettingsState;
 use crate::app::FaceDetectionMode;
 use crate::fl;
 
@@ -208,7 +208,7 @@ impl SimpleComponent for PeopleAlbum {
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
 
-        settings_state.subscribe(sender.input_sender(), |settings| PeopleAlbumInput::SettingsChanged);
+        settings_state.subscribe(sender.input_sender(), |_| PeopleAlbumInput::SettingsChanged);
 
         let photo_grid = TypedGridView::new();
 
@@ -297,7 +297,7 @@ impl PeopleAlbum {
             return;
         }
 
-        let mut people = self.repo.all_people().unwrap_or(vec![]);
+        let mut people = self.repo.all_people().unwrap_or_default();
         people.sort_by_key(|p| p.name.clone());
 
         self.photo_grid.clear();
@@ -323,7 +323,7 @@ impl PeopleAlbum {
             self.status.set_description(Some(&fl!("people-page-status-no-people", "description")));
         }
 
-        self.photo_grid.extend_from_iter(items.into_iter());
+        self.photo_grid.extend_from_iter(items);
 
     }
 }

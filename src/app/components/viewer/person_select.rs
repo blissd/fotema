@@ -159,7 +159,7 @@ impl SimpleAsyncComponent for PersonSelect {
                 let img = gdk::Texture::from_filename(&thumbnail).ok();
                 self.avatar.set_custom_image(img.as_ref());
 
-                let people = self.people_repo.all_people().unwrap_or(vec![]);
+                let people = self.people_repo.all_people().unwrap_or_default();
 
                 for person in people {
                     let avatar = adw::Avatar::builder()

@@ -180,14 +180,14 @@ impl SimpleComponent for PersonAlbum {
         let rename_action = {
             let sender = sender.clone();
             RelmAction::<RenameAction>::new_stateless(move |_| {
-                let _ = sender.input(PersonAlbumInput::RenameDialog);
+                sender.input(PersonAlbumInput::RenameDialog);
             })
         };
 
         let delete_action = {
             let sender = sender.clone();
             RelmAction::<DeleteAction>::new_stateless(move |_| {
-                let _ = sender.input(PersonAlbumInput::DeleteDialog);
+                sender.input(PersonAlbumInput::DeleteDialog);
             })
         };
 
@@ -218,7 +218,7 @@ impl SimpleComponent for PersonAlbum {
                     self.avatar.set_visible(true);
                 }
 
-                self.picture_ids = self.repo.find_pictures_for_person(person.person_id).unwrap_or(vec![]);
+                self.picture_ids = self.repo.find_pictures_for_person(person.person_id).unwrap_or_default();
                 info!("Person {} has {} items to view.", person.person_id, self.picture_ids.len());
                 self.album.sender().emit(AlbumInput::Activate);
                 self.album.sender().emit(AlbumInput::Filter(AlbumFilter::Any(self.picture_ids.clone())));
@@ -279,7 +279,7 @@ impl SimpleComponent for PersonAlbum {
                     dialog.connect_response(None, move |_, response| {
                         if response == "rename" {
                             let name = person_name.text();
-                            let _ = sender.input(PersonAlbumInput::Rename(name.into()));
+                            sender.input(PersonAlbumInput::Rename(name.into()));
                         }
                     });
                 }
@@ -291,7 +291,7 @@ impl SimpleComponent for PersonAlbum {
                     person_name.clone().connect_activate(move |_| {
                         dialog.close();
                         let name = person_name.text();
-                        let _ = sender.input(PersonAlbumInput::Rename(name.into()));
+                        sender.input(PersonAlbumInput::Rename(name.into()));
                     });
                 }
 
@@ -315,7 +315,7 @@ impl SimpleComponent for PersonAlbum {
                     return;
                 }
                 self.title.set_label(&name);
-                person.name = name.into();
+                person.name = name;
                 let _ = sender.output(PersonAlbumOutput::Renamed);
             },
             PersonAlbumInput::DeleteDialog => {
@@ -341,7 +341,7 @@ impl SimpleComponent for PersonAlbum {
 
                 dialog.connect_response(None, move |_, response| {
                     if response == "delete" {
-                       let _ = sender.input(PersonAlbumInput::Delete);
+                       sender.input(PersonAlbumInput::Delete);
                     }
                 });
 

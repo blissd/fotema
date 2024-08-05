@@ -444,7 +444,7 @@ impl SimpleAsyncComponent for ViewOne {
 
                 // Overlay faces in picture
                 if let Some(ref picture_id) = visual.picture_id {
-                    self.face_thumbnails.emit(FaceThumbnailsInput::View(picture_id.clone()));
+                    self.face_thumbnails.emit(FaceThumbnailsInput::View(*picture_id));
                 } else {
                     self.face_thumbnails.emit(FaceThumbnailsInput::Hide);
                 }

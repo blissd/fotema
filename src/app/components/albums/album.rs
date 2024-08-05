@@ -46,8 +46,6 @@ pub enum AlbumInput {
 
     GoToFirst,
 
-    GoToLast,
-
     // I'd like to pass a closure of Fn(Picture)->bool for the filter... but Rust
     // is making that too hard.
 
@@ -328,9 +326,6 @@ impl SimpleComponent for Album {
             },
             AlbumInput::GoToFirst => {
                 self.go_to_first();
-            },
-            AlbumInput::GoToLast => {
-                self.go_to_last();
             },
             AlbumInput::Adapt(adaptive::Layout::Narrow) => {
                 self.edge_length.set_value(NARROW_EDGE_LENGTH);

@@ -222,7 +222,6 @@ impl FaceExtractor {
             self.base_path.join(partition).join(file_name)
         };
 
-        let mut faces = faces;
         faces.sort_by_key(|x| x.1.clone());
 
         let mut faces_flat_grouped: Vec<(String, usize, DetectedFace)> = Vec::new();
@@ -332,7 +331,7 @@ impl FaceExtractor {
     /// the distance between centres being below a certain threshold
     fn remove_duplicates(
         detected_faces: Vec<DetectedFace>,
-        existing_faces: &Vec<(DetectedFace, String)>,
+        existing_faces: &[(DetectedFace, String)],
     ) -> Vec<DetectedFace> {
         detected_faces
             .into_iter()
@@ -340,11 +339,11 @@ impl FaceExtractor {
             .filter(|f1| {
                 let nearest = existing_faces
                     .iter()
-                    .min_by_key(|f2| Self::nose_distance(&f1, &f2.0) as u32);
+                    .min_by_key(|f2| Self::nose_distance(f1, &f2.0) as u32);
 
                 nearest.is_none()
                     || nearest.is_some_and(|f2| {
-                        Self::distance(Self::centre(&f1), Self::centre(&f2.0)) > 150.0
+                        Self::distance(Self::centre(f1), Self::centre(&f2.0)) > 150.0
                     })
             })
             .collect()

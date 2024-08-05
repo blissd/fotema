@@ -125,11 +125,13 @@ pub struct Bootstrap {
 
     /// Pending ordered tasks to process
     /// Wow... figuring out a type signature that would compile was a nightmare.
-    pending_tasks: Arc<Mutex<VecDeque<Box<dyn Fn() + Send + Sync>>>>,
+    pending_tasks: Arc<Mutex<VecDeque<Box<Task>>>>,
 
     // Is a task currently running?
     is_running: bool,
 }
+
+type Task = dyn Fn() + Send + Sync;
 
 impl Bootstrap {
     fn add_task_photo_scan(&mut self)  {

@@ -218,9 +218,6 @@ pub(super) enum AppMsg {
     // A background task has started.
     TaskStarted(TaskName),
 
-    // Preferences
-    PreferencesUpdated,
-
     // All background bootstrap tasks have completed
     BootstrapCompleted,
 
@@ -897,11 +894,6 @@ impl SimpleComponent for App {
             AppMsg::ScanPicturesForFaces => {
                 info!("Scan pictures for faces");
                 self.bootstrap.emit(BootstrapInput::ScanPicturesForFaces);
-            },
-            AppMsg::PreferencesUpdated => {
-                event!(Level::INFO, "Preferences updated.");
-                // TODO create a Preferences struct to hold preferences and send with update message.
-                self.show_selfies = AppWidgets::show_selfies();
             },
             AppMsg::Adapt(adaptive::Layout::Narrow) => {
                 self.main_navigation.set_collapsed(true);

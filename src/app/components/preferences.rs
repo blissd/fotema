@@ -67,7 +67,7 @@ impl SimpleComponent for PreferencesDialog {
                         set_title: &fl!("prefs-views-faces"),
                         set_subtitle: &fl!("prefs-views-faces", "subtitle"),
                         connect_selected_item_notify[sender] => move |row| {
-                            let mode = FaceDetectionMode::from_repr(row.selected()).unwrap_or(FaceDetectionMode::default());
+                            let mode = FaceDetectionMode::from_repr(row.selected()).unwrap_or_default();
                             let _ = sender.input_sender().send(PreferencesInput::UpdateFaceDetectionMode(mode));
                         },
                     }

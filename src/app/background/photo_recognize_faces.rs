@@ -63,7 +63,7 @@ impl PhotoRecognizeFaces {
 
         // Short-circuit before sending progress messages to stop
         // banner from appearing and disappearing.
-        if people.len() == 0 {
+        if people.is_empty() {
             let _ = sender.output(PhotoRecognizeFacesOutput::Completed(0));
             return Ok(());
         }
@@ -75,7 +75,7 @@ impl PhotoRecognizeFaces {
             .filter(|unknown_face| unknown_face.detected_at > min_recognized_at)
             .collect();
 
-        if unprocessed.len() == 0 {
+        if unprocessed.is_empty() {
             let _ = sender.output(PhotoRecognizeFacesOutput::Completed(0));
             return Ok(());
         }
@@ -127,7 +127,7 @@ impl Worker for PhotoRecognizeFaces {
 
     fn init((cache_dir, repo, progress_monitor): Self::Init, _sender: ComponentSender<Self>) -> Self  {
         PhotoRecognizeFaces {
-            cache_dir: cache_dir.into(),
+            cache_dir,
             repo,
             progress_monitor,
         }

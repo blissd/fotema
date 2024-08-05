@@ -42,9 +42,9 @@ impl GPSCoord {
     pub fn to_f64_safe(&self) -> Option<f64> {
         let decimal = self.to_f64();
         if decimal == 0.0 || (decimal.is_normal() && !decimal.is_subnormal()) {
-            return Some(decimal);
+            Some(decimal)
         } else {
-            return None;
+            None
         }
     }
 

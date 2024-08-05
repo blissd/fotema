@@ -33,7 +33,7 @@ impl FaceRecognizer {
     const L2NORM_SIMILAR_THRESH: f64 = 1.128;
 
     const MODEL_URL: &'static str =
-        &"https://github.com/blissd/fotema-opencv_zoo/raw/fotema-1.0/models/face_recognition_sface/face_recognition_sface_2021dec.onnx";
+        "https://github.com/blissd/fotema-opencv_zoo/raw/fotema-1.0/models/face_recognition_sface/face_recognition_sface_2021dec.onnx";
 
     pub fn build(cache_dir: &Path, people: Vec<PersonForRecognition>) -> Result<Self> {
         let model_path = {
