@@ -3,20 +3,18 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use relm4::{adw, ComponentParts, ComponentSender, SimpleComponent};
-use relm4::adw::prelude::AdwDialogExt;
-use relm4::adw::prelude::PreferencesDialogExt;
-use relm4::adw::prelude::PreferencesPageExt;
-use relm4::adw::prelude::PreferencesGroupExt;
-use relm4::adw::prelude::ActionRowExt;
-use relm4::adw::prelude::PreferencesRowExt;
+use relm4::adw::prelude::*;
+use relm4::gtk;
 
 use tracing::info;
 
 use crate::fl;
 use crate::app::{Settings, SettingsState};
+use crate::app::FaceDetectionMode;
 
 pub struct PreferencesDialog {
     parent: adw::ApplicationWindow,
+    face_detection_mode_row: adw::ComboRow,
     dialog: adw::PreferencesDialog,
     settings_state: SettingsState,
 
@@ -34,6 +32,8 @@ pub enum PreferencesInput {
 
     /// Send updated settings
     UpdateShowSelfies(bool),
+
+    UpdateFaceDetectionMode(FaceDetectionMode),
 }
 
 #[relm4::component(pub)]
@@ -60,8 +60,18 @@ impl SimpleComponent for PreferencesDialog {
 		                connect_active_notify[sender] => move |switch| {
 		                    let _ = sender.input_sender().send(PreferencesInput::UpdateShowSelfies(switch.is_active()));
 		                },
+                    },
+
+                    #[local_ref]
+                    face_detection_mode_row -> adw::ComboRow {
+                        set_title: &fl!("prefs-views-faces"),
+                        set_subtitle: &fl!("prefs-views-faces", "subtitle"),
+                        connect_selected_item_notify[sender] => move |row| {
+                            let mode = FaceDetectionMode::from_repr(row.selected()).unwrap_or(FaceDetectionMode::default());
+                            let _ = sender.input_sender().send(PreferencesInput::UpdateFaceDetectionMode(mode));
+                        },
                     }
-                }
+                },
             }
         }
     }
@@ -75,14 +85,21 @@ impl SimpleComponent for PreferencesDialog {
 
         settings_state.subscribe(sender.input_sender(), |settings| PreferencesInput::SettingsChanged(settings.clone()));
 
+        let face_detection_mode_row = adw::ComboRow::new();
+        let list = gtk::StringList::new(&["Off", "Mobile", "Desktop"]);
+        face_detection_mode_row.set_model(Some(&list));
+
         let model = Self {
             settings_state: settings_state.clone(),
+            face_detection_mode_row: face_detection_mode_row.clone(),
             parent,
             dialog: dialog.clone(),
             settings: settings_state.read().clone(),
         };
 
         let widgets = view_output!();
+
+        sender.input(PreferencesInput::SettingsChanged(model.settings.clone()));
 
         ComponentParts { model, widgets }
     }
@@ -94,12 +111,23 @@ impl SimpleComponent for PreferencesDialog {
                 self.dialog.present(&self.parent);
             },
             PreferencesInput::SettingsChanged(settings) => {
-                info!("Received update from settings sahred state");
+                info!("Received update from settings shared state");
                 self.settings = settings;
+                let index = match self.settings.face_detection_mode {
+                    FaceDetectionMode::Off => 0,
+                    FaceDetectionMode::Mobile => 1,
+                    FaceDetectionMode::Desktop => 2,
+                };
+                self.face_detection_mode_row.set_selected(index);
             },
             PreferencesInput::UpdateShowSelfies(show_selfies) => {
-                info!("Writing update to settings shared state");
+                info!("Update show selfies: {}", show_selfies);
                 self.settings.show_selfies = show_selfies;
+                *self.settings_state.write() = self.settings.clone();
+            },
+            PreferencesInput::UpdateFaceDetectionMode(mode) => {
+                info!("Update face detection mode: {:?}", mode);
+                self.settings.face_detection_mode = mode;
                 *self.settings_state.write() = self.settings.clone();
             },
         }

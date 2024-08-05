@@ -40,7 +40,7 @@ use std::str::FromStr;
 
 use anyhow::*;
 
-use strum::{AsRefStr, EnumString, IntoStaticStr};
+use strum::{AsRefStr, EnumString, IntoStaticStr, FromRepr};
 
 use tracing::{event, Level, error, info};
 
@@ -90,7 +90,8 @@ pub enum ViewName {
     Selfies,
 }
 
-#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, EnumString, AsRefStr)]
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, EnumString, AsRefStr, FromRepr)]
+#[repr(u32)]
 pub enum FaceDetectionMode {
     /// Disable face detection and person recognition.
     #[default]

@@ -235,6 +235,9 @@ prefs-views-section = Views
 prefs-views-selfies = Selfies
   .subtitle = Shows a separate view for selfies taken on iOS devices. Restart {-app-name} to apply.
 
+prefs-views-faces = Face Detection
+  .subtitle = Enable face detection.
+
 ## Progress bar for background tasks
 
 # Extracting details from photo EXIF data

@@ -56,7 +56,7 @@ pub enum PeopleAlbumInput {
     // Adapt to layout
     Adapt(adaptive::Layout),
 
-    SettingsChanged(Settings),
+    SettingsChanged,
 
     EnableForMobile,
 
@@ -206,6 +206,8 @@ impl SimpleComponent for PeopleAlbum {
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
 
+        settings_state.subscribe(sender.input_sender(), |settings| PeopleAlbumInput::SettingsChanged);
+
         let photo_grid = TypedGridView::new();
 
         let status = adw::StatusPage::new();
@@ -255,19 +257,21 @@ impl SimpleComponent for PeopleAlbum {
             PeopleAlbumInput::Refresh => {
                 self.refresh();
             },
-            PeopleAlbumInput::SettingsChanged(_) => {
-               // self.refresh();
+            PeopleAlbumInput::SettingsChanged => {
+                self.refresh();
             },
             PeopleAlbumInput::EnableForMobile => {
                 let mut settings = self.settings_state.read().clone();
                 settings.face_detection_mode = FaceDetectionMode::Mobile;
                 *self.settings_state.write() = settings;
+                self.refresh();
             },
 
             PeopleAlbumInput::EnableForDesktop => {
                 let mut settings = self.settings_state.read().clone();
                 settings.face_detection_mode = FaceDetectionMode::Desktop;
                 *self.settings_state.write() = settings;
+                self.refresh();
             },
 
         }
@@ -283,6 +287,9 @@ impl PeopleAlbum {
             self.status.set_title(&fl!("people-page-status-off", "title"));
             self.status.set_description(Some(&fl!("people-page-status-off", "description")));
 
+            if let Some(child) = self.status.child() {
+                child.set_visible(true);
+            }
             return;
         }
 
