@@ -16,7 +16,7 @@ use rust_faces::{
 use gdk4::prelude::TextureExt;
 use image::DynamicImage;
 use itertools::*;
-use tracing::{debug, error};
+use tracing::{debug, error, info};
 
 #[derive(Debug, Clone)]
 pub struct Rect {
@@ -162,6 +162,11 @@ impl FaceExtractor {
         picture_path: &Path,
         extract_mode: ExtractMode,
     ) -> Result<Vec<Face>> {
+        info!(
+            "Detecting faces in {:?} using {:?} model",
+            picture_path, extract_mode
+        );
+
         let original_image = Self::open_image(picture_path).await?;
 
         let image = original_image.clone().into_rgb8().into_array3();

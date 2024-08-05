@@ -16,6 +16,7 @@ use fotema_core::video;
 use fotema_core::visual;
 use fotema_core::people;
 use fotema_core::PictureId;
+use fotema_core::machine_learning::face_extractor::ExtractMode;
 
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
@@ -41,6 +42,8 @@ use super::{
 };
 
 use crate::app::SharedState;
+use crate::app::SettingsState;
+use crate::app::FaceDetectionMode;
 
 use crate::app::components::progress_monitor::ProgressMonitor;
 
@@ -95,6 +98,8 @@ pub enum BootstrapOutput {
 
 pub struct Bootstrap {
     started_at: Option<Instant>,
+
+    settings_state: SettingsState,
 
     /// Whether a background task has updated some library state and the library should be reloaded.
     library_stale: bool,
@@ -174,7 +179,14 @@ impl Bootstrap {
 
     fn add_task_photo_detect_faces(&mut self) {
         let sender = self.photo_detect_faces.sender().clone();
-        self.enqueue(Box::new(move || sender.emit(PhotoDetectFacesInput::DetectForAllPictures)));
+        let mode = match self.settings_state.read().face_detection_mode {
+            FaceDetectionMode::Off => None,
+            FaceDetectionMode::Mobile => Some(ExtractMode::Lightweight),
+            FaceDetectionMode::Desktop => Some(ExtractMode::Heavyweight),
+        };
+        if let Some(mode) = mode {
+            self.enqueue(Box::new(move || sender.emit(PhotoDetectFacesInput::DetectForAllPictures(mode))));
+        }
     }
 
     fn add_task_photo_detect_faces_for_one(&mut self, picture_id: PictureId) {
@@ -209,11 +221,11 @@ impl Bootstrap {
 }
 
 impl Worker for Bootstrap {
-    type Init = (Arc<Mutex<database::Connection>>, SharedState, Arc<Reducer<ProgressMonitor>>);
+    type Init = (Arc<Mutex<database::Connection>>, SharedState, SettingsState, Arc<Reducer<ProgressMonitor>>);
     type Input = BootstrapInput;
     type Output = BootstrapOutput;
 
-    fn init((con, state, progress_monitor): Self::Init, sender: ComponentSender<Self>) -> Self  {
+    fn init((con, state, settings_state, progress_monitor): Self::Init, sender: ComponentSender<Self>) -> Self  {
         let data_dir = glib::user_data_dir().join(APP_ID);
         let _ = std::fs::create_dir_all(&data_dir);
 
@@ -340,6 +352,7 @@ impl Worker for Bootstrap {
 
         let mut bootstrap = Self {
             started_at: None,
+            settings_state,
             library_stale: false,
             load_library: Arc::new(load_library),
             photo_scan: Arc::new(photo_scan),

@@ -27,7 +27,7 @@ use crate::app::components::progress_monitor::{
 
 #[derive(Debug)]
 pub enum PhotoDetectFacesInput {
-    DetectForAllPictures,
+    DetectForAllPictures(ExtractMode),
     DetectForOnePicture(PictureId),
 }
 
@@ -65,14 +65,14 @@ impl PhotoDetectFaces {
         }
     }
 
-    fn detect_for_all(&self, sender: ComponentSender<Self>) -> Result<()> {
+    fn detect_for_all(&self, sender: ComponentSender<Self>, extract_mode: ExtractMode) -> Result<()> {
         let unprocessed: Vec<(PictureId, PathBuf)> = self.repo
             .find_need_face_scan()?
             .into_iter()
             .filter(|(_, path)| path.exists())
             .collect();
 
-        self.detect(sender, ExtractMode::Lightweight, unprocessed)
+        self.detect(sender, extract_mode, unprocessed)
     }
 
     fn detect(&self, sender: ComponentSender<Self>, extract_mode: ExtractMode, unprocessed: Vec<(PictureId, PathBuf)>) -> Result<()> {
@@ -144,13 +144,13 @@ impl Worker for PhotoDetectFaces {
 
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
-            PhotoDetectFacesInput::DetectForAllPictures => {
+            PhotoDetectFacesInput::DetectForAllPictures(extract_mode) => {
                 info!("Extracting faces for all pictures...");
                 let this = self.clone();
 
                 // Avoid runtime panic from calling block_on
                 rayon::spawn(move || {
-                    if let Err(e) = this.detect_for_all(sender) {
+                    if let Err(e) = this.detect_for_all(sender, extract_mode) {
                         error!("Failed to extract photo faces: {}", e);
                     }
                 });

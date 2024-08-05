@@ -538,7 +538,7 @@ impl SimpleComponent for App {
             .detach();
 
         let bootstrap = Bootstrap::builder()
-            .detach_worker((con.clone(), state.clone(), bootstrap_progress_monitor))
+            .detach_worker((con.clone(), state.clone(), settings_state.clone(), bootstrap_progress_monitor))
             .forward(sender.input_sender(), |msg| match msg {
                 BootstrapOutput::TaskStarted(msg) => AppMsg::TaskStarted(msg),
                 BootstrapOutput::Completed => AppMsg::BootstrapCompleted,
