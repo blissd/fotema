@@ -66,6 +66,8 @@ pub enum PeopleAlbumInput {
 #[derive(Debug)]
 pub enum PeopleAlbumOutput {
     Selected(people::Person),
+
+    EnableFaceDetection,
 }
 
 impl RelmGridItem for PhotoGridItem {
@@ -265,6 +267,7 @@ impl SimpleComponent for PeopleAlbum {
                 settings.face_detection_mode = FaceDetectionMode::Mobile;
                 *self.settings_state.write() = settings;
                 self.refresh();
+                let _ = sender.output(PeopleAlbumOutput::EnableFaceDetection);
             },
 
             PeopleAlbumInput::EnableForDesktop => {
@@ -272,6 +275,7 @@ impl SimpleComponent for PeopleAlbum {
                 settings.face_detection_mode = FaceDetectionMode::Desktop;
                 *self.settings_state.write() = settings;
                 self.refresh();
+                let _ = sender.output(PeopleAlbumOutput::EnableFaceDetection);
             },
 
         }

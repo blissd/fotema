@@ -168,21 +168,7 @@ impl FaceExtractor {
 
         let mut faces: Vec<(DetectedFace, String)> = vec![];
 
-        if extract_mode == ExtractMode::Heavyweight {
-            let result = self.mtcnn_model.detect(image.view().into_dyn());
-            if let Ok(detected_faces) = result {
-                let detected_faces = Self::remove_duplicates(detected_faces, &faces);
-                for f in detected_faces {
-                    faces.push((f, "mtcnn".into()));
-                }
-            } else {
-                error!("Failed extracting faces with MTCNN model: {:?}", result);
-            }
-        }
-
-        if extract_mode == ExtractMode::Lightweight
-        /* || extract_mode == ExtractMode::Heavyweight */
-        {
+        if extract_mode == ExtractMode::Lightweight || extract_mode == ExtractMode::Heavyweight {
             let result = self.blaze_face_640_model.detect(image.view().into_dyn());
             if let Ok(detected_faces) = result {
                 let detected_faces = Self::remove_duplicates(detected_faces, &faces);
@@ -201,6 +187,18 @@ impl FaceExtractor {
                 }
             } else {
                 error!("Failed extracting faces with blaze_face_320: {:?}", result);
+            }
+        }
+
+        if extract_mode == ExtractMode::Heavyweight {
+            let result = self.mtcnn_model.detect(image.view().into_dyn());
+            if let Ok(detected_faces) = result {
+                let detected_faces = Self::remove_duplicates(detected_faces, &faces);
+                for f in detected_faces {
+                    faces.push((f, "mtcnn".into()));
+                }
+            } else {
+                error!("Failed extracting faces with MTCNN model: {:?}", result);
             }
         }
 

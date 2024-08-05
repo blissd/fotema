@@ -226,7 +226,8 @@ pub(super) enum AppMsg {
 
     TranscodeAll,
 
-    ScanForFaces(PictureId),
+    ScanPictureForFaces(PictureId),
+    ScanPicturesForFaces,
 
     // Adapt to layout change
     Adapt(adaptive::Layout),
@@ -559,7 +560,7 @@ impl SimpleComponent for App {
             .launch((state.clone(), transcode_progress_monitor.clone(), adaptive_layout.clone(), people_repo.clone()))
             .forward(sender.input_sender(), |msg| match msg {
                 ViewNavOutput::TranscodeAll => AppMsg::TranscodeAll,
-                ViewNavOutput::ScanForFaces(picture_id) => AppMsg::ScanForFaces(picture_id),
+                ViewNavOutput::ScanForFaces(picture_id) => AppMsg::ScanPictureForFaces(picture_id),
             });
 
         let selfies_page = Album::builder()
@@ -600,6 +601,7 @@ impl SimpleComponent for App {
             sender.input_sender(),
             |msg| match msg {
                 PeopleAlbumOutput::Selected(person) => AppMsg::ViewPerson(person),
+                PeopleAlbumOutput::EnableFaceDetection => AppMsg::ScanPicturesForFaces,
             },
         );
 
@@ -888,9 +890,13 @@ impl SimpleComponent for App {
                 event!(Level::INFO, "Transcode all");
                 self.video_transcode.emit(VideoTranscodeInput::All);
             },
-            AppMsg::ScanForFaces(picture_id) => {
+            AppMsg::ScanPictureForFaces(picture_id) => {
                 info!("Scan picture for faces: {}", picture_id);
-                self.bootstrap.emit(BootstrapInput::ScanForFaces(picture_id));
+                self.bootstrap.emit(BootstrapInput::ScanPictureForFaces(picture_id));
+            },
+            AppMsg::ScanPicturesForFaces => {
+                info!("Scan pictures for faces");
+                self.bootstrap.emit(BootstrapInput::ScanPicturesForFaces);
             },
             AppMsg::PreferencesUpdated => {
                 event!(Level::INFO, "Preferences updated.");

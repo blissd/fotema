@@ -71,7 +71,8 @@ pub enum BootstrapInput {
     Start,
 
     /// Queue task for scanning picture for more faces.
-    ScanForFaces(PictureId),
+    ScanPictureForFaces(PictureId),
+    ScanPicturesForFaces,
 
     /// A background task has started.
     TaskStarted(TaskName),
@@ -393,9 +394,15 @@ impl Worker for Bootstrap {
                     }
                 }
             },
-            BootstrapInput::ScanForFaces(picture_id) => {
+            BootstrapInput::ScanPictureForFaces(picture_id) => {
                 info!("Queueing task to scan picture {} for faces", picture_id);
                 self.add_task_photo_detect_faces_for_one(picture_id);
+                self.add_task_photo_recognize_faces();
+                self.run_if_idle();
+            },
+            BootstrapInput::ScanPicturesForFaces => {
+                info!("Queueing task to scan all pictures for faces");
+                self.add_task_photo_detect_faces();
                 self.add_task_photo_recognize_faces();
                 self.run_if_idle();
             },
