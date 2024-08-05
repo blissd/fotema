@@ -39,7 +39,6 @@ jobs:
         bundle: fotema.flatpak
         manifest-path: build-aux/app.fotema.Fotema.Devel.json
         run-tests: true
-        cache-key: flatpak-builder-${{ github.sha }}
         upload-artifact: false
 
   release:
