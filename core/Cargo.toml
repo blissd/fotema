@@ -12,9 +12,6 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.86"
 base64 = "0.22.1"
-candle-core = "0.6.0"
-candle-nn = "0.6.0"
-candle-transformers = "0.6.0"
 chrono = "0.4.37"
 fast_image_resize = { version = "4.2.1", features = ["image"] }
 ffmpeg-next = "7.0.2"
