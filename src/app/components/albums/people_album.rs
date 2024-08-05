@@ -7,6 +7,7 @@ use gtk::prelude::OrientableExt;
 use fotema_core::people;
 
 use relm4::gtk;
+use relm4::gtk::prelude::*;
 use relm4::gtk::gdk;
 use relm4::gtk::prelude::WidgetExt;
 use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
@@ -16,6 +17,9 @@ use relm4::binding::*;
 use crate::adaptive;
 use crate::app::ActiveView;
 use crate::app::ViewName;
+use crate::app::{Settings, SettingsState};
+use crate::app::FaceDetectionMode;
+use crate::fl;
 
 use tracing::{debug, info};
 
@@ -51,6 +55,12 @@ pub enum PeopleAlbumInput {
 
     // Adapt to layout
     Adapt(adaptive::Layout),
+
+    SettingsChanged(Settings),
+
+    EnableForMobile,
+
+    EnableForDesktop,
 }
 
 #[derive(Debug)]
@@ -122,43 +132,93 @@ impl RelmGridItem for PhotoGridItem {
 pub struct PeopleAlbum {
     repo: people::Repository,
     active_view: ActiveView,
+    settings_state: SettingsState,
     photo_grid: TypedGridView<PhotoGridItem, gtk::SingleSelection>,
+    avatars: gtk::ScrolledWindow,
+    status: adw::StatusPage,
     edge_length: I32Binding,
 }
 
 #[relm4::component(pub)]
 impl SimpleComponent for PeopleAlbum {
-    type Init = (people::Repository, ActiveView);
+    type Init = (people::Repository, ActiveView, SettingsState);
     type Input = PeopleAlbumInput;
     type Output = PeopleAlbumOutput;
 
     view! {
-        gtk::ScrolledWindow {
-            set_vexpand: true,
+        gtk::Box {
+            set_orientation: gtk::Orientation::Vertical,
 
             #[local_ref]
-            pictures_box -> gtk::GridView {
-                set_orientation: gtk::Orientation::Vertical,
-                set_single_click_activate: true,
+            avatars -> gtk::ScrolledWindow {
+                set_vexpand: true,
 
-                connect_activate[sender] => move |_, idx| {
-                    sender.input(PeopleAlbumInput::Selected(idx))
+                #[local_ref]
+                pictures_box -> gtk::GridView {
+                    set_orientation: gtk::Orientation::Vertical,
+                    set_single_click_activate: true,
+
+                    connect_activate[sender] => move |_, idx| {
+                        sender.input(PeopleAlbumInput::Selected(idx))
+                    }
                 }
-            }
-        }
+            },
+
+            #[local_ref]
+            status -> adw::StatusPage {
+                set_valign: gtk::Align::Start,
+                set_vexpand: true,
+
+                set_visible: false,
+                set_icon_name: Some("sentiment-very-satisfied-symbolic"),
+
+                #[wrap(Some)]
+                set_child = &adw::Clamp {
+                    set_orientation: gtk::Orientation::Horizontal,
+                    set_maximum_size: 400,
+
+                    #[wrap(Some)]
+                    set_child = &gtk::Box {
+                        set_orientation: gtk::Orientation::Vertical,
+
+                        gtk::Button {
+                            set_label: &fl!("people-page-status-off", "enable-mobile"),
+                            //add_css_class: "suggested-action",
+                            add_css_class: "pill",
+                            connect_clicked => PeopleAlbumInput::EnableForMobile,
+                        },
+
+                        gtk::Button {
+                            set_label: &fl!("people-page-status-off", "enable-desktop"),
+                            //add_css_class: "suggested-action",
+                            add_css_class: "pill",
+                            connect_clicked => PeopleAlbumInput::EnableForDesktop,
+                        },
+                    }
+                }
+            },
+        },
     }
 
     fn init(
-        (repo, active_view): Self::Init,
+        (repo, active_view, settings_state): Self::Init,
         _root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
+
         let photo_grid = TypedGridView::new();
+
+        let status = adw::StatusPage::new();
+
+        let avatars = gtk::ScrolledWindow::builder().build();
 
         let model = PeopleAlbum {
             repo,
             active_view,
+            settings_state,
             photo_grid,
+            avatars: avatars.clone(),
+            status: status.clone(),
             edge_length: I32Binding::new(NARROW_EDGE_LENGTH),
         };
 
@@ -195,12 +255,37 @@ impl SimpleComponent for PeopleAlbum {
             PeopleAlbumInput::Refresh => {
                 self.refresh();
             },
+            PeopleAlbumInput::SettingsChanged(_) => {
+               // self.refresh();
+            },
+            PeopleAlbumInput::EnableForMobile => {
+                let mut settings = self.settings_state.read().clone();
+                settings.face_detection_mode = FaceDetectionMode::Mobile;
+                *self.settings_state.write() = settings;
+            },
+
+            PeopleAlbumInput::EnableForDesktop => {
+                let mut settings = self.settings_state.read().clone();
+                settings.face_detection_mode = FaceDetectionMode::Desktop;
+                *self.settings_state.write() = settings;
+            },
+
         }
     }
 }
 
 impl PeopleAlbum {
     fn refresh(&mut self) {
+
+        if self.settings_state.read().face_detection_mode == FaceDetectionMode::Off {
+            self.avatars.set_visible(false);
+            self.status.set_visible(true);
+            self.status.set_title(&fl!("people-page-status-off", "title"));
+            self.status.set_description(Some(&fl!("people-page-status-off", "description")));
+
+            return;
+        }
+
         let mut people = self.repo.all_people().unwrap_or(vec![]);
         people.sort_by_key(|p| p.name.clone());
 
@@ -216,6 +301,18 @@ impl PeopleAlbum {
             items.push(item);
         }
 
+        self.status.set_visible(items.is_empty());
+        self.avatars.set_visible(!items.is_empty());
+
+        if items.is_empty() {
+            if let Some(child) = self.status.child() {
+                child.set_visible(false);
+            }
+            self.status.set_title(&fl!("people-page-status-no-people", "title"));
+            self.status.set_description(Some(&fl!("people-page-status-no-people", "description")));
+        }
+
         self.photo_grid.extend_from_iter(items.into_iter());
+
     }
 }

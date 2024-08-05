@@ -39,6 +39,21 @@ places-page = Places
 # Title for people page which shows an album of faces.
 people-page = People
 
+# Status page shown for people album when face detection is disabled.
+people-page-status-off =
+  .title = Enable face detection?
+  .description = { -app-name } can automatically detect faces and recognize people. Do you want to enable this feature?
+  .notice = { -app-name } must download about 45 megabytes of data to recognize faces and people.
+  .enable-mobile = Enable for mobile
+  .enable-desktop = Enable for desktop
+
+# Status page shown for people album when no people are found.
+people-page-status-no-people =
+  .title = No people found
+  .description = { -app-name } will look for faces in new photos when launched.
+  If you've told { -app-name } that a face is for a person you know, then { -app-name }
+  will also look for new photos of that person.
+
 ## Thumbnail decorations
 
 # Label on month album thumbnails.
@@ -315,6 +330,5 @@ person-delete-dialog =
 person-rename-dialog =
   .heading = Rename person?
   .placeholder = New name
-  .body = No pictures or videos will be deleted.
   .cancel-button = Cancel
   .rename-button = Rename

@@ -38,10 +38,11 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::str::FromStr;
 
-use strum::EnumString;
-use strum::IntoStaticStr;
+use anyhow::*;
 
-use tracing::{event, Level, info};
+use strum::{AsRefStr, EnumString, IntoStaticStr};
+
+use tracing::{event, Level, error, info};
 
 mod components;
 
@@ -57,7 +58,7 @@ use self::components::{
     },
     library::{Library, LibraryInput, LibraryOutput},
     viewer::view_nav::{ViewNav, ViewNavInput, ViewNavOutput},
-    preferences::{PreferencesDialog, PreferencesInput, PreferencesOutput},
+    preferences::{PreferencesDialog, PreferencesInput},
 };
 
 mod background;
@@ -69,10 +70,6 @@ use self::background::{
 
 use self::components::progress_monitor::ProgressMonitor;
 use self::components::progress_panel::ProgressPanel;
-
-// Visual items to be shared between various views.
-// State is loaded by the `load_library` background task.
-type SharedState = Arc<relm4::SharedState<Vec<Arc<fotema_core::Visual>>>>;
 
 /// Name of a view that can be displayed
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq, EnumString, IntoStaticStr)]
@@ -93,12 +90,43 @@ pub enum ViewName {
     Selfies,
 }
 
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, EnumString, AsRefStr)]
+pub enum FaceDetectionMode {
+    /// Disable face detection and person recognition.
+    #[default]
+    Off,
+
+    /// Enable with lightweight face detection model suitable for mobile.
+    Mobile,
+
+    /// Enable with heavyweight face detection model suitable for desktop.
+    Desktop,
+}
+
+/// Settings the user can change in the preferences dialog.
+/// Should not include any non-preference dialog settings like window size or maximization state.
+#[derive(Clone, Debug, Default)]
+pub struct Settings {
+    /// Is selfies view enabled?
+    pub show_selfies: bool,
+
+    /// Enable or disable face detection.
+    pub face_detection_mode: FaceDetectionMode,
+}
+
+/// Active settings
+type SettingsState = Arc<relm4::SharedState<Settings>>;
+
 /// Currently visible view
 /// This allows a view to know if it is visible or not and to lazily load
 /// images into the photo grids. Without lazy loading Fotema will take too long to
 /// update its views and GNOME will tell the user "Fotema is not responding" and offer
 /// to kill the app :-(
 type ActiveView = Arc<relm4::SharedState<ViewName>>;
+
+// Visual items to be shared between various views.
+// State is loaded by the `load_library` background task.
+type SharedState = Arc<relm4::SharedState<Vec<Arc<fotema_core::Visual>>>>;
 
 pub(super) struct App {
     adaptive_layout: Arc<adaptive::LayoutState>,
@@ -201,6 +229,9 @@ pub(super) enum AppMsg {
 
     // Adapt to layout change
     Adapt(adaptive::Layout),
+
+    /// Settings updated
+    SettingsChanged(Settings),
 }
 
 relm4::new_action_group!(pub(super) WindowActionGroup, "win");
@@ -479,6 +510,17 @@ impl SimpleComponent for App {
         let active_view = ActiveView::new(relm4::SharedState::new());
         let adaptive_layout = Arc::new(adaptive::LayoutState::new());
 
+        let settings_state = SettingsState::new(relm4::SharedState::new());
+        match App::load_settings() {
+            std::result::Result::Ok(settings) => {
+                info!("Loaded settings: {:?}", settings);
+                *settings_state.write() = settings;
+            },
+            Err(e) => error!("Failed loading settings: {}", e),
+        }
+
+        settings_state.subscribe(sender.input_sender(), |settings| AppMsg::SettingsChanged(settings.clone()));
+
         let bootstrap_progress_monitor: Reducer<ProgressMonitor> = Reducer::new();
         let bootstrap_progress_monitor = Arc::new(bootstrap_progress_monitor);
 
@@ -552,7 +594,7 @@ impl SimpleComponent for App {
         adaptive_layout.subscribe(videos_page.sender(), |layout| AlbumInput::Adapt(*layout));
 
         let people_page = PeopleAlbum::builder()
-            .launch((people_repo.clone(), active_view.clone()))
+            .launch((people_repo.clone(), active_view.clone(), settings_state.clone()))
             .forward(
             sender.input_sender(),
             |msg| match msg {
@@ -607,12 +649,9 @@ impl SimpleComponent for App {
 
         let about_dialog = AboutDialog::builder().launch(root.clone()).detach();
 
-        let preferences_dialog = PreferencesDialog::builder().launch(root.clone()).forward(
-            sender.input_sender(),
-            |msg| match msg {
-                PreferencesOutput::Updated => AppMsg::PreferencesUpdated,
-            },
-        );
+        let preferences_dialog = PreferencesDialog::builder()
+            .launch((settings_state.clone(), root.clone()))
+            .detach();
 
         let picture_navigation_view = adw::NavigationView::builder().build();
 
@@ -708,6 +747,11 @@ impl SimpleComponent for App {
             AppMsg::Quit => main_application().quit(),
             AppMsg::Ignore => {
                 // info!("Intentionally ignoring a message");
+            },
+            AppMsg::SettingsChanged(settings) => {
+                if let Err(e) = App::save_settings(&settings) {
+                    error!("Failed to save settings: {}", e);
+                }
             },
             AppMsg::ToggleSidebar => {
                 let show = self.main_navigation.shows_sidebar();
@@ -875,6 +919,26 @@ impl SimpleComponent for App {
     }
 }
 
+impl App {
+    pub fn load_settings() -> Result<Settings> {
+        info!("Loading settings");
+        let gio_settings = gio::Settings::new(APP_ID);
+        Ok(Settings {
+            show_selfies: gio_settings.boolean("show-selfies"),
+            face_detection_mode: FaceDetectionMode::from_str(&gio_settings.string("face-detection-mode"))
+                .unwrap_or(FaceDetectionMode::Off),
+        })
+    }
+
+    pub fn save_settings(settings: &Settings) -> Result<()> {
+        info!("Saving settings");
+        let gio_settings = gio::Settings::new(APP_ID);
+        gio_settings.set_boolean("show-selfies", settings.show_selfies)?;
+        gio_settings.set_string("face-detection-mode", settings.face_detection_mode.as_ref())?;
+        Ok(())
+    }
+}
+
 impl AppWidgets {
     fn show_selfies() -> bool {
         let settings = gio::Settings::new(APP_ID);
@@ -890,7 +954,7 @@ impl AppWidgets {
 
         settings.set_boolean("is-maximized", self.main_window.is_maximized())?;
 
-        Ok(())
+        std::result::Result::Ok(())
     }
 
     fn load_window_size(&self) {

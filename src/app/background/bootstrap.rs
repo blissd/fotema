@@ -14,7 +14,6 @@ use fotema_core::database;
 use fotema_core::photo;
 use fotema_core::video;
 use fotema_core::visual;
-use fotema_core::machine_learning;
 use fotema_core::people;
 use fotema_core::PictureId;
 

@@ -9,7 +9,7 @@ use rayon::prelude::*;
 use anyhow::*;
 use std::sync::Arc;
 use std::result::Result::Ok;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use tracing::{error, info};
 
 use fotema_core::machine_learning::face_recognizer::FaceRecognizer;
