@@ -33,8 +33,15 @@ jobs:
       image: bilelmoussaoui/flatpak-github-actions:gnome-45
       options: --privileged
     steps:
-    - name: List installed tools
-      run: find /
+    - name: Reclaim space
+      run: |
+        rm -rf /__e/node16
+        rm -rf /__e/node20
+        rm -rf /__t/CodeQL
+        rm -rf /__t/PyPy
+        rm -rf /__t/Ruby
+        rm -rf /__t/Python
+        rm -rf /__t/go
     - uses: actions/checkout@v4
     - uses: bilelmoussaoui/flatpak-github-actions/flatpak-builder@v6
       with:
