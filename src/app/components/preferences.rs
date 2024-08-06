@@ -86,7 +86,11 @@ impl SimpleComponent for PreferencesDialog {
         settings_state.subscribe(sender.input_sender(), |settings| PreferencesInput::SettingsChanged(settings.clone()));
 
         let face_detection_mode_row = adw::ComboRow::new();
-        let list = gtk::StringList::new(&["Off", "Mobile", "Desktop"]);
+        let list = gtk::StringList::new(&[
+            &fl!("prefs-views-faces", "off"),
+            &fl!("prefs-views-faces", "enable-mobile"),
+            &fl!("prefs-views-faces", "enable-desktop"),
+        ]);
         face_detection_mode_row.set_model(Some(&list));
 
         let model = Self {
