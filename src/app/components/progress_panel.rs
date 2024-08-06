@@ -77,6 +77,12 @@ impl SimpleComponent for ProgressPanel {
                         TaskName::MotionPhoto => {
                             self.progress_bar.set_text(Some(&fl!("progress-motion-photo")));
                         },
+                        TaskName::DetectFaces => {
+                            self.progress_bar.set_text(Some(&fl!("progress-detect-faces-photos")));
+                        },
+                        TaskName::RecognizeFaces => {
+                            self.progress_bar.set_text(Some(&fl!("progress-recognize-faces-photos")));
+                        },
                         TaskName::Idle => {
                             self.progress_bar.set_text(Some(&fl!("progress-idle")));
                         },

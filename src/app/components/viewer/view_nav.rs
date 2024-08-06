@@ -2,11 +2,11 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use fotema_core::VisualId;
 use relm4::gtk;
 use relm4::gtk::prelude::*;
 use relm4::*;
 use relm4::prelude::*;
+use relm4::actions::{RelmAction, RelmActionGroup};
 
 use crate::app::components::albums::album_filter::AlbumFilter;
 use super::view_one::{ViewOne, ViewOneInput, ViewOneOutput};
@@ -17,47 +17,79 @@ use crate::adaptive;
 use crate::fl;
 
 use fotema_core::Visual;
+use fotema_core::people;
+use fotema_core::PictureId;
+use fotema_core::VisualId;
 
 use std::sync::Arc;
 
-use tracing::{event, Level};
+use tracing::{error, info};
+
+// FIXME does the faces menu definition and action handling belong here?
+// Maybe it belongs in view_one.rs or in face_thumbnails.rs?
+relm4::new_action_group!(ViewNavActionGroup, "viewnav");
+
+// Restore all ignored faces.
+relm4::new_stateless_action!(RestoreIgnoredFacesAction, ViewNavActionGroup, "restore_ignored_faces");
+
+// Ignore all faces that aren't associated with a person.
+relm4::new_stateless_action!(IgnoreUnknownFacesAction, ViewNavActionGroup, "ignore_unknown_faces");
+
+// Scan file for faces again using the most thorough scan possible.
+relm4::new_stateless_action!(ScanForFacesAction, ViewNavActionGroup, "scan_faces");
 
 #[derive(Debug)]
 pub enum ViewNavInput {
-    // View an item after applying an album filter.
+    /// View an item after applying an album filter.
     View(VisualId, AlbumFilter),
 
+    /// View item by index in filtered shared state.
     ViewByIndex(usize),
 
+    /// Show/hide info bar
     ToggleInfo,
 
-    // The photo/video page has been hidden so any playing media should stop.
+    /// The photo/video page has been hidden so any playing media should stop.
     Hidden,
 
+    /// Inform info bar of photo details.
     ShowPhotoInfo(VisualId, glycin::ImageInfo),
 
+    /// Inform info bar of video details.
     ShowVideoInfo(VisualId),
 
-    // Transcode all incompatible videos
+    /// Transcode all incompatible videos
     TranscodeAll,
 
-    // Go to the previous photo
+    /// Go to the previous photo
     GoLeft,
 
-    // Go to the next photo
+    /// Go to the next photo
     GoRight,
 
-    // Adapt to layout
+    /// Adapt to layout
     Adapt(adaptive::Layout),
+
+    /// Restore ignored faces for item.
+    RestoreIgnoredFaces,
+
+    /// Ignore all unknown faces for item
+    IgnoreUnknownFaces,
+
+    /// Scan for more faces.
+    ScanForFaces,
 }
 
 #[derive(Debug)]
 pub enum ViewNavOutput {
     TranscodeAll,
+    ScanForFaces(PictureId),
 }
 
 pub struct ViewNav {
     state: SharedState,
+
+    people_repo: people::Repository,
 
     // View one photo or video
     view_one: AsyncController<ViewOne>,
@@ -71,6 +103,7 @@ pub struct ViewNav {
     left_button: gtk::Button,
     right_button: gtk::Button,
 
+    /// Index into shared state for currently viewed item.
     current_index: Option<usize>,
 
     // Album currently displayed item is a member of
@@ -83,17 +116,36 @@ pub struct ViewNav {
 
 #[relm4::component(pub async)]
 impl SimpleAsyncComponent for ViewNav {
-    type Init = (SharedState, Arc<Reducer<ProgressMonitor>>, Arc<adaptive::LayoutState>);
+    type Init = (SharedState, Arc<Reducer<ProgressMonitor>>, Arc<adaptive::LayoutState>, people::Repository);
     type Input = ViewNavInput;
     type Output = ViewNavOutput;
+
+    menu! {
+        viewnav_menu: {
+            section! {
+                &fl!("viewer-faces-menu", "restore-ignored") => RestoreIgnoredFacesAction,
+                &fl!("viewer-faces-menu", "ignore-unknown") => IgnoreUnknownFacesAction,
+                &fl!("viewer-faces-menu", "scan") => ScanForFacesAction,
+            }
+        }
+    }
 
     view! {
         adw::ToolbarView {
             add_top_bar = &adw::HeaderBar {
-                pack_end = &gtk::Button {
-                    set_icon_name: "info-outline-symbolic",
-                    set_tooltip_text: Some(&fl!("viewer-info-tooltip")),
-                    connect_clicked => ViewNavInput::ToggleInfo,
+                pack_end = &gtk::Box {
+                    set_orientation: gtk::Orientation::Horizontal,
+
+                    gtk::MenuButton {
+                        set_icon_name: "sentiment-very-satisfied-symbolic",
+                        set_menu_model: Some(&viewnav_menu),
+                    },
+
+                    gtk::Button {
+                        set_icon_name: "info-outline-symbolic",
+                        set_tooltip_text: Some(&fl!("viewer-info-tooltip")),
+                        connect_clicked => ViewNavInput::ToggleInfo,
+                    },
                 }
             },
 
@@ -152,7 +204,7 @@ impl SimpleAsyncComponent for ViewNav {
     }
 
     async fn init(
-        (state, transcode_progress_monitor, layout_state): Self::Init,
+        (state, transcode_progress_monitor, layout_state, people_repo): Self::Init,
         root: Self::Root,
         sender: AsyncComponentSender<Self>,
     ) -> AsyncComponentParts<Self>  {
@@ -160,7 +212,7 @@ impl SimpleAsyncComponent for ViewNav {
         let split_view = adw::OverlaySplitView::new();
 
         let view_one = ViewOne::builder()
-            .launch(transcode_progress_monitor)
+            .launch((people_repo.clone(), transcode_progress_monitor))
             .forward(sender.input_sender(), |msg| match msg {
                 ViewOneOutput::PhotoShown(id, info) => ViewNavInput::ShowPhotoInfo(id, info),
                 ViewOneOutput::VideoShown(id) => ViewNavInput::ShowVideoInfo(id),
@@ -178,6 +230,7 @@ impl SimpleAsyncComponent for ViewNav {
 
         let model = ViewNav {
             state,
+            people_repo,
             view_one,
             view_info,
             current_index: None,
@@ -188,8 +241,35 @@ impl SimpleAsyncComponent for ViewNav {
             filtered_items: Vec::new(),
         };
 
-        let widgets = view_output!();
 
+        let restore_action = {
+            let sender = sender.clone();
+            RelmAction::<RestoreIgnoredFacesAction>::new_stateless(move |_| {
+                sender.input(ViewNavInput::RestoreIgnoredFaces);
+            })
+        };
+
+        let ignore_unknown_faces_action = {
+            let sender = sender.clone();
+            RelmAction::<IgnoreUnknownFacesAction>::new_stateless(move |_| {
+                sender.input(ViewNavInput::IgnoreUnknownFaces);
+            })
+        };
+
+        let scan_faces_action = {
+            let sender = sender.clone();
+            RelmAction::<ScanForFacesAction>::new_stateless(move |_| {
+                sender.input(ViewNavInput::ScanForFaces);
+            })
+        };
+
+        let mut actions = RelmActionGroup::<ViewNavActionGroup>::new();
+        actions.add_action(restore_action);
+        actions.add_action(ignore_unknown_faces_action);
+        actions.add_action(scan_faces_action);
+        actions.register_for_widget(&root);
+
+        let widgets = view_output!();
         AsyncComponentParts { model, widgets }
     }
 
@@ -199,7 +279,7 @@ impl SimpleAsyncComponent for ViewNav {
                 self.view_one.emit(ViewOneInput::Hidden);
             },
             ViewNavInput::View(visual_id, filter) => {
-                event!(Level::INFO, "Showing item for {}", visual_id);
+                info!("Showing item for {}", visual_id);
 
                 // To support next/previous navigation we must have a view of the visual
                 // items filtered with the same album filter as the album the user is currently
@@ -224,7 +304,7 @@ impl SimpleAsyncComponent for ViewNav {
             ViewNavInput::ViewByIndex(index) => {
 
                 if index >= self.filtered_items.len() || self.filtered_items.is_empty() {
-                    event!(Level::ERROR, "Cannot view at index {}. Number of filtered_items is {}", index, self.filtered_items.len());
+                    error!("Cannot view at index {}. Number of filtered_items is {}", index, self.filtered_items.len());
                     return;
                 }
 
@@ -246,7 +326,7 @@ impl SimpleAsyncComponent for ViewNav {
                 self.view_info.emit(ViewInfoInput::Video(visual_id));
             },
             ViewNavInput::TranscodeAll => {
-                event!(Level::INFO, "Transcode all");
+                info!("Transcode all");
                 // FIXME refactor to remove message forwarding.
                 // ViewOne should send straight to transcoder.
                 let _ = sender.output(ViewNavOutput::TranscodeAll);
@@ -260,6 +340,7 @@ impl SimpleAsyncComponent for ViewNav {
                     return;
                 }
 
+                self.view_one.emit(ViewOneInput::Hidden);
                 sender.input(ViewNavInput::ViewByIndex(index - 1));
             },
             ViewNavInput::GoRight => {
@@ -271,6 +352,7 @@ impl SimpleAsyncComponent for ViewNav {
                     return;
                 }
 
+                self.view_one.emit(ViewOneInput::Hidden);
                 sender.input(ViewNavInput::ViewByIndex(index + 1));
             },
             ViewNavInput::Adapt(adaptive::Layout::Narrow) => {
@@ -282,6 +364,62 @@ impl SimpleAsyncComponent for ViewNav {
                 let show = self.split_view.shows_sidebar();
                 self.split_view.set_collapsed(false);
                 self.split_view.set_show_sidebar(show);
+            },
+            ViewNavInput::RestoreIgnoredFaces => {
+                let Some(index) = self.current_index else {
+                    return;
+                };
+
+                if index == 0 {
+                    return;
+                }
+
+                info!("Restoring unknown faces for");
+
+                let visual = &self.filtered_items[index];
+                if let Some(picture_id) = visual.picture_id {
+                    if let Err(e) = self.people_repo.restore_ignored_faces(picture_id) {
+                        error!("Failed restoring ignored faces: {}", e);
+                    }
+                }
+
+                self.view_one.emit(ViewOneInput::Refresh);
+            },
+            ViewNavInput::IgnoreUnknownFaces => {
+                let Some(index) = self.current_index else {
+                    return;
+                };
+
+                if index == 0 {
+                    return;
+                }
+
+                info!("Ignoring unknown faces");
+
+                let visual = &self.filtered_items[index];
+                if let Some(picture_id) = visual.picture_id {
+                    if let Err(e) = self.people_repo.ignore_unknown_faces(picture_id) {
+                        error!("Failed ignoring unknown faces: {}", e);
+                    }
+                }
+
+                self.view_one.emit(ViewOneInput::Refresh);
+            },
+            ViewNavInput::ScanForFaces => {
+ let Some(index) = self.current_index else {
+                    return;
+                };
+
+                if index == 0 {
+                    return;
+                }
+
+                info!("Scan for more faces");
+
+                let visual = &self.filtered_items[index];
+                if let Some(picture_id) = visual.picture_id {
+                    let _ = sender.output(ViewNavOutput::ScanForFaces(picture_id));
+                }
             },
         }
     }

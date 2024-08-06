@@ -91,3 +91,24 @@
   font-weight: bold;
   font-size: 12px;
 }
+
+.face-small {
+  border-color: rgba(255, 255, 255, 0.8);
+  border-width: 2px;
+  border-radius: 50%;
+}
+
+.face-thumbnail-label-frame {
+  background-color: rgba(255, 255, 255, 0.8);
+  color: black;
+}
+
+.face-thumbnail-label-text {
+  color: rgba(255,255,255,0.8);
+  font-weight: bold;
+  font-size: 12px;
+}
+
+.face-thumbnail-overlay {
+  border-color: rgba(0,0,0,0);
+}

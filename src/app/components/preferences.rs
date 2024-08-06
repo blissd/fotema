@@ -3,42 +3,44 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use relm4::{adw, ComponentParts, ComponentSender, SimpleComponent};
-use relm4::adw::prelude::AdwDialogExt;
-use relm4::gtk::prelude::SettingsExt;
-use relm4::gtk::gio;
-use relm4::adw::prelude::PreferencesDialogExt;
-use relm4::adw::prelude::PreferencesPageExt;
-use relm4::adw::prelude::PreferencesGroupExt;
-use relm4::adw::prelude::ActionRowExt;
-use relm4::adw::prelude::PreferencesRowExt;
+use relm4::adw::prelude::*;
+use relm4::gtk;
 
-use crate::config::APP_ID;
+use tracing::info;
+
 use crate::fl;
+use crate::app::{Settings, SettingsState};
+use crate::app::FaceDetectionMode;
 
 pub struct PreferencesDialog {
     parent: adw::ApplicationWindow,
+    face_detection_mode_row: adw::ComboRow,
     dialog: adw::PreferencesDialog,
+    settings_state: SettingsState,
 
     // Preference values
-    show_selfies: bool,
+    settings: Settings,
 }
 
 #[derive(Debug)]
 pub enum PreferencesInput {
+    /// Show the preferences dialog.
     Present,
-    ShowSelfies(bool),
-}
 
-#[derive(Debug)]
-pub enum PreferencesOutput {
-    Updated,
+    /// Changed settings received.
+    SettingsChanged(Settings),
+
+    /// Send updated settings
+    UpdateShowSelfies(bool),
+
+    UpdateFaceDetectionMode(FaceDetectionMode),
 }
 
 #[relm4::component(pub)]
 impl SimpleComponent for PreferencesDialog {
-    type Init = adw::ApplicationWindow;
+    type Init = (SettingsState, adw::ApplicationWindow);
     type Input = PreferencesInput;
-    type Output = PreferencesOutput;
+    type Output = ();
 
     view!{
         adw::PreferencesDialog {
@@ -53,53 +55,80 @@ impl SimpleComponent for PreferencesDialog {
                         set_subtitle: &fl!("prefs-views-selfies", "subtitle"),
 
                         #[watch]
-                        set_active: model.show_selfies,
+                        set_active: model.settings.show_selfies,
 
 		                connect_active_notify[sender] => move |switch| {
-		                    sender.input_sender().send(PreferencesInput::ShowSelfies(switch.is_active())).unwrap();
+		                    let _ = sender.input_sender().send(PreferencesInput::UpdateShowSelfies(switch.is_active()));
 		                },
+                    },
+
+                    #[local_ref]
+                    face_detection_mode_row -> adw::ComboRow {
+                        set_title: &fl!("prefs-views-faces"),
+                        set_subtitle: &fl!("prefs-views-faces", "subtitle"),
+                        connect_selected_item_notify[sender] => move |row| {
+                            let mode = FaceDetectionMode::from_repr(row.selected()).unwrap_or_default();
+                            let _ = sender.input_sender().send(PreferencesInput::UpdateFaceDetectionMode(mode));
+                        },
                     }
-                }
+                },
             }
         }
     }
 
 
     fn init(
-        parent: Self::Init,
+        (settings_state, parent): Self::Init,
         dialog: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
 
+        settings_state.subscribe(sender.input_sender(), |settings| PreferencesInput::SettingsChanged(settings.clone()));
 
-        let settings = gio::Settings::new(APP_ID);
-        let show_selfies = settings.boolean("show-selfies");
+        let face_detection_mode_row = adw::ComboRow::new();
+        let list = gtk::StringList::new(&["Off", "Mobile", "Desktop"]);
+        face_detection_mode_row.set_model(Some(&list));
 
         let model = Self {
+            settings_state: settings_state.clone(),
+            face_detection_mode_row: face_detection_mode_row.clone(),
             parent,
             dialog: dialog.clone(),
-            show_selfies,
+            settings: settings_state.read().clone(),
         };
 
         let widgets = view_output!();
 
+        sender.input(PreferencesInput::SettingsChanged(model.settings.clone()));
+
         ComponentParts { model, widgets }
     }
 
-    fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
+    fn update(&mut self, msg: Self::Input, _sender: ComponentSender<Self>) {
         match msg {
             PreferencesInput::Present => {
-                let settings = gio::Settings::new(APP_ID);
-                self.show_selfies = settings.boolean("show-selfies");
+                self.settings = self.settings_state.read().clone();
                 self.dialog.present(&self.parent);
             },
-            PreferencesInput::ShowSelfies(visible) => {
-                let settings = gio::Settings::new(APP_ID);
-                self.show_selfies = visible;
-
-                settings.set_boolean("show-selfies", visible).expect("Update settings");
-
-                sender.output(PreferencesOutput::Updated).expect("Sending update prefs");
+            PreferencesInput::SettingsChanged(settings) => {
+                info!("Received update from settings shared state");
+                self.settings = settings;
+                let index = match self.settings.face_detection_mode {
+                    FaceDetectionMode::Off => 0,
+                    FaceDetectionMode::Mobile => 1,
+                    FaceDetectionMode::Desktop => 2,
+                };
+                self.face_detection_mode_row.set_selected(index);
+            },
+            PreferencesInput::UpdateShowSelfies(show_selfies) => {
+                info!("Update show selfies: {}", show_selfies);
+                self.settings.show_selfies = show_selfies;
+                *self.settings_state.write() = self.settings.clone();
+            },
+            PreferencesInput::UpdateFaceDetectionMode(mode) => {
+                info!("Update face detection mode: {:?}", mode);
+                self.settings.face_detection_mode = mode;
+                *self.settings_state.write() = self.settings.clone();
             },
         }
     }

@@ -29,6 +29,8 @@ use crate::fl;
 use fotema_core::database;
 use fotema_core::video;
 use fotema_core::VisualId;
+use fotema_core::PictureId;
+use fotema_core::people;
 
 use h3o::CellIndex;
 
@@ -36,10 +38,11 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::str::FromStr;
 
-use strum::EnumString;
-use strum::IntoStaticStr;
+use anyhow::*;
 
-use tracing::{event, Level, info};
+use strum::{AsRefStr, EnumString, IntoStaticStr, FromRepr};
+
+use tracing::{event, Level, error, info};
 
 mod components;
 
@@ -49,11 +52,13 @@ use self::components::{
         album::{Album, AlbumInput, AlbumOutput},
         album_filter::AlbumFilter,
         folders_album::{FoldersAlbum, FoldersAlbumInput, FoldersAlbumOutput},
+        people_album::{PeopleAlbum, PeopleAlbumInput, PeopleAlbumOutput},
+        person_album::{PersonAlbum, PersonAlbumInput, PersonAlbumOutput},
         places_album::{PlacesAlbum, PlacesAlbumInput, PlacesAlbumOutput},
     },
     library::{Library, LibraryInput, LibraryOutput},
     viewer::view_nav::{ViewNav, ViewNavInput, ViewNavOutput},
-    preferences::{PreferencesDialog, PreferencesInput, PreferencesOutput},
+    preferences::{PreferencesDialog, PreferencesInput},
 };
 
 mod background;
@@ -65,10 +70,6 @@ use self::background::{
 
 use self::components::progress_monitor::ProgressMonitor;
 use self::components::progress_panel::ProgressPanel;
-
-// Visual items to be shared between various views.
-// State is loaded by the `load_library` background task.
-type SharedState = Arc<relm4::SharedState<Vec<Arc<fotema_core::Visual>>>>;
 
 /// Name of a view that can be displayed
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq, EnumString, IntoStaticStr)]
@@ -83,9 +84,39 @@ pub enum ViewName {
     Animated,
     Folders,
     Folder,
+    People,
+    Person,
     Places,
     Selfies,
 }
+
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, EnumString, AsRefStr, FromRepr)]
+#[repr(u32)]
+pub enum FaceDetectionMode {
+    /// Disable face detection and person recognition.
+    #[default]
+    Off,
+
+    /// Enable with lightweight face detection model suitable for mobile.
+    Mobile,
+
+    /// Enable with heavyweight face detection model suitable for desktop.
+    Desktop,
+}
+
+/// Settings the user can change in the preferences dialog.
+/// Should not include any non-preference dialog settings like window size or maximization state.
+#[derive(Clone, Debug, Default)]
+pub struct Settings {
+    /// Is selfies view enabled?
+    pub show_selfies: bool,
+
+    /// Enable or disable face detection.
+    pub face_detection_mode: FaceDetectionMode,
+}
+
+/// Active settings
+type SettingsState = Arc<relm4::SharedState<Settings>>;
 
 /// Currently visible view
 /// This allows a view to know if it is visible or not and to lazily load
@@ -93,6 +124,10 @@ pub enum ViewName {
 /// update its views and GNOME will tell the user "Fotema is not responding" and offer
 /// to kill the app :-(
 type ActiveView = Arc<relm4::SharedState<ViewName>>;
+
+// Visual items to be shared between various views.
+// State is loaded by the `load_library` background task.
+type SharedState = Arc<relm4::SharedState<Vec<Arc<fotema_core::Visual>>>>;
 
 pub(super) struct App {
     adaptive_layout: Arc<adaptive::LayoutState>,
@@ -111,6 +146,12 @@ pub(super) struct App {
     selfies_page: Controller<Album>,
     videos_page: Controller<Album>,
     motion_page: Controller<Album>,
+
+    /// Album with photos overlayed onto a map
+    people_page: Controller<PeopleAlbum>,
+
+    // Album for individual person.
+    person_album: Controller<PersonAlbum>,
 
     /// Album with photos overlayed onto a map
     places_page: Controller<PlacesAlbum>,
@@ -149,6 +190,9 @@ pub(super) enum AppMsg {
 
     Quit,
 
+    /// Ignore event
+    Ignore,
+
     // Toggle visibility of sidebar
     ToggleSidebar,
 
@@ -165,19 +209,28 @@ pub(super) enum AppMsg {
 
     ViewGeographicArea(CellIndex),
 
+    ViewPerson(people::Person),
+
+    PersonDeleted,
+
+    PersonRenamed,
+
     // A background task has started.
     TaskStarted(TaskName),
-
-    // Preferences
-    PreferencesUpdated,
 
     // All background bootstrap tasks have completed
     BootstrapCompleted,
 
     TranscodeAll,
 
+    ScanPictureForFaces(PictureId),
+    ScanPicturesForFaces,
+
     // Adapt to layout change
     Adapt(adaptive::Layout),
+
+    /// Settings updated
+    SettingsChanged(Settings),
 }
 
 relm4::new_action_group!(pub(super) WindowActionGroup, "win");
@@ -345,6 +398,14 @@ impl SimpleComponent for App {
 
                                         add_child = &gtk::Box {
                                             set_orientation: gtk::Orientation::Vertical,
+                                            container_add: model.people_page.widget(),
+                                        } -> {
+                                            set_title: &fl!("people-page"),
+                                            set_name: ViewName::People.into(),
+                                        },
+
+                                        add_child = &gtk::Box {
+                                            set_orientation: gtk::Orientation::Vertical,
                                             container_add: model.places_page.widget(),
                                         } -> {
                                             set_title: &fl!("places-page"),
@@ -399,6 +460,11 @@ impl SimpleComponent for App {
                     }
                 },
 
+                adw::NavigationPage {
+                    set_tag: Some("person_album"),
+                    model.person_album.widget(),
+                },
+
                 // Page for showing a single photo.
                 adw::NavigationPage {
                     set_tag: Some("picture"),
@@ -433,9 +499,26 @@ impl SimpleComponent for App {
             video::Repository::open(&pic_base_dir, &cache_dir, con.clone()).unwrap()
         };
 
+        let people_repo = people::Repository::open(
+            &pic_base_dir,
+            &data_dir,
+            con.clone(),
+        ).unwrap();
+
         let state = SharedState::new(relm4::SharedState::new());
         let active_view = ActiveView::new(relm4::SharedState::new());
         let adaptive_layout = Arc::new(adaptive::LayoutState::new());
+
+        let settings_state = SettingsState::new(relm4::SharedState::new());
+        match App::load_settings() {
+            std::result::Result::Ok(settings) => {
+                info!("Loaded settings: {:?}", settings);
+                *settings_state.write() = settings;
+            },
+            Err(e) => error!("Failed loading settings: {}", e),
+        }
+
+        settings_state.subscribe(sender.input_sender(), |settings| AppMsg::SettingsChanged(settings.clone()));
 
         let bootstrap_progress_monitor: Reducer<ProgressMonitor> = Reducer::new();
         let bootstrap_progress_monitor = Arc::new(bootstrap_progress_monitor);
@@ -452,7 +535,7 @@ impl SimpleComponent for App {
             .detach();
 
         let bootstrap = Bootstrap::builder()
-            .detach_worker((con.clone(), state.clone(), bootstrap_progress_monitor))
+            .detach_worker((con.clone(), state.clone(), settings_state.clone(), bootstrap_progress_monitor))
             .forward(sender.input_sender(), |msg| match msg {
                 BootstrapOutput::TaskStarted(msg) => AppMsg::TaskStarted(msg),
                 BootstrapOutput::Completed => AppMsg::BootstrapCompleted,
@@ -471,15 +554,17 @@ impl SimpleComponent for App {
             .detach();
 
         let view_nav = ViewNav::builder()
-            .launch((state.clone(), transcode_progress_monitor.clone(), adaptive_layout.clone()))
+            .launch((state.clone(), transcode_progress_monitor.clone(), adaptive_layout.clone(), people_repo.clone()))
             .forward(sender.input_sender(), |msg| match msg {
                 ViewNavOutput::TranscodeAll => AppMsg::TranscodeAll,
+                ViewNavOutput::ScanForFaces(picture_id) => AppMsg::ScanPictureForFaces(picture_id),
             });
 
         let selfies_page = Album::builder()
             .launch((state.clone(), active_view.clone(), ViewName::Selfies, AlbumFilter::Selfies))
             .forward(sender.input_sender(), |msg| match msg {
                 AlbumOutput::Selected(id, filter) => AppMsg::View(id, filter),
+                AlbumOutput::ScrollOffset(_) => AppMsg::Ignore,
             });
 
         state.subscribe(selfies_page.sender(), |_| AlbumInput::Refresh);
@@ -491,6 +576,7 @@ impl SimpleComponent for App {
             .launch((state.clone(), active_view.clone(), ViewName::Animated, AlbumFilter::Motion))
             .forward(sender.input_sender(), |msg| match msg {
                 AlbumOutput::Selected(id, filter) => AppMsg::View(id, filter),
+                AlbumOutput::ScrollOffset(_) => AppMsg::Ignore,
             });
 
         state.subscribe(motion_page.sender(), |_| AlbumInput::Refresh);
@@ -500,10 +586,34 @@ impl SimpleComponent for App {
             .launch((state.clone(), active_view.clone(), ViewName::Videos, AlbumFilter::Videos))
             .forward(sender.input_sender(), |msg| match msg {
                 AlbumOutput::Selected(id, filter) => AppMsg::View(id, filter),
+                AlbumOutput::ScrollOffset(_) => AppMsg::Ignore,
             });
 
         state.subscribe(videos_page.sender(), |_| AlbumInput::Refresh);
         adaptive_layout.subscribe(videos_page.sender(), |layout| AlbumInput::Adapt(*layout));
+
+        let people_page = PeopleAlbum::builder()
+            .launch((people_repo.clone(), active_view.clone(), settings_state.clone()))
+            .forward(
+            sender.input_sender(),
+            |msg| match msg {
+                PeopleAlbumOutput::Selected(person) => AppMsg::ViewPerson(person),
+                PeopleAlbumOutput::EnableFaceDetection => AppMsg::ScanPicturesForFaces,
+            },
+        );
+
+        adaptive_layout.subscribe(people_page.sender(), |layout| PeopleAlbumInput::Adapt(*layout));
+
+        let person_album = PersonAlbum::builder()
+            .launch((state.clone(), people_repo.clone(), active_view.clone()))
+            .forward(sender.input_sender(), |msg| match msg {
+                PersonAlbumOutput::Selected(id, filter) => AppMsg::View(id, filter),
+                PersonAlbumOutput::Deleted => AppMsg::PersonDeleted,
+                PersonAlbumOutput::Renamed => AppMsg::PersonRenamed,
+            });
+
+        state.subscribe(person_album.sender(), |_| PersonAlbumInput::Refresh);
+        adaptive_layout.subscribe(person_album.sender(), |layout| PersonAlbumInput::Adapt(*layout));
 
         let places_page = PlacesAlbum::builder()
             .launch((state.clone(), active_view.clone()))
@@ -531,6 +641,7 @@ impl SimpleComponent for App {
             .launch((state.clone(), active_view.clone(), ViewName::Folder, AlbumFilter::None))
             .forward(sender.input_sender(), |msg| match msg {
                 AlbumOutput::Selected(id, filter) => AppMsg::View(id, filter),
+                AlbumOutput::ScrollOffset(_) => AppMsg::Ignore,
             });
 
         state.subscribe(folder_album.sender(), |_| AlbumInput::Refresh);
@@ -538,12 +649,9 @@ impl SimpleComponent for App {
 
         let about_dialog = AboutDialog::builder().launch(root.clone()).detach();
 
-        let preferences_dialog = PreferencesDialog::builder().launch(root.clone()).forward(
-            sender.input_sender(),
-            |msg| match msg {
-                PreferencesOutput::Updated => AppMsg::PreferencesUpdated,
-            },
-        );
+        let preferences_dialog = PreferencesDialog::builder()
+            .launch((settings_state.clone(), root.clone()))
+            .detach();
 
         let picture_navigation_view = adw::NavigationView::builder().build();
 
@@ -570,6 +678,8 @@ impl SimpleComponent for App {
             view_nav,
             motion_page,
             videos_page,
+            people_page,
+            person_album,
             places_page,
             selfies_page,
             show_selfies,
@@ -635,11 +745,19 @@ impl SimpleComponent for App {
                 }
             },
             AppMsg::Quit => main_application().quit(),
+            AppMsg::Ignore => {
+                // info!("Intentionally ignoring a message");
+            },
+            AppMsg::SettingsChanged(settings) => {
+                if let Err(e) = App::save_settings(&settings) {
+                    error!("Failed to save settings: {}", e);
+                }
+            },
             AppMsg::ToggleSidebar => {
                 let show = self.main_navigation.shows_sidebar();
                 self.main_navigation.set_show_sidebar(!show);
                 self.spinner.set_visible(show);
-            }
+            },
             AppMsg::SwitchView => {
                 let child = self.main_stack.visible_child();
                 let child_name = self.main_stack.visible_child_name()
@@ -678,32 +796,47 @@ impl SimpleComponent for App {
                     ViewName::Animated => self.motion_page.emit(AlbumInput::Activate),
                     ViewName::Folders => self.folders_album.emit(FoldersAlbumInput::Activate),
                     ViewName::Folder => self.folder_album.emit(AlbumInput::Activate),
+                    ViewName::People => self.people_page.emit(PeopleAlbumInput::Activate),
+                    ViewName::Person => self.person_album.emit(PersonAlbumInput::Activate),
                     ViewName::Places => self.places_page.emit(PlacesAlbumInput::Activate),
                     ViewName::Nothing => event!(Level::WARN, "Nothing activated... which should not happen"),
                 }
-            }
+            },
             AppMsg::View(visual_id, filter) => {
                 // Send message to show image
                 self.view_nav.emit(ViewNavInput::View(visual_id, filter));
 
                 // Display navigation page for viewing an individual photo.
                 self.picture_navigation_view.push_by_tag("picture");
-            }
+            },
             AppMsg::ViewHidden => {
                 self.view_nav.emit(ViewNavInput::Hidden);
-            }
+            },
             AppMsg::ViewFolder(path) => {
                 self.folder_album.emit(AlbumInput::Activate);
                 self.folder_album.emit(AlbumInput::Filter(AlbumFilter::Folder(path)));
                 self.picture_navigation_view.push_by_tag("album");
-
-            }
+            },
             AppMsg::ViewGeographicArea(cell_index) => {
                 self.folder_album.emit(AlbumInput::Activate);
                 self.folder_album.emit(AlbumInput::Filter(AlbumFilter::GeographicArea(cell_index)));
                 self.picture_navigation_view.push_by_tag("album");
 
-            }
+            },
+            AppMsg::ViewPerson(person) => {
+                //info!("picture_ids = {:?}", picture_ids);
+                info!("Viewing person: {}", person.person_id);
+                self.person_album.emit(PersonAlbumInput::Activate);
+                self.person_album.emit(PersonAlbumInput::View(person));
+                self.picture_navigation_view.push_by_tag("person_album");
+            },
+            AppMsg::PersonDeleted => {
+                self.picture_navigation_view.pop();
+                self.people_page.emit(PeopleAlbumInput::Refresh);
+            },
+            AppMsg::PersonRenamed => {
+                self.people_page.emit(PeopleAlbumInput::Refresh);
+            },
             AppMsg::TaskStarted(task_name) => {
                 self.spinner.start();
                 self.spinner.set_visible(!self.main_navigation.shows_sidebar());
@@ -731,6 +864,12 @@ impl SimpleComponent for App {
                     TaskName::Thumbnail(MediaType::Video) => {
                         self.banner.set_title(&fl!("banner-thumbnails-videos"));
                     },
+                    TaskName::DetectFaces => {
+                        self.banner.set_title(&fl!("banner-detect-faces-photos"));
+                    },
+                    TaskName::RecognizeFaces => {
+                        self.banner.set_title(&fl!("banner-recognize-faces-photos"));
+                    },
                     TaskName::Clean(MediaType::Photo) => {
                         self.banner.set_title(&fl!("banner-clean-photos"));
                     },
@@ -738,20 +877,23 @@ impl SimpleComponent for App {
                         self.banner.set_title(&fl!("banner-clean-videos"));
                     },
                 };
-            }
+            },
             AppMsg::BootstrapCompleted => {
                 event!(Level::INFO, "Bootstrap completed.");
                 self.spinner.stop();
                 self.banner.set_revealed(false);
-            }
+            },
             AppMsg::TranscodeAll => {
                 event!(Level::INFO, "Transcode all");
                 self.video_transcode.emit(VideoTranscodeInput::All);
             },
-            AppMsg::PreferencesUpdated => {
-                event!(Level::INFO, "Preferences updated.");
-                // TODO create a Preferences struct to hold preferences and send with update message.
-                self.show_selfies = AppWidgets::show_selfies();
+            AppMsg::ScanPictureForFaces(picture_id) => {
+                info!("Scan picture for faces: {}", picture_id);
+                self.bootstrap.emit(BootstrapInput::ScanPictureForFaces(picture_id));
+            },
+            AppMsg::ScanPicturesForFaces => {
+                info!("Scan pictures for faces");
+                self.bootstrap.emit(BootstrapInput::ScanPicturesForFaces);
             },
             AppMsg::Adapt(adaptive::Layout::Narrow) => {
                 self.main_navigation.set_collapsed(true);
@@ -776,6 +918,26 @@ impl SimpleComponent for App {
     }
 }
 
+impl App {
+    pub fn load_settings() -> Result<Settings> {
+        info!("Loading settings");
+        let gio_settings = gio::Settings::new(APP_ID);
+        Ok(Settings {
+            show_selfies: gio_settings.boolean("show-selfies"),
+            face_detection_mode: FaceDetectionMode::from_str(&gio_settings.string("face-detection-mode"))
+                .unwrap_or(FaceDetectionMode::Off),
+        })
+    }
+
+    pub fn save_settings(settings: &Settings) -> Result<()> {
+        info!("Saving settings");
+        let gio_settings = gio::Settings::new(APP_ID);
+        gio_settings.set_boolean("show-selfies", settings.show_selfies)?;
+        gio_settings.set_string("face-detection-mode", settings.face_detection_mode.as_ref())?;
+        Ok(())
+    }
+}
+
 impl AppWidgets {
     fn show_selfies() -> bool {
         let settings = gio::Settings::new(APP_ID);
@@ -791,7 +953,7 @@ impl AppWidgets {
 
         settings.set_boolean("is-maximized", self.main_window.is_maximized())?;
 
-        Ok(())
+        std::result::Result::Ok(())
     }
 
     fn load_window_size(&self) {

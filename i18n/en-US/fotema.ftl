@@ -36,6 +36,24 @@ folder-album = Folder
 # Title for places page which shows photos overlayed onto a map.
 places-page = Places
 
+# Title for people page which shows an album of faces.
+people-page = People
+
+# Status page shown for people album when face detection is disabled.
+people-page-status-off =
+  .title = Enable face detection?
+  .description = { -app-name } can automatically detect faces and recognize people. Do you want to enable this feature?
+  .notice = { -app-name } must download about 45 megabytes of data to recognize faces and people.
+  .enable-mobile = Enable for mobile
+  .enable-desktop = Enable for desktop
+
+# Status page shown for people album when no people are found.
+people-page-status-no-people =
+  .title = No people found
+  .description = { -app-name } will look for faces in new photos when launched.
+  If you've told { -app-name } that a face is for a person you know, then { -app-name }
+  will also look for new photos of that person.
+
 ## Thumbnail decorations
 
 # Label on month album thumbnails.
@@ -73,6 +91,12 @@ about-translator-credits =
 
 # Tooltip for (i) button to show photo/video information sidebar
 viewer-info-tooltip = Show properties
+
+viewer-faces-menu =
+  .tooltip = Faces menu
+  .restore-ignored = Restore all ignored faces
+  .ignore-unknown = Ignore all unknown faces
+  .scan = Scan for more faces
 
 # Go to next button when viewing photo or video.
 # Attributes:
@@ -174,6 +198,28 @@ infobar-audio-codec = Audio Codec
 # Width and height of photo or video.
 infobar-dimensions = Dimensions
 
+## Faces and People
+
+# Menu item to mark a face as the most import face for a person
+# and to use it as a thumbnail
+people-set-face-thumbnail = Use as thumbnail
+
+# Menu item to mark associate a face with a person.
+people-set-name = Set name
+
+# Placeholder text for text entry bar used to name a new person or
+# search for an existing person.
+people-person-search =
+        .placeholder = Person name
+
+# Menu item to ignore a face match because it is a random face or not a face.
+people-face-ignore = Ignore
+
+# Menu item to dis-associate a face with a person.
+# Variables:
+#   $name - name of person
+people-not-this-person = Not { $name }
+
 ## Preferences
 
 # Title of preferences dialog
@@ -188,6 +234,9 @@ prefs-views-section = Views
 #   .subtitle - Description of toggle button action action.
 prefs-views-selfies = Selfies
   .subtitle = Shows a separate view for selfies taken on iOS devices. Restart {-app-name} to apply.
+
+prefs-views-faces = Face Detection
+  .subtitle = Enable face detection.
 
 ## Progress bar for background tasks
 
@@ -208,6 +257,12 @@ progress-convert-videos = Converting videos.
 
 # Extracting motion photo videos
 progress-motion-photo = Processing motion photos.
+
+# Detect faces from photos
+progress-detect-faces-photos = Detecting faces in photos.
+
+# Recognize faces in photos as known people
+progress-recognize-faces-photos = Recognizing people in photos.
 
 # Not doing any background work
 progress-idle = Idle.
@@ -243,6 +298,12 @@ banner-clean-videos = Video database maintenance.
 # Extracting video component from Android motion photos
 banner-extract-motion-photos = Processing motion photos.
 
+# Detect and extract faces from photos
+banner-detect-faces-photos = Detecting faces in photos. This will take a while.
+
+# Recognize faces as people
+banner-recognize-faces-photos = Recognizing people in photos. This will take a while.
+
 ## Primary menu
 
 # The "hamburger" menu on the main app navigation sidebar.
@@ -252,3 +313,25 @@ primary-menu-preferences = Preferences
 
 # Menu item to show "about" dialog
 primary-menu-about = About {-app-name}
+
+## Person menu
+
+# Menu item to rename a person
+person-menu-rename = Rename person
+
+# Menu item to delete a person
+person-menu-delete = Delete person
+
+# Person delete dialog
+person-delete-dialog =
+  .heading = Delete person?
+  .body = No pictures or videos will be deleted.
+  .cancel-button = Cancel
+  .delete-button = Delete
+
+# Person delete dialog
+person-rename-dialog =
+  .heading = Rename person?
+  .placeholder = New name
+  .cancel-button = Cancel
+  .rename-button = Rename

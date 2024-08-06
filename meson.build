@@ -43,6 +43,7 @@ pkgdatadir = datadir / meson.project_name()
 iconsdir = datadir / 'icons'
 podir = meson.project_source_root() / 'po'
 gettext_package = meson.project_name()
+libdir = prefix / 'lib'
 
 if get_option('profile') == 'development'
   profile = 'Devel'

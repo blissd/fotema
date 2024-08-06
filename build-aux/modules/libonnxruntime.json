@@ -1,0 +1,26 @@
+{
+  "name": "libonnxruntime",
+  "buildsystem": "simple",
+  "build-commands": [
+    "cp -r --no-target-directory ./lib /app/lib"
+  ],
+  "sources": [
+    {
+      "type": "archive",
+      "only-arches": [
+        "x86_64"
+      ],
+      "url": "https://github.com/microsoft/onnxruntime/releases/download/v1.16.1/onnxruntime-linux-x64-1.16.1.tgz",
+      "sha256": "53a0f03f71587ed602e99e82773132fc634b74c2d227316fbfd4bf67181e72ed"
+    },
+    {
+      "type": "archive",
+      "only-arches": [
+        "aarch64"
+      ],
+      "url": "https://github.com/microsoft/onnxruntime/releases/download/v1.16.1/onnxruntime-linux-aarch64-1.16.1.tgz",
+      "sha256": "f10851b62eb44f9e811134737e7c6edd15733d2c1549cb6ce403808e9c047385"
+    }
+  ]
+}
+

@@ -18,6 +18,8 @@ use chrono::TimeDelta;
 use crate::app::components::progress_monitor::ProgressMonitor;
 use crate::app::components::progress_panel::ProgressPanel;
 use crate::fl;
+use fotema_core::people;
+use super::face_thumbnails::{FaceThumbnails, FaceThumbnailsInput};
 
 use std::sync::Arc;
 
@@ -33,6 +35,10 @@ pub enum ViewOneInput {
 
     // The photo/video page has been hidden so any playing media should stop.
     Hidden,
+
+    /// Refresh view. Probably because face thumbnails have updated elsewhere.
+    /// FIXME not sure I like view_nav.rs being responsible for ignoring/restoring faces.
+    Refresh,
 
     // Transcode all incompatible videos
     TranscodeAll,
@@ -87,11 +93,13 @@ pub struct ViewOne {
     transcode_progress: Controller<ProgressPanel>,
 
     broken_status: adw::StatusPage,
+
+    face_thumbnails: AsyncController<FaceThumbnails>,
 }
 
 #[relm4::component(pub async)]
 impl SimpleAsyncComponent for ViewOne {
-    type Init = Arc<Reducer<ProgressMonitor>>;
+    type Init = (people::Repository, Arc<Reducer<ProgressMonitor>>);
     type Input = ViewOneInput;
     type Output = ViewOneOutput;
 
@@ -170,6 +178,14 @@ impl SimpleAsyncComponent for ViewOne {
                     },
                 },
 
+                add_overlay = &gtk::Box {
+                    set_orientation: gtk::Orientation::Horizontal,
+                    set_halign: gtk::Align::Start,
+                    set_valign: gtk::Align::End,
+                    set_margin_all: 8,
+                    container_add: model.face_thumbnails.widget(),
+                },
+
                 #[wrap(Some)]
                 set_child = &gtk::Box {
                     #[local_ref]
@@ -221,7 +237,7 @@ impl SimpleAsyncComponent for ViewOne {
     }
 
     async fn init(
-        transcode_progress_monitor: Self::Init,
+        (people_repo, transcode_progress_monitor): Self::Init,
         root: Self::Root,
         _sender: AsyncComponentSender<Self>,
     ) -> AsyncComponentParts<Self>  {
@@ -250,6 +266,10 @@ impl SimpleAsyncComponent for ViewOne {
 
         let broken_status = adw::StatusPage::new();
 
+        let face_thumbnails = FaceThumbnails::builder()
+            .launch(people_repo)
+            .detach();
+
         let model = ViewOne {
             picture: picture.clone(),
             video: None,
@@ -263,6 +283,7 @@ impl SimpleAsyncComponent for ViewOne {
             transcode_status: transcode_status.clone(),
             transcode_progress,
             broken_status: broken_status.clone(),
+            face_thumbnails,
         };
 
         let widgets = view_output!();
@@ -275,6 +296,7 @@ impl SimpleAsyncComponent for ViewOne {
             ViewOneInput::Hidden => {
                 self.video = None;
                 self.picture.set_paintable(None::<&gdk::Paintable>);
+                self.face_thumbnails.emit(FaceThumbnailsInput::Hide);
             },
             ViewOneInput::View(visual) => {
                 event!(Level::INFO, "Showing item for {}", visual.visual_id);
@@ -419,6 +441,13 @@ impl SimpleAsyncComponent for ViewOne {
                         let _ = sender.output(ViewOneOutput::VideoShown(visual.visual_id.clone()));
                     }
                 }
+
+                // Overlay faces in picture
+                if let Some(ref picture_id) = visual.picture_id {
+                    self.face_thumbnails.emit(FaceThumbnailsInput::View(*picture_id));
+                } else {
+                    self.face_thumbnails.emit(FaceThumbnailsInput::Hide);
+                }
             },
             ViewOneInput::Prepared => {
                 // Video details, like duration, aren't available until the video
@@ -511,6 +540,9 @@ impl SimpleAsyncComponent for ViewOne {
                 event!(Level::INFO, "Transcode all");
                 self.transcode_button.set_visible(false);
                 let _ = sender.output(ViewOneOutput::TranscodeAll);
+            },
+            ViewOneInput::Refresh => {
+                self.face_thumbnails.emit(FaceThumbnailsInput::Refresh);
             },
         }
     }

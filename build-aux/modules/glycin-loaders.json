@@ -11,5 +11,66 @@
         "name": "glycin-loaders"
       }
     }
+  ],
+  "modules": [
+    {
+      "name": "libde265",
+      "buildsystem": "cmake-ninja",
+      "config-opts": [
+        "-DCMAKE_INSTALL_PREFIX=/app/lib/libheif-heic",
+        "-DENABLE_SDL=OFF",
+        "-DCMAKE_BUILD_TYPE=Release"
+      ],
+      "cleanup": [
+        "/lib/libheif-heic/bin",
+        "/lib/libheif-heic/include",
+        "/lib/libheif-heic/lib/cmake",
+        "/lib/libheif-heic/lib/pkgconfig"
+      ],
+      "sources": [
+        {
+          "type": "git",
+          "url": "https://github.com/strukturag/libde265.git",
+          "commit": "17bb8d9fcea62db8cdeb0fc7ef8d15dbd19a22e4",
+          "tag": "v1.0.15",
+          "x-checker-data": {
+            "type": "git",
+            "tag-pattern": "^v([\\d.]+)$"
+          }
+        }
+      ]
+    },
+    {
+      "name": "libheif",
+      "buildsystem": "cmake-ninja",
+      "config-opts": [
+        "-DWITH_LIBDE265_PLUGIN=On",
+        "-DPLUGIN_DIRECTORY=/app/lib/libheif-heic/lib",
+        "-DLIBDE265_INCLUDE_DIR=/app/lib/libheif-heic/include",
+        "-DLIBDE265_PKGCONF_LIBRARY_DIRS=/app/lib/libheif-heic/lib",
+        "-DWITH_JPEG_ENCODER=OFF",
+        "-DWITH_OpenJPEG_ENCODER=OFF",
+        "-DWITH_OPENJPH_ENCODER=OFF",
+        "-DWITH_X265=OFF",
+        "-DWITH_SvtEnc=OFF",
+        "-DWITH_SvtEnc_PLUGIN=OFF",
+        "-DWITH_AOM_ENCODER=OFF",
+        "-DWITH_RAV1E_PLUGIN=OFF",
+        "-DWITH_RAV1E=OFF",
+        "-DWITH_EXAMPLES=OFF"
+      ],
+      "sources": [
+        {
+          "type": "git",
+          "url": "https://github.com/strukturag/libheif.git",
+          "commit": "586335e93528203209a37f0935dbbe14e0f76741",
+          "tag": "v1.18.1",
+          "x-checker-data": {
+            "type": "git",
+            "tag-pattern": "^v([\\d.]+)$"
+          }
+        }
+      ]
+    }
   ]
 }

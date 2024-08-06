@@ -60,3 +60,4 @@ setup:
     sudo dnf install -y clang-devel
     sudo dnf install -y libadwaita-devel
     sudo dnf install -y libshumate-devel
+    sudo dnf install -y openssl-devel

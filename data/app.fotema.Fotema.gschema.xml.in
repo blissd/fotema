@@ -18,5 +18,9 @@
       <default>false</default>
       <summary>Show selfies view</summary>
     </key>
+    <key name="face-detection-mode" type="s">
+      <default>'Off'</default>
+      <summary>Enable face detection and person recognition. 'Off', 'Mobile', 'Desktop'.</summary>
+    </key>
   </schema>
 </schemalist>
