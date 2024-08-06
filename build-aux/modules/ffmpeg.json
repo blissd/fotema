@@ -1,5 +1,41 @@
 {
   "name": "ffmpeg",
+  "config-opts": [
+    "--disable-ffplay",
+    "--disable-ffprobe",
+    "--disable-doc",
+    "--enable-pic",
+    "--enable-shared",
+    "--disable-doc",
+    "--disable-static",
+    "--enable-gpl",
+    "--enable-version3",
+    "--enable-optimizations",
+    "--enable-vaapi",
+    "--enable-libx264",
+    "--enable-libx265"
+  ],
+  "cleanup": [
+    "/include",
+    "/lib/pkgconfig",
+    "/share/ffmpeg/examples"
+  ],
+  "sources": [
+    {
+      "type": "archive",
+      "url": "https://ffmpeg.org/releases/ffmpeg-7.0.1.tar.xz",
+      "sha256": "bce9eeb0f17ef8982390b1f37711a61b4290dc8c2a0c1a37b5857e85bfb0e4ff",
+      "x-checker-data": {
+        "type": "anitya",
+        "project-id": 5405,
+        "versions": {
+          ">=": "7",
+          "<": "8"
+        },
+        "url-template": "https://ffmpeg.org/releases/ffmpeg-$version.tar.xz"
+      }
+    }
+  ],
   "modules": [
     {
       "name": "x265",
@@ -37,45 +73,6 @@
           "type": "git",
           "url": "https://code.videolan.org/videolan/x264.git",
           "commit": "4613ac3c15fd75cebc4b9f65b7fb95e70a3acce1"
-        }
-      ]
-    },
-    {
-      "name": "ffmpeg",
-      "config-opts": [
-        "--disable-ffplay",
-        "--disable-ffprobe",
-        "--disable-doc",
-        "--enable-pic",
-        "--enable-shared",
-        "--disable-doc",
-        "--disable-static",
-        "--enable-gpl",
-        "--enable-version3",
-        "--enable-optimizations",
-        "--enable-vaapi",
-        "--enable-libx264",
-        "--enable-libx265"
-      ],
-      "cleanup": [
-        "/include",
-        "/lib/pkgconfig",
-        "/share/ffmpeg/examples"
-      ],
-      "sources": [
-        {
-          "type": "archive",
-          "url": "https://ffmpeg.org/releases/ffmpeg-7.0.1.tar.xz",
-          "sha256": "bce9eeb0f17ef8982390b1f37711a61b4290dc8c2a0c1a37b5857e85bfb0e4ff",
-          "x-checker-data": {
-            "type": "anitya",
-            "project-id": 5405,
-            "versions": {
-              ">=": "7",
-              "<": "8"
-            },
-            "url-template": "https://ffmpeg.org/releases/ffmpeg-$version.tar.xz"
-          }
         }
       ]
     }
