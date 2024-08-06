@@ -34,7 +34,7 @@ jobs:
       options: --privileged
     steps:
     - name: List installed tools
-      run: du -hs /opt/*
+      run: find /
     - uses: actions/checkout@v4
     - uses: bilelmoussaoui/flatpak-github-actions/flatpak-builder@v6
       with:
