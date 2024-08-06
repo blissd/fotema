@@ -6,13 +6,16 @@
     "-DPLUGIN_DIRECTORY=/app/lib/libheif-heic/lib",
     "-DLIBDE265_INCLUDE_DIR=/app/lib/libheif-heic/include",
     "-DLIBDE265_PKGCONF_LIBRARY_DIRS=/app/lib/libheif-heic/lib",
-    "-DWITH_X265=Off",
-    "-DWITH_SvtEnc=Off",
-    "-DWITH_SvtEnc_PLUGIN=Off",
-    "-DWITH_AOM_ENCODER=Off",
-    "-DWITH_RAV1E_PLUGIN=Off",
-    "-DWITH_RAV1E=Off",
-    "-DWITH_EXAMPLES=Off"
+    "-DWITH_JPEG_ENCODER=OFF",
+    "-DWITH_OpenJPEG_ENCODER=OFF",
+    "-DWITH_OPENJPH_ENCODER=OFF",
+    "-DWITH_X265=OFF",
+    "-DWITH_SvtEnc=OFF",
+    "-DWITH_SvtEnc_PLUGIN=OFF",
+    "-DWITH_AOM_ENCODER=OFF",
+    "-DWITH_RAV1E_PLUGIN=OFF",
+    "-DWITH_RAV1E=OFF",
+    "-DWITH_EXAMPLES=OFF"
   ],
   "sources": [
     {
