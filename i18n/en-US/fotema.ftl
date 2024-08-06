@@ -235,8 +235,13 @@ prefs-views-section = Views
 prefs-views-selfies = Selfies
   .subtitle = Shows a separate view for selfies taken on iOS devices. Restart {-app-name} to apply.
 
+# Set face detection mode. Off, lightweight mobile model, or heavyweight
+# desktop model
 prefs-views-faces = Face Detection
   .subtitle = Enable face detection.
+  .off = Off
+  .enable-mobile = Mobile
+  .enable-desktop = Desktop
 
 ## Progress bar for background tasks
 
