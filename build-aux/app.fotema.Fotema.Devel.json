@@ -61,8 +61,6 @@
     },
 
   "modules": [
-    "modules/libde265.json",
-    "modules/libheif.json",
     "modules/glycin-loaders.json",
     "modules/ffmpeg.json",
     "modules/libshumate.json",
