@@ -33,6 +33,20 @@ jobs:
       image: bilelmoussaoui/flatpak-github-actions:gnome-45
       options: --privileged
     steps:
+     - uses: insightsengineering/disk-space-reclaimer@v1
+       with:
+        # this might remove tools that are actually needed,
+        # if set to "true" but frees about 6 GB
+        tools-cache: true
+
+        # all of these default to true, but feel free to set to
+        # "false" if necessary for your workflow
+        android: true
+        dotnet: true
+        haskell: true
+        large-packages: true
+        swap-storage: true
+        docker-images: true
     - uses: actions/checkout@v4
     - uses: bilelmoussaoui/flatpak-github-actions/flatpak-builder@v6
       with:
@@ -42,17 +56,3 @@ jobs:
         cache-key: flatpak-builder-${{ github.sha }}
         upload-artifact: false
 
-  release:
-    # Disable releases for now
-    if: false
-    name: Semantic Release
-    needs: flatpak
-    runs-on: ubuntu-latest
-    steps:
-      - name: Semantic Release
-        id: semantic
-        uses: cycjimmy/semantic-release-action@v4
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          branch: main
