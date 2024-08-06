@@ -33,8 +33,8 @@ jobs:
       image: bilelmoussaoui/flatpak-github-actions:gnome-45
       options: --privileged
     steps:
-     - uses: insightsengineering/disk-space-reclaimer@v1
-       with:
+    - uses: insightsengineering/disk-space-reclaimer@v1
+      with:
         # this might remove tools that are actually needed,
         # if set to "true" but frees about 6 GB
         tools-cache: true
