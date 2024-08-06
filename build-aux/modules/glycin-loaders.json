@@ -21,6 +21,12 @@
         "-DENABLE_SDL=OFF",
         "-DCMAKE_BUILD_TYPE=Release"
       ],
+      "cleanup": [
+        "/lib/libheif-heic/bin",
+        "/lib/libheif-heic/include",
+        "/lib/libheif-heic/lib/cmake",
+        "/lib/libheif-heic/lib/pkgconfig"
+      ],
       "sources": [
         {
           "type": "git",
@@ -57,8 +63,8 @@
         {
           "type": "git",
           "url": "https://github.com/strukturag/libheif.git",
-          "commit": "537d66852629e23ca778ef717343be8f657c0e79",
-          "tag": "v1.18.0",
+          "commit": "586335e93528203209a37f0935dbbe14e0f76741",
+          "tag": "v1.18.1",
           "x-checker-data": {
             "type": "git",
             "tag-pattern": "^v([\\d.]+)$"
