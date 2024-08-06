@@ -22,7 +22,6 @@ gtk = "0.18.1"
 h3o = "0.6.4"
 image = "0.25.2"
 half = "2.4.1"
-hf-hub = "0.3.2"
 kamadak-exif = "0.5.5"
 rayon = "1.10.0"
 refinery = { version = "0.8.14", features = ["rusqlite"] }
