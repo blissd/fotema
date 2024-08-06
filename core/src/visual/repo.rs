@@ -94,6 +94,7 @@ impl Repository {
         let link_path: String = row.get("link_path_b64")?;
         let link_path =
             path_encoding::from_base64(&link_path).map_err(|_| rusqlite::Error::InvalidQuery)?;
+        let link_path = self.library_base_path.join(link_path);
 
         let picture_id: Option<PictureId> = row.get("picture_id").map(PictureId::new).ok();
 
