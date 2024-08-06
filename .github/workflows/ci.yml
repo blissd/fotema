@@ -33,20 +33,10 @@ jobs:
       image: bilelmoussaoui/flatpak-github-actions:gnome-45
       options: --privileged
     steps:
-    - uses: insightsengineering/disk-space-reclaimer@v1
-      with:
-        # this might remove tools that are actually needed,
-        # if set to "true" but frees about 6 GB
-        tools-cache: true
-
-        # all of these default to true, but feel free to set to
-        # "false" if necessary for your workflow
-        android: true
-        dotnet: true
-        haskell: true
-        large-packages: true
-        swap-storage: true
-        docker-images: true
+    - name: List installed tools
+      run: du -hs /opt/hostedtoolcache/*
+    - name: Reclaim disk space
+      run: rm -rf /opt/hostedtoolcache/dotnet
     - uses: actions/checkout@v4
     - uses: bilelmoussaoui/flatpak-github-actions/flatpak-builder@v6
       with:
