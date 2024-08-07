@@ -11,6 +11,7 @@ use crate::people::model::PersonForRecognition;
 use crate::people::model::Rect;
 use crate::people::FaceId;
 use crate::people::PersonId;
+use crate::photo::model::Orientation;
 
 use anyhow::*;
 use rusqlite;
@@ -134,8 +135,10 @@ impl Repository {
                 faces.thumbnail_path AS face_thumbnail_path,
                 people.person_id AS person_id,
                 people.name AS person_name,
-                people.thumbnail_path AS person_thumbnail_path
+                people.thumbnail_path AS person_thumbnail_path,
+                pictures.orientation
             FROM pictures_faces AS faces
+            INNER JOIN pictures USING (picture_id)
             LEFT OUTER JOIN people USING (person_id)
             WHERE picture_id = ?1 AND faces.is_ignored = FALSE
             ORDER BY faces.nose_x ASC, faces.nose_y ASC",
@@ -704,9 +707,15 @@ impl Repository {
             .get("face_thumbnail_path")
             .map(|p: String| self.data_dir_base_path.join(p))?;
 
+        let orientation: Orientation = row
+            .get("orientation")
+            .map(|x: u32| Orientation::from(x))
+            .unwrap_or_default();
+
         let face = model::Face {
             face_id,
             thumbnail_path: face_thumbnail_path,
+            orientation,
         };
 
         let person_id = row.get("person_id").map(PersonId::new).ok();

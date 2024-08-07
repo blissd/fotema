@@ -84,9 +84,10 @@ pub struct ScannedFile {
 //
 // TODO this is also used by videos so move to a common place.
 
-#[derive(Debug, Clone, Copy, AsRefStr, EnumIter)]
+#[derive(Debug, Default, Clone, Copy, AsRefStr, EnumIter)]
 pub enum Orientation {
     // no rotation, no flip
+    #[default]
     North = 1,
 
     // no rotation, flip on X axis
@@ -120,12 +121,6 @@ impl Orientation {
             -90 | 270 => Orientation::West,
             _ => Self::default(),
         }
-    }
-}
-
-impl Default for Orientation {
-    fn default() -> Self {
-        Self::North
     }
 }
 
