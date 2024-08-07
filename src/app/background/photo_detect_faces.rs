@@ -78,13 +78,6 @@ impl PhotoDetectFaces {
     fn detect(&self, sender: ComponentSender<Self>, extract_mode: ExtractMode, unprocessed: Vec<(PictureId, PathBuf)>) -> Result<()> {
         let start = std::time::Instant::now();
 
-        // Must build face extractor here rather than in Boostrap's init function because
-        // the face detection models will be downloaded on creation and that mustn't happen
-        // on the main thread.
-        // Also, this has the advantage of extractor being dropped after use, which means
-        // the face detection models will be unloaded from memory.
-        let extractor = FaceExtractor::build(&self.base_dir)?;
-
         let count = unprocessed.len();
          info!("Found {} photos as candidates for face detection", count);
 
@@ -98,6 +91,13 @@ impl PhotoDetectFaces {
         let _ = sender.output(PhotoDetectFacesOutput::Started);
 
         self.progress_monitor.emit(ProgressMonitorInput::Start(TaskName::DetectFaces, count));
+
+        // Must build face extractor here rather than in Boostrap's init function because
+        // the face detection models will be downloaded on creation and that mustn't happen
+        // on the main thread.
+        // Also, this has the advantage of extractor being dropped after use, which means
+        // the face detection models will be unloaded from memory.
+        let extractor = FaceExtractor::build(&self.base_dir)?;
 
         unprocessed
             //.into_iter()
