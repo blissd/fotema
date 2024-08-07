@@ -23,6 +23,7 @@
     "-D WITH_FFMPEG=OFF",
     "-D WITH_GSTREAMER=OFF",
     "-D WITH_1394=OFF",
+    "-D WITH_IPP=OFF",
     "-D ENABLE_BUILD_HARDENING=ON",
     "-D BUILD_opencv_python2=OFF",
     "-D BUILD_opencv_python3=OFF"
