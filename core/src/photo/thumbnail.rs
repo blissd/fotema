@@ -120,7 +120,13 @@ impl Thumbnailer {
     pub async fn fallback_thumbnail(source_path: &Path, thumbnail_path: &Path) -> Result<()> {
         let file = gio::File::for_path(source_path);
 
-        let image = glycin::Loader::new(file).load().await?;
+        // FIXME Glycin can now apply orientation transformations, so we could do that
+        // here and then not have to rotate the thumbnails in the album views.
+        // However, will have to re-generate existing non-rotated thumbnails.
+        let mut loader = glycin::Loader::new(file);
+        loader.apply_transformations(false);
+
+        let image = loader.load().await?;
 
         let frame = image.next_frame().await?;
 

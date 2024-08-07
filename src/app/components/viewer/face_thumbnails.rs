@@ -224,7 +224,7 @@ impl SimpleAsyncComponent for FaceThumbnails {
 
                             let img = gdk::Texture::from_filename(&thumbnail_path).ok();
                             avatar.set_custom_image(img.as_ref());
-                            avatar.add_css_class(face.orientation.as_ref());
+                            //avatar.add_css_class(face.orientation.as_ref());
 
                             let children = gtk::Box::new(gtk::Orientation::Vertical, 0);
                             children.append(&avatar);

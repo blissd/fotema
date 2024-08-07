@@ -341,9 +341,19 @@ impl SimpleAsyncComponent for ViewOne {
                 }
 
                 if visual.is_photo_only() {
+                    // Apply a CSS transformation to respect the EXIF orientation
+                    // NOTE: don't use Glycin to apply the transformation here because it is
+                    // too slow.
+                    let orientation = visual.picture_orientation
+                        .unwrap_or(PictureOrientation::North);
+                    self.picture.add_css_class(orientation.as_ref());
+
                     let file = gio::File::for_path(visual_path);
 
-                    let image = glycin::Loader::new(file).load().await;
+                    let mut loader = glycin::Loader::new(file);
+                    loader.apply_transformations(false);
+
+                    let image = loader.load().await;
 
                     let Ok(image) = image else {
                         event!(Level::ERROR, "Failed loading image: {:?}", image);
