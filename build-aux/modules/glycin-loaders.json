@@ -1,15 +1,15 @@
 {
   "name": "glycin-loaders",
   "buildsystem": "meson",
+  "config-opts": [
+    "-Dglycin-loaders=true"
+  ],
   "sources": [
     {
-      "type": "archive",
-      "url": "https://download.gnome.org/sources/glycin-loaders/1.0/glycin-loaders-1.0.1.tar.xz",
-      "sha256": "d0f022462ff555856e85ea940474470bb36b37c9ffcbcba63a03fe5e954370cf",
-      "x-checker-data": {
-        "type": "gnome",
-        "name": "glycin-loaders"
-      }
+      "type": "git",
+      "url": "https://gitlab.gnome.org/sophie-h/glycin.git",
+      "tag": "1.1.beta",
+      "sha256": "bb5bf87ed35d3cff5fe1f094c89762e96e60c44a"
     }
   ],
   "modules": [
@@ -71,6 +71,30 @@
           }
         }
       ]
+    },
+    {
+        "name": "libjxl",
+        "buildsystem": "cmake-ninja",
+        "config-opts": [
+            "-DJPEGXL_ENABLE_BENCHMARK:BOOL=OFF",
+            "-DJPEGXL_ENABLE_EXAMPLES:BOOL=OFF",
+            "-DJPEGXL_ENABLE_FUZZERS:BOOL=OFF",
+            "-DJPEGXL_ENABLE_PLUGINS:BOOL=ON",
+            "-DJPEGXL_ENABLE_VIEWERS:BOOL=OFF",
+            "-DJPEGXL_FORCE_SYSTEM_BROTLI:BOOL=ON",
+            "-DJPEGXL_BUNDLE_LIBPNG:BOOL=OFF"
+        ],
+        "sources": [
+            {
+                "type": "git",
+                "url": "https://github.com/libjxl/libjxl.git",
+                "tag": "v0.10.3",
+                "x-checker-data": {
+                    "type": "git"
+                },
+                "commit": "4a3b22d2600f92d8706fb72d85d52bfee2acbd54"
+            }
+        ]
     }
   ]
 }

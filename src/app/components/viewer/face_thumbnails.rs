@@ -224,7 +224,7 @@ impl SimpleAsyncComponent for FaceThumbnails {
 
                             let img = gdk::Texture::from_filename(&thumbnail_path).ok();
                             avatar.set_custom_image(img.as_ref());
-                            avatar.add_css_class(face.orientation.as_ref());
+                            //avatar.add_css_class(face.orientation.as_ref());
 
                             let children = gtk::Box::new(gtk::Orientation::Vertical, 0);
                             children.append(&avatar);
@@ -284,7 +284,7 @@ impl SimpleAsyncComponent for FaceThumbnails {
                 if let Some(root) = gtk::Widget::root(self.face_thumbnails.widget_ref()) {
 
                     self.person_select.emit(PersonSelectInput::Activate(face_id, thumbnail));
-                    self.person_dialog.present(&root);
+                    self.person_dialog.present(Some(&root));
                 } else {
                     error!("Couldn't get root widget!");
                 }

@@ -112,7 +112,7 @@ impl SimpleComponent for PreferencesDialog {
         match msg {
             PreferencesInput::Present => {
                 self.settings = self.settings_state.read().clone();
-                self.dialog.present(&self.parent);
+                self.dialog.present(Some(&self.parent));
             },
             PreferencesInput::SettingsChanged(settings) => {
                 info!("Received update from settings shared state");

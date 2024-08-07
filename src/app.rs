@@ -278,11 +278,11 @@ impl SimpleComponent for App {
                 500.0,
                 adw::LengthUnit::Sp,
             )) {
-                add_setter: (&header_bar, "show-title", &false.into()),
-                add_setter: (&switcher_bar, "reveal", &true.into()),
+                add_setter: (&header_bar, "show-title", Some(&false.into())),
+                add_setter: (&switcher_bar, "reveal", Some(&true.into())),
                 //add_setter: (&main_navigation, "collapsed", &true.into()),
                 //add_setter: (&main_navigation, "show-sidebar", &false.into()),
-                add_setter: (&spinner, "visible", &true.into()),
+                add_setter: (&spinner, "visible", Some(&true.into())),
 
                 connect_apply => AppMsg::Adapt(adaptive::Layout::Narrow),
                 connect_unapply => AppMsg::Adapt(adaptive::Layout::Wide),
