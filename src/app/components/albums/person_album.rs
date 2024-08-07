@@ -296,7 +296,7 @@ impl SimpleComponent for PersonAlbum {
                 }
 
                 if let Some(root) = gtk::Widget::root(self.avatar.widget_ref()) {
-                    dialog.present(&root);
+                    dialog.present(Some(&root));
                     person_name.grab_focus();
                 } else {
                     error!("Couldn't get root widget!");
@@ -346,7 +346,7 @@ impl SimpleComponent for PersonAlbum {
                 });
 
                 if let Some(root) = gtk::Widget::root(self.avatar.widget_ref()) {
-                    dialog.present(&root);
+                    dialog.present(Some(&root));
                 } else {
                     error!("Couldn't get root widget!");
                 }

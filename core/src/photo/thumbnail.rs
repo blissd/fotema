@@ -126,7 +126,7 @@ impl Thumbnailer {
 
         let png_file = tempfile::Builder::new().suffix(".png").tempfile()?;
 
-        frame.texture.save_to_png(png_file.path())?;
+        frame.texture().save_to_png(png_file.path())?;
 
         Self::fast_thumbnail(png_file.path(), thumbnail_path)
     }

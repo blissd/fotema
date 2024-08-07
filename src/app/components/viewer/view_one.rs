@@ -341,11 +341,6 @@ impl SimpleAsyncComponent for ViewOne {
                 }
 
                 if visual.is_photo_only() {
-                    // Apply a CSS transformation to respect the EXIF orientation
-                    let orientation = visual.picture_orientation
-                        .unwrap_or(PictureOrientation::North);
-                    self.picture.add_css_class(orientation.as_ref());
-
                     let file = gio::File::for_path(visual_path);
 
                     let image = glycin::Loader::new(file).load().await;
@@ -367,7 +362,7 @@ impl SimpleAsyncComponent for ViewOne {
                         return;
                     };
 
-                    let texture = frame.texture;
+                    let texture = frame.texture();
 
                     self.picture.set_paintable(Some(&texture));
                     self.picture.set_visible(true);

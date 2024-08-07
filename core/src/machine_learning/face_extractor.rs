@@ -412,7 +412,7 @@ impl FaceExtractor {
 
         // FIXME can we avoid this step of saving to the file system and just
         // load the image from memory?
-        frame.texture.save_to_png(png_file.path())?;
+        frame.texture().save_to_png(png_file.path())?;
 
         Ok(image::open(png_file.path())?)
     }

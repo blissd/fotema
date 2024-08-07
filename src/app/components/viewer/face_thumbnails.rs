@@ -284,7 +284,7 @@ impl SimpleAsyncComponent for FaceThumbnails {
                 if let Some(root) = gtk::Widget::root(self.face_thumbnails.widget_ref()) {
 
                     self.person_select.emit(PersonSelectInput::Activate(face_id, thumbnail));
-                    self.person_dialog.present(&root);
+                    self.person_dialog.present(Some(&root));
                 } else {
                     error!("Couldn't get root widget!");
                 }

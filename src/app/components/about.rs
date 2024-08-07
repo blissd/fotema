@@ -69,6 +69,6 @@ impl SimpleComponent for AboutDialog {
     }
 
     fn update_view(&self, _: &mut Self::Widgets, _sender: ComponentSender<Self>) {
-        self.dialog.present(&self.parent);
+        self.dialog.present(Some(&self.parent));
     }
 }
