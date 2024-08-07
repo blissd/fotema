@@ -21,15 +21,27 @@
 
   <screenshots>
     <screenshot type="default" environment="gnome">
-      <image>https://github.com/blissd/fotema/blob/v1.0.0/data/resources/screenshots/all-photos.png?raw=true</image>
+      <image>https://github.com/blissd/fotema/blob/v1.10.0/data/resources/screenshots/all-photos.png?raw=true</image>
       <caption>All photos view</caption>
     </screenshot>
     <screenshot environment="gnome">
-      <image>https://github.com/blissd/fotema/blob/v1.9.0/data/resources/screenshots/places-view.png?raw=true</image>
+      <image>https://github.com/blissd/fotema/blob/v1.10.0/data/resources/screenshots/places-view.png?raw=true</image>
       <caption>Places view</caption>
     </screenshot>
     <screenshot environment="gnome">
-      <image>https://github.com/blissd/fotema/blob/v1.0.0/data/resources/screenshots/folders-view.png?raw=true</image>
+      <image>https://github.com/blissd/fotema/blob/v1.10.0/data/resources/screenshots/person-thumbnails.png?raw=true</image>
+      <caption>Photo viewer with automatically detected faces</caption>
+    </screenshot>
+    <screenshot environment="gnome">
+      <image>https://github.com/blissd/fotema/blob/v1.10.0/data/resources/screenshots/person-select.png?raw=true</image>
+      <caption>Naming a person</caption>
+    </screenshot>
+    <screenshot environment="gnome">
+      <image>https://github.com/blissd/fotema/blob/v1.10.0/data/resources/screenshots/people-album.png?raw=true</image>
+      <caption>People view</caption>
+    </screenshot>
+    <screenshot environment="gnome">
+      <image>https://github.com/blissd/fotema/blob/v1.10.0/data/resources/screenshots/folders-view.png?raw=true</image>
       <caption>Folders view</caption>
     </screenshot>
   </screenshots>
@@ -53,6 +65,19 @@
   </branding>
 
   <releases>
+    <release version="1.10.0" date="2024-08-07">
+      <description>
+        <p>Improvements:</p>
+        <ul>
+          <li>Face detection and person recognition.</li>
+          <li>People album.</li>
+        </ul>
+        <p>Bugs fixed:</p>
+        <ul>
+          <li>"Open Containing Folder" button absent when photo is in library root.</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.9.6" date="2024-07-23">
       <description>
         <ul>
