@@ -1,8 +1,9 @@
 ## Terms
 
+
 # See https://projectfluent.org/fluent/guide/terms.html
 
--app-name = Fotema
+-app-name = फोटेमा
 
 ## Main Navigation Pages
 
@@ -24,7 +25,6 @@ animated-album = सजीवित
 folders-album = फोल्डर
 # Title for album showing contents of one folder.
 folder-album = फोल्डर
-
 # Title for places page which shows photos overlayed onto a map.
 places-page = स्थान
 
@@ -55,7 +55,7 @@ month-thumbnail-label =
 ## About Dialog
 
 # Section header for open source projects acknowledgements.
-about-opensource = मुक्त स्रोत परियोजनाएं
+about-opensource = ओपन सोर्स परियोजनाएं
 # Translator note: add one translator per-line to get a translation
 # credit in the Fotema's "About" page.
 about-translator-credits = Scrambled777 <weblate.scrambled777@simplelogin.com>
@@ -63,7 +63,7 @@ about-translator-credits = Scrambled777 <weblate.scrambled777@simplelogin.com>
 ## Photo/Video Viewer
 
 # Tooltip for (i) button to show photo/video information sidebar
-viewer-info-tooltip = गुण दिखाएं
+viewer-info-tooltip = प्रॉपर्टी दिखाएं
 # Go to next button when viewing photo or video.
 # Attributes:
 #  .tooltip - Tooltip on mouse hover.
@@ -147,7 +147,6 @@ infobar-dimensions = आयाम
 
 # Title of preferences dialog
 prefs-title = प्राथमिकताएं
-
 # Title of section of preferences for views
 prefs-views-section = दृश्य
     .description = पार्श्वपट्टी दृश्य दिखाएं या छुपाएं
@@ -207,3 +206,48 @@ banner-extract-motion-photos = मोशन फोटो का प्रसं�
 primary-menu-preferences = प्राथमिकताएं
 # Menu item to show "about" dialog
 primary-menu-about = { -app-name } के बारे में
+people-set-name = नाम तय करें
+banner-detect-faces-photos = फोटो में चेहरों का पता लगाया जा रहा है। इसमें थोड़ा समय लगेगा।
+people-page = व्यक्ति
+people-page-status-no-people =
+    .title = कोई लोग नहीं मिले
+    .description =
+        { -app-name } शुरू होने पर नई फोटो में चेहरों की तलाश करेगी।
+        यदि आपने { -app-name } को बताया है कि कोई चेहरा आपके किसी परिचित व्यक्ति का है, तो { -app-name }
+        उस व्यक्ति की नई फोटो भी खोजेगी।
+viewer-faces-menu =
+    .tooltip = चेहरे की मेनू
+    .restore-ignored = सभी अनदेखे चेहरों को पुनर्स्थापित करें
+    .ignore-unknown = सभी अनजान चेहरों को नजरअंदाज करें
+    .scan = और चेहरों के लिए स्कैन करें
+people-set-face-thumbnail = थंबनेल के रूप में उपयोग करें
+people-person-search =
+    .placeholder = व्यक्ति नाम
+people-face-ignore = नजरअंदाज करें
+people-not-this-person = { $name } नहीं
+prefs-views-faces = चेहरे की पहचान
+    .subtitle = चेहरे की पहचान सक्षम करें।
+    .off = बंद
+    .enable-mobile = मोबाइल
+    .enable-desktop = डेस्कटॉप
+progress-detect-faces-photos = फोटो में चेहरों का पता लगाया जा रहा है।
+progress-recognize-faces-photos = फोटो में लोगों को पहचाना जा रहा है।
+banner-recognize-faces-photos = फोटो में लोगों को पहचाना जा रहा है। इसमें थोड़ा समय लगेगा।
+person-menu-rename = व्यक्ति का नाम बदलें
+person-menu-delete = व्यक्ति मिटाएं
+person-delete-dialog =
+    .heading = व्यक्ति मिटाएं?
+    .body = कोई तस्वीर या वीडियो नहीं हटाया जाएगा।
+    .cancel-button = रद्द करें
+    .delete-button = मिटाएं
+person-rename-dialog =
+    .heading = व्यक्ति का नाम बदलें?
+    .placeholder = नया नाम
+    .cancel-button = रद्द करें
+    .rename-button = नाम बदलें
+people-page-status-off =
+    .title = चेहरे की पहचान सक्षम करें?
+    .description = { -app-name } स्वचालित रूप से चेहरे का पता लगा सकती है और लोगों को पहचान सकती है। क्या आप इस सुविधा को सक्षम करना चाहते हैं?
+    .notice = { -app-name } को चेहरे और लोगों को पहचानने के लिए लगभग 45 मेगाबाइट डेटा डाउनलोड करना होगा।
+    .enable-mobile = मोबाइल के लिए सक्षम करें
+    .enable-desktop = डेस्कटॉप के लिए सक्षम करें
