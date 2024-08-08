@@ -29,7 +29,7 @@ futures = "0.3.30"
 chrono = "0.4.38"
 anyhow = "1.0.86"
 strum = { version = "0.26.2", features = ["derive"] }
-i18n-embed = { version = "0.14.1", features = ["fluent-system", "filesystem-assets", "desktop-requester"] }
+i18n-embed = { version = "0.15.0", features = ["fluent-system", "filesystem-assets", "desktop-requester"] }
 rust-embed = "8.5.0"
 i18n-embed-fl = "0.8.0"
 unic-langid = "0.9.5"

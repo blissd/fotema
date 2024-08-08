@@ -1234,7 +1234,7 @@ dependencies = [
  "glycin",
  "h3o",
  "humansize",
- "i18n-embed",
+ "i18n-embed 0.15.0",
  "i18n-embed-fl",
  "itertools 0.13.0",
  "lazy_static",
@@ -2318,6 +2318,27 @@ dependencies = [
  "i18n-embed-impl",
  "intl-memoizer",
  "lazy_static",
+ "log",
+ "parking_lot",
+ "rust-embed",
+ "thiserror",
+ "unic-langid",
+ "walkdir",
+]
+
+[[package]]
+name = "i18n-embed"
+version = "0.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e901c87176ac0b615033c81dbe927c230f74700abfd60ed953a6f547c87bbe6d"
+dependencies = [
+ "arc-swap",
+ "fluent",
+ "fluent-langneg",
+ "fluent-syntax",
+ "i18n-embed-impl",
+ "intl-memoizer",
+ "lazy_static",
  "locale_config",
  "log",
  "parking_lot",
@@ -2338,7 +2359,7 @@ dependencies = [
  "fluent",
  "fluent-syntax",
  "i18n-config",
- "i18n-embed",
+ "i18n-embed 0.14.1",
  "lazy_static",
  "proc-macro-error",
  "proc-macro2",
