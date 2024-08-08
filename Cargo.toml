@@ -31,7 +31,7 @@ anyhow = "1.0.86"
 strum = { version = "0.26.2", features = ["derive"] }
 i18n-embed = { version = "0.14.1", features = ["fluent-system", "filesystem-assets", "desktop-requester"] }
 rust-embed = "8.5.0"
-i18n-embed-fl = "0.8.0"
+i18n-embed-fl = "0.9.1"
 unic-langid = "0.9.5"
 lazy_static = "1.4.0"
 libshumate-sys = "0.6.0"
