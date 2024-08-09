@@ -2,12 +2,13 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use i18n_embed::fluent::{fluent_language_loader, FluentLanguageLoader};
+use i18n_embed::fluent::FluentLanguageLoader;
 
 use crate::config::I18NDIR;
 use i18n_embed::DesktopLanguageRequester;
 use i18n_embed::I18nEmbedError;
 use i18n_embed::LanguageLoader;
+
 use lazy_static::lazy_static;
 use unic_langid::LanguageIdentifier;
 
@@ -39,6 +40,7 @@ pub fn loader() -> Result<FluentLanguageLoader, I18nEmbedError> {
     info!("Requested languages: {:?}", requested_languages);
 
     // FIXME why can't all languages be derived from file system assets?
+    // The 'available_languages() methods don't return all the languages :-/
     let all_languages = &[
         "de", "en-US", "fi", "fr", "hi", "id", "it", "nb-NO", "nl", "ru", "tr",
     ];
@@ -49,17 +51,23 @@ pub fn loader() -> Result<FluentLanguageLoader, I18nEmbedError> {
         .collect();
 
     let i18n_assets = i18n_embed::FileSystemAssets::try_new(PathBuf::from(I18NDIR))?;
-    let loader: FluentLanguageLoader =
-        FluentLanguageLoader::new("fotema", "en-US".parse().unwrap());
+
+    let loader = FluentLanguageLoader::new("fotema", "en-US".parse().unwrap());
     loader.load_languages(&i18n_assets, &all_languages)?;
-    info!("Current languages: {:?}", loader.current_languages());
 
     let loader = loader.select_languages_negotiate(
         &requested_languages,
         i18n_embed::fluent::NegotiationStrategy::Filtering,
     );
 
-    info!("Negotiated languages: {:?}", loader.current_languages());
+    // FIXME I don't understand why I have to create a second loader to get the correct
+    // languages to be used :-/
+
+    let negotiated_languates = loader.current_languages();
+    let loader = FluentLanguageLoader::new("fotema", "en-US".parse().unwrap());
+    loader.load_languages(&i18n_assets, &negotiated_languates)?;
+
+    info!("Final languages: {:?}", loader.current_languages());
 
     Ok(loader)
 }
