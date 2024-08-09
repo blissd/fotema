@@ -13,8 +13,7 @@ publish = false
 members = ["core"]
 
 [profile.release]
-lto = true
-codegen-units = 1
+lto = "thin"
 
 [dependencies]
 gettext-rs = { version = "0.7", features = ["gettext-system"] }
