@@ -212,3 +212,48 @@ banner-extract-motion-photos = Elaborazione di foto in movimento.
 # Preferences
 # Title of preferences dialog
 prefs-title = Preferenze
+people-set-face-thumbnail = Usa come miniatura
+prefs-views-faces = Rilevamento del volto
+    .subtitle = Abilita il rilevamento del volto.
+    .off = Disattivato
+    .enable-mobile = Mobile
+    .enable-desktop = Desktop
+people-person-search =
+    .placeholder = Nome della persona
+people-face-ignore = Ignora
+people-not-this-person = Non { $name }
+progress-detect-faces-photos = Rilevamento dei volti nelle foto.
+banner-detect-faces-photos = Rilevamento dei volti nelle foto. Ci vorrà un po' di tempo.
+progress-recognize-faces-photos = Riconoscere le persone nelle foto.
+person-rename-dialog =
+    .heading = Rinomina persona?
+    .placeholder = Nuovo nome
+    .cancel-button = Annulla
+    .rename-button = Rinomina
+person-menu-delete = Elimina persona
+people-page = Persone
+person-menu-rename = Rinomina persona
+people-page-status-off =
+    .title = Abilitare il rilevamento dei volti?
+    .description = { -app-name } può rilevare automaticamente i volti e riconoscere le persone. Vuoi abilitare questa funzionalità?
+    .notice = { -app-name } deve scaricare circa 45 megabyte di dati per riconoscere volti e persone.
+    .enable-mobile = Abilita per dispositivi mobili
+    .enable-desktop = Abilita per desktop
+people-page-status-no-people =
+    .title = Nessuna persona trovata
+    .description =
+        { -app-name } cercherà i volti nelle nuove foto quando viene avviata.
+        Se hai detto a { -app-name } che un volto è di una persona che conosci, allora { -app-name }
+        cercherà anche nuove foto di quella persona.
+viewer-faces-menu =
+    .tooltip = Menu volti
+    .restore-ignored = Ripristina tutti i volti ignorati
+    .ignore-unknown = Ignora tutti i volti sconosciuti
+    .scan = Cerca altri volti
+people-set-name = Imposta nome
+banner-recognize-faces-photos = Riconoscere le persone nelle foto. Ci vorrà un po' di tempo.
+person-delete-dialog =
+    .heading = Eliminare la persona?
+    .body = Nessuna immagine o video verrà eliminato.
+    .cancel-button = Annulla
+    .delete-button = Elimina

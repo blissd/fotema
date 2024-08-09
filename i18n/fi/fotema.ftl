@@ -170,7 +170,7 @@ month-thumbnail-label =
 # About Dialog
 # Translator note: add one translator per-line to get a translation
 # credit in the Fotema's "About" page.
-about-translator-credits = David Bliss <hello@fotema.app>
+about-translator-credits = Jiri Grönroos <jiri.gronroos+l10n@iki.fi>
 # Photo/Video Viewer
 # Skip video backwards 10 seconds button.
 # Attributes:
@@ -228,3 +228,48 @@ banner-thumbnails-videos = Luodaan videon pikkukuvia. Tämä kestää hetken.
 # Notification banner for background tasks
 # Updating the database to remove details of absent videos.
 banner-clean-videos = Videotietokannan ylläpito.
+people-face-ignore = Ohita
+people-not-this-person = Ei { $name }
+progress-detect-faces-photos = Havaitaan kasvoja kuvissa.
+progress-recognize-faces-photos = Tunnistetaan ihmisiä kuvissa.
+person-menu-delete = Poista henkilö
+person-menu-rename = Nimeä henkilö uudelleen
+people-page-status-off =
+    .title = Otetaanko kasvojentunnistus käyttöön?
+    .description = { -app-name } voi havaita kasvot ja tunnistaa ihmisiä automaattisesti. Haluatko käyttää tätä ominaisuutta?
+    .notice = { -app-name }n tulee ladata noin 45 megatavua dataa kasvojen ja ihmisten tunnistamiseksi.
+    .enable-mobile = Ota käyttöön mobiilissa
+    .enable-desktop = Ota käyttöön tietokoneella
+people-page = Ihmiset
+people-set-face-thumbnail = Käytä pienoiskuvana
+people-set-name = Aseta nimi
+people-page-status-no-people =
+    .title = Ihmisiä ei löytynyt
+    .description =
+        { -app-name } etsii kasvoja kuvista, kun sovellus käynnistetään.
+        Jos kerroit { -app-name }lle, että kasvot kuuluvat tuntemallesi henkilölle, { -app-name }
+        etsii myös uusia kuvia kyseisestä henkilöstä.
+viewer-faces-menu =
+    .tooltip = Kasvot-valikko
+    .restore-ignored = Palauta kaikki ohitetut kasvot
+    .ignore-unknown = Ohita kaikki tuntemattomat kasvot
+    .scan = Tunnista lisää kasvoja
+people-person-search =
+    .placeholder = Henkilön nimi
+banner-detect-faces-photos = Havaitaan kasvoja kuvissa. Tämä kestää hetken.
+banner-recognize-faces-photos = Tunnistetaan ihmisiä kuvissa. Tämä kestää hetken.
+prefs-views-faces = Kasvojentunnistus
+    .subtitle = Käytä kasvojentunnistusta.
+    .off = Pois
+    .enable-mobile = Mobiili
+    .enable-desktop = Tietokone
+person-delete-dialog =
+    .heading = Poistetaanko henkilö?
+    .body = Kuvia tai videoita ei poisteta.
+    .cancel-button = Peru
+    .delete-button = Poista
+person-rename-dialog =
+    .heading = Nimetäänkö henkilö uudelleen?
+    .placeholder = Uusi nimi
+    .cancel-button = Peru
+    .rename-button = Nimeä uudelleen
