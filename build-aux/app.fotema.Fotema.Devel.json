@@ -77,7 +77,7 @@
         "env": {
             "OPENCV_INCLUDE_PATHS": "/app/include/opencv4",
             "LIBCLANG_PATH": "/usr/lib/sdk/llvm18/lib",
-            "ORT_DYLIB_PATH": "/app/lib/libonnxruntime.so"
+            "ORT_STRATEGY": "system"
         }
       },
       "config-opts": [

@@ -6,6 +6,7 @@ use i18n_embed::fluent::{fluent_language_loader, FluentLanguageLoader};
 
 use crate::config::I18NDIR;
 use i18n_embed::DesktopLanguageRequester;
+use i18n_embed::I18nEmbedError;
 use i18n_embed::LanguageLoader;
 use lazy_static::lazy_static;
 use unic_langid::LanguageIdentifier;
@@ -14,7 +15,8 @@ use std::path::PathBuf;
 use tracing::info;
 
 lazy_static! {
-    pub static ref LANGUAGE_LOADER: FluentLanguageLoader = loader();
+    pub static ref LANGUAGE_LOADER: FluentLanguageLoader =
+        loader().expect("i18n should be present");
 }
 
 // Wrap fl macro so the language loader doesn't have be specified on each call.
@@ -31,46 +33,33 @@ macro_rules! fl {
     }};
 }
 
-pub fn loader() -> FluentLanguageLoader {
-    let loader: FluentLanguageLoader = fluent_language_loader!();
-    let localizations = i18n_embed::FileSystemAssets::new(PathBuf::from(I18NDIR));
-
+pub fn loader() -> Result<FluentLanguageLoader, I18nEmbedError> {
     // Get user's preferred languages from OS.
     let requested_languages = DesktopLanguageRequester::requested_languages();
-
     info!("Requested languages: {:?}", requested_languages);
 
-    // For each requested language add a more general version _without_ a region specified.
-    // This is to make language fallbacks work properly so that "de_DE" can fallback to "de"
-    // rather than falling back to "en_US".
-    // Apology to future self: I suspect I shouldn't have to do this, and that this solution
-    // will come back to bite you in the bum.
-    let mut requested_languages = requested_languages
+    // FIXME why can't all languages be derived from file system assets?
+    let all_languages = &[
+        "de", "en-US", "fi", "fr", "hi", "id", "it", "nb-NO", "nl", "ru", "tr",
+    ];
+
+    let all_languages: Vec<LanguageIdentifier> = all_languages
         .into_iter()
-        .flat_map(|lang| {
-            vec![
-                lang.clone(),
-                LanguageIdentifier::from_parts(lang.language, None, None, &[]),
-            ]
-        })
-        .collect::<Vec<_>>();
+        .map(|id| id.parse().unwrap())
+        .collect();
 
-    if requested_languages.is_empty() {
-        // FIXME why doesn't setting the fallback language on the FluentLanguageLoader
-        // work when there isn't a requested language?
-        let fallback: LanguageIdentifier = "en-US".parse().unwrap();
-        requested_languages.push(fallback);
-    }
+    let i18n_assets = i18n_embed::FileSystemAssets::try_new(PathBuf::from(I18NDIR))?;
+    let loader: FluentLanguageLoader =
+        FluentLanguageLoader::new("fotema", "en-US".parse().unwrap());
+    loader.load_languages(&i18n_assets, &all_languages)?;
+    info!("Current languages: {:?}", loader.current_languages());
 
-    let requested_languages = &requested_languages.iter().collect::<Vec<_>>(); // janky API needs &[&lang_id]
-
-    info!(
-        "Requested languages with fallbacks: {:?}",
-        requested_languages
+    let loader = loader.select_languages_negotiate(
+        &requested_languages,
+        i18n_embed::fluent::NegotiationStrategy::Filtering,
     );
 
-    loader
-        .load_languages(&localizations, requested_languages)
-        .expect("Localization files should be present");
-    loader
+    info!("Negotiated languages: {:?}", loader.current_languages());
+
+    Ok(loader)
 }
