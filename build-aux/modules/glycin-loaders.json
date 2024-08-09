@@ -80,13 +80,23 @@
       "name": "libjxl",
       "buildsystem": "cmake-ninja",
       "config-opts": [
-        "-DJPEGXL_ENABLE_BENCHMARK:BOOL=OFF",
-        "-DJPEGXL_ENABLE_EXAMPLES:BOOL=OFF",
-        "-DJPEGXL_ENABLE_FUZZERS:BOOL=OFF",
-        "-DJPEGXL_ENABLE_PLUGINS:BOOL=ON",
-        "-DJPEGXL_ENABLE_VIEWERS:BOOL=OFF",
-        "-DJPEGXL_FORCE_SYSTEM_BROTLI:BOOL=ON",
-        "-DJPEGXL_BUNDLE_LIBPNG:BOOL=OFF"
+        "-D CMAKE_BUILD_TYPE=Release",
+        "-D BUILD_TESTING=OFF",
+        "-D JPEGXL_TEST_TOOLS=OFF",
+        "-D JPEGXL_ENABLE_BENCHMARK=OFF",
+        "-D JPEGXL_ENABLE_EXAMPLES=OFF",
+        "-D JPEGXL_ENABLE_FUZZERS=OFF",
+        "-D JPEGXL_ENABLE_PLUGINS=ON",
+        "-D JPEGXL_ENABLE_VIEWERS=OFF",
+        "-D JPEGXL_FORCE_SYSTEM_BROTLI=ON",
+        "-D JPEGXL_BUNDLE_LIBPNG=OFF",
+        "-D JPEGXL_ENABLE_TOOLS=OFF",
+        "-D JPEGXL_ENABLE_MANPAGES=OFF",
+        "-D JPEGXL_ENABLE_DOXYGEN=OFF",
+        "-D JPEGXL_ENABLE_TRANSCODE_JPEG=OFF"
+      ],
+      "cleanup": [
+        "/bin"
       ],
       "sources": [
         {
