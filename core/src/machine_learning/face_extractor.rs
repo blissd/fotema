@@ -84,13 +84,14 @@ impl Face {
 pub struct FaceExtractor {
     base_path: PathBuf,
 
-    /// I think this is the "back model" trained on
-    /// photos taken by the back camera of phones.
-    blaze_face_640_model: Box<dyn rust_faces::FaceDetector>,
+    /// BlazeFace model configured to match large to huge faces, like selfies
+    blaze_face_huge: Box<dyn rust_faces::FaceDetector>,
 
-    /// I think this is the "front model" trained on
-    /// photos taken by the selfie camera of phones.
-    blaze_face_320_model: Box<dyn rust_faces::FaceDetector>,
+    /// BlazeFace model configured to match medium to large faces.
+    blaze_face_big: Box<dyn rust_faces::FaceDetector>,
+
+    /// BlazeFace model configured to match small to medium faces.
+    blaze_face_small: Box<dyn rust_faces::FaceDetector>,
 
     /// An alternative model with good results, but much slower than BlazeFace.
     mtcnn_model: Box<dyn rust_faces::FaceDetector>,
@@ -111,30 +112,57 @@ impl FaceExtractor {
         let base_path = PathBuf::from(base_path).join("photo_faces");
         std::fs::create_dir_all(&base_path)?;
 
-        let bz_params = BlazeFaceParams {
+        // Tweaking the target size seems to affect which faces are detected.
+        // 1280. Default. Misses larger faces.
+        // 960. Three quarters. Some larger, some smaller.
+        // 640. Half default. Misses smaller faces.
+        // 320. Quarter default. Matches big faces.
+
+        let bz_params_huge = BlazeFaceParams {
             score_threshold: 0.95, // confidence match is a face
-            target_size: 1280 / 2, // Half of default. Seems to allow larger faces to be detected.
+            target_size: 320,
             ..BlazeFaceParams::default()
         };
 
-        let blaze_face_640_model =
-            FaceDetectorBuilder::new(FaceDetection::BlazeFace640(bz_params.clone()))
-                .download()
-                .infer_params(InferParams {
-                    provider: Provider::OrtCpu,
-                    intra_threads: Some(5),
-                    ..Default::default()
-                })
-                .build()?;
-
-        let blaze_face_320_model = FaceDetectorBuilder::new(FaceDetection::BlazeFace320(bz_params))
+        let blaze_face_huge = FaceDetectorBuilder::new(FaceDetection::BlazeFace320(bz_params_huge))
             .download()
             .infer_params(InferParams {
                 provider: Provider::OrtCpu,
-                //intra_threads: Some(5),
+                intra_threads: Some(5),
                 ..Default::default()
             })
             .build()?;
+
+        let bz_params_big = BlazeFaceParams {
+            score_threshold: 0.95, // confidence match is a face
+            target_size: 640,
+            ..BlazeFaceParams::default()
+        };
+
+        let blaze_face_big = FaceDetectorBuilder::new(FaceDetection::BlazeFace320(bz_params_big))
+            .download()
+            .infer_params(InferParams {
+                provider: Provider::OrtCpu,
+                intra_threads: Some(5),
+                ..Default::default()
+            })
+            .build()?;
+
+        let bz_params_small = BlazeFaceParams {
+            score_threshold: 0.95, // confidence match is a face
+            target_size: 1280,
+            ..BlazeFaceParams::default()
+        };
+
+        let blaze_face_small =
+            FaceDetectorBuilder::new(FaceDetection::BlazeFace320(bz_params_small))
+                .download()
+                .infer_params(InferParams {
+                    provider: Provider::OrtCpu,
+                    //intra_threads: Some(5),
+                    ..Default::default()
+                })
+                .build()?;
 
         let mtcnn_params = MtCnnParams {
             //thresholds: [0.6, 0.7, 0.7],
@@ -152,8 +180,9 @@ impl FaceExtractor {
 
         Ok(FaceExtractor {
             base_path,
-            blaze_face_640_model,
-            blaze_face_320_model,
+            blaze_face_huge,
+            blaze_face_big,
+            blaze_face_small,
             mtcnn_model,
         })
     }
@@ -165,6 +194,7 @@ impl FaceExtractor {
         picture_path: &Path,
         extract_mode: ExtractMode,
     ) -> Result<Vec<Face>> {
+        // return Ok(vec![]);
         info!(
             "Detecting faces in {:?} using {:?} model",
             picture_path, extract_mode
@@ -177,24 +207,38 @@ impl FaceExtractor {
         let mut faces: Vec<(DetectedFace, String)> = vec![];
 
         if extract_mode == ExtractMode::Lightweight || extract_mode == ExtractMode::Heavyweight {
-            let result = self.blaze_face_640_model.detect(image.view().into_dyn());
+            let result = self.blaze_face_big.detect(image.view().into_dyn());
             if let Ok(detected_faces) = result {
                 for f in detected_faces {
-                    faces.push((f, "blaze_face_640".into()));
+                    faces.push((f, "blaze_face_big".into()));
                 }
             } else {
-                error!("Failed extracting faces with blaze_face_640: {:?}", result);
+                error!("Failed extracting faces with blaze_face_big: {:?}", result);
             }
-            /*
-            let result = self.blaze_face_320_model.detect(image.view().into_dyn());
+
+            let result = self.blaze_face_small.detect(image.view().into_dyn());
             if let Ok(detected_faces) = result {
                 let detected_faces = Self::remove_duplicates(detected_faces, &faces);
                 for f in detected_faces {
-                    faces.push((f, "blaze_face_320".into()));
+                    faces.push((f, "blaze_face_small".into()));
                 }
             } else {
-                error!("Failed extracting faces with blaze_face_320: {:?}", result);
-            }*/
+                error!(
+                    "Failed extracting faces with blaze_face_small: {:?}",
+                    result
+                );
+            }
+
+            // Only do huge face detection if no other faces found.
+            let result = self.blaze_face_huge.detect(image.view().into_dyn());
+            if let Ok(detected_faces) = result {
+                let detected_faces = Self::remove_duplicates(detected_faces, &faces);
+                for f in detected_faces {
+                    faces.push((f, "blaze_face_huge".into()));
+                }
+            } else {
+                error!("Failed extracting faces with blaze_face_huge: {:?}", result);
+            }
         }
 
         if extract_mode == ExtractMode::Heavyweight {
@@ -344,9 +388,7 @@ impl FaceExtractor {
                     .min_by_key(|f2| Self::nose_distance(f1, &f2.0) as u32);
 
                 nearest.is_none()
-                    || nearest.is_some_and(|f2| {
-                        Self::distance(Self::centre(f1), Self::centre(&f2.0)) > 150.0
-                    })
+                    || nearest.is_some_and(|f2| Self::nose_distance(f1, &f2.0) > 150.0)
             })
             .collect()
     }
