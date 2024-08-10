@@ -448,9 +448,13 @@ impl SimpleAsyncComponent for ViewOne {
                     }
                 }
 
-                // Overlay faces in picture
-                if let Some(ref picture_id) = visual.picture_id {
-                    self.face_thumbnails.emit(FaceThumbnailsInput::View(*picture_id));
+                // Overlay faces in picture, but only if transcode status page not visible.
+                if !self.transcode_status.is_visible() {
+                    if let Some(ref picture_id) = visual.picture_id {
+                        self.face_thumbnails.emit(FaceThumbnailsInput::View(*picture_id));
+                    } else {
+                        self.face_thumbnails.emit(FaceThumbnailsInput::Hide);
+                    }
                 } else {
                     self.face_thumbnails.emit(FaceThumbnailsInput::Hide);
                 }
