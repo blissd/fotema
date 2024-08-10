@@ -124,6 +124,7 @@ impl Thumbnailer {
         // here and then not have to rotate the thumbnails in the album views.
         // However, will have to re-generate existing non-rotated thumbnails.
         let mut loader = glycin::Loader::new(file);
+        loader.sandbox_selector(glycin::SandboxSelector::FlatpakSpawn);
         loader.apply_transformations(false);
 
         let image = loader.load().await?;
