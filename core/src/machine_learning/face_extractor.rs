@@ -5,6 +5,8 @@
 use crate::photo::model::PictureId;
 use anyhow::*;
 
+use image::ImageReader;
+use std::io::Cursor;
 use std::path::{Path, PathBuf};
 use std::result::Result::Ok;
 
@@ -407,16 +409,12 @@ impl FaceExtractor {
         let mut loader = glycin::Loader::new(file);
         loader.sandbox_selector(glycin::SandboxSelector::FlatpakSpawn);
         let image = loader.load().await?;
-
         let frame = image.next_frame().await?;
+        let bytes = frame.texture().save_to_png_bytes();
+        let image =
+            ImageReader::with_format(Cursor::new(bytes), image::ImageFormat::Png).decode()?;
 
-        let png_file = tempfile::Builder::new().suffix(".png").tempfile()?;
-
-        // FIXME can we avoid this step of saving to the file system and just
-        // load the image from memory?
-        frame.texture().save_to_png(png_file.path())?;
-
-        Ok(image::open(png_file.path())?)
+        Ok(image)
     }
 }
 
