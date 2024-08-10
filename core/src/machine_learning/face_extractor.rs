@@ -111,6 +111,7 @@ impl FaceExtractor {
 
         let bz_params = BlazeFaceParams {
             score_threshold: 0.95, // confidence match is a face
+            target_size: 1280 / 2, // Half of default. Seems to allow larger faces to be detected.
             ..BlazeFaceParams::default()
         };
 
@@ -176,14 +177,13 @@ impl FaceExtractor {
         if extract_mode == ExtractMode::Lightweight || extract_mode == ExtractMode::Heavyweight {
             let result = self.blaze_face_640_model.detect(image.view().into_dyn());
             if let Ok(detected_faces) = result {
-                let detected_faces = Self::remove_duplicates(detected_faces, &faces);
                 for f in detected_faces {
                     faces.push((f, "blaze_face_640".into()));
                 }
             } else {
                 error!("Failed extracting faces with blaze_face_640: {:?}", result);
             }
-
+            /*
             let result = self.blaze_face_320_model.detect(image.view().into_dyn());
             if let Ok(detected_faces) = result {
                 let detected_faces = Self::remove_duplicates(detected_faces, &faces);
@@ -192,7 +192,7 @@ impl FaceExtractor {
                 }
             } else {
                 error!("Failed extracting faces with blaze_face_320: {:?}", result);
-            }
+            }*/
         }
 
         if extract_mode == ExtractMode::Heavyweight {
