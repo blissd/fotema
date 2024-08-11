@@ -31,19 +31,19 @@ prefix = get_option('prefix')
 bindir = prefix / get_option('bindir')
 localedir = prefix / get_option('localedir')
 
-# Why don't we use localdir? Using localdir works perfectly when
-# developing locally. However, the Flathub build servers put locale files
-# into separate flatpak packages which is breaking my Fluent localisation
-# setup. Fotema will fail starting up saying it canot find the localisation
-# files.
-i18ndir = prefix / 'i18n'
-
 datadir = prefix / get_option('datadir')
 pkgdatadir = datadir / meson.project_name()
 iconsdir = datadir / 'icons'
 podir = meson.project_source_root() / 'po'
 gettext_package = meson.project_name()
 libdir = prefix / 'lib'
+
+# Why don't we use localedir? Using localedir works perfectly when
+# developing locally. However, the Flathub build servers put locale files
+# into separate flatpak packages which is breaking my Fluent localisation
+# setup. Fotema will fail starting up saying it cannot find the localisation
+# files.
+i18ndir = pkgdatadir / 'i18n'
 
 if get_option('profile') == 'development'
   profile = 'Devel'

@@ -35,6 +35,8 @@ macro_rules! fl {
 }
 
 pub fn loader() -> Result<FluentLanguageLoader, I18nEmbedError> {
+    info!("I18NDIR = {:?}", I18NDIR);
+
     // Get user's preferred languages from OS.
     let requested_languages = DesktopLanguageRequester::requested_languages();
     info!("Requested languages: {:?}", requested_languages);
@@ -45,10 +47,8 @@ pub fn loader() -> Result<FluentLanguageLoader, I18nEmbedError> {
         "de", "en-US", "fi", "fr", "hi", "id", "it", "nb-NO", "nl", "ru", "tr",
     ];
 
-    let all_languages: Vec<LanguageIdentifier> = all_languages
-        .into_iter()
-        .map(|id| id.parse().unwrap())
-        .collect();
+    let all_languages: Vec<LanguageIdentifier> =
+        all_languages.iter().map(|id| id.parse().unwrap()).collect();
 
     let i18n_assets = i18n_embed::FileSystemAssets::try_new(PathBuf::from(I18NDIR))?;
 
