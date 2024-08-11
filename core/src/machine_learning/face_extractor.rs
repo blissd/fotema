@@ -123,7 +123,7 @@ impl FaceExtractor {
 
         let bz_params_huge = BlazeFaceParams {
             score_threshold: 0.95,
-            target_size: 320,
+            target_size: 160,
             ..BlazeFaceParams::default()
         };
 
@@ -221,7 +221,7 @@ impl FaceExtractor {
 
             let result = self.blaze_face_small.detect(image.view().into_dyn());
             if let Ok(detected_faces) = result {
-                let detected_faces = Self::remove_duplicates(detected_faces, &faces);
+                //let detected_faces = Self::remove_duplicates(detected_faces, &faces);
                 for f in detected_faces {
                     faces.push((f, "blaze_face_small".into()));
                 }
@@ -234,7 +234,7 @@ impl FaceExtractor {
 
             let result = self.blaze_face_huge.detect(image.view().into_dyn());
             if let Ok(detected_faces) = result {
-                let detected_faces = Self::remove_duplicates(detected_faces, &faces);
+                //let detected_faces = Self::remove_duplicates(detected_faces, &faces);
                 for f in detected_faces {
                     faces.push((f, "blaze_face_huge".into()));
                 }
@@ -242,6 +242,11 @@ impl FaceExtractor {
                 error!("Failed extracting faces with blaze_face_huge: {:?}", result);
             }
         }
+
+        // Use "non-maxima suppression" to remove duplicate matches.
+        let mut faces = Self::suppress_non_maxima(0.3, faces);
+        //let faces = faces.retain_mut(|face| faces_no_label.contains(face));
+
         /*
         if extract_mode == ExtractMode::Heavyweight {
             let result = self.mtcnn_model.detect(image.view().into_dyn());
@@ -375,61 +380,29 @@ impl FaceExtractor {
         Ok(faces)
     }
 
-    /// Remove any duplicates where being a duplicate is determined by
-    /// the distance between centres being below a certain threshold
-    fn remove_duplicates(
-        detected_faces: Vec<DetectedFace>,
-        existing_faces: &[(DetectedFace, String)],
-    ) -> Vec<DetectedFace> {
-        detected_faces
-            .into_iter()
-            .filter(|f| f.confidence >= 0.95)
-            .filter(|f1| {
-                let nearest = existing_faces
-                    .iter()
-                    .min_by_key(|f2| Self::nose_distance(f1, &f2.0) as u32);
+    /// Lifted from rusty_faces so I can add the model name to the vector elements
+    fn suppress_non_maxima(
+        iou_threshold: f32,
+        mut faces: Vec<(DetectedFace, String)>,
+    ) -> Vec<(DetectedFace, String)> {
+        faces.sort_by(|a, b| a.0.confidence.partial_cmp(&b.0.confidence).unwrap());
 
-                nearest.is_none()
-                    || nearest.is_some_and(|f2| Self::nose_distance(f1, &f2.0) > 150.0)
-            })
-            .collect()
-    }
+        let mut faces_map = std::collections::HashMap::new();
+        faces.iter().rev().enumerate().for_each(|(i, face)| {
+            faces_map.insert(i, face);
+        });
 
-    /// Computes Euclidean distance between two points
-    fn distance(coord1: (f32, f32), coord2: (f32, f32)) -> f32 {
-        let (x1, y1) = coord1;
-        let (x2, y2) = coord2;
-
-        let x = x1 - x2;
-        let x = x * x;
-
-        let y = y1 - y2;
-        let y = y * y;
-
-        f32::sqrt(x + y)
-    }
-
-    /// Distance between the nose landmarks of two faces.
-    /// Will fallback to centre of face bounds if no landmarks.
-    fn nose_distance(face1: &DetectedFace, face2: &DetectedFace) -> f32 {
-        if let (Some(face1_landmarks), Some(face2_landmarks)) = (&face1.landmarks, &face2.landmarks)
-        {
-            // If we have landmarks, then the first two are the right and left eyes.
-            // Use the midpoint between the eyes as the centre of the thumbnail.
-            let coord1 = (face1_landmarks[2].0, face1_landmarks[2].1);
-            let coord2 = (face2_landmarks[2].0, face2_landmarks[2].1);
-            Self::distance(coord1, coord2)
-        } else {
-            let coord1 = (
-                face1.rect.x + (face1.rect.width / 2.0),
-                face1.rect.y + (face1.rect.height / 2.0),
-            );
-            let coord2 = (
-                face2.rect.x + (face2.rect.width / 2.0),
-                face2.rect.y + (face2.rect.height / 2.0),
-            );
-            Self::distance(coord1, coord2)
+        let mut nms_faces = Vec::with_capacity(faces.len());
+        let mut count = 0;
+        while !faces_map.is_empty() {
+            if let Some((_, face)) = faces_map.remove_entry(&count) {
+                nms_faces.push(face.clone());
+                faces_map.retain(|_, face2| face.0.rect.iou(&face2.0.rect) < iou_threshold);
+            }
+            count += 1;
         }
+
+        nms_faces
     }
 
     /// Computes the centre of a face.
