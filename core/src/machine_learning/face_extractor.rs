@@ -5,6 +5,7 @@
 use crate::photo::model::PictureId;
 use anyhow::*;
 
+use super::nms::Nms;
 use image::ImageReader;
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
@@ -12,7 +13,7 @@ use std::result::Result::Ok;
 
 use rust_faces::{
     BlazeFaceParams, Face as DetectedFace, FaceDetection, FaceDetectorBuilder, InferParams,
-    MtCnnParams, Provider, ToArray3,
+    Provider, ToArray3,
 };
 
 use gdk4::prelude::TextureExt;
@@ -92,9 +93,6 @@ pub struct FaceExtractor {
 
     /// BlazeFace model configured to match small to medium faces.
     blaze_face_small: Box<dyn rust_faces::FaceDetector>,
-
-    /// An alternative model with good results, but much slower than BlazeFace.
-    mtcnn_model: Box<dyn rust_faces::FaceDetector>,
 }
 
 /// What kind of face extraction model to use.
@@ -167,26 +165,11 @@ impl FaceExtractor {
                 })
                 .build()?;
 
-        let mtcnn_params = MtCnnParams {
-            //thresholds: [0.6, 0.7, 0.7],
-            ..MtCnnParams::default()
-        };
-
-        let mtcnn_model = FaceDetectorBuilder::new(FaceDetection::MtCnn(mtcnn_params))
-            .download()
-            .infer_params(InferParams {
-                provider: Provider::OrtCpu,
-                //intra_threads: Some(5),
-                ..Default::default()
-            })
-            .build()?;
-
         Ok(FaceExtractor {
             base_path,
             blaze_face_huge,
             blaze_face_big,
             blaze_face_small,
-            mtcnn_model,
         })
     }
 
@@ -244,21 +227,8 @@ impl FaceExtractor {
         }
 
         // Use "non-maxima suppression" to remove duplicate matches.
-        let mut faces = Self::suppress_non_maxima(0.3, faces);
-        //let faces = faces.retain_mut(|face| faces_no_label.contains(face));
-
-        /*
-        if extract_mode == ExtractMode::Heavyweight {
-            let result = self.mtcnn_model.detect(image.view().into_dyn());
-            if let Ok(detected_faces) = result {
-                let detected_faces = Self::remove_duplicates(detected_faces, &faces);
-                for f in detected_faces {
-                    faces.push((f, "mtcnn".into()));
-                }
-            } else {
-                error!("Failed extracting faces with MTCNN model: {:?}", result);
-            }
-        }*/
+        let nms = Nms::default();
+        let mut faces = nms.suppress_non_maxima(faces);
 
         debug!(
             "Picture {} has {} faces. Found: {:?}",
@@ -378,31 +348,6 @@ impl FaceExtractor {
         // Remove duplicates
 
         Ok(faces)
-    }
-
-    /// Lifted from rusty_faces so I can add the model name to the vector elements
-    fn suppress_non_maxima(
-        iou_threshold: f32,
-        mut faces: Vec<(DetectedFace, String)>,
-    ) -> Vec<(DetectedFace, String)> {
-        faces.sort_by(|a, b| a.0.confidence.partial_cmp(&b.0.confidence).unwrap());
-
-        let mut faces_map = std::collections::HashMap::new();
-        faces.iter().rev().enumerate().for_each(|(i, face)| {
-            faces_map.insert(i, face);
-        });
-
-        let mut nms_faces = Vec::with_capacity(faces.len());
-        let mut count = 0;
-        while !faces_map.is_empty() {
-            if let Some((_, face)) = faces_map.remove_entry(&count) {
-                nms_faces.push(face.clone());
-                faces_map.retain(|_, face2| face.0.rect.iou(&face2.0.rect) < iou_threshold);
-            }
-            count += 1;
-        }
-
-        nms_faces
     }
 
     /// Computes the centre of a face.
