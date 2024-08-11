@@ -97,11 +97,8 @@ pub enum FaceDetectionMode {
     #[default]
     Off,
 
-    /// Enable with lightweight face detection model suitable for mobile.
-    Mobile,
-
-    /// Enable with heavyweight face detection model suitable for desktop.
-    Desktop,
+    // Enable
+    On,
 }
 
 /// Settings the user can change in the preferences dialog.

@@ -14,7 +14,6 @@ use tracing::{error, info};
 use futures::executor::block_on;
 
 use fotema_core::machine_learning::face_extractor::FaceExtractor;
-use fotema_core::machine_learning::face_extractor::ExtractMode;
 use fotema_core::people;
 use fotema_core::photo::PictureId;
 
@@ -27,7 +26,7 @@ use crate::app::components::progress_monitor::{
 
 #[derive(Debug)]
 pub enum PhotoDetectFacesInput {
-    DetectForAllPictures(ExtractMode),
+    DetectForAllPictures,
     DetectForOnePicture(PictureId),
 }
 
@@ -59,23 +58,23 @@ impl PhotoDetectFaces {
         let result = self.repo.get_file_to_scan(picture_id)?;
         if let Some(picture_path) = result {
             let unprocessed = vec![(picture_id, picture_path)];
-            self.detect(sender, ExtractMode::Heavyweight, unprocessed)
+            self.detect(sender, unprocessed)
         } else {
             Err(anyhow!("No file to scan"))
         }
     }
 
-    fn detect_for_all(&self, sender: ComponentSender<Self>, extract_mode: ExtractMode) -> Result<()> {
+    fn detect_for_all(&self, sender: ComponentSender<Self>) -> Result<()> {
         let unprocessed: Vec<(PictureId, PathBuf)> = self.repo
             .find_need_face_scan()?
             .into_iter()
             .filter(|(_, path)| path.exists())
             .collect();
 
-        self.detect(sender, extract_mode, unprocessed)
+        self.detect(sender, unprocessed)
     }
 
-    fn detect(&self, sender: ComponentSender<Self>, extract_mode: ExtractMode, unprocessed: Vec<(PictureId, PathBuf)>) -> Result<()> {
+    fn detect(&self, sender: ComponentSender<Self>, unprocessed: Vec<(PictureId, PathBuf)>) -> Result<()> {
         let start = std::time::Instant::now();
 
         let count = unprocessed.len();
@@ -108,7 +107,7 @@ impl PhotoDetectFaces {
                 // Careful! panic::catch_unwind returns Ok(Err) if the evaluated expression returns
                 // an error but doesn't panic.
                 let result = block_on(async {
-                        extractor.extract_faces(picture_id, path, extract_mode).await
+                        extractor.extract_faces(picture_id, path).await
                     }).and_then(|faces| repo.clone().add_face_scans(picture_id, &faces));
 
                 if result.is_err() {
@@ -144,13 +143,13 @@ impl Worker for PhotoDetectFaces {
 
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
-            PhotoDetectFacesInput::DetectForAllPictures(extract_mode) => {
+            PhotoDetectFacesInput::DetectForAllPictures => {
                 info!("Extracting faces for all pictures...");
                 let this = self.clone();
 
                 // Avoid runtime panic from calling block_on
                 rayon::spawn(move || {
-                    if let Err(e) = this.detect_for_all(sender, extract_mode) {
+                    if let Err(e) = this.detect_for_all(sender) {
                         error!("Failed to extract photo faces: {}", e);
                     }
                 });

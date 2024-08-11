@@ -5,4 +5,5 @@
 //pub mod blaze_face;
 pub mod face_extractor;
 pub mod face_recognizer;
+pub mod nms;
 //pub mod yolov8;

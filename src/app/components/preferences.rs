@@ -4,7 +4,6 @@
 
 use relm4::{adw, ComponentParts, ComponentSender, SimpleComponent};
 use relm4::adw::prelude::*;
-use relm4::gtk;
 
 use tracing::info;
 
@@ -14,12 +13,17 @@ use crate::app::FaceDetectionMode;
 
 pub struct PreferencesDialog {
     parent: adw::ApplicationWindow,
-    face_detection_mode_row: adw::ComboRow,
     dialog: adw::PreferencesDialog,
     settings_state: SettingsState,
 
     // Preference values
     settings: Settings,
+}
+
+impl PreferencesDialog {
+    pub fn is_face_detection_active(&self) -> bool {
+        self.settings.face_detection_mode == FaceDetectionMode::On
+    }
 }
 
 #[derive(Debug)]
@@ -63,11 +67,19 @@ impl SimpleComponent for PreferencesDialog {
                     },
 
                     #[local_ref]
-                    face_detection_mode_row -> adw::ComboRow {
+                    face_detection_mode_row -> adw::SwitchRow {
                         set_title: &fl!("prefs-views-faces"),
                         set_subtitle: &fl!("prefs-views-faces", "subtitle"),
-                        connect_selected_item_notify[sender] => move |row| {
-                            let mode = FaceDetectionMode::from_repr(row.selected()).unwrap_or_default();
+
+                        #[watch]
+                        set_active: model.is_face_detection_active(),
+
+                        connect_active_notify[sender] => move |switch| {
+                            let mode = if switch.is_active() {
+                                FaceDetectionMode::On
+                            } else {
+                                FaceDetectionMode::Off
+                            };
                             let _ = sender.input_sender().send(PreferencesInput::UpdateFaceDetectionMode(mode));
                         },
                     }
@@ -85,17 +97,12 @@ impl SimpleComponent for PreferencesDialog {
 
         settings_state.subscribe(sender.input_sender(), |settings| PreferencesInput::SettingsChanged(settings.clone()));
 
-        let face_detection_mode_row = adw::ComboRow::new();
-        let list = gtk::StringList::new(&[
-            &fl!("prefs-views-faces", "off"),
-            &fl!("prefs-views-faces", "enable-mobile"),
-            &fl!("prefs-views-faces", "enable-desktop"),
-        ]);
-        face_detection_mode_row.set_model(Some(&list));
+        let face_detection_mode_row = adw::SwitchRow::builder()
+            .active(settings_state.read().face_detection_mode == FaceDetectionMode::On)
+            .build();
 
         let model = Self {
             settings_state: settings_state.clone(),
-            face_detection_mode_row: face_detection_mode_row.clone(),
             parent,
             dialog: dialog.clone(),
             settings: settings_state.read().clone(),
@@ -117,12 +124,6 @@ impl SimpleComponent for PreferencesDialog {
             PreferencesInput::SettingsChanged(settings) => {
                 info!("Received update from settings shared state");
                 self.settings = settings;
-                let index = match self.settings.face_detection_mode {
-                    FaceDetectionMode::Off => 0,
-                    FaceDetectionMode::Mobile => 1,
-                    FaceDetectionMode::Desktop => 2,
-                };
-                self.face_detection_mode_row.set_selected(index);
             },
             PreferencesInput::UpdateShowSelfies(show_selfies) => {
                 info!("Update show selfies: {}", show_selfies);
