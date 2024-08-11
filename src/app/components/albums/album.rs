@@ -359,6 +359,8 @@ impl Album {
         //self.photo_grid.add_filter(move |item| (self.photo_grid_filter)(&item.picture));
         self.photo_grid.extend_from_iter(all);
 
+        info!("{} items added to album", self.photo_grid.len());
+
         self.go_to_last();
     }
 

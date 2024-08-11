@@ -9,7 +9,7 @@ use fotema_core::visual::Repository;
 use fotema_core::Visual;
 use std::sync::Arc;
 use anyhow::*;
-use tracing::error;
+use tracing::{error, info};
 
 #[derive(Debug)]
 pub enum LoadLibraryInput {
@@ -51,6 +51,8 @@ impl LoadLibrary {
             .into_iter()
             .map(Arc::new)
             .collect::<Vec<Arc<Visual>>>();
+
+        info!("Loaded {} visual items", all.len());
 
         let mut index = self.state.write();
         index.clear();

@@ -113,18 +113,21 @@ impl FaceExtractor {
         std::fs::create_dir_all(&base_path)?;
 
         // Tweaking the target size seems to affect which faces are detected.
+        // Testing against my library, it looks like smaller numbers match bigger faces,
+        // bigger numbers smaller faces.
+        //
         // 1280. Default. Misses larger faces.
-        // 960. Three quarters. Some larger, some smaller.
-        // 640. Half default. Misses smaller faces.
-        // 320. Quarter default. Matches big faces.
+        // 960. Three quarters. Matches a mix of some larger, some smaller.
+        // 640. Half default. Misses a mix of some larger, some smaller.
+        // 320. Quarter default. Matches only very big faces.
 
         let bz_params_huge = BlazeFaceParams {
-            score_threshold: 0.95, // confidence match is a face
+            score_threshold: 0.95,
             target_size: 320,
             ..BlazeFaceParams::default()
         };
 
-        let blaze_face_huge = FaceDetectorBuilder::new(FaceDetection::BlazeFace320(bz_params_huge))
+        let blaze_face_huge = FaceDetectorBuilder::new(FaceDetection::BlazeFace640(bz_params_huge))
             .download()
             .infer_params(InferParams {
                 provider: Provider::OrtCpu,
@@ -134,12 +137,12 @@ impl FaceExtractor {
             .build()?;
 
         let bz_params_big = BlazeFaceParams {
-            score_threshold: 0.95, // confidence match is a face
+            score_threshold: 0.95,
             target_size: 640,
             ..BlazeFaceParams::default()
         };
 
-        let blaze_face_big = FaceDetectorBuilder::new(FaceDetection::BlazeFace320(bz_params_big))
+        let blaze_face_big = FaceDetectorBuilder::new(FaceDetection::BlazeFace640(bz_params_big))
             .download()
             .infer_params(InferParams {
                 provider: Provider::OrtCpu,
@@ -149,13 +152,13 @@ impl FaceExtractor {
             .build()?;
 
         let bz_params_small = BlazeFaceParams {
-            score_threshold: 0.95, // confidence match is a face
+            score_threshold: 0.95,
             target_size: 1280,
             ..BlazeFaceParams::default()
         };
 
         let blaze_face_small =
-            FaceDetectorBuilder::new(FaceDetection::BlazeFace320(bz_params_small))
+            FaceDetectorBuilder::new(FaceDetection::BlazeFace640(bz_params_small))
                 .download()
                 .infer_params(InferParams {
                     provider: Provider::OrtCpu,
@@ -229,7 +232,6 @@ impl FaceExtractor {
                 );
             }
 
-            // Only do huge face detection if no other faces found.
             let result = self.blaze_face_huge.detect(image.view().into_dyn());
             if let Ok(detected_faces) = result {
                 let detected_faces = Self::remove_duplicates(detected_faces, &faces);
@@ -240,7 +242,7 @@ impl FaceExtractor {
                 error!("Failed extracting faces with blaze_face_huge: {:?}", result);
             }
         }
-
+        /*
         if extract_mode == ExtractMode::Heavyweight {
             let result = self.mtcnn_model.detect(image.view().into_dyn());
             if let Ok(detected_faces) = result {
@@ -251,7 +253,7 @@ impl FaceExtractor {
             } else {
                 error!("Failed extracting faces with MTCNN model: {:?}", result);
             }
-        }
+        }*/
 
         debug!(
             "Picture {} has {} faces. Found: {:?}",
