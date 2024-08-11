@@ -13,6 +13,7 @@
     <ul>
       <li>View iOS Live Photos and Android motion photos (Samsung devices only).</li>
       <li>View photos plotted on a map.</li>
+      <li>Automatically detects faces.</li>
       <li>View your library by year or month.</li>
       <li>Play videos.</li>
       <li>Many supported image formats. Fotema supports the same image formats as Loupe (the GNOME image viewer).</li>
@@ -65,6 +66,19 @@
   </branding>
 
   <releases>
+    <release version="1.10.1" date="2024-08-11">
+      <description>
+        <p>Improvements:</p>
+        <ul>
+          <li>Faster face detection.</li>
+          <li>Remove confusing desktop/mobile face detection options.</li>
+        </ul>
+        <p>Bugs fixed:</p>
+        <ul>
+          <li>Face thumbnails visible on live photo transcode view.</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.10.0" date="2024-08-07">
       <description>
         <p>Improvements:</p>
