@@ -183,8 +183,7 @@ impl Bootstrap {
         let sender = self.photo_detect_faces.sender().clone();
         let mode = match self.settings_state.read().face_detection_mode {
             FaceDetectionMode::Off => None,
-            FaceDetectionMode::Mobile => Some(ExtractMode::Lightweight),
-            FaceDetectionMode::Desktop => Some(ExtractMode::Heavyweight),
+            FaceDetectionMode::On => Some(ExtractMode::Lightweight),
         };
         if let Some(mode) = mode {
             self.enqueue(Box::new(move || sender.emit(PhotoDetectFacesInput::DetectForAllPictures(mode))));

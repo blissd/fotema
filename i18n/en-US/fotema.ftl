@@ -42,17 +42,15 @@ people-page = People
 # Status page shown for people album when face detection is disabled.
 people-page-status-off =
   .title = Enable face detection?
-  .description = { -app-name } can automatically detect faces and recognize people. Do you want to enable this feature?
+  .description = { -app-name } can automatically detect faces and recognize people, but this is a time consuming process. Do you want to enable this feature?
   .notice = { -app-name } must download about 45 megabytes of data to recognize faces and people.
-  .enable-mobile = Enable for mobile
-  .enable-desktop = Enable for desktop
+  .enable = Enable
 
 # Status page shown for people album when no people are found.
 people-page-status-no-people =
   .title = No people found
   .description = { -app-name } will look for faces in new photos when launched.
-  If you've told { -app-name } that a face is for a person you know, then { -app-name }
-  will also look for new photos of that person.
+  Name the people in your photos so { -app-name } can make an album for each person.
 
 ## Thumbnail decorations
 
@@ -238,10 +236,7 @@ prefs-views-selfies = Selfies
 # Set face detection mode. Off, lightweight mobile model, or heavyweight
 # desktop model
 prefs-views-faces = Face Detection
-  .subtitle = Enable face detection.
-  .off = Off
-  .enable-mobile = Mobile
-  .enable-desktop = Desktop
+  .subtitle = Enable face detection when Fotema launches. This is a time consuming process.
 
 ## Progress bar for background tasks
 

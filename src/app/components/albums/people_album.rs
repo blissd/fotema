@@ -58,9 +58,7 @@ pub enum PeopleAlbumInput {
 
     SettingsChanged,
 
-    EnableForMobile,
-
-    EnableForDesktop,
+    EnableFaceDetection,
 }
 
 #[derive(Debug)]
@@ -184,17 +182,10 @@ impl SimpleComponent for PeopleAlbum {
                         set_orientation: gtk::Orientation::Vertical,
 
                         gtk::Button {
-                            set_label: &fl!("people-page-status-off", "enable-mobile"),
+                            set_label: &fl!("people-page-status-off", "enable"),
                             //add_css_class: "suggested-action",
                             add_css_class: "pill",
-                            connect_clicked => PeopleAlbumInput::EnableForMobile,
-                        },
-
-                        gtk::Button {
-                            set_label: &fl!("people-page-status-off", "enable-desktop"),
-                            //add_css_class: "suggested-action",
-                            add_css_class: "pill",
-                            connect_clicked => PeopleAlbumInput::EnableForDesktop,
+                            connect_clicked => PeopleAlbumInput::EnableFaceDetection,
                         },
                     }
                 }
@@ -262,22 +253,13 @@ impl SimpleComponent for PeopleAlbum {
             PeopleAlbumInput::SettingsChanged => {
                 self.refresh();
             },
-            PeopleAlbumInput::EnableForMobile => {
+            PeopleAlbumInput::EnableFaceDetection => {
                 let mut settings = self.settings_state.read().clone();
-                settings.face_detection_mode = FaceDetectionMode::Mobile;
+                settings.face_detection_mode = FaceDetectionMode::On;
                 *self.settings_state.write() = settings;
                 self.refresh();
                 let _ = sender.output(PeopleAlbumOutput::EnableFaceDetection);
             },
-
-            PeopleAlbumInput::EnableForDesktop => {
-                let mut settings = self.settings_state.read().clone();
-                settings.face_detection_mode = FaceDetectionMode::Desktop;
-                *self.settings_state.write() = settings;
-                self.refresh();
-                let _ = sender.output(PeopleAlbumOutput::EnableFaceDetection);
-            },
-
         }
     }
 }
