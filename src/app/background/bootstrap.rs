@@ -16,7 +16,6 @@ use fotema_core::video;
 use fotema_core::visual;
 use fotema_core::people;
 use fotema_core::PictureId;
-use fotema_core::machine_learning::face_extractor::ExtractMode;
 
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
@@ -181,13 +180,13 @@ impl Bootstrap {
 
     fn add_task_photo_detect_faces(&mut self) {
         let sender = self.photo_detect_faces.sender().clone();
-        let mode = match self.settings_state.read().face_detection_mode {
-            FaceDetectionMode::Off => None,
-            FaceDetectionMode::On => Some(ExtractMode::Lightweight),
+        let mode = self.settings_state.read().face_detection_mode;
+        match mode {
+            FaceDetectionMode::Off => {},
+            FaceDetectionMode::On => {
+                self.enqueue(Box::new(move || sender.emit(PhotoDetectFacesInput::DetectForAllPictures)));
+            },
         };
-        if let Some(mode) = mode {
-            self.enqueue(Box::new(move || sender.emit(PhotoDetectFacesInput::DetectForAllPictures(mode))));
-        }
     }
 
     fn add_task_photo_detect_faces_for_one(&mut self, picture_id: PictureId) {

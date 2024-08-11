@@ -95,16 +95,6 @@ pub struct FaceExtractor {
     blaze_face_small: Box<dyn rust_faces::FaceDetector>,
 }
 
-/// What kind of face extraction model to use.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum ExtractMode {
-    /// A fast but less accurate model suitable for mobile devices.
-    Lightweight,
-
-    /// A slow but more accurate model suitable for desktop devices.
-    Heavyweight,
-}
-
 impl FaceExtractor {
     pub fn build(base_path: &Path) -> Result<FaceExtractor> {
         let base_path = PathBuf::from(base_path).join("photo_faces");
@@ -178,13 +168,9 @@ impl FaceExtractor {
         &self,
         picture_id: &PictureId,
         picture_path: &Path,
-        extract_mode: ExtractMode,
     ) -> Result<Vec<Face>> {
         // return Ok(vec![]);
-        info!(
-            "Detecting faces in {:?} using {:?} model",
-            picture_path, extract_mode
-        );
+        info!("Detecting faces in {:?}", picture_path);
 
         let original_image = Self::open_image(picture_path).await?;
 
@@ -192,38 +178,36 @@ impl FaceExtractor {
 
         let mut faces: Vec<(DetectedFace, String)> = vec![];
 
-        if extract_mode == ExtractMode::Lightweight || extract_mode == ExtractMode::Heavyweight {
-            let result = self.blaze_face_big.detect(image.view().into_dyn());
-            if let Ok(detected_faces) = result {
-                for f in detected_faces {
-                    faces.push((f, "blaze_face_big".into()));
-                }
-            } else {
-                error!("Failed extracting faces with blaze_face_big: {:?}", result);
+        let result = self.blaze_face_big.detect(image.view().into_dyn());
+        if let Ok(detected_faces) = result {
+            for f in detected_faces {
+                faces.push((f, "blaze_face_big".into()));
             }
+        } else {
+            error!("Failed extracting faces with blaze_face_big: {:?}", result);
+        }
 
-            let result = self.blaze_face_small.detect(image.view().into_dyn());
-            if let Ok(detected_faces) = result {
-                //let detected_faces = Self::remove_duplicates(detected_faces, &faces);
-                for f in detected_faces {
-                    faces.push((f, "blaze_face_small".into()));
-                }
-            } else {
-                error!(
-                    "Failed extracting faces with blaze_face_small: {:?}",
-                    result
-                );
+        let result = self.blaze_face_small.detect(image.view().into_dyn());
+        if let Ok(detected_faces) = result {
+            //let detected_faces = Self::remove_duplicates(detected_faces, &faces);
+            for f in detected_faces {
+                faces.push((f, "blaze_face_small".into()));
             }
+        } else {
+            error!(
+                "Failed extracting faces with blaze_face_small: {:?}",
+                result
+            );
+        }
 
-            let result = self.blaze_face_huge.detect(image.view().into_dyn());
-            if let Ok(detected_faces) = result {
-                //let detected_faces = Self::remove_duplicates(detected_faces, &faces);
-                for f in detected_faces {
-                    faces.push((f, "blaze_face_huge".into()));
-                }
-            } else {
-                error!("Failed extracting faces with blaze_face_huge: {:?}", result);
+        let result = self.blaze_face_huge.detect(image.view().into_dyn());
+        if let Ok(detected_faces) = result {
+            //let detected_faces = Self::remove_duplicates(detected_faces, &faces);
+            for f in detected_faces {
+                faces.push((f, "blaze_face_huge".into()));
             }
+        } else {
+            error!("Failed extracting faces with blaze_face_huge: {:?}", result);
         }
 
         // Use "non-maxima suppression" to remove duplicate matches.
