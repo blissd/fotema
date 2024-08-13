@@ -5,9 +5,9 @@
 use relm4::prelude::*;
 use relm4::Worker;
 use rayon::prelude::*;
-use anyhow::*;
+use anyhow::Result;
 
-use tracing::{error, info};
+use tracing::{debug, error, info};
 
 #[derive(Debug)]
 pub enum VideoCleanInput {
@@ -56,7 +56,17 @@ impl VideoClean {
         vids.par_iter()
             .for_each(|vid| {
                 if !vid.path.exists() {
-                    let result = self.repo.clone().remove(vid.video_id);
+                    let mut repo = self.repo.clone();
+                    if let Ok(paths) = repo.find_files_to_cleanup(vid.video_id) {
+                        for path in paths {
+                            debug!("Deleting {:?}", path);
+                            if let Err(e) = std::fs::remove_file(&path) {
+                                error!("Failed deleting {:?} with {}", path, e);
+                            }
+                        }
+                    }
+
+                    let result = repo.remove(vid.video_id);
                     if let Err(e) = result {
                         error!("Failed remove {}: {:?}", vid.video_id, e);
                     } else {

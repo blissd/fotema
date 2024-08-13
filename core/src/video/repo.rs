@@ -22,7 +22,10 @@ pub struct Repository {
     library_base_path: PathBuf,
 
     /// Base path for thumbnails and transcoded videos
-    thumbnail_base_path: PathBuf,
+    cache_dir_base_path: PathBuf,
+
+    /// Base path for data directory
+    data_dir_base_path: PathBuf,
 
     /// Connection to backing Sqlite database.
     con: Arc<Mutex<rusqlite::Connection>>,
@@ -32,15 +35,16 @@ impl Repository {
     /// Builds a Repository and creates operational tables.
     pub fn open(
         library_base_path: &Path,
-        thumbnail_base_path: &Path,
+        cache_dir_base_path: &Path,
+        data_dir_base_path: &Path,
         con: Arc<Mutex<rusqlite::Connection>>,
     ) -> Result<Repository> {
-        let thumbnail_base_path = PathBuf::from(thumbnail_base_path);
-        std::fs::create_dir_all(&thumbnail_base_path)?;
+        std::fs::create_dir_all(cache_dir_base_path)?;
 
         let repo = Repository {
             library_base_path: PathBuf::from(library_base_path),
-            thumbnail_base_path,
+            cache_dir_base_path: cache_dir_base_path.into(),
+            data_dir_base_path: data_dir_base_path.into(),
             con,
         };
 
@@ -61,7 +65,7 @@ impl Repository {
             )?;
 
             // convert to relative path before saving to database
-            let thumbnail_path = thumbnail_path.strip_prefix(&self.thumbnail_base_path).ok();
+            let thumbnail_path = thumbnail_path.strip_prefix(&self.cache_dir_base_path).ok();
 
             stmt.execute(params![
                 video_id.id(),
@@ -105,7 +109,7 @@ impl Repository {
             )?;
 
             // convert to relative path before saving to database
-            let transcoded_path = transcoded_path.strip_prefix(&self.thumbnail_base_path).ok();
+            let transcoded_path = transcoded_path.strip_prefix(&self.cache_dir_base_path).ok();
 
             stmt.execute(params![
                 video_id.id(),
@@ -257,6 +261,20 @@ impl Repository {
         Ok(result)
     }
 
+    /// Gets paths of files to delete when a video is no longer present.
+    pub fn find_files_to_cleanup(&self, video_id: VideoId) -> Result<Vec<PathBuf>> {
+        let con = self.con.lock().unwrap();
+        let mut stmt =
+            con.prepare("SELECT root_name, path FROM videos_cleanup WHERE video_id = ?1")?;
+
+        let result = stmt
+            .query_map([video_id.id()], |row| self.to_cleanup_path(row))?
+            .flatten()
+            .collect();
+
+        Ok(result)
+    }
+
     fn to_video(&self, row: &Row<'_>) -> rusqlite::Result<Video> {
         let video_id = row.get("video_id").map(VideoId::new)?;
 
@@ -267,7 +285,7 @@ impl Repository {
 
         let thumbnail_path = row
             .get("thumbnail_path")
-            .map(|p: String| self.thumbnail_base_path.join(p))
+            .map(|p: String| self.cache_dir_base_path.join(p))
             .ok();
 
         let ordering_ts = row.get("ordering_ts").expect("must have ordering_ts");
@@ -281,7 +299,7 @@ impl Repository {
 
         let transcoded_path = row
             .get("transcoded_path")
-            .map(|p: String| self.thumbnail_base_path.join(p))
+            .map(|p: String| self.cache_dir_base_path.join(p))
             .ok();
 
         std::result::Result::Ok(Video {
@@ -293,6 +311,17 @@ impl Repository {
             video_codec,
             transcoded_path,
         })
+    }
+
+    fn to_cleanup_path(&self, row: &Row<'_>) -> rusqlite::Result<PathBuf> {
+        let root_name: String = row.get("root_name")?;
+
+        row.get("path")
+            .and_then(|p: String| match root_name.as_str() {
+                "cache" => std::result::Result::Ok(self.cache_dir_base_path.join(p)),
+                "data" => std::result::Result::Ok(self.data_dir_base_path.join(p)),
+                _ => Err(rusqlite::Error::InvalidPath(p.into())),
+            })
     }
 
     pub fn remove(&mut self, video_id: VideoId) -> Result<()> {
