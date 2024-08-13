@@ -1269,7 +1269,7 @@ dependencies = [
  "fast_image_resize",
  "ffmpeg-next",
  "gdk4",
- "gio 0.20.0",
+ "gio 0.20.1",
  "glycin",
  "gtk",
  "h3o",
@@ -1439,7 +1439,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "28bb53ecb56857c683c9ec859908e076dd3969c7d67598bd8b1ce095d211304a"
 dependencies = [
  "gdk-pixbuf-sys 0.20.0",
- "gio 0.20.0",
+ "gio 0.20.1",
  "glib 0.20.0",
  "libc",
 ]
@@ -1496,7 +1496,7 @@ dependencies = [
  "cairo-rs 0.20.0",
  "gdk-pixbuf 0.20.0",
  "gdk4-sys",
- "gio 0.20.0",
+ "gio 0.20.1",
  "glib 0.20.0",
  "libc",
  "pango 0.20.0",
@@ -1599,9 +1599,9 @@ dependencies = [
 
 [[package]]
 name = "gio"
-version = "0.20.0"
+version = "0.20.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "398e3da68749fdc32783cbf7521ec3f65c9cf946db8c7774f8460af49e52c6e2"
+checksum = "dcacaa37401cad0a95aadd266bc39c72a131d454fc012f6dfd217f891d76cc52"
 dependencies = [
  "futures-channel",
  "futures-core",
@@ -1612,7 +1612,6 @@ dependencies = [
  "libc",
  "pin-project-lite",
  "smallvec",
- "thiserror",
 ]
 
 [[package]]
@@ -1753,7 +1752,7 @@ dependencies = [
  "futures-timer",
  "futures-util",
  "gdk4",
- "gio 0.20.0",
+ "gio 0.20.1",
  "glycin-utils",
  "gufo-common",
  "gufo-exif",
@@ -1930,7 +1929,7 @@ dependencies = [
  "futures-channel",
  "gdk-pixbuf 0.20.0",
  "gdk4",
- "gio 0.20.0",
+ "gio 0.20.1",
  "glib 0.20.0",
  "graphene-rs",
  "gsk4",
@@ -2661,7 +2660,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2ff9c222b5c783729de45185f07b2fec2d43a7f9c63961e777d3667e20443878"
 dependencies = [
  "gdk4",
- "gio 0.20.0",
+ "gio 0.20.1",
  "glib 0.20.0",
  "gtk4",
  "libadwaita-sys",
@@ -2764,7 +2763,7 @@ checksum = "fc9921cc829fb2d546bd6a3a158a4134002098887e0bb01ceb4535521af610ec"
 dependencies = [
  "gdk-pixbuf 0.20.0",
  "gdk4",
- "gio 0.20.0",
+ "gio 0.20.1",
  "glib 0.20.0",
  "gtk4",
  "libc",
@@ -3405,7 +3404,7 @@ version = "0.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "54768854025df6903061d0084fd9702a253ddfd60db7d9b751d43b76689a7f0a"
 dependencies = [
- "gio 0.20.0",
+ "gio 0.20.1",
  "glib 0.20.0",
  "libc",
  "pango-sys 0.20.0",
