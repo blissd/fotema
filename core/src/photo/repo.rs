@@ -9,7 +9,7 @@ use super::model::MotionPhotoVideo;
 use super::motion_photo;
 use super::Metadata;
 use crate::path_encoding;
-use anyhow::*;
+use anyhow::{bail, Result};
 use rusqlite;
 use rusqlite::params;
 use rusqlite::Row;
@@ -23,8 +23,11 @@ pub struct Repository {
     /// Base path to picture library on file system
     library_base_path: PathBuf,
 
-    /// Base path for photo thumbnails and motion photo videos
+    /// Base path cache directory for photo thumbnails and motion photo videos
     cache_dir_base_path: PathBuf,
+
+    /// Base path for data directory
+    data_dir_base_path: PathBuf,
 
     /// Connection to backing Sqlite database.
     con: Arc<Mutex<rusqlite::Connection>>,
@@ -35,6 +38,7 @@ impl Repository {
     pub fn open(
         library_base_path: &Path,
         cache_dir_base_path: &Path,
+        data_dir_base_path: &Path,
         con: Arc<Mutex<rusqlite::Connection>>,
     ) -> Result<Repository> {
         if !library_base_path.is_dir() {
@@ -43,10 +47,12 @@ impl Repository {
 
         let library_base_path = PathBuf::from(library_base_path);
         let cache_dir_base_path = PathBuf::from(cache_dir_base_path);
+        let data_dir_base_path = PathBuf::from(data_dir_base_path);
 
         let repo = Repository {
             library_base_path,
             cache_dir_base_path,
+            data_dir_base_path,
             con,
         };
 
@@ -299,6 +305,20 @@ impl Repository {
         Ok(result)
     }
 
+    /// Gets paths of files to delete when a picture is no longer present.
+    pub fn find_files_to_cleanup(&self, picture_id: PictureId) -> Result<Vec<PathBuf>> {
+        let con = self.con.lock().unwrap();
+        let mut stmt =
+            con.prepare("SELECT root_name, path FROM pictures_cleanup WHERE picture_id = ?1")?;
+
+        let result = stmt
+            .query_map([picture_id.id()], |row| self.to_cleanup_path(row))?
+            .flatten()
+            .collect();
+
+        Ok(result)
+    }
+
     pub fn add_motion_photo_video(
         &mut self,
         picture_id: &PictureId,
@@ -398,6 +418,17 @@ impl Repository {
             ordering_ts,
             is_selfie,
         })
+    }
+
+    fn to_cleanup_path(&self, row: &Row<'_>) -> rusqlite::Result<PathBuf> {
+        let root_name: String = row.get("root_name")?;
+
+        row.get("path")
+            .and_then(|p: String| match root_name.as_str() {
+                "cache" => std::result::Result::Ok(self.cache_dir_base_path.join(p)),
+                "data" => std::result::Result::Ok(self.data_dir_base_path.join(p)),
+                _ => Err(rusqlite::Error::InvalidPath(p.into())),
+            })
     }
 
     pub fn remove(&mut self, picture_id: PictureId) -> Result<()> {

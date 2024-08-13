@@ -240,6 +240,7 @@ impl Worker for Bootstrap {
         let photo_repo = photo::Repository::open(
             &pic_base_dir,
             &cache_dir,
+            &data_dir,
             con.clone(),
         )
         .unwrap();

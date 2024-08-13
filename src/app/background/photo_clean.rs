@@ -5,9 +5,9 @@
 use relm4::prelude::*;
 use relm4::Worker;
 use rayon::prelude::*;
-use anyhow::*;
+use anyhow::Result;
 
-use tracing::{error, info};
+use tracing::{debug, error, info};
 
 #[derive(Debug)]
 pub enum PhotoCleanInput {
@@ -56,7 +56,17 @@ impl PhotoClean {
         pics.par_iter()
             .for_each(|pic| {
                 if !pic.path.exists() {
-                    let result = self.repo.clone().remove(pic.picture_id);
+                    let mut repo = self.repo.clone();
+                    if let Ok(paths) = repo.find_files_to_cleanup(pic.picture_id) {
+                        for path in paths {
+                            debug!("Deleeting {:?}", path);
+                            if let Err(e) = std::fs::remove_file(&path) {
+                                error!("Failed deleting {:?} with {}", path, e);
+                            }
+                        }
+                    }
+
+                    let result = repo.remove(pic.picture_id);
                     if let Err(e) = result {
                         error!("Failed remove {}: {:?}", pic.picture_id, e);
                     } else {
