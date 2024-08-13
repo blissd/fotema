@@ -59,7 +59,7 @@ impl PhotoClean {
                     let mut repo = self.repo.clone();
                     if let Ok(paths) = repo.find_files_to_cleanup(pic.picture_id) {
                         for path in paths {
-                            debug!("Deleeting {:?}", path);
+                            debug!("Deleting {:?}", path);
                             if let Err(e) = std::fs::remove_file(&path) {
                                 error!("Failed deleting {:?} with {}", path, e);
                             }
