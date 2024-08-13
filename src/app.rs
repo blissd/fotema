@@ -493,7 +493,7 @@ impl SimpleComponent for App {
         let con = Arc::new(Mutex::new(con));
 
         let video_repo = {
-            video::Repository::open(&pic_base_dir, &cache_dir, con.clone()).unwrap()
+            video::Repository::open(&pic_base_dir, &cache_dir, &data_dir, con.clone()).unwrap()
         };
 
         let people_repo = people::Repository::open(

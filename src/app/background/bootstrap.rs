@@ -250,7 +250,7 @@ impl Worker for Bootstrap {
         let video_scanner = video::Scanner::build(&pic_base_dir).unwrap();
 
         let video_repo = {
-            video::Repository::open(&pic_base_dir, &cache_dir, con.clone()).unwrap()
+            video::Repository::open(&pic_base_dir, &cache_dir, &data_dir, con.clone()).unwrap()
         };
 
         let video_thumbnailer = video::Thumbnailer::build(&cache_dir).unwrap();
