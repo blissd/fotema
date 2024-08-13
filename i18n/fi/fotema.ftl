@@ -236,19 +236,17 @@ person-menu-delete = Poista henkilö
 person-menu-rename = Nimeä henkilö uudelleen
 people-page-status-off =
     .title = Otetaanko kasvojentunnistus käyttöön?
-    .description = { -app-name } voi havaita kasvot ja tunnistaa ihmisiä automaattisesti. Haluatko käyttää tätä ominaisuutta?
+    .description = { -app-name } voi havaita kasvot ja tunnistaa ihmisiä automaattisesti, mutta siinä voi kestää kauan. Haluatko käyttää tätä ominaisuutta?
     .notice = { -app-name }n tulee ladata noin 45 megatavua dataa kasvojen ja ihmisten tunnistamiseksi.
-    .enable-mobile = Ota käyttöön mobiilissa
-    .enable-desktop = Ota käyttöön tietokoneella
+    .enable = Ota käyttöön
 people-page = Ihmiset
 people-set-face-thumbnail = Käytä pienoiskuvana
 people-set-name = Aseta nimi
 people-page-status-no-people =
     .title = Ihmisiä ei löytynyt
     .description =
-        { -app-name } etsii kasvoja kuvista, kun sovellus käynnistetään.
-        Jos kerroit { -app-name }lle, että kasvot kuuluvat tuntemallesi henkilölle, { -app-name }
-        etsii myös uusia kuvia kyseisestä henkilöstä.
+        { -app-name } etsii kasvoja uusista kuvista, kun sovellus käynnistyy.
+        Anna ihmisille nimi, jotta { -app-name } voi tehdä albumin jokaisesta henkilöstä.
 viewer-faces-menu =
     .tooltip = Kasvot-valikko
     .restore-ignored = Palauta kaikki ohitetut kasvot
@@ -259,10 +257,7 @@ people-person-search =
 banner-detect-faces-photos = Havaitaan kasvoja kuvissa. Tämä kestää hetken.
 banner-recognize-faces-photos = Tunnistetaan ihmisiä kuvissa. Tämä kestää hetken.
 prefs-views-faces = Kasvojentunnistus
-    .subtitle = Käytä kasvojentunnistusta.
-    .off = Pois
-    .enable-mobile = Mobiili
-    .enable-desktop = Tietokone
+    .subtitle = Ota kasvojentunnistus käyttöön, kun Fotema käynnistyy. Kasvojentunnistuksessa voi kestää kauan.
 person-delete-dialog =
     .heading = Poistetaanko henkilö?
     .body = Kuvia tai videoita ei poisteta.

@@ -214,10 +214,7 @@ banner-extract-motion-photos = Elaborazione di foto in movimento.
 prefs-title = Preferenze
 people-set-face-thumbnail = Usa come miniatura
 prefs-views-faces = Rilevamento del volto
-    .subtitle = Abilita il rilevamento del volto.
-    .off = Disattivato
-    .enable-mobile = Mobile
-    .enable-desktop = Desktop
+    .subtitle = Abilita il rilevamento del volto quando Fotema si avvia. Questo è un processo che richiede molto tempo.
 people-person-search =
     .placeholder = Nome della persona
 people-face-ignore = Ignora
@@ -235,16 +232,14 @@ people-page = Persone
 person-menu-rename = Rinomina persona
 people-page-status-off =
     .title = Abilitare il rilevamento dei volti?
-    .description = { -app-name } può rilevare automaticamente i volti e riconoscere le persone. Vuoi abilitare questa funzionalità?
+    .description = { -app-name } può rilevare automaticamente i volti e riconoscere le persone, ma è un processo che richiede molto tempo. Vuoi abilitare questa funzionalità?
     .notice = { -app-name } deve scaricare circa 45 megabyte di dati per riconoscere volti e persone.
-    .enable-mobile = Abilita per dispositivi mobili
-    .enable-desktop = Abilita per desktop
+    .enable = Abilita
 people-page-status-no-people =
     .title = Nessuna persona trovata
     .description =
-        { -app-name } cercherà i volti nelle nuove foto quando viene avviata.
-        Se hai detto a { -app-name } che un volto è di una persona che conosci, allora { -app-name }
-        cercherà anche nuove foto di quella persona.
+        { -app-name } cercherà i volti nelle nuove foto quando verrà avviata.
+        Assegna un nome alle persone nelle tue foto in modo che { -app-name } possa creare un album per ciascuna persona.
 viewer-faces-menu =
     .tooltip = Menu volti
     .restore-ignored = Ripristina tutti i volti ignorati
