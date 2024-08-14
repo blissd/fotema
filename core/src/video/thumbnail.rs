@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::result::Result::Ok;
 use tempfile;
-use tracing::{event, Level};
+use tracing::{debug, error};
 
 const EDGE: u32 = 200;
 
@@ -44,11 +44,11 @@ impl Thumbnailer {
             let _ = std::fs::create_dir_all(p);
         }
 
-        event!(Level::DEBUG, "Standard thumbnail: {:?}", video_path);
+        debug!("Video thumbnail: {:?}", video_path);
 
         self.compute_thumbnail(video_path, &thumbnail_path)
             .map(|_| thumbnail_path)
-            .inspect_err(|e| event!(Level::ERROR, "Video thumbnail error: {:?}", e))
+            .inspect_err(|e| error!("Video thumbnail error: {:?}", e))
     }
 
     fn compute_thumbnail(&self, video_path: &Path, thumbnail_path: &Path) -> Result<()> {
@@ -68,6 +68,6 @@ impl Thumbnailer {
             .arg(temporary_png_file.path())
             .status()?;
 
-        PhotoThumbnailer::fast_thumbnail(temporary_png_file.path(), thumbnail_path)
+        PhotoThumbnailer::sandboxed_thumbnail(temporary_png_file.path(), thumbnail_path)
     }
 }

@@ -1268,6 +1268,7 @@ dependencies = [
  "chrono",
  "fast_image_resize",
  "ffmpeg-next",
+ "futures",
  "gdk4",
  "gio 0.20.1",
  "glycin",
