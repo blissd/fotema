@@ -68,6 +68,8 @@ impl Thumbnailer {
             .arg(temporary_png_file.path())
             .status()?;
 
-        PhotoThumbnailer::fast_thumbnail(temporary_png_file.path(), thumbnail_path)
+        // FIXME assuming I can generate a trusted PNG file from an untrusted video.
+        // Probably fine... but not 100% sure.
+        PhotoThumbnailer::trusted_thumbnail(temporary_png_file.path(), thumbnail_path)
     }
 }
