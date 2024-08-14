@@ -14,15 +14,16 @@ use image::ImageReader;
 use fast_image_resize as fr;
 use fr::images::Image;
 use fr::{ResizeOptions, Resizer};
+use futures::executor::block_on;
 
 use gdk4::prelude::TextureExt;
 use glycin;
 use std::io::BufWriter;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use tracing::{event, Level};
 
 use tempfile;
+use tracing::debug;
 
 const EDGE: u32 = 200;
 
@@ -51,19 +52,17 @@ impl Thumbnailer {
             self.base_path.join(partition).join(file_name)
         };
 
-        if thumbnail_path.exists() {
-            return Ok(thumbnail_path);
-        } else if let Some(p) = thumbnail_path.parent() {
+        if let Some(p) = thumbnail_path.parent() {
             let _ = std::fs::create_dir_all(p);
         }
 
         debug!("Generating thumbnail: {:?}", picture_path);
-        Self::sandboxed_thumbnail(picture_path, &thumbnail_path).await?;
+        Self::sandboxed_thumbnail_async(picture_path, &thumbnail_path).await?;
         Ok(thumbnail_path)
     }
 
     /// Generate a thumbnail from a file that has already been processed in a Glycin sandbox.
-    pub fn trusted_thumbnail(path: &Path, thumbnail_path: &Path) -> Result<()> {
+    fn trusted_thumbnail(path: &Path, thumbnail_path: &Path) -> Result<()> {
         let src_image = ImageReader::open(path)?.decode()?.into_rgb8();
 
         // WARNING src_image, dst_image, and the PngEncoder must all
@@ -110,66 +109,19 @@ impl Thumbnailer {
         Ok(())
     }
 
-    /// Generate a thumbnail from a file that has already been processed in a Glycin sandbox.
-    pub fn trusted_thumbnail_in_memory(
-        src_image: DynamicImage,
+    pub fn sandboxed_thumbnail(source_path: &Path, thumbnail_path: &Path) -> Result<()> {
+        block_on(async { Self::sandboxed_thumbnail_async(source_path, thumbnail_path).await })
+    }
+
+    /// Copy an image to a PNG file using Glycin, and then use image-rs to compute the thumbnail.
+    pub async fn sandboxed_thumbnail_async(
+        source_path: &Path,
         thumbnail_path: &Path,
     ) -> Result<()> {
-        let src_image = src_image.into_rgb8();
-
-        // WARNING src_image, dst_image, and the PngEncoder must all
-        // use the _same_ pixel type or the PngEncoder will throw errors
-        // about having an unexpected number of bytes.
-        // PixelType::U8x3 == RGB8
-        // PixelType::U8x4 == RGBA8
-        //
-        // For now I'm using RGB, not RGBA, because I don't think an alpha channel
-        // makes sense for thumbnails.
-
-        let src_image = DynamicImage::ImageRgb8(src_image);
-
-        let mut dst_image = Image::new(EDGE, EDGE, fr::PixelType::U8x3);
-
-        let mut resizer = Resizer::new();
-
-        resizer.resize(
-            &src_image,
-            &mut dst_image,
-            &ResizeOptions::new().fit_into_destination(Some((0.5, 0.5))),
-        )?;
-
-        // Write destination image as PNG-file
-        // Write to temporary file first and then move so that an interrupted write
-        // doesn't result in a corrupt thumbnail
-
-        let temporary_png_file = thumbnail_path.with_extension("tmp");
-
-        let file = std::fs::File::create(&temporary_png_file)?;
-        let mut file = BufWriter::new(file);
-
-        PngEncoder::new(&mut file).write_image(
-            dst_image.buffer(),
-            EDGE,
-            EDGE,
-            ExtendedColorType::Rgb8,
-        )?;
-
-        file.flush()?;
-
-        std::fs::rename(temporary_png_file, thumbnail_path)?;
-
-        Ok(())
-    }
-    /// Copy an image to a PNG file using Glycin, and then use image-rs to compute the thumbnail.
-    pub async fn sandboxed_thumbnail(source_path: &Path, thumbnail_path: &Path) -> Result<()> {
         let file = gio::File::for_path(source_path);
 
-        // FIXME Glycin can now apply orientation transformations, so we could do that
-        // here and then not have to rotate the thumbnails in the album views.
-        // However, will have to re-generate existing non-rotated thumbnails.
         let mut loader = glycin::Loader::new(file);
         loader.sandbox_selector(glycin::SandboxSelector::FlatpakSpawn);
-        loader.apply_transformations(false);
 
         let image = loader.load().await?;
 

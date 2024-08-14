@@ -167,10 +167,6 @@ impl RelmGridItem for PhotoGridItem {
 
         if self.visual.thumbnail_path.as_ref().is_some_and(|x| x.exists()) {
             widgets.picture.set_filename(self.visual.thumbnail_path.clone());
-
-            // Add CSS class for orientation
-            let orientation = self.visual.thumbnail_orientation();
-            widgets.picture.add_css_class(orientation.as_ref());
         } else {
             let pb = gdk_pixbuf::Pixbuf::from_resource_at_scale(
                 "/app/fotema/Fotema/icons/scalable/actions/image-missing-symbolic.svg",
