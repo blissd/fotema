@@ -72,6 +72,7 @@
           <li>Always use sandbox when generating thumbnails.</li>
           <li>Apply EXIF orientation to thumbnails. Sorry, some thumbnails will have to be regenerated.</li>
           <li>Cleanup thumbnails, transcoded videos, and detected faces when photos and videos are deleted.</li>
+          <li>Translation updates. Thank you!</li>
         </ul>
       </description>
     </release>
