@@ -1,5 +1,6 @@
 ## Terms
 
+
 # See https://projectfluent.org/fluent/guide/terms.html
 
 -app-name = Fotema
@@ -205,3 +206,43 @@ banner-extract-motion-photos = Bewegungsfotos werden verarbeitet
 primary-menu-preferences = Einstellungen
 # Menu item to show "about" dialog
 primary-menu-about = Info zu { -app-name }
+people-person-search =
+    .placeholder = Name der Person
+people-face-ignore = Ignorieren
+people-not-this-person = Nicht { $name }
+prefs-views-faces = Gesichtserkennung
+    .subtitle = Aktivieren Sie die Gesichtserkennung beim Starten von Fotema. Dies kann eine Weile dauern.
+person-rename-dialog =
+    .heading = Person umbenennen?
+    .placeholder = Neuer Name
+    .cancel-button = Abbrechen
+    .rename-button = Umbenennen
+people-page-status-no-people =
+    .title = Keine Personen gefunden
+    .description =
+        { -app-name } wird nach dem Start nach Gesichtern in neuen Fotos suchen.
+        Benennen Sie die Personen auf Ihren Fotos, damit { -app-name } für jede Person ein Album erstellen kann.
+viewer-faces-menu =
+    .tooltip = Gesichter-Menü
+    .restore-ignored = Alle ignorierten Gesichter wiederherstellen
+    .ignore-unknown = Alle unbekannten Gesichter ignorieren
+    .scan = Nach weiteren Gesichtern suchen
+people-page = Personen
+people-page-status-off =
+    .title = Gesichtserkennung aktivieren?
+    .description = { -app-name } kann automatisch Gesichter und Personen erkennen, jedoch ist dies ein zeitaufwändiger Prozess. Möchten Sie diese Funktion aktivieren?
+    .notice = { -app-name } muss etwa 45 Megabyte an Daten herunterladen, um Gesichter und Personen zu erkennen.
+    .enable = Aktivieren
+people-set-face-thumbnail = Als Vorschaubild verwenden
+people-set-name = Name festlegen
+progress-detect-faces-photos = Erkennung von Gesichtern auf Fotos.
+progress-recognize-faces-photos = Erkennen von Personen auf Fotos.
+banner-detect-faces-photos = Erkennen von Gesichtern auf Fotos. Dies wird eine Weile dauern.
+banner-recognize-faces-photos = Erkennen von Personen auf Fotos. Dies wird eine Weile dauern.
+person-menu-rename = Person umbenennen
+person-menu-delete = Person löschen
+person-delete-dialog =
+    .heading = Person löschen?
+    .body = Es werden keine Bilder oder Videos gelöscht.
+    .cancel-button = Abbrechen
+    .delete-button = Löschen
