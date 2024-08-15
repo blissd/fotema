@@ -66,6 +66,15 @@
   </branding>
 
   <releases>
+    <release version="1.11.0" date="2024-08-15">
+      <description>
+        <ul>
+          <li>Always use sandbox when generating thumbnails.</li>
+          <li>Apply EXIF orientation to thumbnails. Sorry, some thumbnails will have to be regenerated.</li>
+          <li>Cleanup thumbnails, transcoded videos, and detected faces when photos and videos are deleted.</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.10.1" date="2024-08-11">
       <description>
         <p>Improvements:</p>
