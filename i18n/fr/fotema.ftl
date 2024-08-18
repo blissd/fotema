@@ -1,6 +1,9 @@
 ## Terms
+
 -app-name = Fotema
+
 ## Main Navigation Pages
+
 # Title for album showing contents of one folder.
 folder-album = Dossier
 # Main Navigation Pages
@@ -228,3 +231,43 @@ primary-menu-preferences = Préférences
 # Notification banner for background tasks
 # Extracting video component from Android motion photos
 banner-extract-motion-photos = Traitement des photos animées.
+prefs-views-faces = Détection des visages
+    .subtitle = Activer la détection des visages au lancement de Fotema. Ce processus prend du temps.
+people-face-ignore = Ignorer
+people-person-search =
+    .placeholder = Nom de la personne
+people-not-this-person = Pas { $name }
+progress-detect-faces-photos = Détection des visages dans les photos.
+progress-recognize-faces-photos = Reconnaissance des personnes dans les photos.
+person-delete-dialog =
+    .heading = Supprimer la personne ?
+    .body = Aucune photo ou vidéo ne sera supprimée.
+    .cancel-button = Annuler
+    .delete-button = Supprimer
+people-page = Personnes
+people-page-status-off =
+    .title = Activer la détection des visages ?
+    .description = { -app-name } peut détecter automatiquement les visages et reconnaître les personnes sur vos photos, mais ce processus peut prendre du temps. Souhaitez-vous activer cette fonctionnalité ?
+    .notice = { -app-name } doit télécharger à peu près 45 Mo. de données pour reconnaître les visages et les personnes.
+    .enable = Activer
+people-page-status-no-people =
+    .title = Aucune personne identifiée
+    .description =
+        { -app-name } recherchera des visages dans vos nouvelles photos à la prochaine ouverture.
+        Nommez les personnes figurant dans vos photos pour que { -app-name } puisse faire un album pour chacune.
+viewer-faces-menu =
+    .tooltip = Menu des visages
+    .restore-ignored = Restaurer tous les visages ignorés
+    .ignore-unknown = Ignorer tous les visages inconnus
+    .scan = Rechercher plus de visages
+people-set-face-thumbnail = Utiliser comme vignette
+people-set-name = Nommer
+banner-detect-faces-photos = Détection des visages dans les photos. Cela prendra du temps.
+banner-recognize-faces-photos = Reconnaissance des personnes dans les photos. Cela prendra du temps.
+person-menu-rename = Renommer la personne
+person-menu-delete = Supprimer la personne
+person-rename-dialog =
+    .heading = Renommer la personne ?
+    .placeholder = Nouveau nom
+    .cancel-button = Annuler
+    .rename-button = Renommer
