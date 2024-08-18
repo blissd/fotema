@@ -276,7 +276,7 @@ impl SimpleComponent for Album {
             view_name,
             photo_grid,
             filter,
-            sort: AlbumSort::Ascending,
+            sort: AlbumSort::default(),
             edge_length: I32Binding::new(NARROW_EDGE_LENGTH),
         };
 
