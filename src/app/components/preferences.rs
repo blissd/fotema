@@ -57,12 +57,12 @@ impl SimpleComponent for PreferencesDialog {
             set_title: &fl!("prefs-title"),
             add = &adw::PreferencesPage {
                 add = &adw::PreferencesGroup {
-                    set_title: &fl!("prefs-views-section"),
-                    set_description: Some(&fl!("prefs-views-section", "description")),
+                    set_title: &fl!("prefs-ui-section"),
+                    set_description: Some(&fl!("prefs-ui-section", "description")),
 
                     adw::SwitchRow {
-                        set_title: &fl!("prefs-views-selfies"),
-                        set_subtitle: &fl!("prefs-views-selfies", "subtitle"),
+                        set_title: &fl!("prefs-ui-selfies"),
+                        set_subtitle: &fl!("prefs-ui-selfies", "subtitle"),
 
                         #[watch]
                         set_active: model.settings.show_selfies,
@@ -73,9 +73,25 @@ impl SimpleComponent for PreferencesDialog {
                     },
 
                     #[local_ref]
+                    album_sort_row -> adw::ComboRow {
+                        set_title: &fl!("prefs-ui-chronological-album-sort"),
+                        set_subtitle: &fl!("prefs-ui-chronological-album-sort", "subtitle"),
+
+                        connect_selected_item_notify[sender] => move |row| {
+                            let mode = AlbumSort::from_repr(row.selected()).unwrap_or_default();
+                            let _ = sender.input_sender().send(PreferencesInput::Sort(mode));
+                        }
+                    }
+                },
+                add = &adw::PreferencesGroup {
+                    set_title: &fl!("prefs-machine-learning-section"),
+                    set_description: Some(&fl!("prefs-machine-learning-section", "description")),
+
+
+                    #[local_ref]
                     face_detection_mode_row -> adw::SwitchRow {
-                        set_title: &fl!("prefs-views-faces"),
-                        set_subtitle: &fl!("prefs-views-faces", "subtitle"),
+                        set_title: &fl!("prefs-machine-learning-face-detection"),
+                        set_subtitle: &fl!("prefs-machine-learning-face-detection", "subtitle"),
 
                         #[watch]
                         set_active: model.is_face_detection_active(),
@@ -89,17 +105,6 @@ impl SimpleComponent for PreferencesDialog {
                             let _ = sender.input_sender().send(PreferencesInput::UpdateFaceDetectionMode(mode));
                         },
                     },
-
-                    #[local_ref]
-                    album_sort_row -> adw::ComboRow {
-                        set_title: "Album sort",
-                        //set_subtitle: &fl!("prefs-views-faces", "subtitle"),
-
-                        connect_selected_item_notify[sender] => move |row| {
-                            let mode = AlbumSort::from_repr(row.selected()).unwrap_or_default();
-                            let _ = sender.input_sender().send(PreferencesInput::Sort(mode));
-                        }
-                    }
                 },
             }
         }
@@ -120,8 +125,8 @@ impl SimpleComponent for PreferencesDialog {
 
         let album_sort_row = adw::ComboRow::new();
         let list = gtk::StringList::new(&[
-            "Ascending",
-            "Descending",
+            &fl!("prefs-ui-chronological-album-sort", "ascending"),
+            &fl!("prefs-ui-chronological-album-sort", "descending"),
         ]);
         album_sort_row.set_model(Some(&list));
 
