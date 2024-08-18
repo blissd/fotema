@@ -23,6 +23,7 @@ use crate::app::SharedState;
 use crate::app::ActiveView;
 use crate::app::ViewName;
 use super::album_filter::AlbumFilter;
+use super::album_sort::AlbumSort;
 
 use tracing::{debug, info};
 
@@ -223,6 +224,7 @@ pub struct Album {
     view_name: ViewName,
     photo_grid: TypedGridView<PhotoGridItem, gtk::SingleSelection>,
     filter: AlbumFilter,
+    sort: AlbumSort,
     edge_length: I32Binding,
 }
 
@@ -271,6 +273,7 @@ impl SimpleComponent for Album {
             view_name,
             photo_grid,
             filter,
+            sort: AlbumSort::Ascending,
             edge_length: I32Binding::new(NARROW_EDGE_LENGTH),
         };
 
@@ -321,7 +324,8 @@ impl SimpleComponent for Album {
                 }
             },
             AlbumInput::GoToFirst => {
-                self.go_to_first();
+                // Hmm... not sure I like this...
+                self.sort.scroll_to_start(&mut self.photo_grid);
             },
             AlbumInput::Adapt(adaptive::Layout::Narrow) => {
                 self.edge_length.set_value(NARROW_EDGE_LENGTH);
@@ -339,7 +343,7 @@ impl SimpleComponent for Album {
 impl Album {
 
     fn refresh(&mut self) {
-        let all = {
+        let mut all = {
             let data = self.state.read();
             data
                 .iter()
@@ -350,6 +354,9 @@ impl Album {
                 .collect::<Vec<PhotoGridItem>>()
         };
 
+        // State is always in ascending time order
+        self.sort.sort(&mut all);
+
         self.photo_grid.clear();
 
         //self.photo_grid.add_filter(move |item| (self.photo_grid_filter)(&item.picture));
@@ -357,55 +364,7 @@ impl Album {
 
         info!("{} items added to album", self.photo_grid.len());
 
-        self.go_to_last();
-    }
-
-    fn go_to_first(&mut self) {
-        if !self.photo_grid.is_empty() {
-            // We must scroll to a valid index... but we can't get the index of the
-            // last item if filters are enabled. So as a workaround disable filters,
-            // scroll to end, and then enable filters.
-
-            self.disable_filters();
-
-            self.photo_grid.view.scroll_to(
-                0,
-                gtk::ListScrollFlags::SELECT,
-                None,
-            );
-
-            self.enable_filters();
-        }
-    }
-
-    fn go_to_last(&mut self) {
-        if !self.photo_grid.is_empty() {
-            // We must scroll to a valid index... but we can't get the index of the
-            // last item if filters are enabled. So as a workaround disable filters,
-            // scroll to end, and then enable filters.
-
-            self.disable_filters();
-
-            self.photo_grid.view.scroll_to(
-                self.photo_grid.len() - 1,
-                gtk::ListScrollFlags::SELECT,
-                None,
-            );
-
-            self.enable_filters();
-        }
-    }
-
-    fn disable_filters(&mut self) {
-        for i in 0..(self.photo_grid.filters_len()) {
-            self.photo_grid.set_filter_status(i, false);
-        }
-    }
-
-    fn enable_filters(&mut self) {
-        for i in 0..(self.photo_grid.filters_len()) {
-            self.photo_grid.set_filter_status(i, true);
-        }
+        self.sort.scroll_to_end(&mut self.photo_grid);
     }
 
     fn update_filter(&mut self) {
