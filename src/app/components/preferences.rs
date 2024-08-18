@@ -4,16 +4,20 @@
 
 use relm4::{adw, ComponentParts, ComponentSender, SimpleComponent};
 use relm4::adw::prelude::*;
+use relm4::gtk;
 
 use tracing::info;
 
 use crate::fl;
 use crate::app::{Settings, SettingsState};
 use crate::app::FaceDetectionMode;
+use crate::app::AlbumSort;
 
 pub struct PreferencesDialog {
     parent: adw::ApplicationWindow,
     dialog: adw::PreferencesDialog,
+    album_sort: adw::ComboRow,
+
     settings_state: SettingsState,
 
     // Preference values
@@ -38,6 +42,8 @@ pub enum PreferencesInput {
     UpdateShowSelfies(bool),
 
     UpdateFaceDetectionMode(FaceDetectionMode),
+
+    Sort(AlbumSort),
 }
 
 #[relm4::component(pub)]
@@ -82,6 +88,17 @@ impl SimpleComponent for PreferencesDialog {
                             };
                             let _ = sender.input_sender().send(PreferencesInput::UpdateFaceDetectionMode(mode));
                         },
+                    },
+
+                    #[local_ref]
+                    album_sort_row -> adw::ComboRow {
+                        set_title: "Album sort",
+                        //set_subtitle: &fl!("prefs-views-faces", "subtitle"),
+
+                        connect_selected_item_notify[sender] => move |row| {
+                            let mode = AlbumSort::from_repr(row.selected()).unwrap_or_default();
+                            let _ = sender.input_sender().send(PreferencesInput::Sort(mode));
+                        }
                     }
                 },
             }
@@ -101,11 +118,19 @@ impl SimpleComponent for PreferencesDialog {
             .active(settings_state.read().face_detection_mode == FaceDetectionMode::On)
             .build();
 
+        let album_sort_row = adw::ComboRow::new();
+        let list = gtk::StringList::new(&[
+            "Ascending",
+            "Descending",
+        ]);
+        album_sort_row.set_model(Some(&list));
+
         let model = Self {
             settings_state: settings_state.clone(),
             parent,
             dialog: dialog.clone(),
             settings: settings_state.read().clone(),
+            album_sort: album_sort_row.clone(),
         };
 
         let widgets = view_output!();
@@ -124,6 +149,13 @@ impl SimpleComponent for PreferencesDialog {
             PreferencesInput::SettingsChanged(settings) => {
                 info!("Received update from settings shared state");
                 self.settings = settings;
+
+                let index = match self.settings.album_sort {
+                    AlbumSort::Ascending => 0,
+                    AlbumSort::Descending => 1,
+                };
+
+                self.album_sort.set_selected(index);
             },
             PreferencesInput::UpdateShowSelfies(show_selfies) => {
                 info!("Update show selfies: {}", show_selfies);
@@ -133,6 +165,11 @@ impl SimpleComponent for PreferencesDialog {
             PreferencesInput::UpdateFaceDetectionMode(mode) => {
                 info!("Update face detection mode: {:?}", mode);
                 self.settings.face_detection_mode = mode;
+                *self.settings_state.write() = self.settings.clone();
+            },
+            PreferencesInput::Sort(mode) => {
+                info!("Update album sort: {:?}", mode);
+                self.settings.album_sort = mode;
                 *self.settings_state.write() = self.settings.clone();
             },
         }

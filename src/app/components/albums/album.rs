@@ -53,6 +53,9 @@ pub enum AlbumInput {
     // Show no photos
     Filter(AlbumFilter),
 
+    // Sort
+    Sort(AlbumSort),
+
     // Adapt to layout
     Adapt(adaptive::Layout),
 
@@ -303,6 +306,13 @@ impl SimpleComponent for Album {
             AlbumInput::Filter(filter) => {
                 self.filter = filter;
                 self.update_filter();
+            }
+            AlbumInput::Sort(sort) => {
+                if self.sort != sort {
+                    info!("Sort order is now {:?}", sort);
+                    self.sort = sort;
+                    sender.input(AlbumInput::Refresh);
+                }
             }
             AlbumInput::Selected(index) => {
                 // Albums are filters so must use get_visible(...) over get(...), otherwise

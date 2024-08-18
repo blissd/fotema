@@ -4,11 +4,16 @@
 
 use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
 use relm4::gtk;
+use strum::EnumString;
+use strum::AsRefStr;
+use strum::FromRepr;
 
 // Sort album
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, EnumString, AsRefStr, FromRepr)]
+#[repr(u32)]
 pub enum AlbumSort {
     // Sort dimension from smallest to largest
+    #[default]
     Ascending,
 
     // Sort dimension from largest to smallest

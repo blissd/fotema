@@ -19,6 +19,7 @@ use crate::fl;
 
 use super::albums::album::{Album, AlbumInput, AlbumOutput};
 use super::albums::album_filter::AlbumFilter;
+use super::albums::album_sort::AlbumSort;
 use super::albums::months_album::{MonthsAlbum, MonthsAlbumInput, MonthsAlbumOutput};
 use super::albums::years_album::{YearsAlbum, YearsAlbumInput, YearsAlbumOutput};
 
@@ -42,6 +43,8 @@ pub enum LibraryInput {
     GoToYear(i32),
 
     View(VisualId),
+
+    Sort(AlbumSort),
 }
 
 #[derive(Debug)]
@@ -162,6 +165,9 @@ impl SimpleComponent for Library {
             },
             LibraryInput::View(id) => {
                 let _ = sender.output(LibraryOutput::View(id));
+            },
+            LibraryInput::Sort(sort) => {
+                self.all_album.emit(AlbumInput::Sort(sort));
             },
         }
     }
