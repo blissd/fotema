@@ -169,6 +169,7 @@ impl SimpleComponent for Library {
             LibraryInput::Sort(sort) => {
                 self.all_album.emit(AlbumInput::Sort(sort));
                 self.months_album.emit(MonthsAlbumInput::Sort(sort));
+                self.years_album.emit(YearsAlbumInput::Sort(sort));
             },
         }
     }
