@@ -20,6 +20,7 @@ use crate::app::ViewName;
 use crate::app::components::albums:: {
     album::{Album, AlbumInput, AlbumOutput},
     album_filter::AlbumFilter,
+    album_sort::AlbumSort,
 };
 
 use fotema_core::people;
@@ -71,6 +72,8 @@ pub enum PersonAlbumInput {
 
     /// Actually delete person.
     Delete,
+
+    Sort(AlbumSort),
 }
 
 #[derive(Debug)]
@@ -207,6 +210,11 @@ impl SimpleComponent for PersonAlbum {
             PersonAlbumInput::Refresh => {
                 self.album.sender().emit(AlbumInput::Refresh);
             }
+            PersonAlbumInput::Sort(sort) => {
+                self.album.sender().emit(AlbumInput::Sort(sort));
+                self.album.sender().emit(AlbumInput::ScrollToTop)
+                //self.album.sender().emit(AlbumInput::ScrollOffset(0.0));
+            },
             PersonAlbumInput::View(person) => {
                 info!("Viewing album for person: {}", person.person_id);
 
@@ -222,7 +230,7 @@ impl SimpleComponent for PersonAlbum {
                 info!("Person {} has {} items to view.", person.person_id, self.picture_ids.len());
                 self.album.sender().emit(AlbumInput::Activate);
                 self.album.sender().emit(AlbumInput::Filter(AlbumFilter::Any(self.picture_ids.clone())));
-                self.album.sender().emit(AlbumInput::GoToFirst);
+                self.album.sender().emit(AlbumInput::ScrollToTop);
 
                 self.title.set_label(&person.name);
                 self.person = Some(person);

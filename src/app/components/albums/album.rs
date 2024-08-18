@@ -45,8 +45,6 @@ pub enum AlbumInput {
     // Scroll to first photo of year/month.
     GoToMonth(YearMonth),
 
-    GoToFirst,
-
     // I'd like to pass a closure of Fn(Picture)->bool for the filter... but Rust
     // is making that too hard.
 
@@ -61,6 +59,9 @@ pub enum AlbumInput {
 
     // Scroll offset, in pixels.
     ScrollOffset(f64),
+
+    // Scroll to top of photo grid, regardless of sort order
+    ScrollToTop
 }
 
 #[derive(Debug)]
@@ -306,6 +307,7 @@ impl SimpleComponent for Album {
             AlbumInput::Filter(filter) => {
                 self.filter = filter;
                 self.update_filter();
+                //self.scroll();
             }
             AlbumInput::Sort(sort) => {
                 if self.sort != sort {
@@ -333,9 +335,15 @@ impl SimpleComponent for Album {
                     self.photo_grid.view.scroll_to(index, flags, None);
                 }
             },
-            AlbumInput::GoToFirst => {
+            AlbumInput::ScrollToTop => {
                 // Hmm... not sure I like this...
-                self.sort.scroll_to_start(&mut self.photo_grid);
+                if !self.photo_grid.is_empty() {
+                    self.photo_grid.view.scroll_to(
+                        0,
+                        gtk::ListScrollFlags::SELECT,
+                        None,
+                    );
+                }
             },
             AlbumInput::Adapt(adaptive::Layout::Narrow) => {
                 self.edge_length.set_value(NARROW_EDGE_LENGTH);
@@ -374,6 +382,8 @@ impl Album {
 
         info!("{} items added to album", self.photo_grid.len());
 
+        // NOTE person album will in effect overide scrolling to the end
+        // by sending a ScrollToTop command.
         self.sort.scroll_to_end(&mut self.photo_grid);
     }
 

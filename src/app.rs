@@ -621,6 +621,7 @@ impl SimpleComponent for App {
 
         state.subscribe(person_album.sender(), |_| PersonAlbumInput::Refresh);
         adaptive_layout.subscribe(person_album.sender(), |layout| PersonAlbumInput::Adapt(*layout));
+        settings_state.subscribe(person_album.sender(), |settings| PersonAlbumInput::Sort(settings.album_sort));
 
         let places_page = PlacesAlbum::builder()
             .launch((state.clone(), active_view.clone()))
