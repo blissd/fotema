@@ -4,6 +4,7 @@
 
 pub mod album;
 pub mod album_filter;
+pub mod album_sort;
 pub mod folders_album;
 pub mod months_album;
 pub mod people_album;

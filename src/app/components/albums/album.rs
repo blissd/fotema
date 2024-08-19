@@ -23,6 +23,7 @@ use crate::app::SharedState;
 use crate::app::ActiveView;
 use crate::app::ViewName;
 use super::album_filter::AlbumFilter;
+use super::album_sort::AlbumSort;
 
 use tracing::{debug, info};
 
@@ -44,19 +45,23 @@ pub enum AlbumInput {
     // Scroll to first photo of year/month.
     GoToMonth(YearMonth),
 
-    GoToFirst,
-
     // I'd like to pass a closure of Fn(Picture)->bool for the filter... but Rust
     // is making that too hard.
 
     // Show no photos
     Filter(AlbumFilter),
 
+    // Sort
+    Sort(AlbumSort),
+
     // Adapt to layout
     Adapt(adaptive::Layout),
 
     // Scroll offset, in pixels.
     ScrollOffset(f64),
+
+    // Scroll to top of photo grid, regardless of sort order
+    ScrollToTop
 }
 
 #[derive(Debug)]
@@ -223,6 +228,7 @@ pub struct Album {
     view_name: ViewName,
     photo_grid: TypedGridView<PhotoGridItem, gtk::SingleSelection>,
     filter: AlbumFilter,
+    sort: AlbumSort,
     edge_length: I32Binding,
 }
 
@@ -271,6 +277,7 @@ impl SimpleComponent for Album {
             view_name,
             photo_grid,
             filter,
+            sort: AlbumSort::default(),
             edge_length: I32Binding::new(NARROW_EDGE_LENGTH),
         };
 
@@ -300,6 +307,14 @@ impl SimpleComponent for Album {
             AlbumInput::Filter(filter) => {
                 self.filter = filter;
                 self.update_filter();
+                //self.scroll();
+            }
+            AlbumInput::Sort(sort) => {
+                if self.sort != sort {
+                    info!("Sort order is now {:?}", sort);
+                    self.sort = sort;
+                    sender.input(AlbumInput::Refresh);
+                }
             }
             AlbumInput::Selected(index) => {
                 // Albums are filters so must use get_visible(...) over get(...), otherwise
@@ -320,8 +335,15 @@ impl SimpleComponent for Album {
                     self.photo_grid.view.scroll_to(index, flags, None);
                 }
             },
-            AlbumInput::GoToFirst => {
-                self.go_to_first();
+            AlbumInput::ScrollToTop => {
+                // Hmm... not sure I like this...
+                if !self.photo_grid.is_empty() {
+                    self.photo_grid.view.scroll_to(
+                        0,
+                        gtk::ListScrollFlags::SELECT,
+                        None,
+                    );
+                }
             },
             AlbumInput::Adapt(adaptive::Layout::Narrow) => {
                 self.edge_length.set_value(NARROW_EDGE_LENGTH);
@@ -339,7 +361,7 @@ impl SimpleComponent for Album {
 impl Album {
 
     fn refresh(&mut self) {
-        let all = {
+        let mut all = {
             let data = self.state.read();
             data
                 .iter()
@@ -350,6 +372,9 @@ impl Album {
                 .collect::<Vec<PhotoGridItem>>()
         };
 
+        // State is always in ascending time order
+        self.sort.sort(&mut all);
+
         self.photo_grid.clear();
 
         //self.photo_grid.add_filter(move |item| (self.photo_grid_filter)(&item.picture));
@@ -357,55 +382,9 @@ impl Album {
 
         info!("{} items added to album", self.photo_grid.len());
 
-        self.go_to_last();
-    }
-
-    fn go_to_first(&mut self) {
-        if !self.photo_grid.is_empty() {
-            // We must scroll to a valid index... but we can't get the index of the
-            // last item if filters are enabled. So as a workaround disable filters,
-            // scroll to end, and then enable filters.
-
-            self.disable_filters();
-
-            self.photo_grid.view.scroll_to(
-                0,
-                gtk::ListScrollFlags::SELECT,
-                None,
-            );
-
-            self.enable_filters();
-        }
-    }
-
-    fn go_to_last(&mut self) {
-        if !self.photo_grid.is_empty() {
-            // We must scroll to a valid index... but we can't get the index of the
-            // last item if filters are enabled. So as a workaround disable filters,
-            // scroll to end, and then enable filters.
-
-            self.disable_filters();
-
-            self.photo_grid.view.scroll_to(
-                self.photo_grid.len() - 1,
-                gtk::ListScrollFlags::SELECT,
-                None,
-            );
-
-            self.enable_filters();
-        }
-    }
-
-    fn disable_filters(&mut self) {
-        for i in 0..(self.photo_grid.filters_len()) {
-            self.photo_grid.set_filter_status(i, false);
-        }
-    }
-
-    fn enable_filters(&mut self) {
-        for i in 0..(self.photo_grid.filters_len()) {
-            self.photo_grid.set_filter_status(i, true);
-        }
+        // NOTE person album will in effect overide scrolling to the end
+        // by sending a ScrollToTop command.
+        self.sort.scroll_to_end(&mut self.photo_grid);
     }
 
     fn update_filter(&mut self) {

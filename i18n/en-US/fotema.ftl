@@ -224,18 +224,29 @@ people-not-this-person = Not { $name }
 prefs-title = Preferences
 
 # Title of section of preferences for views
-prefs-views-section = Views
-  .description = Show or hide sidebar views
+prefs-ui-section = UI
+  .description = Tweak the user interface.
 
 # Selfies page enabled or disabled.
 # Attributes:
 #   .subtitle - Description of toggle button action action.
-prefs-views-selfies = Selfies
-  .subtitle = Shows a separate view for selfies taken on iOS devices. Restart {-app-name} to apply.
+prefs-ui-selfies = Selfies
+  .subtitle = Shows a separate album for selfies taken on iOS devices. Restart {-app-name} to apply.
 
-# Set face detection mode. Off, lightweight mobile model, or heavyweight
-# desktop model
-prefs-views-faces = Face Detection
+# Album sort drop-down menu
+prefs-ui-chronological-album-sort = Sort Order
+  .subtitle = Chronological sort order for albums.
+  .ascending = Ascending
+  .descending = Descending
+
+# Preferences related to machine learning, such as face detection.
+# Machine learning is CPU intensive so capabilities can be turned on or off by
+# the user
+prefs-machine-learning-section = Machine Learning
+  .description = Configure machine learning features.
+
+# Enable or disable face detection
+prefs-machine-learning-face-detection = Face Detection
   .subtitle = Enable face detection when Fotema launches. This is a time consuming process.
 
 ## Progress bar for background tasks

@@ -51,6 +51,7 @@ use self::components::{
     albums:: {
         album::{Album, AlbumInput, AlbumOutput},
         album_filter::AlbumFilter,
+        album_sort::AlbumSort,
         folders_album::{FoldersAlbum, FoldersAlbumInput, FoldersAlbumOutput},
         people_album::{PeopleAlbum, PeopleAlbumInput, PeopleAlbumOutput},
         person_album::{PersonAlbum, PersonAlbumInput, PersonAlbumOutput},
@@ -110,6 +111,10 @@ pub struct Settings {
 
     /// Enable or disable face detection.
     pub face_detection_mode: FaceDetectionMode,
+
+    /// Sorting for albums.
+    /// NOTE: doesn't include folder's album.
+    pub album_sort: AlbumSort,
 }
 
 /// Active settings
@@ -544,6 +549,8 @@ impl SimpleComponent for App {
                 LibraryOutput::View(id) => AppMsg::View(id, AlbumFilter::All),
             });
 
+        settings_state.subscribe(library.sender(), |settings| LibraryInput::Sort(settings.album_sort));
+
         let transcoder = video::Transcoder::new(&cache_dir);
 
         let video_transcode = VideoTranscode::builder()
@@ -566,6 +573,7 @@ impl SimpleComponent for App {
 
         state.subscribe(selfies_page.sender(), |_| AlbumInput::Refresh);
         adaptive_layout.subscribe(selfies_page.sender(), |layout| AlbumInput::Adapt(*layout));
+        settings_state.subscribe(selfies_page.sender(), |settings| AlbumInput::Sort(settings.album_sort));
 
         let show_selfies = AppWidgets::show_selfies();
 
@@ -578,6 +586,7 @@ impl SimpleComponent for App {
 
         state.subscribe(motion_page.sender(), |_| AlbumInput::Refresh);
         adaptive_layout.subscribe(motion_page.sender(), |layout| AlbumInput::Adapt(*layout));
+        settings_state.subscribe(motion_page.sender(), |settings| AlbumInput::Sort(settings.album_sort));
 
         let videos_page = Album::builder()
             .launch((state.clone(), active_view.clone(), ViewName::Videos, AlbumFilter::Videos))
@@ -588,6 +597,7 @@ impl SimpleComponent for App {
 
         state.subscribe(videos_page.sender(), |_| AlbumInput::Refresh);
         adaptive_layout.subscribe(videos_page.sender(), |layout| AlbumInput::Adapt(*layout));
+        settings_state.subscribe(videos_page.sender(), |settings| AlbumInput::Sort(settings.album_sort));
 
         let people_page = PeopleAlbum::builder()
             .launch((people_repo.clone(), active_view.clone(), settings_state.clone()))
@@ -611,6 +621,7 @@ impl SimpleComponent for App {
 
         state.subscribe(person_album.sender(), |_| PersonAlbumInput::Refresh);
         adaptive_layout.subscribe(person_album.sender(), |layout| PersonAlbumInput::Adapt(*layout));
+        settings_state.subscribe(person_album.sender(), |settings| PersonAlbumInput::Sort(settings.album_sort));
 
         let places_page = PlacesAlbum::builder()
             .launch((state.clone(), active_view.clone()))
@@ -643,6 +654,7 @@ impl SimpleComponent for App {
 
         state.subscribe(folder_album.sender(), |_| AlbumInput::Refresh);
         adaptive_layout.subscribe(folder_album.sender(), |layout| AlbumInput::Adapt(*layout));
+        settings_state.subscribe(folder_album.sender(), |settings| AlbumInput::Sort(settings.album_sort));
 
         let about_dialog = AboutDialog::builder().launch(root.clone()).detach();
 
@@ -923,6 +935,8 @@ impl App {
             show_selfies: gio_settings.boolean("show-selfies"),
             face_detection_mode: FaceDetectionMode::from_str(&gio_settings.string("face-detection-mode"))
                 .unwrap_or(FaceDetectionMode::Off),
+            album_sort: AlbumSort::from_str(&gio_settings.string("album-sort"))
+                .unwrap_or(AlbumSort::Ascending),
         })
     }
 
@@ -931,6 +945,7 @@ impl App {
         let gio_settings = gio::Settings::new(APP_ID);
         gio_settings.set_boolean("show-selfies", settings.show_selfies)?;
         gio_settings.set_string("face-detection-mode", settings.face_detection_mode.as_ref())?;
+        gio_settings.set_string("album-sort", settings.album_sort.as_ref())?;
         Ok(())
     }
 }

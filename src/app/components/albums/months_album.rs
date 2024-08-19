@@ -28,6 +28,7 @@ use crate::adaptive;
 use crate::app::SharedState;
 use crate::app::ActiveView;
 use crate::app::ViewName;
+use crate::app::AlbumSort;
 use crate::fl;
 
 use tracing::{event, Level};
@@ -65,6 +66,8 @@ pub enum MonthsAlbumInput {
 
     // Adapt to layout
     Adapt(adaptive::Layout),
+
+    Sort(AlbumSort),
 }
 
 #[derive(Debug)]
@@ -164,6 +167,7 @@ pub struct MonthsAlbum {
     active_view: ActiveView,
     photo_grid: TypedGridView<PhotoGridItem, gtk::SingleSelection>,
     edge_length: I32Binding,
+    sort: AlbumSort,
 }
 
 #[relm4::component(pub)]
@@ -200,6 +204,7 @@ impl SimpleComponent for MonthsAlbum {
             active_view,
             photo_grid,
             edge_length: I32Binding::new(NARROW_EDGE_LENGTH),
+            sort: AlbumSort::default(),
         };
 
         let photo_grid_view = &model.photo_grid.view;
@@ -250,13 +255,20 @@ impl SimpleComponent for MonthsAlbum {
             MonthsAlbumInput::Adapt(adaptive::Layout::Wide) => {
                 self.edge_length.set_value(WIDE_EDGE_LENGTH);
             },
+            MonthsAlbumInput::Sort(sort) => {
+                if self.sort != sort {
+                    info!("Sort order is now {:?}", sort);
+                    self.sort = sort;
+                    sender.input(MonthsAlbumInput::Refresh);
+                }
+            }
         }
     }
 }
 
 impl MonthsAlbum {
     fn refresh(&mut self) {
-        let all_pictures = {
+        let mut all_pictures = {
             let data = self.state.read();
             data
                 .iter()
@@ -268,16 +280,13 @@ impl MonthsAlbum {
                 .collect::<Vec<PhotoGridItem>>()
         };
 
+        // State is always in ascending time order
+        self.sort.sort(&mut all_pictures);
+
         self.photo_grid.clear();
         self.photo_grid.extend_from_iter(all_pictures);
 
-        if !self.photo_grid.is_empty() {
-            self.photo_grid.view.scroll_to(
-                self.photo_grid.len() - 1,
-                gtk::ListScrollFlags::SELECT,
-                None,
-            );
-        }
+        self.sort.scroll_to_end(&mut self.photo_grid);
     }
 }
 
