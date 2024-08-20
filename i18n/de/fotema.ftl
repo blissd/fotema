@@ -8,7 +8,7 @@
 ## Main Navigation Pages
 
 # Title for library page, which contains the "all", "months", and "years" pages.
-library-page = Bibliothek
+library-page = Mediathek
 # Title for years album.
 years-album = Jahr
 # Title for months album.
@@ -246,3 +246,13 @@ person-delete-dialog =
     .body = Es werden keine Bilder oder Videos gelöscht.
     .cancel-button = Abbrechen
     .delete-button = Löschen
+prefs-ui-selfies = Selfies
+    .subtitle = Zeigt ein separates Album für Selfies an, die mit iOS-Geräten aufgenommen wurden. Starten Sie { -app-name } neu, um es anzuwenden.
+prefs-ui-chronological-album-sort = Sortierreihenfolge
+    .subtitle = Chronologische Sortierreihenfolge für Alben.
+    .ascending = Aufsteigend
+    .descending = Absteigend
+prefs-machine-learning-face-detection = Gesichtserkennung
+    .subtitle = Aktivieren Sie die Gesichtserkennung beim Starten von Fotema. Dies ist ein zeitaufwändiger Prozess.
+prefs-ui-section = UI
+    .description = Optimieren Sie die Benutzeroberfläche.

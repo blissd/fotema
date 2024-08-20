@@ -82,7 +82,7 @@ person-delete-dialog =
     .body = لن يتم إزالة أي صور أو فيديوهات.
     .cancel-button = ألغِ
     .delete-button = احذف
-about-translator-credits = أحمد محمد <iramosu@airmail.cc>
+about-translator-credits = أحمد محمد <iramosu@protonmail.com>
 month-thumbnail-label =
     { $month ->
         [1] يناير { $year }
@@ -124,3 +124,15 @@ people-page-status-off =
     .description = { -app-name } يمكن اكتشاف الوجوه والتعرف على الأشخاص تلقائيًا، لكن هذه العملية ستستغرق وقتًا. أتود تفعيل هذه الميزة؟
     .notice = { -app-name } يتعين تنزيل 45 ميغابايت من البيانات للتعرف على الوجوه والأشخاص.
     .enable = فعّل
+prefs-ui-chronological-album-sort = الترتيب
+    .subtitle = الترتيب الزمني للأبلومات.
+    .ascending = تصاعديًا
+    .descending = تنازليًا
+prefs-ui-selfies = السيلفيات
+    .subtitle = يُظهر ألبومًا منفردًا للسيلفيات الملتقطة على أجهزة آي أو إس. أعِد تشغيل { -app-name } للتطبيق.
+prefs-machine-learning-section = تعلم الىلة
+    .description = يضبط مزايا تعلم الآلة.
+prefs-machine-learning-face-detection = كشف الوجوه
+    .subtitle = يُفَعِّل كشف الوجوه عند إطلاق فوتيما. هذه العملية ستستغرق وقتًا.
+prefs-ui-section = واجهة المستخدم
+    .description = طوّع واجهة المستخدم.
