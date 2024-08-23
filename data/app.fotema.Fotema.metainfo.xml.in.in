@@ -66,6 +66,14 @@
   </branding>
 
   <releases>
+    <release version="1.12.0" date="2024-08-23">
+      <description>
+        <ul>
+          <li>Add ascending/descending chronological album sort option.</li>
+          <li>Translation updates. Thank you!</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.11.0" date="2024-08-15">
       <description>
         <ul>
