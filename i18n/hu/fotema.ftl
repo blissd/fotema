@@ -60,3 +60,30 @@ viewer-error-failed-to-load = Sikertelen betöltés
 people-not-this-person = Nem { $name }
 viewer-skip-backwards-10-seconds =
     .tooltip = Ugrás vissza 10 másodpercet
+about-opensource = Nyílt forráskódú projektek
+about-translator-credits = David Bliss <hello@fotema.app>
+viewer-mute =
+    .tooltip = Némítás/Hang visszakapcsolása
+viewer-error-missing-path = A fájl elérési útja nincs az adatbázisban
+viewer-convert-all-description = Ezt a videót konvertálni kell lejátszás előtt. Erre egyszer van szükség, de időbe telhet.
+viewer-error-missing-file =
+    Ez a fájl nem megjeleníthető, mert hiányzik:
+    { $file_name }
+infobar-folder = Mappa
+    .tooltip = Tartalmazó mappa megnyitása
+month-thumbnail-label =
+    { $month ->
+        [1] January { $year }
+        [2] February { $year }
+        [3] March { $year }
+        [4] April { $year }
+        [5] May { $year }
+        [6] June { $year }
+        [7] July { $year }
+        [8] August { $year }
+        [9] September { $year }
+        [10] October { $year }
+        [11] November { $year }
+        [12] December { $year }
+       *[other] { $year }
+    }
