@@ -87,3 +87,27 @@ month-thumbnail-label =
         [12] December { $year }
        *[other] { $year }
     }
+infobar-file-created = Fájl készítése
+infobar-originally-created = Eredeti készítés
+infobar-audio-codec = Hang kodek
+infobar-dimensions = Méretek
+people-set-face-thumbnail = Beállítás előnézeti képként
+people-set-name = Név beállítása
+prefs-machine-learning-face-detection = Arcok azonosítása
+    .subtitle = Engedélyezi az arcok azonosítását a Fotema indításakor. Ez időigényes folyamat.
+progress-metadata-photos = Fotó metaadatok feldolgozása.
+progress-metadata-videos = Videó metaadatok feldolgozása.
+progress-thumbnails-photos = Fotó miniatűrök előállítása.
+progress-thumbnails-videos = Videó előnézeti képek előállítása.
+progress-convert-videos = Videók konvertálása.
+progress-detect-faces-photos = Arcok keresése a fotókon.
+progress-recognize-faces-photos = Emberek felismerése a fotókon.
+progress-idle = Tétlen.
+banner-thumbnails-videos = Videó előnézeti képek előállítása. Ez időbe telhet.
+banner-clean-photos = Fotó adatbázis karbantartása.
+banner-metadata-videos = Videó metaadatainak feldolgozása.
+banner-thumbnails-photos = Fotó előnézeti képek előállítása. Ez időbe telhet.
+banner-clean-videos = Videó adatbázis karbantartása.
+banner-detect-faces-photos = Arcok felismerése a fotókon. Ez időbe telhet.
+banner-recognize-faces-photos = Emberek felismerése a fotókon. Ez időbe telhet.
+banner-metadata-photos = Fotó metaadatainak feldolgozása.
