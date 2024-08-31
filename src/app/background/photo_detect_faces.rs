@@ -36,7 +36,7 @@ pub enum PhotoDetectFacesOutput {
     Started,
 
     // Face detection has completed
-    Completed(usize),
+    Completed,
 
 }
 
@@ -83,7 +83,7 @@ impl PhotoDetectFaces {
         // Short-circuit before sending progress messages to stop
         // banner from appearing and disappearing.
         if count == 0 {
-            let _ = sender.output(PhotoDetectFacesOutput::Completed(count));
+            let _ = sender.output(PhotoDetectFacesOutput::Completed);
             return Ok(());
         }
 
@@ -122,7 +122,7 @@ impl PhotoDetectFaces {
 
         self.progress_monitor.emit(ProgressMonitorInput::Complete);
 
-        let _ = sender.output(PhotoDetectFacesOutput::Completed(count));
+        let _ = sender.output(PhotoDetectFacesOutput::Completed);
 
         Ok(())
     }

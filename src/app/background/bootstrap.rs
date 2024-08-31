@@ -38,6 +38,7 @@ use super::{
     video_enrich::{VideoEnrich, VideoEnrichInput, VideoEnrichOutput},
     video_scan::{VideoScan, VideoScanInput, VideoScanOutput},
     video_thumbnail::{VideoThumbnail, VideoThumbnailInput, VideoThumbnailOutput},
+    video_transcode::{VideoTranscode, VideoTranscodeInput, VideoTranscodeOutput},
 };
 
 use crate::app::SharedState;
@@ -64,6 +65,7 @@ pub enum TaskName {
     Clean(MediaType),
     DetectFaces,
     RecognizeFaces,
+    Transcode,
 }
 
 #[derive(Debug)]
@@ -75,6 +77,9 @@ pub enum BootstrapInput {
     /// Queue task for scanning picture for more faces.
     ScanPictureForFaces(PictureId),
     ScanPicturesForFaces,
+
+    // Queue task for transcoding videos
+    TranscodeAll,
 
     /// A background task has started.
     TaskStarted(TaskName),
@@ -121,6 +126,8 @@ pub struct Bootstrap {
 
     photo_detect_faces: Arc<WorkerController<PhotoDetectFaces>>,
     photo_recognize_faces: Arc<WorkerController<PhotoRecognizeFaces>>,
+
+    video_transcode: Arc<WorkerController<VideoTranscode>>,
 
     /// Pending ordered tasks to process
     /// Wow... figuring out a type signature that would compile was a nightmare.
@@ -199,6 +206,11 @@ impl Bootstrap {
         self.enqueue(Box::new(move || sender.emit(PhotoRecognizeFacesInput::Start)));
     }
 
+    fn add_task_video_transcode(&mut self) {
+        let sender = self.video_transcode.sender().clone();
+        self.enqueue(Box::new(move || sender.emit(VideoTranscodeInput::Start)));
+    }
+
     fn enqueue(&mut self, task: Box<dyn Fn() + Send + Sync>) {
         if let Ok(mut vec) = self.pending_tasks.lock() {
             vec.push_back(task);
@@ -271,7 +283,7 @@ impl Worker for Bootstrap {
         .unwrap();
 
         let load_library = LoadLibrary::builder()
-            .detach_worker((visual_repo.clone(), state))
+            .detach_worker((visual_repo.clone(), state.clone()))
             .detach();
 
         let photo_scan = PhotoScan::builder()
@@ -323,6 +335,15 @@ impl Worker for Bootstrap {
                 VideoThumbnailOutput::Completed(count) => BootstrapInput::TaskCompleted(TaskName::Thumbnail(MediaType::Video), Some(count)),
             });
 
+        let transcoder = video::Transcoder::new(&cache_dir);
+
+        let video_transcode = VideoTranscode::builder()
+            .detach_worker((state.clone(), video_repo.clone(), transcoder, progress_monitor.clone()))
+            .forward(sender.input_sender(), |msg| match msg {
+                VideoTranscodeOutput::Started => BootstrapInput::TaskStarted(TaskName::Transcode),
+                VideoTranscodeOutput::Completed => BootstrapInput::TaskCompleted(TaskName::Transcode, None),
+            });
+
         let photo_clean = PhotoClean::builder()
             .detach_worker(photo_repo.clone())
             .forward(sender.input_sender(), |msg| match msg {
@@ -341,14 +362,14 @@ impl Worker for Bootstrap {
             .detach_worker((data_dir, people_repo.clone(), progress_monitor.clone()))
             .forward(sender.input_sender(), |msg| match msg {
                 PhotoDetectFacesOutput::Started => BootstrapInput::TaskStarted(TaskName::DetectFaces),
-                PhotoDetectFacesOutput::Completed(count) => BootstrapInput::TaskCompleted(TaskName::DetectFaces, Some(count)),
+                PhotoDetectFacesOutput::Completed => BootstrapInput::TaskCompleted(TaskName::DetectFaces, None),
             });
 
         let photo_recognize_faces = PhotoRecognizeFaces::builder()
             .detach_worker((cache_dir.clone(), people_repo.clone(), progress_monitor.clone()))
             .forward(sender.input_sender(), |msg| match msg {
                 PhotoRecognizeFacesOutput::Started => BootstrapInput::TaskStarted(TaskName::RecognizeFaces),
-                PhotoRecognizeFacesOutput::Completed(count) => BootstrapInput::TaskCompleted(TaskName::RecognizeFaces, Some(count)),
+                PhotoRecognizeFacesOutput::Completed => BootstrapInput::TaskCompleted(TaskName::RecognizeFaces, None),
             });
 
         let mut bootstrap = Self {
@@ -367,6 +388,7 @@ impl Worker for Bootstrap {
             video_thumbnail: Arc::new(video_thumbnail),
             photo_detect_faces: Arc::new(photo_detect_faces),
             photo_recognize_faces: Arc::new(photo_recognize_faces),
+            video_transcode: Arc::new(video_transcode),
             pending_tasks: Arc::new(Mutex::new(VecDeque::new())),
             is_running: false,
         };
@@ -418,6 +440,11 @@ impl Worker for Bootstrap {
                 info!("Queueing task to scan all pictures for faces");
                 self.add_task_photo_detect_faces();
                 self.add_task_photo_recognize_faces();
+                self.run_if_idle();
+            },
+            BootstrapInput::TranscodeAll => {
+                info!("Queueing task to transcode all incompatible videos");
+                self.add_task_video_transcode();
                 self.run_if_idle();
             },
             BootstrapInput::TaskStarted(task_name) => {
