@@ -61,7 +61,7 @@ people-not-this-person = Nem { $name }
 viewer-skip-backwards-10-seconds =
     .tooltip = Ugrás vissza 10 másodpercet
 about-opensource = Nyílt forráskódú projektek
-about-translator-credits = David Bliss <hello@fotema.app>
+about-translator-credits = David Bliss &lt;hello@fotema.app
 viewer-mute =
     .tooltip = Némítás/Hang visszakapcsolása
 viewer-error-missing-path = A fájl elérési útja nincs az adatbázisban
@@ -73,16 +73,16 @@ infobar-folder = Mappa
     .tooltip = Tartalmazó mappa megnyitása
 month-thumbnail-label =
     { $month ->
-        [1] January { $year }
-        [2] February { $year }
-        [3] March { $year }
-        [4] April { $year }
-        [5] May { $year }
-        [6] June { $year }
-        [7] July { $year }
-        [8] August { $year }
-        [9] September { $year }
-        [10] October { $year }
+        [1] Január { $year }
+        [2] Február { $year }
+        [3] Március { $year }
+        [4] Április { $year }
+        [5] Május { $year }
+        [6] Június { $year }
+        [7] Július { $year }
+        [8] Augusztus { $year }
+        [9] Szeptember { $year }
+        [10] Október { $year }
         [11] November { $year }
         [12] December { $year }
        *[other] { $year }
@@ -111,3 +111,22 @@ banner-clean-videos = Videó adatbázis karbantartása.
 banner-detect-faces-photos = Arcok felismerése a fotókon. Ez időbe telhet.
 banner-recognize-faces-photos = Emberek felismerése a fotókon. Ez időbe telhet.
 banner-metadata-photos = Fotó metaadatainak feldolgozása.
+people-page-status-no-people =
+    .title = Nem található személy
+    .description =
+        { -app-name } indítás után arcokat keres az új fotókon.
+        Nevezze el az embereket, hogy a { -app-name } albumba rendezze őket.
+infobar-originally-modified = Eredetileg módosítva
+infobar-video-container-format = Konténer formátum
+prefs-ui-section = Felület
+    .description = A felület testreszabása.
+prefs-ui-selfies = Szelfik
+    .subtitle = Külön albumot jelenít meg az iOS eszközökön készült szelfiknek. { -app-name } újraindítása szükséges.
+prefs-ui-chronological-album-sort = Rendezés
+    .subtitle = Albumok rendezése időrenben.
+    .ascending = Növekvő
+    .descending = Csökkenő
+prefs-machine-learning-section = Gépi tanulás
+    .description = Gépi tanulás konfigurálása.
+progress-motion-photo = Mozgó fotók feldolgozása.
+banner-extract-motion-photos = Mozgó fotók feldolgozása.
