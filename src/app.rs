@@ -27,7 +27,6 @@ use crate::adaptive;
 use crate::fl;
 
 use fotema_core::database;
-use fotema_core::video;
 use fotema_core::VisualId;
 use fotema_core::PictureId;
 use fotema_core::people;
@@ -66,7 +65,6 @@ mod background;
 
 use self::background::{
     bootstrap::{Bootstrap, BootstrapInput, BootstrapOutput, TaskName, MediaType},
-    video_transcode::{VideoTranscode, VideoTranscodeInput},
 };
 
 use self::components::progress_monitor::ProgressMonitor;
@@ -138,7 +136,6 @@ pub(super) struct App {
     preferences_dialog: Controller<PreferencesDialog>,
 
     bootstrap: WorkerController<Bootstrap>,
-    video_transcode: WorkerController<VideoTranscode>,
 
     library: Controller<Library>,
 
@@ -180,7 +177,6 @@ pub(super) struct App {
     spinner: gtk::Spinner,
 
     bootstrap_progress: Controller<ProgressPanel>,
-    transcode_progress: Controller<ProgressPanel>,
 
     // Message banner
     banner: adw::Banner,
@@ -324,7 +320,6 @@ impl SimpleComponent for App {
                                     },
 
                                     model.bootstrap_progress.widget(),
-                                    model.transcode_progress.widget(),
                                 }
                             }
                         },
@@ -497,10 +492,6 @@ impl SimpleComponent for App {
         let con = database::setup(&db_path).expect("Must be able to open database");
         let con = Arc::new(Mutex::new(con));
 
-        let video_repo = {
-            video::Repository::open(&pic_base_dir, &cache_dir, &data_dir, con.clone()).unwrap()
-        };
-
         let people_repo = people::Repository::open(
             &pic_base_dir,
             &data_dir,
@@ -529,15 +520,8 @@ impl SimpleComponent for App {
             .launch(bootstrap_progress_monitor.clone())
             .detach();
 
-        let transcode_progress_monitor: Reducer<ProgressMonitor> = Reducer::new();
-        let transcode_progress_monitor = Arc::new(transcode_progress_monitor);
-
-        let transcode_progress = self::components::progress_panel::ProgressPanel::builder()
-            .launch(transcode_progress_monitor.clone())
-            .detach();
-
         let bootstrap = Bootstrap::builder()
-            .detach_worker((con.clone(), state.clone(), settings_state.clone(), bootstrap_progress_monitor))
+            .detach_worker((con.clone(), state.clone(), settings_state.clone(), bootstrap_progress_monitor.clone()))
             .forward(sender.input_sender(), |msg| match msg {
                 BootstrapOutput::TaskStarted(msg) => AppMsg::TaskStarted(msg),
                 BootstrapOutput::Completed => AppMsg::BootstrapCompleted,
@@ -551,14 +535,8 @@ impl SimpleComponent for App {
 
         settings_state.subscribe(library.sender(), |settings| LibraryInput::Sort(settings.album_sort));
 
-        let transcoder = video::Transcoder::new(&cache_dir);
-
-        let video_transcode = VideoTranscode::builder()
-            .detach_worker((state.clone(), video_repo, transcoder.clone(), transcode_progress_monitor.clone()))
-            .detach();
-
         let view_nav = ViewNav::builder()
-            .launch((state.clone(), transcode_progress_monitor.clone(), adaptive_layout.clone(), people_repo.clone()))
+            .launch((state.clone(), bootstrap_progress_monitor, adaptive_layout.clone(), people_repo.clone()))
             .forward(sender.input_sender(), |msg| match msg {
                 ViewNavOutput::TranscodeAll => AppMsg::TranscodeAll,
                 ViewNavOutput::ScanForFaces(picture_id) => AppMsg::ScanPictureForFaces(picture_id),
@@ -677,7 +655,6 @@ impl SimpleComponent for App {
         let model = Self {
             adaptive_layout,
             bootstrap,
-            video_transcode,
 
             about_dialog,
             preferences_dialog,
@@ -703,7 +680,6 @@ impl SimpleComponent for App {
             spinner: spinner.clone(),
 
             bootstrap_progress,
-            transcode_progress,
 
             banner: banner.clone(),
         };
@@ -885,6 +861,9 @@ impl SimpleComponent for App {
                     TaskName::Clean(MediaType::Video) => {
                         self.banner.set_title(&fl!("banner-clean-videos"));
                     },
+                    TaskName::Transcode => {
+                        self.banner.set_title(&fl!("banner-convert-videos"));
+                    },
                 };
             },
             AppMsg::BootstrapCompleted => {
@@ -894,7 +873,7 @@ impl SimpleComponent for App {
             },
             AppMsg::TranscodeAll => {
                 event!(Level::INFO, "Transcode all");
-                self.video_transcode.emit(VideoTranscodeInput::All);
+                self.bootstrap.emit(BootstrapInput::TranscodeAll);
             },
             AppMsg::ScanPictureForFaces(picture_id) => {
                 info!("Scan picture for faces: {}", picture_id);

@@ -315,6 +315,9 @@ banner-detect-faces-photos = Detecting faces in photos. This will take a while.
 # Recognize faces as people
 banner-recognize-faces-photos = Recognizing people in photos. This will take a while.
 
+# Transcoding videos to a compatible format
+banner-convert-videos = Converting videos.
+
 ## Primary menu
 
 # The "hamburger" menu on the main app navigation sidebar.

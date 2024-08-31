@@ -26,7 +26,7 @@ use crate::app::SharedState;
 #[derive(Debug)]
 pub enum VideoTranscodeInput {
     /// Transcode all videos
-    All,
+    Start,
 }
 
 #[derive(Debug)]
@@ -112,7 +112,7 @@ impl Worker for VideoTranscode {
 
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
-            VideoTranscodeInput::All => {
+            VideoTranscodeInput::Start => {
                 info!("Transcoding all incompatible videos");
 
                 if let Err(e) = self.transcode_all(&sender) {

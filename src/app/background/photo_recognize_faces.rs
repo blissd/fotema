@@ -34,7 +34,7 @@ pub enum PhotoRecognizeFacesOutput {
     Started,
 
     // Face recognition has completed
-    Completed(usize),
+    Completed,
 
 }
 
@@ -64,7 +64,7 @@ impl PhotoRecognizeFaces {
         // Short-circuit before sending progress messages to stop
         // banner from appearing and disappearing.
         if people.is_empty() {
-            let _ = sender.output(PhotoRecognizeFacesOutput::Completed(0));
+            let _ = sender.output(PhotoRecognizeFacesOutput::Completed);
             return Ok(());
         }
 
@@ -76,7 +76,7 @@ impl PhotoRecognizeFaces {
             .collect();
 
         if unprocessed.is_empty() {
-            let _ = sender.output(PhotoRecognizeFacesOutput::Completed(0));
+            let _ = sender.output(PhotoRecognizeFacesOutput::Completed);
             return Ok(());
         }
 
@@ -114,7 +114,7 @@ impl PhotoRecognizeFaces {
 
         self.progress_monitor.emit(ProgressMonitorInput::Complete);
 
-        let _ = sender.output(PhotoRecognizeFacesOutput::Completed(0)); // FIXME zero
+        let _ = sender.output(PhotoRecognizeFacesOutput::Completed);
 
         Ok(())
     }
