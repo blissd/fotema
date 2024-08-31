@@ -60,3 +60,54 @@ viewer-error-failed-to-load = Sikertelen betöltés
 people-not-this-person = Nem { $name }
 viewer-skip-backwards-10-seconds =
     .tooltip = Ugrás vissza 10 másodpercet
+about-opensource = Nyílt forráskódú projektek
+about-translator-credits = David Bliss <hello@fotema.app>
+viewer-mute =
+    .tooltip = Némítás/Hang visszakapcsolása
+viewer-error-missing-path = A fájl elérési útja nincs az adatbázisban
+viewer-convert-all-description = Ezt a videót konvertálni kell lejátszás előtt. Erre egyszer van szükség, de időbe telhet.
+viewer-error-missing-file =
+    Ez a fájl nem megjeleníthető, mert hiányzik:
+    { $file_name }
+infobar-folder = Mappa
+    .tooltip = Tartalmazó mappa megnyitása
+month-thumbnail-label =
+    { $month ->
+        [1] January { $year }
+        [2] February { $year }
+        [3] March { $year }
+        [4] April { $year }
+        [5] May { $year }
+        [6] June { $year }
+        [7] July { $year }
+        [8] August { $year }
+        [9] September { $year }
+        [10] October { $year }
+        [11] November { $year }
+        [12] December { $year }
+       *[other] { $year }
+    }
+infobar-file-created = Fájl készítése
+infobar-originally-created = Eredeti készítés
+infobar-audio-codec = Hang kodek
+infobar-dimensions = Méretek
+people-set-face-thumbnail = Beállítás előnézeti képként
+people-set-name = Név beállítása
+prefs-machine-learning-face-detection = Arcok azonosítása
+    .subtitle = Engedélyezi az arcok azonosítását a Fotema indításakor. Ez időigényes folyamat.
+progress-metadata-photos = Fotó metaadatok feldolgozása.
+progress-metadata-videos = Videó metaadatok feldolgozása.
+progress-thumbnails-photos = Fotó miniatűrök előállítása.
+progress-thumbnails-videos = Videó előnézeti képek előállítása.
+progress-convert-videos = Videók konvertálása.
+progress-detect-faces-photos = Arcok keresése a fotókon.
+progress-recognize-faces-photos = Emberek felismerése a fotókon.
+progress-idle = Tétlen.
+banner-thumbnails-videos = Videó előnézeti képek előállítása. Ez időbe telhet.
+banner-clean-photos = Fotó adatbázis karbantartása.
+banner-metadata-videos = Videó metaadatainak feldolgozása.
+banner-thumbnails-photos = Fotó előnézeti képek előállítása. Ez időbe telhet.
+banner-clean-videos = Videó adatbázis karbantartása.
+banner-detect-faces-photos = Arcok felismerése a fotókon. Ez időbe telhet.
+banner-recognize-faces-photos = Emberek felismerése a fotókon. Ez időbe telhet.
+banner-metadata-photos = Fotó metaadatainak feldolgozása.
