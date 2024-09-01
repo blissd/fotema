@@ -318,6 +318,14 @@ banner-recognize-faces-photos = Recognizing people in photos. This will take a w
 # Transcoding videos to a compatible format
 banner-convert-videos = Converting videos.
 
+# Button to stop all tasks doing background processing.
+banner-button-stop =
+  .label = Stop
+  .tooltip = Stop all background tasks.
+
+# Background tasks are in the process of being stopped
+banner-stopping = Stopping tasks...
+
 ## Primary menu
 
 # The "hamburger" menu on the main app navigation sidebar.

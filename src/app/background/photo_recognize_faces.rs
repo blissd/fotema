@@ -8,6 +8,7 @@ use relm4::Reducer;
 use rayon::prelude::*;
 use anyhow::*;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::result::Result::Ok;
 use std::path::PathBuf;
 use tracing::{error, info};
@@ -40,6 +41,9 @@ pub enum PhotoRecognizeFacesOutput {
 
 #[derive(Clone)]
 pub struct PhotoRecognizeFaces {
+    // Stop flag
+    stop: Arc<AtomicBool>,
+
     // Danger! Don't hold the repo mutex for too long as it blocks viewing images.
     repo: people::Repository,
 
@@ -88,8 +92,8 @@ impl PhotoRecognizeFaces {
         unprocessed
             //.into_iter()
             .into_par_iter()
+            .take_any_while(|_| !self.stop.load(Ordering::Relaxed))
             .for_each(|unknown_face| {
-                // FIXME unwrap
                 let is_match = recognizer.recognize(&unknown_face);
                 if let Ok(Some(person_id)) = is_match {
                     info!("Face {} looks like person {}", unknown_face.face_id, person_id);
@@ -121,12 +125,13 @@ impl PhotoRecognizeFaces {
 }
 
 impl Worker for PhotoRecognizeFaces {
-    type Init = (PathBuf, people::Repository, Arc<Reducer<ProgressMonitor>>);
+    type Init = (Arc<AtomicBool>, PathBuf, people::Repository, Arc<Reducer<ProgressMonitor>>);
     type Input = PhotoRecognizeFacesInput;
     type Output = PhotoRecognizeFacesOutput;
 
-    fn init((cache_dir, repo, progress_monitor): Self::Init, _sender: ComponentSender<Self>) -> Self  {
+    fn init((stop, cache_dir, repo, progress_monitor): Self::Init, _sender: ComponentSender<Self>) -> Self  {
         PhotoRecognizeFaces {
+            stop,
             cache_dir,
             repo,
             progress_monitor,

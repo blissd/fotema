@@ -18,6 +18,8 @@ use fotema_core::people;
 use fotema_core::PictureId;
 
 use std::sync::{Arc, Mutex};
+use std::sync::atomic::{AtomicBool, Ordering};
+
 use std::time::Instant;
 use std::collections::VecDeque;
 
@@ -87,6 +89,9 @@ pub enum BootstrapInput {
     /// A background task has completed.
     /// usize is count of processed items.
     TaskCompleted(TaskName, Option<usize>),
+
+    // Stop all background tasks
+    Stop,
 }
 
 #[derive(Debug)]
@@ -102,6 +107,9 @@ pub enum BootstrapOutput {
 
 pub struct Bootstrap {
     started_at: Option<Instant>,
+
+    // Stop background tasks.
+    stop: Arc<AtomicBool>,
 
     settings_state: SettingsState,
 
@@ -282,6 +290,8 @@ impl Worker for Bootstrap {
         )
         .unwrap();
 
+        let stop = Arc::new(AtomicBool::new(false));
+
         let load_library = LoadLibrary::builder()
             .detach_worker((visual_repo.clone(), state.clone()))
             .detach();
@@ -301,35 +311,35 @@ impl Worker for Bootstrap {
             });
 
         let photo_enrich = PhotoEnrich::builder()
-            .detach_worker(photo_repo.clone())
+            .detach_worker((stop.clone(), photo_repo.clone()))
             .forward(sender.input_sender(), |msg| match msg {
                 PhotoEnrichOutput::Started => BootstrapInput::TaskStarted(TaskName::Enrich(MediaType::Photo)),
                 PhotoEnrichOutput::Completed(count) => BootstrapInput::TaskCompleted(TaskName::Enrich(MediaType::Photo), Some(count)),
             });
 
         let video_enrich = VideoEnrich::builder()
-            .detach_worker((video_repo.clone(), progress_monitor.clone()))
+            .detach_worker((stop.clone(), video_repo.clone(), progress_monitor.clone()))
             .forward(sender.input_sender(), |msg| match msg {
                 VideoEnrichOutput::Started => BootstrapInput::TaskStarted(TaskName::Enrich(MediaType::Video)),
                 VideoEnrichOutput::Completed(count) => BootstrapInput::TaskCompleted(TaskName::Enrich(MediaType::Video), Some(count)),
             });
 
         let photo_extract_motion = PhotoExtractMotion::builder()
-            .detach_worker((motion_photo_extractor, photo_repo.clone(), progress_monitor.clone()))
+            .detach_worker((stop.clone(), motion_photo_extractor, photo_repo.clone(), progress_monitor.clone()))
             .forward(sender.input_sender(), |msg| match msg {
                 PhotoExtractMotionOutput::Started => BootstrapInput::TaskStarted(TaskName::MotionPhoto),
                 PhotoExtractMotionOutput::Completed(count) => BootstrapInput::TaskCompleted(TaskName::MotionPhoto, Some(count)),
             });
 
         let photo_thumbnail = PhotoThumbnail::builder()
-            .detach_worker((photo_thumbnailer.clone(), photo_repo.clone(), progress_monitor.clone()))
+            .detach_worker((stop.clone(), photo_thumbnailer.clone(), photo_repo.clone(), progress_monitor.clone()))
             .forward(sender.input_sender(), |msg| match msg {
                 PhotoThumbnailOutput::Started => BootstrapInput::TaskStarted(TaskName::Thumbnail(MediaType::Photo)),
                 PhotoThumbnailOutput::Completed(count) => BootstrapInput::TaskCompleted(TaskName::Thumbnail(MediaType::Photo), Some(count)),
             });
 
         let video_thumbnail = VideoThumbnail::builder()
-            .detach_worker((video_thumbnailer.clone(), video_repo.clone(), progress_monitor.clone()))
+            .detach_worker((stop.clone(), video_thumbnailer.clone(), video_repo.clone(), progress_monitor.clone()))
             .forward(sender.input_sender(), |msg| match msg {
                 VideoThumbnailOutput::Started => BootstrapInput::TaskStarted(TaskName::Thumbnail(MediaType::Video)),
                 VideoThumbnailOutput::Completed(count) => BootstrapInput::TaskCompleted(TaskName::Thumbnail(MediaType::Video), Some(count)),
@@ -338,35 +348,35 @@ impl Worker for Bootstrap {
         let transcoder = video::Transcoder::new(&cache_dir);
 
         let video_transcode = VideoTranscode::builder()
-            .detach_worker((state.clone(), video_repo.clone(), transcoder, progress_monitor.clone()))
+            .detach_worker((stop.clone(), state.clone(), video_repo.clone(), transcoder, progress_monitor.clone()))
             .forward(sender.input_sender(), |msg| match msg {
                 VideoTranscodeOutput::Started => BootstrapInput::TaskStarted(TaskName::Transcode),
                 VideoTranscodeOutput::Completed => BootstrapInput::TaskCompleted(TaskName::Transcode, None),
             });
 
         let photo_clean = PhotoClean::builder()
-            .detach_worker(photo_repo.clone())
+            .detach_worker((stop.clone(), photo_repo.clone()))
             .forward(sender.input_sender(), |msg| match msg {
                 PhotoCleanOutput::Started => BootstrapInput::TaskStarted(TaskName::Clean(MediaType::Photo)),
                 PhotoCleanOutput::Completed(count) => BootstrapInput::TaskCompleted(TaskName::Clean(MediaType::Photo), Some(count)),
             });
 
         let video_clean = VideoClean::builder()
-            .detach_worker(video_repo.clone())
+            .detach_worker((stop.clone(), video_repo.clone()))
             .forward(sender.input_sender(), |msg| match msg {
                 VideoCleanOutput::Started => BootstrapInput::TaskStarted(TaskName::Clean(MediaType::Video)),
                 VideoCleanOutput::Completed(count) => BootstrapInput::TaskCompleted(TaskName::Clean(MediaType::Video), Some(count)),
             });
 
         let photo_detect_faces = PhotoDetectFaces::builder()
-            .detach_worker((data_dir, people_repo.clone(), progress_monitor.clone()))
+            .detach_worker((stop.clone(), data_dir, people_repo.clone(), progress_monitor.clone()))
             .forward(sender.input_sender(), |msg| match msg {
                 PhotoDetectFacesOutput::Started => BootstrapInput::TaskStarted(TaskName::DetectFaces),
                 PhotoDetectFacesOutput::Completed => BootstrapInput::TaskCompleted(TaskName::DetectFaces, None),
             });
 
         let photo_recognize_faces = PhotoRecognizeFaces::builder()
-            .detach_worker((cache_dir.clone(), people_repo.clone(), progress_monitor.clone()))
+            .detach_worker((stop.clone(), cache_dir.clone(), people_repo.clone(), progress_monitor.clone()))
             .forward(sender.input_sender(), |msg| match msg {
                 PhotoRecognizeFacesOutput::Started => BootstrapInput::TaskStarted(TaskName::RecognizeFaces),
                 PhotoRecognizeFacesOutput::Completed => BootstrapInput::TaskCompleted(TaskName::RecognizeFaces, None),
@@ -374,6 +384,7 @@ impl Worker for Bootstrap {
 
         let mut bootstrap = Self {
             started_at: None,
+            stop,
             settings_state,
             library_stale: false,
             load_library: Arc::new(load_library),
@@ -468,8 +479,18 @@ impl Worker for Bootstrap {
                         }
                         self.library_stale = false;
                         self.is_running = false;
+                        self.stop.store(false, Ordering::Relaxed);
                         let _ = sender.output(BootstrapOutput::Completed);
                     }
+                }
+            },
+            BootstrapInput::Stop => {
+                info!("Stopping all background tasks");
+                if self.is_running {
+                    if let Ok(mut tasks) = self.pending_tasks.lock() {
+                        tasks.clear();
+                    }
+                    self.stop.store(true, Ordering::Relaxed);
                 }
             },
         };
