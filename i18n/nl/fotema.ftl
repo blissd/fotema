@@ -87,7 +87,7 @@ viewer-previous =
 # About Dialog
 # Translator note: add one translator per-line to get a translation
 # credit in the Fotema's "About" page.
-about-translator-credits = David Bliss <>
+about-translator-credits = David Bliss <hello@fotema.app>
 # Photo/Video Viewer
 # Go to next button when viewing photo or video.
 # Attributes:

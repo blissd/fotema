@@ -3,7 +3,7 @@ people-page-status-off =
     .description = { -app-name } poate detecta fețele automat și să recunoască persoanele, dar acest proces necesită mult timp. Vreți să activați această opțiune?
     .notice = Pentru a recunoaște fețe și persoane { -app-name } trebuie să descarce aproximativ 45 de megabytes de date.
     .enable = Activați
-about-translator-credits = David Bliss «hello@fotema.app»
+about-translator-credits = David Bliss <hello@fotema.app>
 viewer-error-missing-file =
     Nu se poate afișa fișierul deoarece lipsește în:
     { $file_name }
