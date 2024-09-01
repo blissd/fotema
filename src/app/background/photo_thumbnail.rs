@@ -9,6 +9,7 @@ use rayon::prelude::*;
 use futures::executor::block_on;
 use anyhow::*;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::result::Result::Ok;
 use tracing::{error, info};
 
@@ -38,6 +39,9 @@ pub enum PhotoThumbnailOutput {
 }
 
 pub struct PhotoThumbnail {
+    // Stop flag
+    stop: Arc<AtomicBool>,
+
     thumbnailer: fotema_core::photo::Thumbnailer,
 
     // Danger! Don't hold the repo mutex for too long as it blocks viewing images.
@@ -49,6 +53,7 @@ pub struct PhotoThumbnail {
 impl PhotoThumbnail {
 
     fn enrich(
+        stop: Arc<AtomicBool>,
         repo: fotema_core::photo::Repository,
         thumbnailer: fotema_core::photo::Thumbnailer,
         progress_monitor: Arc<Reducer<ProgressMonitor>>,
@@ -85,6 +90,7 @@ impl PhotoThumbnail {
         // keep the computer more response while thumbnail generation is going on.
         unprocessed
             .par_iter()
+            .take_any_while(|_| !stop.load(Ordering::Relaxed))
             .for_each(|pic| {
 
                 // Careful! panic::catch_unwind returns Ok(Err) if the evaluated expression returns
@@ -118,12 +124,13 @@ impl PhotoThumbnail {
 }
 
 impl Worker for PhotoThumbnail {
-    type Init = (fotema_core::photo::Thumbnailer, fotema_core::photo::Repository, Arc<Reducer<ProgressMonitor>>);
+    type Init = (Arc<AtomicBool>, fotema_core::photo::Thumbnailer, fotema_core::photo::Repository, Arc<Reducer<ProgressMonitor>>);
     type Input = PhotoThumbnailInput;
     type Output = PhotoThumbnailOutput;
 
-    fn init((thumbnailer, repo, progress_monitor): Self::Init, _sender: ComponentSender<Self>) -> Self  {
+    fn init((stop, thumbnailer, repo, progress_monitor): Self::Init, _sender: ComponentSender<Self>) -> Self  {
         PhotoThumbnail {
+            stop,
             thumbnailer,
             repo,
             progress_monitor,
@@ -135,13 +142,14 @@ impl Worker for PhotoThumbnail {
         match msg {
             PhotoThumbnailInput::Start => {
                 info!("Generating photo thumbnails...");
+                let stop = self.stop.clone();
                 let repo = self.repo.clone();
                 let thumbnailer = self.thumbnailer.clone();
                 let progress_monitor = self.progress_monitor.clone();
 
                 // Avoid runtime panic from calling block_on
                 rayon::spawn(move || {
-                    if let Err(e) = PhotoThumbnail::enrich(repo, thumbnailer, progress_monitor, sender) {
+                    if let Err(e) = PhotoThumbnail::enrich(stop, repo, thumbnailer, progress_monitor, sender) {
                         error!("Failed to update previews: {}", e);
                     }
                 });

@@ -10,7 +10,9 @@ use fotema_core::video::metadata;
 use rayon::prelude::*;
 
 use tracing::{error, info};
+
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use crate::app::components::progress_monitor::{
     ProgressMonitor,
@@ -34,6 +36,8 @@ pub enum VideoEnrichOutput {
 }
 
 pub struct VideoEnrich {
+    // Stop flag
+    stop: Arc<AtomicBool>,
     repo: fotema_core::video::Repository,
     progress_monitor: Arc<Reducer<ProgressMonitor>>,
 }
@@ -41,6 +45,7 @@ pub struct VideoEnrich {
 impl VideoEnrich {
 
     fn enrich(
+        stop: Arc<AtomicBool>,
         mut repo: fotema_core::video::Repository,
         progress_monitor: Arc<Reducer<ProgressMonitor>>,
         sender: &ComponentSender<VideoEnrich>) -> Result<()>
@@ -65,6 +70,7 @@ impl VideoEnrich {
 
         let metadatas = unprocessed
             .par_iter()
+            .take_any_while(|_| !stop.load(Ordering::Relaxed))
             .flat_map(|vid| {
                 let result = metadata::from_path(&vid.path);
                 progress_monitor.emit(ProgressMonitorInput::Advance);
@@ -87,12 +93,13 @@ impl VideoEnrich {
 }
 
 impl Worker for VideoEnrich {
-    type Init = (fotema_core::video::Repository, Arc<Reducer<ProgressMonitor>>);
+    type Init = (Arc<AtomicBool>, fotema_core::video::Repository, Arc<Reducer<ProgressMonitor>>);
     type Input = VideoEnrichInput;
     type Output = VideoEnrichOutput;
 
-    fn init((repo, progress_monitor): Self::Init, _sender: ComponentSender<Self>) -> Self  {
+    fn init((stop, repo, progress_monitor): Self::Init, _sender: ComponentSender<Self>) -> Self  {
         VideoEnrich {
+            stop,
             repo,
             progress_monitor,
         }
@@ -103,12 +110,13 @@ impl Worker for VideoEnrich {
         match msg {
             VideoEnrichInput::Start => {
                 info!("Enriching videos...");
+                let stop = self.stop.clone();
                 let repo = self.repo.clone();
                 let progress_monitor = self.progress_monitor.clone();
 
                 // Avoid runtime panic from calling block_on
                 rayon::spawn(move || {
-                    if let Err(e) = VideoEnrich::enrich(repo, progress_monitor, &sender) {
+                    if let Err(e) = VideoEnrich::enrich(stop, repo, progress_monitor, &sender) {
                         error!("Failed to enrich videos: {}", e);
                     }
                 });

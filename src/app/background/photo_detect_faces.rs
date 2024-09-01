@@ -7,9 +7,12 @@ use relm4::Worker;
 use relm4::Reducer;
 use rayon::prelude::*;
 use anyhow::*;
-use std::sync::Arc;
+
 use std::result::Result::Ok;
 use std::path::PathBuf;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+
 use tracing::{error, info};
 use futures::executor::block_on;
 
@@ -42,6 +45,9 @@ pub enum PhotoDetectFacesOutput {
 
 #[derive(Clone)]
 pub struct PhotoDetectFaces {
+    // Stop flag
+    stop: Arc<AtomicBool>,
+
     /// Base directory for storing photo faces
     base_dir: PathBuf,
 
@@ -101,6 +107,7 @@ impl PhotoDetectFaces {
         unprocessed
             //.into_iter()
             .par_iter()
+            .take_any_while(|_| !self.stop.load(Ordering::Relaxed))
             .for_each(|(picture_id, path)| {
                 let mut repo = self.repo.clone();
 
@@ -129,12 +136,13 @@ impl PhotoDetectFaces {
 }
 
 impl Worker for PhotoDetectFaces {
-    type Init = (PathBuf, people::Repository, Arc<Reducer<ProgressMonitor>>);
+    type Init = (Arc<AtomicBool>, PathBuf, people::Repository, Arc<Reducer<ProgressMonitor>>);
     type Input = PhotoDetectFacesInput;
     type Output = PhotoDetectFacesOutput;
 
-    fn init((base_dir, repo, progress_monitor): Self::Init, _sender: ComponentSender<Self>) -> Self  {
+    fn init((stop, base_dir, repo, progress_monitor): Self::Init, _sender: ComponentSender<Self>) -> Self  {
         PhotoDetectFaces {
+            stop,
             base_dir,
             repo,
             progress_monitor,

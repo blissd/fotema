@@ -7,6 +7,9 @@ use relm4::Worker;
 use rayon::prelude::*;
 use anyhow::Result;
 
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+
 use tracing::{debug, error, info};
 
 #[derive(Debug)]
@@ -25,6 +28,9 @@ pub enum VideoCleanOutput {
 }
 
 pub struct VideoClean {
+    // Stop flag
+    stop: Arc<AtomicBool>,
+
     // Danger! Don't hold the repo mutex for too long as it blocks viewing images.
     repo: fotema_core::video::Repository,
 }
@@ -54,6 +60,7 @@ impl VideoClean {
         }
 
         vids.par_iter()
+            .take_any_while(|_| !self.stop.load(Ordering::Relaxed))
             .for_each(|vid| {
                 if !vid.path.exists() {
                     let mut repo = self.repo.clone();
@@ -86,12 +93,12 @@ impl VideoClean {
 }
 
 impl Worker for VideoClean {
-    type Init = fotema_core::video::Repository;
+    type Init = (Arc<AtomicBool>, fotema_core::video::Repository);
     type Input = VideoCleanInput;
     type Output = VideoCleanOutput;
 
-    fn init(repo: Self::Init, _sender: ComponentSender<Self>) -> Self {
-        Self { repo }
+    fn init((stop, repo): Self::Init, _sender: ComponentSender<Self>) -> Self {
+        Self { stop, repo }
     }
 
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {

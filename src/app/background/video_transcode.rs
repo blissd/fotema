@@ -13,13 +13,14 @@ use fotema_core::video::Transcoder;
 use fotema_core::Visual;
 use tracing::{error, info};
 
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+
 use crate::app::components::progress_monitor::{
     ProgressMonitor,
     ProgressMonitorInput,
     TaskName,
 };
-
-use std::sync::Arc;
 
 use crate::app::SharedState;
 
@@ -40,6 +41,9 @@ pub enum VideoTranscodeOutput {
 }
 
 pub struct VideoTranscode {
+    // Stop flag
+    stop: Arc<AtomicBool>,
+
     repo: Repository,
 
     transcoder: Transcoder,
@@ -74,6 +78,7 @@ impl VideoTranscode {
 
         unprocessed
             .iter()
+            .take_while(|_| !self.stop.load(Ordering::Relaxed))
             .for_each(|visual| {
                 let video_id = visual.video_id.expect("Must have video_id");
                 let video_path = visual.video_path.as_ref().expect("Must have video_path");
@@ -102,12 +107,12 @@ impl VideoTranscode {
 }
 
 impl Worker for VideoTranscode {
-    type Init = (SharedState, Repository, Transcoder, Arc<Reducer<ProgressMonitor>>);
+    type Init = (Arc<AtomicBool>, SharedState, Repository, Transcoder, Arc<Reducer<ProgressMonitor>>);
     type Input = VideoTranscodeInput;
     type Output = VideoTranscodeOutput;
 
-    fn init((state, repo, transcoder, progress_monitor): Self::Init, _sender: ComponentSender<Self>) -> Self {
-        Self { state, repo, transcoder, progress_monitor }
+    fn init((stop, state, repo, transcoder, progress_monitor): Self::Init, _sender: ComponentSender<Self>) -> Self {
+        Self { stop, state, repo, transcoder, progress_monitor }
     }
 
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {

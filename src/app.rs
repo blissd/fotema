@@ -224,6 +224,9 @@ pub(super) enum AppMsg {
     ScanPictureForFaces(PictureId),
     ScanPicturesForFaces,
 
+    // Stop all background tasks
+    StopBackgroundTasks,
+
     // Adapt to layout change
     Adapt(adaptive::Layout),
 
@@ -349,8 +352,7 @@ impl SimpleComponent for App {
 
                                     #[local_ref]
                                     banner -> adw::Banner {
-                                        // Only show when generating thumbnails
-                                        set_button_label: None,
+                                        connect_button_clicked => AppMsg::StopBackgroundTasks,
                                     },
 
                                     #[local_ref]
@@ -650,7 +652,10 @@ impl SimpleComponent for App {
 
         let spinner = gtk::Spinner::builder().visible(false).build();
 
-        let banner = adw::Banner::new("-");
+        let banner = adw::Banner::builder()
+            .button_label(fl!("banner-button-stop", "label"))
+            .tooltip_text(fl!("banner-button-stop", "tooltip"))
+            .build();
 
         let model = Self {
             adaptive_layout,
@@ -826,6 +831,7 @@ impl SimpleComponent for App {
                 self.spinner.start();
                 self.spinner.set_visible(!self.main_navigation.shows_sidebar());
                 self.banner.set_revealed(true);
+                self.banner.set_button_label(Some(&fl!("banner-button-stop", "label")));
 
                 match task_name {
                     TaskName::Scan(MediaType::Photo) => {
@@ -882,6 +888,12 @@ impl SimpleComponent for App {
             AppMsg::ScanPicturesForFaces => {
                 info!("Scan pictures for faces");
                 self.bootstrap.emit(BootstrapInput::ScanPicturesForFaces);
+            },
+            AppMsg::StopBackgroundTasks => {
+                info!("Stop all background tasks");
+                self.banner.set_button_label(None);
+                self.banner.set_title(&fl!("banner-stopping"));
+                self.bootstrap.emit(BootstrapInput::Stop);
             },
             AppMsg::Adapt(adaptive::Layout::Narrow) => {
                 self.main_navigation.set_collapsed(true);

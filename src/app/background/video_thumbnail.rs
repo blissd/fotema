@@ -7,6 +7,7 @@ use relm4::Worker;
 use relm4::Reducer;
 use anyhow::*;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::panic;
 use std::result::Result::Ok;
 use tracing::{error, info};
@@ -38,6 +39,9 @@ pub enum VideoThumbnailOutput {
 }
 
 pub struct VideoThumbnail {
+    // Stop flag
+    stop: Arc<AtomicBool>,
+
     thumbnailer: Thumbnailer,
 
     // Danger! Don't hold the repo mutex for too long as it blocks viewing images.
@@ -49,6 +53,7 @@ pub struct VideoThumbnail {
 impl VideoThumbnail {
 
     fn enrich(
+        stop: Arc<AtomicBool>,
         repo: Repository,
         thumbnailer: Thumbnailer,
         progress_monitor: Arc<Reducer<ProgressMonitor>>,
@@ -82,6 +87,7 @@ impl VideoThumbnail {
 
         unprocessed
             .par_iter()
+            .take_any_while(|_| !stop.load(Ordering::Relaxed))
             .for_each(|vid| {
                 // Careful! panic::catch_unwind returns Ok(Err) if the evaluated expression returns
                 // an error but doesn't panic.
@@ -114,12 +120,13 @@ impl VideoThumbnail {
 }
 
 impl Worker for VideoThumbnail {
-    type Init = (Thumbnailer, Repository, Arc<Reducer<ProgressMonitor>>);
+    type Init = (Arc<AtomicBool>, Thumbnailer, Repository, Arc<Reducer<ProgressMonitor>>);
     type Input = VideoThumbnailInput;
     type Output = VideoThumbnailOutput;
 
-    fn init((thumbnailer, repo, progress_monitor): Self::Init, _sender: ComponentSender<Self>) -> Self  {
+    fn init((stop, thumbnailer, repo, progress_monitor): Self::Init, _sender: ComponentSender<Self>) -> Self  {
         Self {
+            stop,
             thumbnailer,
             repo,
             progress_monitor,
@@ -131,13 +138,14 @@ impl Worker for VideoThumbnail {
         match msg {
             VideoThumbnailInput::Start => {
                 info!("Generating video thumbnails...");
+                let stop = self.stop.clone();
                 let repo = self.repo.clone();
                 let thumbnailer = self.thumbnailer.clone();
                 let progress_monitor = self.progress_monitor.clone();
 
                 // Avoid runtime panic from calling block_on
                 rayon::spawn(move || {
-                    if let Err(e) = VideoThumbnail::enrich(repo, thumbnailer, progress_monitor, sender) {
+                    if let Err(e) = VideoThumbnail::enrich(stop, repo, thumbnailer, progress_monitor, sender) {
                         error!("Failed to update video thumbnails: {}", e);
                     }
                 });

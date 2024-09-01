@@ -7,6 +7,9 @@ use relm4::Worker;
 use rayon::prelude::*;
 use anyhow::Result;
 
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+
 use tracing::{debug, error, info};
 
 #[derive(Debug)]
@@ -25,6 +28,9 @@ pub enum PhotoCleanOutput {
 }
 
 pub struct PhotoClean {
+    // Stop flag
+    stop: Arc<AtomicBool>,
+
     // Danger! Don't hold the repo mutex for too long as it blocks viewing images.
     repo: fotema_core::photo::Repository,
 }
@@ -54,6 +60,7 @@ impl PhotoClean {
         }
 
         pics.par_iter()
+            .take_any_while(|_| !self.stop.load(Ordering::Relaxed))
             .for_each(|pic| {
                 if !pic.path.exists() {
                     let mut repo = self.repo.clone();
@@ -86,12 +93,12 @@ impl PhotoClean {
 }
 
 impl Worker for PhotoClean {
-    type Init = fotema_core::photo::Repository;
+    type Init = (Arc<AtomicBool>, fotema_core::photo::Repository);
     type Input = PhotoCleanInput;
     type Output = PhotoCleanOutput;
 
-    fn init(repo: Self::Init, _sender: ComponentSender<Self>) -> Self {
-        Self { repo }
+    fn init((stop, repo): Self::Init, _sender: ComponentSender<Self>) -> Self {
+        Self { stop, repo }
     }
 
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {

@@ -8,6 +8,7 @@ use relm4::Reducer;
 use rayon::prelude::*;
 use anyhow::*;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::result::Result::Ok;
 use tracing::{error, info};
 
@@ -34,6 +35,9 @@ pub enum PhotoExtractMotionOutput {
 }
 
 pub struct PhotoExtractMotion {
+    // Stop flag
+    stop: Arc<AtomicBool>,
+
     extractor: fotema_core::photo::MotionPhotoExtractor,
 
     // Danger! Don't hold the repo mutex for too long as it blocks viewing images.
@@ -45,6 +49,7 @@ pub struct PhotoExtractMotion {
 impl PhotoExtractMotion {
 
     fn extract(
+        stop: Arc<AtomicBool>,
         repo: fotema_core::photo::Repository,
         extractor: fotema_core::photo::MotionPhotoExtractor,
         progress_monitor: Arc<Reducer<ProgressMonitor>>,
@@ -77,6 +82,7 @@ impl PhotoExtractMotion {
         // keep the computer more response while thumbnail generation is going on.
         unprocessed
             .par_iter()
+            .take_any_while(|_| !stop.load(Ordering::Relaxed))
             .for_each(|photo| {
                 let result = extractor.extract(&photo.picture_id, &photo.path);
 
@@ -108,12 +114,13 @@ impl PhotoExtractMotion {
 }
 
 impl Worker for PhotoExtractMotion {
-    type Init = (fotema_core::photo::MotionPhotoExtractor, fotema_core::photo::Repository, Arc<Reducer<ProgressMonitor>>);
+    type Init = (Arc<AtomicBool>, fotema_core::photo::MotionPhotoExtractor, fotema_core::photo::Repository, Arc<Reducer<ProgressMonitor>>);
     type Input = PhotoExtractMotionInput;
     type Output = PhotoExtractMotionOutput;
 
-    fn init((extractor, repo, progress_monitor): Self::Init, _sender: ComponentSender<Self>) -> Self  {
+    fn init((stop, extractor, repo, progress_monitor): Self::Init, _sender: ComponentSender<Self>) -> Self  {
         PhotoExtractMotion {
+            stop,
             extractor,
             repo,
             progress_monitor,
@@ -124,12 +131,13 @@ impl Worker for PhotoExtractMotion {
         match msg {
             PhotoExtractMotionInput::Start => {
                 info!("Extracting motion photos...");
+                let stop = self.stop.clone();
                 let repo = self.repo.clone();
                 let extractor = self.extractor.clone();
                 let progress_monitor = self.progress_monitor.clone();
 
                 rayon::spawn(move || {
-                    if let Err(e) = PhotoExtractMotion::extract(repo, extractor, progress_monitor, sender) {
+                    if let Err(e) = PhotoExtractMotion::extract(stop, repo, extractor, progress_monitor, sender) {
                         error!("Failed to update previews: {}", e);
                     }
                 });
