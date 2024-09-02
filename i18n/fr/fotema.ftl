@@ -44,7 +44,7 @@ viewer-error-failed-to-load = Échec du chargement
 # Variables:
 #  file_name - (String) path of missing file.
 viewer-error-missing-file =
-    Impossible d'afficher le fichier, il manque :
+    Impossible d’afficher le fichier, il manque :
     { $file_name }
 # Photo/Video Information Sidebar
 # Name of containing folder of photo or video being viewed.
@@ -117,7 +117,7 @@ animated-album = Animé
 folders-album = Dossiers
 # Photo/Video Viewer
 # Convert all incompatible videos description.
-viewer-convert-all-description = Cette vidéo doit être convertie avant d'être lue. Cela peut prendre du temps mais ne sera plus nécessaire ensuite.
+viewer-convert-all-description = Cette vidéo doit être convertie avant d’être lue. Cela peut prendre du temps mais ne sera plus nécessaire par la suite.
 # Photo/Video Viewer
 # Viewer could not display a file because database entry doesn't have file path.
 # If this situation occurs, then I've mucked up the SQL view query and a bug should
@@ -271,3 +271,20 @@ person-rename-dialog =
     .placeholder = Nouveau nom
     .cancel-button = Annuler
     .rename-button = Renommer
+prefs-ui-section = Interface
+    .description = Personnalisez l’interface utilisateur.
+prefs-ui-selfies = Portraits
+    .subtitle = Affiche un album à part pour les selfies pris sur les appareils iOS. Redémarrez { -app-name } pour appliquer ce paramètre.
+prefs-machine-learning-face-detection = Détection des visages
+    .subtitle = Activer la détection des visages au lancement de Fotema. Ce processus peut prendre du temps.
+banner-button-stop =
+    .label = Arrêter
+    .tooltip = Arrêter toutes les tâches en arrière-plan.
+banner-stopping = Arrêt des tâches…
+banner-convert-videos = Conversion des vidéos.
+prefs-ui-chronological-album-sort = Ordre de tri
+    .subtitle = Ordre chronologique des albums.
+    .ascending = Croissant
+    .descending = Décroissant
+prefs-machine-learning-section = Apprentissage automatique
+    .description = Configurer les fonctions d’apprentissage automatique.
