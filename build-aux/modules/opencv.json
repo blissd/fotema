@@ -3,8 +3,8 @@
   "buildsystem": "cmake-ninja",
   "builddir": true,
   "cleanup": [
-    "/bin",
-    "/share/opencv4"
+    "/bin/*",
+    "/share/opencv4/*"
   ],
   "config-opts": [
     "-D BUILD_LIST=objdetect,imgcodecs,dnn",
