@@ -26,5 +26,13 @@
       <default>'Ascending'</default>
       <summary>Sort direction for albums. 'Ascending', 'Descending'.</summary>
     </key>
+    <key name="onboarding-complete" type="b">
+      <default>false</default>
+      <summary>Has the user onboarding process completed?</summary>
+    </key>
+    <key name="pictures-base-dir-b64" type="s">
+      <default>'L3Zhci9lbXB0eQ=='</default>
+      <summary>User-selected pictures root directory. Base64 encoded because paths aren't strings. Default is /var/empty</summary>
+    </key>
   </schema>
 </schemalist>

@@ -15,7 +15,6 @@
     "--socket=wayland",
     "--socket=fallback-x11",
     "--socket=pulseaudio",
-    "--filesystem=xdg-pictures:ro",
     "--env=RUST_BACKTRACE=0",
     "--env=RUST_LOG=fotema=warn,relm4=warn,glycin=warn"
   ],

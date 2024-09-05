@@ -30,6 +30,7 @@ use fotema_core::database;
 use fotema_core::VisualId;
 use fotema_core::PictureId;
 use fotema_core::people;
+use fotema_core::path_encoding;
 
 use h3o::CellIndex;
 
@@ -58,6 +59,7 @@ use self::components::{
     },
     library::{Library, LibraryInput, LibraryOutput},
     viewer::view_nav::{ViewNav, ViewNavInput, ViewNavOutput},
+    onboard::{Onboard, OnboardInput, OnboardOutput},
     preferences::{PreferencesDialog, PreferencesInput},
 };
 
@@ -113,6 +115,13 @@ pub struct Settings {
     /// Sorting for albums.
     /// NOTE: doesn't include folder's album.
     pub album_sort: AlbumSort,
+
+    /// Has the user completed the onboarding processes to select
+    /// the picture library root directory?
+    pub is_onboarding_complete: bool,
+
+    /// Base path of pictures directory.
+    pub pictures_base_dir: PathBuf,
 }
 
 /// Active settings
@@ -136,6 +145,10 @@ pub(super) struct App {
     preferences_dialog: Controller<PreferencesDialog>,
 
     bootstrap: WorkerController<Bootstrap>,
+
+    // View for first run
+    onboard: AsyncController<Onboard>,
+    onboard_view: adw::ToolbarView,
 
     library: Controller<Library>,
 
@@ -232,6 +245,9 @@ pub(super) enum AppMsg {
 
     /// Settings updated
     SettingsChanged(Settings),
+
+    /// Onboarding process is complete
+    OnboardDone,
 }
 
 relm4::new_action_group!(pub(super) WindowActionGroup, "win");
@@ -288,6 +304,9 @@ impl SimpleComponent for App {
                 connect_apply => AppMsg::Adapt(adaptive::Layout::Narrow),
                 connect_unapply => AppMsg::Adapt(adaptive::Layout::Wide),
             },
+
+            gtk::Box {
+                set_orientation: gtk::Orientation::Vertical,
 
             // Top-level navigation view containing:
             // 1. Navigation view containing stack of pages.
@@ -470,6 +489,24 @@ impl SimpleComponent for App {
                     model.view_nav.widget(),
                 },
             },
+
+            // Hmmm... can the views be refactored so we don't have a separate toolbar view
+            // for the onboarding page?
+            #[local_ref]
+            onboard_view -> adw::ToolbarView {
+                set_visible: false,
+
+                add_top_bar = &adw::HeaderBar {
+                    /*pack_end = &gtk::MenuButton {
+                        set_icon_name: "open-menu-symbolic",
+                        set_menu_model: Some(&primary_menu),
+                    }*/
+                },
+
+                #[wrap(Some)]
+                set_content = model.onboard.widget(),
+            }
+            }
         }
     }
 
@@ -528,6 +565,14 @@ impl SimpleComponent for App {
                 BootstrapOutput::TaskStarted(msg) => AppMsg::TaskStarted(msg),
                 BootstrapOutput::Completed => AppMsg::BootstrapCompleted,
             });
+
+        let onboard = Onboard::builder()
+            .launch(())
+            .forward(sender.input_sender(), |msg| match msg {
+                OnboardOutput::Done(_) => AppMsg::OnboardDone,
+            });
+
+        let onboard_view = adw::ToolbarView::new();
 
         let library = Library::builder()
             .launch((state.clone(), active_view.clone(), adaptive_layout.clone()))
@@ -664,6 +709,9 @@ impl SimpleComponent for App {
             about_dialog,
             preferences_dialog,
 
+            onboard,
+            onboard_view: onboard_view.clone(),
+
             library,
 
             view_nav,
@@ -721,6 +769,10 @@ impl SimpleComponent for App {
         model.spinner.start();
 
         model.bootstrap.emit(BootstrapInput::Start);
+
+        let settings = settings_state.read();
+        model.picture_navigation_view.set_visible(settings.is_onboarding_complete);
+        model.onboard_view.set_visible(!settings.is_onboarding_complete);
 
         ComponentParts { model, widgets }
     }
@@ -910,6 +962,10 @@ impl SimpleComponent for App {
                 // Notify of a change of layout.
                 *self.adaptive_layout.write() = adaptive::Layout::Wide;
             },
+            AppMsg::OnboardDone => {
+                self.picture_navigation_view.set_visible(true);
+                self.onboard_view.set_visible(false);
+            },
         }
     }
 
@@ -928,6 +984,8 @@ impl App {
                 .unwrap_or(FaceDetectionMode::Off),
             album_sort: AlbumSort::from_str(&gio_settings.string("album-sort"))
                 .unwrap_or(AlbumSort::Ascending),
+            is_onboarding_complete: gio_settings.boolean("onboarding-complete"),
+            pictures_base_dir: path_encoding::from_base64(&gio_settings.string("pictures-base-dir-b64").into())?,
         })
     }
 
@@ -937,6 +995,8 @@ impl App {
         gio_settings.set_boolean("show-selfies", settings.show_selfies)?;
         gio_settings.set_string("face-detection-mode", settings.face_detection_mode.as_ref())?;
         gio_settings.set_string("album-sort", settings.album_sort.as_ref())?;
+        gio_settings.set_boolean("onboarding-complete", settings.is_onboarding_complete)?;
+        gio_settings.set_string("pictures-base-dir-b64", &path_encoding::to_base64(settings.pictures_base_dir.as_ref()))?;
         Ok(())
     }
 }

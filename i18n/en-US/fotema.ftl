@@ -357,3 +357,12 @@ person-rename-dialog =
   .placeholder = New name
   .cancel-button = Cancel
   .rename-button = Rename
+
+# First view to present to a user.
+onboard-description = Welcome to { -app-name }.
+
+  Please select the directory where you keep your picture library.
+
+  If you have used an earlier version of { -app-name } where your picture library was automatically discovered, then please select the same directory here to avoid any duplicate processing of pictures.
+
+onboard-select-picture-directory = Choose Directory
