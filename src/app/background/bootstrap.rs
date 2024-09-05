@@ -206,12 +206,24 @@ impl Bootstrap {
 
     fn add_task_photo_detect_faces_for_one(&mut self, picture_id: PictureId) {
         let sender = self.photo_detect_faces.sender().clone();
-        self.enqueue(Box::new(move || sender.emit(PhotoDetectFacesInput::DetectForOnePicture(picture_id))));
+        let mode = self.settings_state.read().face_detection_mode;
+        match mode {
+            FaceDetectionMode::Off => {},
+            FaceDetectionMode::On => {
+                self.enqueue(Box::new(move || sender.emit(PhotoDetectFacesInput::DetectForOnePicture(picture_id))));
+            },
+        };
     }
 
     fn add_task_photo_recognize_faces(&mut self) {
         let sender = self.photo_recognize_faces.sender().clone();
-        self.enqueue(Box::new(move || sender.emit(PhotoRecognizeFacesInput::Start)));
+        let mode = self.settings_state.read().face_detection_mode;
+        match mode {
+            FaceDetectionMode::Off => {},
+            FaceDetectionMode::On => {
+                self.enqueue(Box::new(move || sender.emit(PhotoRecognizeFacesInput::Start)));
+            },
+        };
     }
 
     fn add_task_video_transcode(&mut self) {
