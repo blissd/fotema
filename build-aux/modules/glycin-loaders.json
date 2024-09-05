@@ -84,6 +84,7 @@
         "-D BUILD_TESTING=OFF",
         "-D JPEGXL_TEST_TOOLS=OFF",
         "-D JPEGXL_ENABLE_BENCHMARK=OFF",
+        "-D JPEGXL_ENABLE_DEVTOOLS=OFF",
         "-D JPEGXL_ENABLE_EXAMPLES=OFF",
         "-D JPEGXL_ENABLE_FUZZERS=OFF",
         "-D JPEGXL_ENABLE_PLUGINS=ON",
@@ -96,7 +97,7 @@
         "-D JPEGXL_ENABLE_TRANSCODE_JPEG=OFF"
       ],
       "cleanup": [
-        "/bin"
+        "/bin/*"
       ],
       "sources": [
         {
