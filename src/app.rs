@@ -193,6 +193,8 @@ pub(super) struct App {
 
     // Message banner
     banner: adw::Banner,
+
+    settings_state: SettingsState,
 }
 
 #[derive(Debug)]
@@ -729,6 +731,8 @@ impl SimpleComponent for App {
             bootstrap_progress,
 
             banner: banner.clone(),
+
+            settings_state: settings_state.clone(),
         };
 
         let widgets = view_output!();
@@ -762,11 +766,16 @@ impl SimpleComponent for App {
         model.spinner.set_visible(true);
         model.spinner.start();
 
-        //model.bootstrap.emit(BootstrapInput::Start);
-
         let settings = settings_state.read();
-        model.picture_navigation_view.set_visible(settings.is_onboarding_complete);
-        model.onboard_view.set_visible(!settings.is_onboarding_complete);
+        let is_onboarding_complete = settings.is_onboarding_complete && settings.pictures_base_dir.exists();
+        if is_onboarding_complete {
+            model.picture_navigation_view.set_visible(true);
+            model.onboard_view.set_visible(false);
+            model.bootstrap.emit(BootstrapInput::Configure(settings.pictures_base_dir.clone()));
+        } else {
+            model.picture_navigation_view.set_visible(false);
+            model.onboard_view.set_visible(true);
+        }
 
         ComponentParts { model, widgets }
     }
@@ -957,6 +966,11 @@ impl SimpleComponent for App {
                 *self.adaptive_layout.write() = adaptive::Layout::Wide;
             },
             AppMsg::OnboardDone(pic_base_dir) => {
+                let mut settings = self.settings_state.read().clone();
+                settings.is_onboarding_complete = true;
+                settings.pictures_base_dir = pic_base_dir.clone();
+                *self.settings_state.write() = settings;
+
                 self.bootstrap.emit(BootstrapInput::Configure(pic_base_dir));
                 self.picture_navigation_view.set_visible(true);
                 self.onboard_view.set_visible(false);

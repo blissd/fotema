@@ -109,7 +109,6 @@ impl SimpleAsyncComponent for Onboard {
                     }
                  }
             },
-
         }
     }
 }
