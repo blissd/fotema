@@ -359,10 +359,11 @@ person-rename-dialog =
   .rename-button = Rename
 
 # First view to present to a user.
-onboard-description = Welcome to { -app-name }.
+onboard-select-pictures =
+  .title = Where Are Your Pictures?
+  .description = Please select the directory where you keep your picture library.
 
-  Please select the directory where you keep your picture library.
+    If you have used an earlier version of { -app-name } where your picture library was automatically discovered, then please select the same directory here to avoid any duplicate processing of pictures.
 
-  If you have used an earlier version of { -app-name } where your picture library was automatically discovered, then please select the same directory here to avoid any duplicate processing of pictures.
+  .button = Select Directory
 
-onboard-select-picture-directory = Choose Directory

@@ -4,7 +4,6 @@
 
 use ashpd::{
     desktop::file_chooser::OpenFileRequest,
-    documents::Documents,
     WindowIdentifier,
 };
 
@@ -48,7 +47,8 @@ impl SimpleAsyncComponent for Onboard {
             set_vexpand: true,
 
             set_icon_name: Some("image-missing-symbolic"),
-            set_description: Some(&fl!("onboard-description")),
+            set_title: &fl!("onboard-select-pictures", "title"),
+            set_description: Some(&fl!("onboard-select-pictures", "description")),
 
             #[wrap(Some)]
             set_child = &adw::Clamp {
@@ -61,7 +61,7 @@ impl SimpleAsyncComponent for Onboard {
 
                     //#[local_ref]
                     gtk::Button {
-                        set_label: &fl!("onboard-select-picture-directory"),
+                        set_label: &fl!("onboard-select-pictures", "button"),
                         add_css_class: "suggested-action",
                         add_css_class: "pill",
                         connect_clicked => OnboardInput::ChooseDirectory,
@@ -102,15 +102,12 @@ impl SimpleAsyncComponent for Onboard {
                         Ok(files) => {
                             info!("Open: {:?}", files);
                             if let Some(first) = files.uris().first() {
-                                info!("User has chosed picture library at: {:?}", first.path());
+                                info!("User has chosen picture library at: {:?}", first.path());
                                 let _ = sender.output(OnboardOutput::Done(PathBuf::from(first.path())));
                             }
-
-                            //self.success("Open file request was successful");
                         }
                         Err(err) => {
                             error!("Failed to open a file: {err}");
-                            //self.error("Request to open a file failed");
                         }
                     }
                  }
