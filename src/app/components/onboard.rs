@@ -20,7 +20,6 @@ use std::path::PathBuf;
 
 #[derive(Debug)]
 pub enum OnboardInput {
-
     /// Button to choose file dialog has been clicked.
     ChooseDirectory,
 }
@@ -66,8 +65,6 @@ impl SimpleAsyncComponent for Onboard {
                         add_css_class: "pill",
                         connect_clicked => OnboardInput::ChooseDirectory,
                     },
-
-                    //model.transcode_progress.widget(),
                 }
             }
         },

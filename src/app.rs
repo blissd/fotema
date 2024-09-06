@@ -59,7 +59,7 @@ use self::components::{
     },
     library::{Library, LibraryInput, LibraryOutput},
     viewer::view_nav::{ViewNav, ViewNavInput, ViewNavOutput},
-    onboard::{Onboard, OnboardInput, OnboardOutput},
+    onboard::{Onboard, OnboardOutput},
     preferences::{PreferencesDialog, PreferencesInput},
 };
 
@@ -246,8 +246,8 @@ pub(super) enum AppMsg {
     /// Settings updated
     SettingsChanged(Settings),
 
-    /// Onboarding process is complete
-    OnboardDone,
+    /// Onboarding process is complete and user has selected the picture base directory
+    OnboardDone(PathBuf),
 }
 
 relm4::new_action_group!(pub(super) WindowActionGroup, "win");
@@ -569,7 +569,7 @@ impl SimpleComponent for App {
         let onboard = Onboard::builder()
             .launch(())
             .forward(sender.input_sender(), |msg| match msg {
-                OnboardOutput::Done(_) => AppMsg::OnboardDone,
+                OnboardOutput::Done(pic_base_dir) => AppMsg::OnboardDone(pic_base_dir),
             });
 
         let onboard_view = adw::ToolbarView::new();
@@ -768,7 +768,7 @@ impl SimpleComponent for App {
         model.spinner.set_visible(true);
         model.spinner.start();
 
-        model.bootstrap.emit(BootstrapInput::Start);
+        //model.bootstrap.emit(BootstrapInput::Start);
 
         let settings = settings_state.read();
         model.picture_navigation_view.set_visible(settings.is_onboarding_complete);
@@ -962,7 +962,8 @@ impl SimpleComponent for App {
                 // Notify of a change of layout.
                 *self.adaptive_layout.write() = adaptive::Layout::Wide;
             },
-            AppMsg::OnboardDone => {
+            AppMsg::OnboardDone(pic_base_dir) => {
+                self.bootstrap.emit(BootstrapInput::Configure(pic_base_dir));
                 self.picture_navigation_view.set_visible(true);
                 self.onboard_view.set_visible(false);
             },
