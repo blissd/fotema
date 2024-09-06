@@ -18,6 +18,7 @@ use futures::executor::block_on;
 
 use fotema_core::machine_learning::face_extractor::FaceExtractor;
 use fotema_core::people;
+use fotema_core::photo;
 use fotema_core::photo::PictureId;
 
 use crate::app::components::progress_monitor::{
@@ -49,10 +50,10 @@ pub struct PhotoDetectFaces {
     stop: Arc<AtomicBool>,
 
     /// Base directory for storing photo faces
-    base_dir: PathBuf,
+    faces_base_dir: PathBuf,
 
-    // Danger! Don't hold the repo mutex for too long as it blocks viewing images.
-    repo: people::Repository,
+    photo_repo: photo::Repository,
+    people_repo: people::Repository,
 
     progress_monitor: Arc<Reducer<ProgressMonitor>>,
 }
@@ -60,8 +61,8 @@ pub struct PhotoDetectFaces {
 impl PhotoDetectFaces {
 
     fn detect_for_one(&self, sender: ComponentSender<Self>, picture_id: PictureId) -> Result<()> {
-        self.repo.delete_faces(picture_id)?;
-        let result = self.repo.get_file_to_scan(picture_id)?;
+        self.people_repo.delete_faces(picture_id)?;
+        let result = self.photo_repo.get_picture_path(picture_id)?;
         if let Some(picture_path) = result {
             let unprocessed = vec![(picture_id, picture_path)];
             self.detect(sender, unprocessed)
@@ -71,7 +72,7 @@ impl PhotoDetectFaces {
     }
 
     fn detect_for_all(&self, sender: ComponentSender<Self>) -> Result<()> {
-        let unprocessed: Vec<(PictureId, PathBuf)> = self.repo
+        let unprocessed: Vec<(PictureId, PathBuf)> = self.photo_repo
             .find_need_face_scan()?
             .into_iter()
             .filter(|(_, path)| path.exists())
@@ -102,14 +103,14 @@ impl PhotoDetectFaces {
         // on the main thread.
         // Also, this has the advantage of extractor being dropped after use, which means
         // the face detection models will be unloaded from memory.
-        let extractor = FaceExtractor::build(&self.base_dir)?;
+        let extractor = FaceExtractor::build(&self.faces_base_dir)?;
 
         unprocessed
             //.into_iter()
             .par_iter()
             .take_any_while(|_| !self.stop.load(Ordering::Relaxed))
             .for_each(|(picture_id, path)| {
-                let mut repo = self.repo.clone();
+                let mut repo = self.people_repo.clone();
 
                 // Careful! panic::catch_unwind returns Ok(Err) if the evaluated expression returns
                 // an error but doesn't panic.
@@ -136,15 +137,16 @@ impl PhotoDetectFaces {
 }
 
 impl Worker for PhotoDetectFaces {
-    type Init = (Arc<AtomicBool>, PathBuf, people::Repository, Arc<Reducer<ProgressMonitor>>);
+    type Init = (Arc<AtomicBool>, PathBuf, photo::Repository, people::Repository, Arc<Reducer<ProgressMonitor>>);
     type Input = PhotoDetectFacesInput;
     type Output = PhotoDetectFacesOutput;
 
-    fn init((stop, base_dir, repo, progress_monitor): Self::Init, _sender: ComponentSender<Self>) -> Self  {
+    fn init((stop, faces_base_dir, photo_repo, people_repo, progress_monitor): Self::Init, _sender: ComponentSender<Self>) -> Self  {
         PhotoDetectFaces {
             stop,
-            base_dir,
-            repo,
+            faces_base_dir,
+            photo_repo,
+            people_repo,
             progress_monitor,
         }
     }

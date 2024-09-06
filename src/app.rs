@@ -521,18 +521,12 @@ impl SimpleComponent for App {
         let cache_dir = glib::user_cache_dir().join(APP_ID);
         let _ = std::fs::create_dir_all(&cache_dir);
 
-        let pic_base_dir = glib::user_special_dir(glib::enums::UserDirectory::Pictures)
-            .expect("Expect XDG_PICTURES_DIR");
-
-        info!("XDG_PICTURES_DIR is {:?}", pic_base_dir);
-
         let db_path = data_dir.join("pictures.sqlite");
 
         let con = database::setup(&db_path).expect("Must be able to open database");
         let con = Arc::new(Mutex::new(con));
 
         let people_repo = people::Repository::open(
-            &pic_base_dir,
             &data_dir,
             con.clone(),
         ).unwrap();

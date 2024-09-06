@@ -389,7 +389,6 @@ impl Bootstrap {
         ).unwrap();
 
         let people_repo = people::Repository::open(
-            &pic_base_dir,
             &data_dir,
             self.con.clone(),
         ).unwrap();
@@ -473,7 +472,7 @@ impl Bootstrap {
             });
 
         let photo_detect_faces = PhotoDetectFaces::builder()
-            .detach_worker((stop.clone(), data_dir, people_repo.clone(), self.progress_monitor.clone()))
+            .detach_worker((stop.clone(), data_dir, photo_repo.clone(), people_repo.clone(), self.progress_monitor.clone()))
             .forward(sender.input_sender(), |msg| match msg {
                 PhotoDetectFacesOutput::Started => BootstrapInput::TaskStarted(TaskName::DetectFaces),
                 PhotoDetectFacesOutput::Completed => BootstrapInput::TaskCompleted(TaskName::DetectFaces, None),
