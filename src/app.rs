@@ -42,7 +42,7 @@ use anyhow::*;
 
 use strum::{AsRefStr, EnumString, IntoStaticStr, FromRepr};
 
-use tracing::{event, Level, error, info};
+use tracing::{error, info, warn};
 
 mod components;
 
@@ -844,7 +844,7 @@ impl SimpleComponent for App {
                     ViewName::People => self.people_page.emit(PeopleAlbumInput::Activate),
                     ViewName::Person => self.person_album.emit(PersonAlbumInput::Activate),
                     ViewName::Places => self.places_page.emit(PlacesAlbumInput::Activate),
-                    ViewName::Nothing => event!(Level::WARN, "Nothing activated... which should not happen"),
+                    ViewName::Nothing => warn!("Nothing activated... which should not happen"),
                 }
             },
             AppMsg::View(visual_id, filter) => {
@@ -928,12 +928,12 @@ impl SimpleComponent for App {
                 };
             },
             AppMsg::BootstrapCompleted => {
-                event!(Level::INFO, "Bootstrap completed.");
+                info!("Bootstrap completed.");
                 self.spinner.stop();
                 self.banner.set_revealed(false);
             },
             AppMsg::TranscodeAll => {
-                event!(Level::INFO, "Transcode all");
+                info!("Transcode all");
                 self.bootstrap.emit(BootstrapInput::TranscodeAll);
             },
             AppMsg::ScanPictureForFaces(picture_id) => {
