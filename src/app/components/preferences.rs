@@ -9,9 +9,9 @@ use ashpd::{
 
 use relm4::adw::prelude::*;
 use relm4::gtk;
-use relm4::gtk::prelude::*;
 use relm4::*;
 use relm4::prelude::*;
+use std::path::PathBuf;
 
 use tracing::{error, info};
 
@@ -217,6 +217,10 @@ impl SimpleAsyncComponent for PreferencesDialog {
                             info!("Open: {:?}", files);
                             if let Some(first) = files.uris().first() {
                                 info!("User has chosen picture library at: {:?}", first.path());
+                                let pictures_base_dir = PathBuf::from(first.path());
+                                if self.settings.pictures_base_dir != pictures_base_dir {
+                                    info!("New pictures base director is: {:?}", pictures_base_dir);
+                                }
                                 //let _ = sender.output(OnboardOutput::Done(PathBuf::from(first.path())));
                             }
                         }
