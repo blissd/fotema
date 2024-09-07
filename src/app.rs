@@ -889,6 +889,9 @@ impl SimpleComponent for App {
                 self.banner.set_button_label(Some(&fl!("banner-button-stop", "label")));
 
                 match task_name {
+                    TaskName::LoadLibrary => {
+                        // do nothing
+                    },
                     TaskName::Scan(MediaType::Photo) => {
                         self.banner.set_title(&fl!("banner-scan-photos"));
                     },

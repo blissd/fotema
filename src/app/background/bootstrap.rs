@@ -9,6 +9,7 @@ use relm4::{
     shared_state::Reducer,
 };
 
+use crate::app::Settings;
 use crate::config::APP_ID;
 use fotema_core::database;
 use fotema_core::photo;
@@ -27,7 +28,7 @@ use std::path::PathBuf;
 use tracing::info;
 
 use super::{
-    load_library::{LoadLibrary, LoadLibraryInput},
+    load_library::{LoadLibrary, LoadLibraryInput, LoadLibraryOutput},
 
     photo_clean::{PhotoClean, PhotoCleanInput, PhotoCleanOutput},
     photo_detect_faces::{PhotoDetectFaces, PhotoDetectFacesInput, PhotoDetectFacesOutput},
@@ -61,6 +62,7 @@ pub enum MediaType {
 /// Any thoughts about this fact?
 #[derive(Debug)]
 pub enum TaskName {
+    LoadLibrary,
     Scan(MediaType),
     Enrich(MediaType),
     MotionPhoto,
@@ -76,6 +78,9 @@ pub enum BootstrapInput {
 
     /// Configure the pictures library root
     Configure(PathBuf),
+
+    /// Settings updated
+    SettingsUpdated(Settings),
 
     /// Start the initial background processes for setting up Fotema.
     Start,
@@ -119,8 +124,13 @@ pub struct Controllers {
 
     settings_state: SettingsState,
 
+    //pic_base_dir: Option<PathBuf>,
+
     // Stop background tasks.
     stop: Arc<AtomicBool>,
+
+    /// Whether a background task has updated some library state and the library should be reloaded.
+    library_stale: Arc<AtomicBool>,
 
     load_library: Arc<WorkerController<LoadLibrary>>,
 
@@ -149,9 +159,6 @@ pub struct Controllers {
 
     // Is a task currently running?
     is_running: bool,
-
-    /// Whether a background task has updated some library state and the library should be reloaded.
-    library_stale: bool,
 }
 
 impl Controllers {
@@ -163,9 +170,6 @@ impl Controllers {
             BootstrapInput::Start => {
                 info!("Start");
                 self.started_at = Some(Instant::now());
-
-                // Initial library load to reduce time from starting app and seeing a photo grid
-                self.load_library.emit(LoadLibraryInput::Refresh);
 
                 if let Ok(mut tasks) = self.pending_tasks.lock() {
                     if let Some(task) = tasks.pop_front() {
@@ -200,20 +204,14 @@ impl Controllers {
             },
             BootstrapInput::TaskCompleted(task_name, updated) => {
                 info!("Task completed: {:?}. Items updated? {:?}", task_name, updated);
-                self.library_stale = self.library_stale || updated.is_some_and(|x| x > 0);
+                self.library_stale.fetch_or(updated.is_some_and(|x| x > 0), Ordering::Relaxed);
 
                 if let Ok(mut tasks) = self.pending_tasks.lock() {
                     if let Some(task) = tasks.pop_front() {
                         self.is_running = true;
                         task();
                     } else {
-                        // This is the last background task to complete. Refresh library if there
-                        // has been a visible change to the library state.
-                        if self.library_stale {
-                            info!("Refreshing library final task completion.");
-                            self.load_library.emit(LoadLibraryInput::Refresh);
-                        }
-                        self.library_stale = false;
+                        self.library_stale.store(false, Ordering::Relaxed);
                         self.is_running = false;
                         self.stop.store(false, Ordering::Relaxed);
                         let _ = sender.output(BootstrapOutput::Completed);
@@ -318,6 +316,18 @@ impl Controllers {
         self.enqueue(Box::new(move || sender.emit(VideoTranscodeInput::Start)));
     }
 
+
+    fn add_task_load_library(&mut self) {
+        let sender = self.load_library.sender().clone();
+        let stale = self.library_stale.clone();
+        self.enqueue(Box::new(move || {
+            if stale.load(Ordering::Relaxed) {
+                info!("Library stale so refreshing.");
+                sender.emit(LoadLibraryInput::Refresh);
+            }
+        }));
+    }
+
     fn enqueue(&mut self, task: Box<dyn Fn() + Send + Sync>) {
         if let Ok(mut vec) = self.pending_tasks.lock() {
             vec.push_back(task);
@@ -397,7 +407,9 @@ impl Bootstrap {
 
         let load_library = LoadLibrary::builder()
             .detach_worker((visual_repo.clone(), self.shared_state.clone()))
-            .detach();
+            .forward(sender.input_sender(), |msg| match msg {
+                LoadLibraryOutput::Done => BootstrapInput::TaskCompleted(TaskName::LoadLibrary, None),
+            });
 
         let photo_scan = PhotoScan::builder()
             .detach_worker((photo_scanner.clone(), photo_repo.clone()))
@@ -505,10 +517,14 @@ impl Bootstrap {
             video_transcode: Arc::new(video_transcode),
             pending_tasks: Arc::new(Mutex::new(VecDeque::new())),
             is_running: false,
-            library_stale: false,
+            library_stale: Arc::new(AtomicBool::new(true)), // must be stale to trigger initial load
         };
 
         // Tasks will execute in the order added.
+
+
+        // Initial library load to reduce time from starting app and seeing a photo grid
+        controllers.add_task_load_library();
         controllers.add_task_photo_scan();
         controllers.add_task_video_scan();
         controllers.add_task_photo_enrich();
@@ -520,6 +536,10 @@ impl Bootstrap {
         controllers.add_task_photo_extract_motion();
         controllers.add_task_photo_detect_faces();
         controllers.add_task_photo_recognize_faces();
+
+        // This is the last background task to complete. Refresh library if there
+        // has been a visible change to the library state.
+        controllers.add_task_load_library();
 
         controllers
     }
