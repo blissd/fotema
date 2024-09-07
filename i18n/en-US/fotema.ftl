@@ -247,7 +247,16 @@ prefs-machine-learning-section = Machine Learning
 
 # Enable or disable face detection
 prefs-machine-learning-face-detection = Face Detection
-  .subtitle = Enable face detection when Fotema launches. This is a time consuming process.
+  .subtitle = Enable face detection when { -app-name } launches. This is a time consuming process.
+
+prefs-library-section =
+  .title = Library
+  .description = Configure library directory.
+
+prefs-library-section-pictures-dir =
+  .title = Pictures Directory
+  .subtitle = Warning: changing the pictures directory can cause { -app-name } to reprocess all your pictures.
+  .tooltip = Choose pictures directory.
 
 ## Progress bar for background tasks
 

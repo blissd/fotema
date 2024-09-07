@@ -2,11 +2,18 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use relm4::{adw, ComponentParts, ComponentSender, SimpleComponent};
+use ashpd::{
+    desktop::file_chooser::OpenFileRequest,
+    WindowIdentifier,
+};
+
 use relm4::adw::prelude::*;
 use relm4::gtk;
+use relm4::gtk::prelude::*;
+use relm4::*;
+use relm4::prelude::*;
 
-use tracing::info;
+use tracing::{error, info};
 
 use crate::fl;
 use crate::app::{Settings, SettingsState};
@@ -44,10 +51,12 @@ pub enum PreferencesInput {
     UpdateFaceDetectionMode(FaceDetectionMode),
 
     Sort(AlbumSort),
+
+    ChoosePicturesDir,
 }
 
-#[relm4::component(pub)]
-impl SimpleComponent for PreferencesDialog {
+#[relm4::component(pub async)]
+impl SimpleAsyncComponent for PreferencesDialog {
     type Init = (SettingsState, adw::ApplicationWindow);
     type Input = PreferencesInput;
     type Output = ();
@@ -106,16 +115,32 @@ impl SimpleComponent for PreferencesDialog {
                         },
                     },
                 },
+
+                add = &adw::PreferencesGroup {
+                    set_title: &fl!("prefs-library-section", "title"),
+                    set_description: Some(&fl!("prefs-library-section", "description")),
+
+                    adw::ActionRow {
+                        set_title: &fl!("prefs-library-section-pictures-dir", "title"),
+                        set_subtitle: &fl!("prefs-library-section-pictures-dir", "subtitle"),
+
+                        add_suffix = &gtk::Button {
+                            set_valign: gtk::Align::Center,
+                            set_icon_name: "folder-open-symbolic",
+                            set_tooltip_text: Some(&fl!("prefs-library-section-pictures-dir", "tooltip")),
+                            connect_clicked => PreferencesInput::ChoosePicturesDir,
+                        }
+                    }
+                },
             }
         }
     }
 
-
-    fn init(
+    async fn init(
         (settings_state, parent): Self::Init,
         dialog: Self::Root,
-        sender: ComponentSender<Self>,
-    ) -> ComponentParts<Self> {
+        sender: AsyncComponentSender<Self>,
+    ) -> AsyncComponentParts<Self> {
 
         settings_state.subscribe(sender.input_sender(), |settings| PreferencesInput::SettingsChanged(settings.clone()));
 
@@ -142,10 +167,10 @@ impl SimpleComponent for PreferencesDialog {
 
         sender.input(PreferencesInput::SettingsChanged(model.settings.clone()));
 
-        ComponentParts { model, widgets }
+        AsyncComponentParts { model, widgets }
     }
 
-    fn update(&mut self, msg: Self::Input, _sender: ComponentSender<Self>) {
+    async fn update(&mut self, msg: Self::Input, _sender: AsyncComponentSender<Self>) {
         match msg {
             PreferencesInput::Present => {
                 self.settings = self.settings_state.read().clone();
@@ -176,6 +201,30 @@ impl SimpleComponent for PreferencesDialog {
                 info!("Update album sort: {:?}", mode);
                 self.settings.album_sort = mode;
                 *self.settings_state.write() = self.settings.clone();
+            },
+            PreferencesInput::ChoosePicturesDir => {
+                info!("Presenting select pictures directory file chooser");
+                if let Some(root) = gtk::Widget::root(self.parent.widget_ref()) {
+                    let identifier = WindowIdentifier::from_native(&root).await;
+                    let request = OpenFileRequest::default()
+                        .directory(true)
+                        .identifier(identifier)
+                        .modal(true) // can't be modal without identifier.
+                        .multiple(true);
+
+                    match request.send().await.and_then(|r| r.response()) {
+                        Ok(files) => {
+                            info!("Open: {:?}", files);
+                            if let Some(first) = files.uris().first() {
+                                info!("User has chosen picture library at: {:?}", first.path());
+                                //let _ = sender.output(OnboardOutput::Done(PathBuf::from(first.path())));
+                            }
+                        }
+                        Err(err) => {
+                            error!("Failed to open a file: {err}");
+                        }
+                    }
+                 }
             },
         }
     }

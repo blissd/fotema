@@ -108,6 +108,8 @@ pub enum BootstrapOutput {
 
 }
 
+type Task = dyn Fn() + Send + Sync;
+
 /// All controllers for running background tasks.
 /// TODO: figure out why have a I used Arc here. Can it go?
 pub struct Controllers {
@@ -151,21 +153,6 @@ pub struct Controllers {
     /// Whether a background task has updated some library state and the library should be reloaded.
     library_stale: bool,
 }
-
-pub struct Bootstrap {
-    settings_state: SettingsState,
-
-    shared_state: SharedState,
-
-    con: Arc<Mutex<database::Connection>>,
-
-    progress_monitor: Arc<Reducer<ProgressMonitor>>,
-
-    /// Background task runners. Only present after library path is set.
-    controllers: Option<Controllers>,
-}
-
-type Task = dyn Fn() + Send + Sync;
 
 impl Controllers {
 
@@ -350,6 +337,19 @@ impl Controllers {
             }
         }
     }
+}
+
+pub struct Bootstrap {
+    settings_state: SettingsState,
+
+    shared_state: SharedState,
+
+    con: Arc<Mutex<database::Connection>>,
+
+    progress_monitor: Arc<Reducer<ProgressMonitor>>,
+
+    /// Background task runners. Only present after library path is set.
+    controllers: Option<Controllers>,
 }
 
 impl Bootstrap {

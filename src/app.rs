@@ -142,7 +142,7 @@ pub(super) struct App {
     adaptive_layout: Arc<adaptive::LayoutState>,
 
     about_dialog: Controller<AboutDialog>,
-    preferences_dialog: Controller<PreferencesDialog>,
+    preferences_dialog: AsyncController<PreferencesDialog>,
 
     bootstrap: WorkerController<Bootstrap>,
 
