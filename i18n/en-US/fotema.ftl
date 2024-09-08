@@ -252,10 +252,10 @@ prefs-machine-learning-face-detection = Face Detection
 prefs-library-section =
   .title = Library
   .description = Configure library directory.
+  Warning: changing the pictures directory can cause { -app-name } to reprocess all your pictures.
 
 prefs-library-section-pictures-dir =
   .title = Pictures Directory
-  .subtitle = Warning: changing the pictures directory can cause { -app-name } to reprocess all your pictures.
   .tooltip = Choose pictures directory.
 
 ## Progress bar for background tasks

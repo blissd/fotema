@@ -34,6 +34,13 @@ impl PreferencesDialog {
     pub fn is_face_detection_active(&self) -> bool {
         self.settings.face_detection_mode == FaceDetectionMode::On
     }
+
+    pub fn picture_base_dir_name(&self) -> String {
+        self.settings.pictures_base_dir
+            .file_name()
+            .map(|s| String::from(s.to_string_lossy()))
+            .unwrap_or(String::from(""))
+    }
 }
 
 #[derive(Debug)]
@@ -121,7 +128,9 @@ impl SimpleAsyncComponent for PreferencesDialog {
 
                     adw::ActionRow {
                         set_title: &fl!("prefs-library-section-pictures-dir", "title"),
-                        set_subtitle: &fl!("prefs-library-section-pictures-dir", "subtitle"),
+
+                        #[watch]
+                        set_subtitle: &model.picture_base_dir_name(),
 
                         add_suffix = &gtk::Button {
                             set_valign: gtk::Align::Center,
@@ -153,6 +162,8 @@ impl SimpleAsyncComponent for PreferencesDialog {
             &fl!("prefs-ui-chronological-album-sort", "descending"),
         ]);
         album_sort_row.set_model(Some(&list));
+
+        let pictures_base_dir_row = adw::ActionRow::new();
 
         let model = Self {
             settings_state: settings_state.clone(),

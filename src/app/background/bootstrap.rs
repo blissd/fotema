@@ -25,7 +25,7 @@ use std::time::Instant;
 use std::collections::VecDeque;
 use std::path::PathBuf;
 
-use tracing::{error, info};
+use tracing::info;
 
 use super::{
     load_library::{LoadLibrary, LoadLibraryInput, LoadLibraryOutput},
