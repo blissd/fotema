@@ -225,7 +225,7 @@ impl Controllers {
                 if !self.is_running {
                     // Note: AtomicBool::swap returns previous value.
                     if self.stop.swap(false, Ordering::Relaxed) {
-                        let _ = sender.input(BootstrapInput::Stopped);
+                        sender.input(BootstrapInput::Stopped);
                     }
                 }
             },
@@ -238,7 +238,7 @@ impl Controllers {
                     }
                     self.stop.store(true, Ordering::Relaxed);
                 } else {
-                    let _ = sender.input(BootstrapInput::Stopped);
+                    sender.input(BootstrapInput::Stopped);
                 }
             },
             other => {
@@ -573,20 +573,16 @@ impl Worker for Bootstrap {
     type Output = BootstrapOutput;
 
     fn init((con, shared_state, settings_state, progress_monitor): Self::Init, sender: ComponentSender<Self>) -> Self  {
-
         settings_state.subscribe(sender.input_sender(), |settings| BootstrapInput::SettingsUpdated(settings.clone()));
 
-
-        let bootstrap = Self {
+        Self {
             shared_state,
             settings_state,
             progress_monitor,
             con,
             controllers: None,
             pictures_base_dir: None,
-        };
-
-        bootstrap
+        }
     }
 
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
