@@ -540,13 +540,14 @@ impl Bootstrap {
         controllers.add_task_load_library();
         controllers.add_task_photo_scan();
         controllers.add_task_video_scan();
-
-        // If loaded library is currently empty, then refresh now that the photo and video scans
-        // are complete.
-        controllers.add_task_load_library();
-
         controllers.add_task_photo_enrich();
         controllers.add_task_video_enrich();
+
+        // If loaded library is currently empty, then refresh now that the photo and video scans
+        // are complete. Note: should do this after enriching because otherwise Fotema won't
+        // have processed the orientation metadata and will display pictures incorrectly.
+        controllers.add_task_load_library();
+
         controllers.add_task_photo_thumbnail();
         controllers.add_task_video_thumbnail();
         controllers.add_task_photo_clean();
