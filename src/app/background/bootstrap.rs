@@ -20,12 +20,15 @@ use fotema_core::PictureId;
 
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::result::Result::Ok;
 
 use std::time::Instant;
 use std::collections::VecDeque;
 use std::path::PathBuf;
 
-use tracing::{info, warn};
+use tracing::{error, info, warn};
+
+use anyhow;
 
 use super::{
     load_library::{LoadLibrary, LoadLibraryInput, LoadLibraryOutput},
@@ -380,45 +383,43 @@ pub struct Bootstrap {
 }
 
 impl Bootstrap {
-    fn build_controllers(&mut self, pic_base_dir: PathBuf, sender: &ComponentSender<Self>) -> Controllers {
+    fn build_controllers(&mut self, pic_base_dir: PathBuf, sender: &ComponentSender<Self>) -> anyhow::Result<Controllers> {
         let data_dir = glib::user_data_dir().join(APP_ID);
         let _ = std::fs::create_dir_all(&data_dir);
 
         let cache_dir = glib::user_cache_dir().join(APP_ID);
         let _ = std::fs::create_dir_all(&cache_dir);
 
-        let photo_scanner = photo::Scanner::build(&pic_base_dir).unwrap();
+        let photo_scanner = photo::Scanner::build(&pic_base_dir)?;
 
         let photo_repo = photo::Repository::open(
             &pic_base_dir,
             &cache_dir,
             &data_dir,
             self.con.clone(),
-        )
-        .unwrap();
+        )?;
 
-        let photo_thumbnailer = photo::Thumbnailer::build(&cache_dir).unwrap();
+        let photo_thumbnailer = photo::Thumbnailer::build(&cache_dir)?;
 
-        let video_scanner = video::Scanner::build(&pic_base_dir).unwrap();
+        let video_scanner = video::Scanner::build(&pic_base_dir)?;
 
-        let video_repo = {
-            video::Repository::open(&pic_base_dir, &cache_dir, &data_dir, self.con.clone()).unwrap()
-        };
+        let video_repo =
+            video::Repository::open(&pic_base_dir, &cache_dir, &data_dir, self.con.clone())?;
 
-        let video_thumbnailer = video::Thumbnailer::build(&cache_dir).unwrap();
+        let video_thumbnailer = video::Thumbnailer::build(&cache_dir)?;
 
-        let motion_photo_extractor = photo::MotionPhotoExtractor::build(&cache_dir).unwrap();
+        let motion_photo_extractor = photo::MotionPhotoExtractor::build(&cache_dir)?;
 
         let visual_repo = visual::Repository::open(
             &pic_base_dir,
             &cache_dir,
             self.con.clone(),
-        ).unwrap();
+        )?;
 
         let people_repo = people::Repository::open(
             &data_dir,
             self.con.clone(),
-        ).unwrap();
+        )?;
 
         let stop = Arc::new(AtomicBool::new(false));
 
@@ -563,7 +564,7 @@ impl Bootstrap {
         // has been a visible change to the library state.
         controllers.add_task_load_library();
 
-        controllers
+        Ok(controllers)
     }
 }
 
@@ -591,10 +592,16 @@ impl Worker for Bootstrap {
         match msg {
             BootstrapInput::Configure(pictures_base_dir) => {
                 info!("Configuring with pictures base directory: {:?}", pictures_base_dir);
-                self.pictures_base_dir = Some(pictures_base_dir.clone());
-                let controllers = self.build_controllers(pictures_base_dir, &sender);
-                self.controllers = Some(controllers);
-                sender.input(BootstrapInput::Start);
+                match self.build_controllers(pictures_base_dir.clone(), &sender) {
+                    Ok(controllers) => {
+                        self.pictures_base_dir = Some(pictures_base_dir);
+                        self.controllers = Some(controllers);
+                        sender.input(BootstrapInput::Start);
+                    },
+                    Err(e) => {
+                        error!("Failed to build background ask controllers: {:?}", e);
+                    },
+                }
             },
             BootstrapInput::SettingsUpdated(settings) => {
                 info!("Settings updated.");
