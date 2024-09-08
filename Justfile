@@ -17,7 +17,7 @@ lint:
     reuse lint
     flatpak run --command=flatpak-builder-lint org.flatpak.Builder manifest build-aux/app.fotema.Fotema.Devel.json
     flatpak run --command=flatpak-builder-lint org.flatpak.Builder manifest build-aux/app.fotema.Fotema.json
-    #flatpak run --command=flatpak-builder-lint org.flatpak.Builder appstream flatpak_app/files/share/metainfo/app.fotema.Fotema.Devel.metainfo.xml
+    #flatpak run --command=flatpak-builder-lint org.flatpak.Builder appstream _flatpak_app/files/share/metainfo/app.fotema.Fotema.Devel.metainfo.xml
     #flatpak run --command=flatpak-builder-lint org.flatpak.Builder repo fotema-origin
 
 # Add licence information to all supported files
@@ -34,12 +34,12 @@ license:
 
 # Build and install a flatpak release version
 release:
-    flatpak run org.flatpak.Builder --user --install --force-clean flatpak_app/release build-aux/app.fotema.Fotema.json
+    flatpak run org.flatpak.Builder --user --install --force-clean _flatpak_app/release build-aux/app.fotema.Fotema.json
 
 
 # Build and install flatpak development version
 devel:
-    flatpak run org.flatpak.Builder --user --install --force-clean flatpak_app/devel build-aux/app.fotema.Fotema.Devel.json
+    flatpak run org.flatpak.Builder --user --install --force-clean _flatpak_app/devel build-aux/app.fotema.Fotema.Devel.json
 
 
 # Created a vendors package that will be used by the flatpak-builder build for flathub.

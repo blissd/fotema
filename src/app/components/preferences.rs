@@ -11,7 +11,6 @@ use relm4::adw::prelude::*;
 use relm4::gtk;
 use relm4::*;
 use relm4::prelude::*;
-use std::path::PathBuf;
 
 use tracing::{error, info};
 
@@ -217,11 +216,14 @@ impl SimpleAsyncComponent for PreferencesDialog {
                             info!("Open: {:?}", files);
                             if let Some(first) = files.uris().first() {
                                 info!("User has chosen picture library at: {:?}", first.path());
-                                let pictures_base_dir = PathBuf::from(first.path());
-                                if self.settings.pictures_base_dir != pictures_base_dir {
-                                    info!("New pictures base director is: {:?}", pictures_base_dir);
+                                if let Some(pictures_base_dir) = files.uris().first().and_then(|uri| uri.to_file_path().ok()) {
+                                    info!("User has chosen picture library at: {:?}", pictures_base_dir);
+                                    if self.settings.pictures_base_dir != pictures_base_dir {
+                                        info!("New pictures base director is: {:?}", pictures_base_dir);
+                                        self.settings.pictures_base_dir = pictures_base_dir;
+                                        *self.settings_state.write() = self.settings.clone();
+                                    }
                                 }
-                                //let _ = sender.output(OnboardOutput::Done(PathBuf::from(first.path())));
                             }
                         }
                         Err(err) => {

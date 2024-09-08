@@ -25,7 +25,7 @@ use std::time::Instant;
 use std::collections::VecDeque;
 use std::path::PathBuf;
 
-use tracing::info;
+use tracing::{error, info};
 
 use super::{
     load_library::{LoadLibrary, LoadLibraryInput, LoadLibraryOutput},
@@ -85,6 +85,12 @@ pub enum BootstrapInput {
     /// Start the initial background processes for setting up Fotema.
     Start,
 
+    // Stop all background tasks
+    Stop,
+
+    /// No more tasks running
+    Stopped,
+
     /// Queue task for scanning picture for more faces.
     ScanPictureForFaces(PictureId),
     ScanPicturesForFaces,
@@ -98,9 +104,6 @@ pub enum BootstrapInput {
     /// A background task has completed.
     /// usize is count of processed items.
     TaskCompleted(TaskName, Option<usize>),
-
-    // Stop all background tasks
-    Stop,
 }
 
 #[derive(Debug)]
@@ -211,10 +214,16 @@ impl Controllers {
                         self.is_running = true;
                         task();
                     } else {
-                        self.library_stale.store(false, Ordering::Relaxed);
                         self.is_running = false;
-                        self.stop.store(false, Ordering::Relaxed);
+                        self.library_stale.store(false, Ordering::Relaxed);
                         let _ = sender.output(BootstrapOutput::Completed);
+                    }
+                }
+
+                if !self.is_running {
+                    // Note: AtomicBool::swap returns previous value.
+                    if self.stop.swap(false, Ordering::Relaxed) {
+                        let _ = sender.input(BootstrapInput::Stopped);
                     }
                 }
             },
@@ -225,6 +234,8 @@ impl Controllers {
                         tasks.clear();
                     }
                     self.stop.store(true, Ordering::Relaxed);
+                } else {
+                    let _ = sender.input(BootstrapInput::Stopped);
                 }
             },
             other => {
@@ -316,7 +327,6 @@ impl Controllers {
         self.enqueue(Box::new(move || sender.emit(VideoTranscodeInput::Start)));
     }
 
-
     fn add_task_load_library(&mut self) {
         let sender = self.load_library.sender().clone();
         let stale = self.library_stale.clone();
@@ -360,6 +370,9 @@ pub struct Bootstrap {
 
     /// Background task runners. Only present after library path is set.
     controllers: Option<Controllers>,
+
+    /// Current pictures base directory used by background tasks.
+    pictures_base_dir: Option<PathBuf>
 }
 
 impl Bootstrap {
@@ -522,7 +535,6 @@ impl Bootstrap {
 
         // Tasks will execute in the order added.
 
-
         // Initial library load to reduce time from starting app and seeing a photo grid
         controllers.add_task_load_library();
         controllers.add_task_photo_scan();
@@ -550,13 +562,18 @@ impl Worker for Bootstrap {
     type Input = BootstrapInput;
     type Output = BootstrapOutput;
 
-    fn init((con, shared_state, settings_state, progress_monitor): Self::Init, _sender: ComponentSender<Self>) -> Self  {
+    fn init((con, shared_state, settings_state, progress_monitor): Self::Init, sender: ComponentSender<Self>) -> Self  {
+
+        settings_state.subscribe(sender.input_sender(), |settings| BootstrapInput::SettingsUpdated(settings.clone()));
+
+
         let bootstrap = Self {
             shared_state,
             settings_state,
             progress_monitor,
             con,
             controllers: None,
+            pictures_base_dir: None,
         };
 
         bootstrap
@@ -566,11 +583,34 @@ impl Worker for Bootstrap {
         // This match block coordinates the background tasks launched immediately after
         // the app starts up.
         match msg {
-            BootstrapInput::Configure(pic_base_dir) => {
-                info!("Configuring with picture base directory: {:?}", pic_base_dir);
-                let controllers = self.build_controllers(pic_base_dir, &sender);
+            BootstrapInput::Configure(pictures_base_dir) => {
+                info!("Configuring with pictures base directory: {:?}", pictures_base_dir);
+                self.pictures_base_dir = Some(pictures_base_dir.clone());
+                let controllers = self.build_controllers(pictures_base_dir, &sender);
                 self.controllers = Some(controllers);
                 sender.input(BootstrapInput::Start);
+            },
+            BootstrapInput::SettingsUpdated(settings) => {
+                info!("Settings updated.");
+                // Only stop, reconfigure, and restart tasks if pictures dir changes.
+                if self.pictures_base_dir.as_ref().is_some_and(|dir| *dir != settings.pictures_base_dir) {
+                    // If running, then shutdown running and queued tasks, and then reconfigure.
+                    // Otherwise simply reconfigure with new path.
+                    if self.controllers.as_ref().is_some_and(|controllers| controllers.is_running) {
+                        self.pictures_base_dir = None;
+                        sender.input(BootstrapInput::Stop);
+                    } else {
+                        self.controllers = None;
+                        sender.input(BootstrapInput::Configure(settings.pictures_base_dir));
+                    }
+                }
+            },
+            BootstrapInput::Stopped if self.pictures_base_dir.is_none() => {
+                // If stopped and no pictures base dir, then background tasks were
+                // shutdown in response to the user changing the pictures base directory.
+                // Now that tasks are shutdown, it is safe to reconfigure with
+                // the new directory.
+                sender.input(BootstrapInput::Configure(self.settings_state.read().pictures_base_dir.clone()));
             },
             msg if self.controllers.is_some() => {
                 info!("Forwarding {:?} to controllers.", msg);

@@ -98,9 +98,9 @@ impl SimpleAsyncComponent for Onboard {
                     match request.send().await.and_then(|r| r.response()) {
                         Ok(files) => {
                             info!("Open: {:?}", files);
-                            if let Some(first) = files.uris().first() {
-                                info!("User has chosen picture library at: {:?}", first.path());
-                                let _ = sender.output(OnboardOutput::Done(PathBuf::from(first.path())));
+                            if let Some(dir) = files.uris().first().and_then(|uri| uri.to_file_path().ok()) {
+                                info!("User has chosen picture library at: {:?}", dir);
+                                let _ = sender.output(OnboardOutput::Done(dir));
                             }
                         }
                         Err(err) => {
