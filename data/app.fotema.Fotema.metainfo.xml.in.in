@@ -64,6 +64,17 @@
   </branding>
 
   <releases>
+    <release version="1.14.0" date="2024-09-08">
+      <description>
+        <ul>
+          <li>Pictures directory is now user-selectable.</li>
+          <li>Fewer Flatpak permissions.</li>
+          <li>Removed unused files from Flatpak package.</li>
+          <li>Fix content rating in GNOME software.</li>
+          <li>Translation updates. Thank you!</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.13.0" date="2024-09-01">
       <description>
         <ul>
