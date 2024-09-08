@@ -163,8 +163,6 @@ impl SimpleAsyncComponent for PreferencesDialog {
         ]);
         album_sort_row.set_model(Some(&list));
 
-        let pictures_base_dir_row = adw::ActionRow::new();
-
         let model = Self {
             settings_state: settings_state.clone(),
             parent,

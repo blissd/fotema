@@ -330,9 +330,10 @@ impl Controllers {
     fn add_task_load_library(&mut self) {
         let sender = self.load_library.sender().clone();
         let stale = self.library_stale.clone();
+        let library_state = self.shared_state.clone();
         self.enqueue(Box::new(move || {
-            if stale.load(Ordering::Relaxed) {
-                info!("Library stale so refreshing.");
+            if stale.load(Ordering::Relaxed) || library_state.read().is_empty() {
+                info!("Library stale or empty so refreshing.");
                 sender.emit(LoadLibraryInput::Refresh);
             }
         }));
@@ -530,7 +531,7 @@ impl Bootstrap {
             video_transcode: Arc::new(video_transcode),
             pending_tasks: Arc::new(Mutex::new(VecDeque::new())),
             is_running: false,
-            library_stale: Arc::new(AtomicBool::new(true)), // must be stale to trigger initial load
+            library_stale: Arc::new(AtomicBool::new(true)),
         };
 
         // Tasks will execute in the order added.
@@ -539,6 +540,11 @@ impl Bootstrap {
         controllers.add_task_load_library();
         controllers.add_task_photo_scan();
         controllers.add_task_video_scan();
+
+        // If loaded library is currently empty, then refresh now that the photo and video scans
+        // are complete.
+        controllers.add_task_load_library();
+
         controllers.add_task_photo_enrich();
         controllers.add_task_video_enrich();
         controllers.add_task_photo_thumbnail();
