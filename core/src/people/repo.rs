@@ -5,7 +5,6 @@
 use crate::photo::model::PictureId;
 
 use crate::machine_learning::face_extractor;
-use crate::path_encoding;
 use crate::people::model;
 use crate::people::model::PersonForRecognition;
 use crate::people::model::Rect;
@@ -25,10 +24,7 @@ use std::sync::{Arc, Mutex};
 /// Repository is backed by a Sqlite database.
 #[derive(Debug, Clone)]
 pub struct Repository {
-    /// Base path to picture library on file system
-    library_base_path: PathBuf,
-
-    /// Base path for photo thumbnails and motion photo videos
+    /// Base path for photo thumbnails
     data_dir_base_path: PathBuf,
 
     /// Connection to backing Sqlite database.
@@ -38,73 +34,17 @@ pub struct Repository {
 impl Repository {
     /// Builds a Repository and creates operational tables.
     pub fn open(
-        library_base_path: &Path,
         data_dir_base_path: &Path,
         con: Arc<Mutex<rusqlite::Connection>>,
     ) -> Result<Repository> {
-        if !library_base_path.is_dir() {
-            bail!("{:?} is not a directory", library_base_path);
-        }
-
-        let library_base_path = PathBuf::from(library_base_path);
         let data_dir_base_path = PathBuf::from(data_dir_base_path);
 
         let repo = Repository {
-            library_base_path,
             data_dir_base_path,
             con,
         };
 
         Ok(repo)
-    }
-
-    /// FIXME should all the *face* functions move to a new repository?
-    /// Gets all pictures that haven't been inspected for containing a motion photo.
-    pub fn find_need_face_scan(&self) -> Result<Vec<(PictureId, PathBuf)>> {
-        let con = self.con.lock().unwrap();
-        let mut stmt = con.prepare(
-            "SELECT
-                    pictures.picture_id,
-                    pictures.picture_path_b64,
-                    COALESCE(
-                        pictures.exif_created_ts,
-                        pictures.exif_modified_ts,
-                        pictures.fs_created_ts,
-                        pictures.fs_modified_ts,
-                        CURRENT_TIMESTAMP
-                    ) AS ordering_ts
-                FROM pictures
-                LEFT OUTER JOIN pictures_face_scans USING (picture_id)
-                WHERE pictures_face_scans.picture_id IS NULL
-                AND COALESCE(pictures.is_broken, FALSE) IS FALSE
-                ORDER BY ordering_ts DESC",
-        )?;
-
-        let result = stmt
-            .query_map([], |row| self.to_picture_id_path_tuple(row))?
-            .flatten()
-            .collect();
-
-        Ok(result)
-    }
-
-    pub fn get_file_to_scan(&self, picture_id: PictureId) -> Result<Option<PathBuf>> {
-        let con = self.con.lock().unwrap();
-        let mut stmt = con.prepare(
-            "SELECT
-                    pictures.picture_id,
-                    pictures.picture_path_b64
-                FROM pictures
-                WHERE pictures.picture_id = ?1",
-        )?;
-
-        let result = stmt
-            .query_map([picture_id.id()], |row| self.to_picture_id_path_tuple(row))?
-            .flatten()
-            .nth(0)
-            .map(|x| x.1);
-
-        Ok(result)
     }
 
     /// Deletes faces for a picture so a picture can be re-scanned and new faces.
@@ -684,17 +624,6 @@ impl Repository {
 
         tx.commit()?;
         Ok(())
-    }
-
-    fn to_picture_id_path_tuple(&self, row: &Row<'_>) -> rusqlite::Result<(PictureId, PathBuf)> {
-        let picture_id = row.get("picture_id").map(PictureId::new)?;
-
-        let picture_path: String = row.get("picture_path_b64")?;
-        let picture_path =
-            path_encoding::from_base64(&picture_path).map_err(|_| rusqlite::Error::InvalidQuery)?;
-        let picture_path = self.library_base_path.join(picture_path);
-
-        std::result::Result::Ok((picture_id, picture_path))
     }
 
     fn to_face_and_person(

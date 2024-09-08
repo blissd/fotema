@@ -439,4 +439,65 @@ impl Repository {
 
         Ok(())
     }
+
+    /// Gets all pictures that haven't been scanned for faces.
+    /// This method is not on the people repo because I don't what that repo
+    /// to need a pic_base_dir.
+    pub fn find_need_face_scan(&self) -> Result<Vec<(PictureId, PathBuf)>> {
+        let con = self.con.lock().unwrap();
+        let mut stmt = con.prepare(
+            "SELECT
+                    pictures.picture_id,
+                    pictures.picture_path_b64,
+                    COALESCE(
+                        pictures.exif_created_ts,
+                        pictures.exif_modified_ts,
+                        pictures.fs_created_ts,
+                        pictures.fs_modified_ts,
+                        CURRENT_TIMESTAMP
+                    ) AS ordering_ts
+                FROM pictures
+                LEFT OUTER JOIN pictures_face_scans USING (picture_id)
+                WHERE pictures_face_scans.picture_id IS NULL
+                AND COALESCE(pictures.is_broken, FALSE) IS FALSE
+                ORDER BY ordering_ts DESC",
+        )?;
+
+        let result = stmt
+            .query_map([], |row| self.to_picture_id_path_tuple(row))?
+            .flatten()
+            .collect();
+
+        Ok(result)
+    }
+
+    pub fn get_picture_path(&self, picture_id: PictureId) -> Result<Option<PathBuf>> {
+        let con = self.con.lock().unwrap();
+        let mut stmt = con.prepare(
+            "SELECT
+                    pictures.picture_id,
+                    pictures.picture_path_b64
+                FROM pictures
+                WHERE pictures.picture_id = ?1",
+        )?;
+
+        let result = stmt
+            .query_map([picture_id.id()], |row| self.to_picture_id_path_tuple(row))?
+            .flatten()
+            .nth(0)
+            .map(|x| x.1);
+
+        Ok(result)
+    }
+
+    fn to_picture_id_path_tuple(&self, row: &Row<'_>) -> rusqlite::Result<(PictureId, PathBuf)> {
+        let picture_id = row.get("picture_id").map(PictureId::new)?;
+
+        let picture_path: String = row.get("picture_path_b64")?;
+        let picture_path =
+            path_encoding::from_base64(&picture_path).map_err(|_| rusqlite::Error::InvalidQuery)?;
+        let picture_path = self.library_base_path.join(picture_path);
+
+        std::result::Result::Ok((picture_id, picture_path))
+    }
 }

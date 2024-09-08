@@ -30,6 +30,7 @@ use fotema_core::database;
 use fotema_core::VisualId;
 use fotema_core::PictureId;
 use fotema_core::people;
+use fotema_core::path_encoding;
 
 use h3o::CellIndex;
 
@@ -41,7 +42,7 @@ use anyhow::*;
 
 use strum::{AsRefStr, EnumString, IntoStaticStr, FromRepr};
 
-use tracing::{event, Level, error, info};
+use tracing::{error, info, warn};
 
 mod components;
 
@@ -58,6 +59,7 @@ use self::components::{
     },
     library::{Library, LibraryInput, LibraryOutput},
     viewer::view_nav::{ViewNav, ViewNavInput, ViewNavOutput},
+    onboard::{Onboard, OnboardOutput},
     preferences::{PreferencesDialog, PreferencesInput},
 };
 
@@ -113,6 +115,13 @@ pub struct Settings {
     /// Sorting for albums.
     /// NOTE: doesn't include folder's album.
     pub album_sort: AlbumSort,
+
+    /// Has the user completed the onboarding processes to select
+    /// the picture library root directory?
+    pub is_onboarding_complete: bool,
+
+    /// Base path of pictures directory.
+    pub pictures_base_dir: PathBuf,
 }
 
 /// Active settings
@@ -133,9 +142,13 @@ pub(super) struct App {
     adaptive_layout: Arc<adaptive::LayoutState>,
 
     about_dialog: Controller<AboutDialog>,
-    preferences_dialog: Controller<PreferencesDialog>,
+    preferences_dialog: AsyncController<PreferencesDialog>,
 
     bootstrap: WorkerController<Bootstrap>,
+
+    // View for first run
+    onboard: AsyncController<Onboard>,
+    onboard_view: adw::ToolbarView,
 
     library: Controller<Library>,
 
@@ -180,6 +193,8 @@ pub(super) struct App {
 
     // Message banner
     banner: adw::Banner,
+
+    settings_state: SettingsState,
 }
 
 #[derive(Debug)]
@@ -227,11 +242,17 @@ pub(super) enum AppMsg {
     // Stop all background tasks
     StopBackgroundTasks,
 
+    // Stopping background tasks is in progress
+    StoppingBackgroundTasks,
+
     // Adapt to layout change
     Adapt(adaptive::Layout),
 
     /// Settings updated
     SettingsChanged(Settings),
+
+    /// Onboarding process is complete and user has selected the picture base directory
+    OnboardDone(PathBuf),
 }
 
 relm4::new_action_group!(pub(super) WindowActionGroup, "win");
@@ -288,6 +309,9 @@ impl SimpleComponent for App {
                 connect_apply => AppMsg::Adapt(adaptive::Layout::Narrow),
                 connect_unapply => AppMsg::Adapt(adaptive::Layout::Wide),
             },
+
+            gtk::Box {
+                set_orientation: gtk::Orientation::Vertical,
 
             // Top-level navigation view containing:
             // 1. Navigation view containing stack of pages.
@@ -470,6 +494,24 @@ impl SimpleComponent for App {
                     model.view_nav.widget(),
                 },
             },
+
+            // Hmmm... can the views be refactored so we don't have a separate toolbar view
+            // for the onboarding page?
+            #[local_ref]
+            onboard_view -> adw::ToolbarView {
+                set_visible: false,
+
+                add_top_bar = &adw::HeaderBar {
+                    /*pack_end = &gtk::MenuButton {
+                        set_icon_name: "open-menu-symbolic",
+                        set_menu_model: Some(&primary_menu),
+                    }*/
+                },
+
+                #[wrap(Some)]
+                set_content = model.onboard.widget(),
+            }
+            }
         }
     }
 
@@ -484,18 +526,12 @@ impl SimpleComponent for App {
         let cache_dir = glib::user_cache_dir().join(APP_ID);
         let _ = std::fs::create_dir_all(&cache_dir);
 
-        let pic_base_dir = glib::user_special_dir(glib::enums::UserDirectory::Pictures)
-            .expect("Expect XDG_PICTURES_DIR");
-
-        info!("XDG_PICTURES_DIR is {:?}", pic_base_dir);
-
         let db_path = data_dir.join("pictures.sqlite");
 
         let con = database::setup(&db_path).expect("Must be able to open database");
         let con = Arc::new(Mutex::new(con));
 
         let people_repo = people::Repository::open(
-            &pic_base_dir,
             &data_dir,
             con.clone(),
         ).unwrap();
@@ -527,7 +563,16 @@ impl SimpleComponent for App {
             .forward(sender.input_sender(), |msg| match msg {
                 BootstrapOutput::TaskStarted(msg) => AppMsg::TaskStarted(msg),
                 BootstrapOutput::Completed => AppMsg::BootstrapCompleted,
+                BootstrapOutput::Stopping => AppMsg::StoppingBackgroundTasks,
             });
+
+        let onboard = Onboard::builder()
+            .launch(())
+            .forward(sender.input_sender(), |msg| match msg {
+                OnboardOutput::Done(pic_base_dir) => AppMsg::OnboardDone(pic_base_dir),
+            });
+
+        let onboard_view = adw::ToolbarView::new();
 
         let library = Library::builder()
             .launch((state.clone(), active_view.clone(), adaptive_layout.clone()))
@@ -664,6 +709,9 @@ impl SimpleComponent for App {
             about_dialog,
             preferences_dialog,
 
+            onboard,
+            onboard_view: onboard_view.clone(),
+
             library,
 
             view_nav,
@@ -687,6 +735,8 @@ impl SimpleComponent for App {
             bootstrap_progress,
 
             banner: banner.clone(),
+
+            settings_state: settings_state.clone(),
         };
 
         let widgets = view_output!();
@@ -720,7 +770,16 @@ impl SimpleComponent for App {
         model.spinner.set_visible(true);
         model.spinner.start();
 
-        model.bootstrap.emit(BootstrapInput::Start);
+        let settings = settings_state.read();
+        let is_onboarding_complete = settings.is_onboarding_complete && settings.pictures_base_dir.exists();
+        if is_onboarding_complete {
+            model.picture_navigation_view.set_visible(true);
+            model.onboard_view.set_visible(false);
+            model.bootstrap.emit(BootstrapInput::Configure(settings.pictures_base_dir.clone()));
+        } else {
+            model.picture_navigation_view.set_visible(false);
+            model.onboard_view.set_visible(true);
+        }
 
         ComponentParts { model, widgets }
     }
@@ -789,7 +848,7 @@ impl SimpleComponent for App {
                     ViewName::People => self.people_page.emit(PeopleAlbumInput::Activate),
                     ViewName::Person => self.person_album.emit(PersonAlbumInput::Activate),
                     ViewName::Places => self.places_page.emit(PlacesAlbumInput::Activate),
-                    ViewName::Nothing => event!(Level::WARN, "Nothing activated... which should not happen"),
+                    ViewName::Nothing => warn!("Nothing activated... which should not happen"),
                 }
             },
             AppMsg::View(visual_id, filter) => {
@@ -834,6 +893,9 @@ impl SimpleComponent for App {
                 self.banner.set_button_label(Some(&fl!("banner-button-stop", "label")));
 
                 match task_name {
+                    TaskName::LoadLibrary => {
+                        // do nothing
+                    },
                     TaskName::Scan(MediaType::Photo) => {
                         self.banner.set_title(&fl!("banner-scan-photos"));
                     },
@@ -873,12 +935,12 @@ impl SimpleComponent for App {
                 };
             },
             AppMsg::BootstrapCompleted => {
-                event!(Level::INFO, "Bootstrap completed.");
+                info!("Bootstrap completed.");
                 self.spinner.stop();
                 self.banner.set_revealed(false);
             },
             AppMsg::TranscodeAll => {
-                event!(Level::INFO, "Transcode all");
+                info!("Transcode all");
                 self.bootstrap.emit(BootstrapInput::TranscodeAll);
             },
             AppMsg::ScanPictureForFaces(picture_id) => {
@@ -895,6 +957,11 @@ impl SimpleComponent for App {
                 self.banner.set_title(&fl!("banner-stopping"));
                 self.bootstrap.emit(BootstrapInput::Stop);
             },
+            AppMsg::StoppingBackgroundTasks => {
+                info!("Background tasks are stopping.");
+                self.banner.set_button_label(None);
+                self.banner.set_title(&fl!("banner-stopping"));
+            },
             AppMsg::Adapt(adaptive::Layout::Narrow) => {
                 self.main_navigation.set_collapsed(true);
                 self.main_navigation.set_show_sidebar(false);
@@ -909,6 +976,16 @@ impl SimpleComponent for App {
 
                 // Notify of a change of layout.
                 *self.adaptive_layout.write() = adaptive::Layout::Wide;
+            },
+            AppMsg::OnboardDone(pic_base_dir) => {
+                let mut settings = self.settings_state.read().clone();
+                settings.is_onboarding_complete = true;
+                settings.pictures_base_dir = pic_base_dir.clone();
+                *self.settings_state.write() = settings;
+
+                self.bootstrap.emit(BootstrapInput::Configure(pic_base_dir));
+                self.picture_navigation_view.set_visible(true);
+                self.onboard_view.set_visible(false);
             },
         }
     }
@@ -928,6 +1005,8 @@ impl App {
                 .unwrap_or(FaceDetectionMode::Off),
             album_sort: AlbumSort::from_str(&gio_settings.string("album-sort"))
                 .unwrap_or(AlbumSort::Ascending),
+            is_onboarding_complete: gio_settings.boolean("onboarding-complete"),
+            pictures_base_dir: path_encoding::from_base64(&gio_settings.string("pictures-base-dir-b64").into())?,
         })
     }
 
@@ -937,6 +1016,8 @@ impl App {
         gio_settings.set_boolean("show-selfies", settings.show_selfies)?;
         gio_settings.set_string("face-detection-mode", settings.face_detection_mode.as_ref())?;
         gio_settings.set_string("album-sort", settings.album_sort.as_ref())?;
+        gio_settings.set_boolean("onboarding-complete", settings.is_onboarding_complete)?;
+        gio_settings.set_string("pictures-base-dir-b64", &path_encoding::to_base64(settings.pictures_base_dir.as_ref()))?;
         Ok(())
     }
 }
