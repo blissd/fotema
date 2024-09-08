@@ -25,7 +25,7 @@ use std::time::Instant;
 use std::collections::VecDeque;
 use std::path::PathBuf;
 
-use tracing::info;
+use tracing::{info, warn};
 
 use super::{
     load_library::{LoadLibrary, LoadLibraryInput, LoadLibraryOutput},
@@ -114,6 +114,8 @@ pub enum BootstrapOutput {
     // Bootstrap process has completed.
     Completed,
 
+    // Tasks are in the process of stopping
+    Stopping
 }
 
 type Task = dyn Fn() + Send + Sync;
@@ -230,6 +232,7 @@ impl Controllers {
             BootstrapInput::Stop => {
                 info!("Stopping all background tasks");
                 if self.is_running {
+                    let _ = sender.output(BootstrapOutput::Stopping);
                     if let Ok(mut tasks) = self.pending_tasks.lock() {
                         tasks.clear();
                     }
@@ -239,7 +242,7 @@ impl Controllers {
                 }
             },
             other => {
-                info!("Ignoring {:?}! Please check this isn't a bug!", other);
+                warn!("Ignoring {:?}! Please check this isn't a bug!", other);
             },
         };
     }

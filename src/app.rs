@@ -242,6 +242,9 @@ pub(super) enum AppMsg {
     // Stop all background tasks
     StopBackgroundTasks,
 
+    // Stopping background tasks is in progress
+    StoppingBackgroundTasks,
+
     // Adapt to layout change
     Adapt(adaptive::Layout),
 
@@ -560,6 +563,7 @@ impl SimpleComponent for App {
             .forward(sender.input_sender(), |msg| match msg {
                 BootstrapOutput::TaskStarted(msg) => AppMsg::TaskStarted(msg),
                 BootstrapOutput::Completed => AppMsg::BootstrapCompleted,
+                BootstrapOutput::Stopping => AppMsg::StoppingBackgroundTasks,
             });
 
         let onboard = Onboard::builder()
@@ -952,6 +956,11 @@ impl SimpleComponent for App {
                 self.banner.set_button_label(None);
                 self.banner.set_title(&fl!("banner-stopping"));
                 self.bootstrap.emit(BootstrapInput::Stop);
+            },
+            AppMsg::StoppingBackgroundTasks => {
+                info!("Background tasks are stopping.");
+                self.banner.set_button_label(None);
+                self.banner.set_title(&fl!("banner-stopping"));
             },
             AppMsg::Adapt(adaptive::Layout::Narrow) => {
                 self.main_navigation.set_collapsed(true);
