@@ -259,8 +259,28 @@ prefs-ui-chronological-album-sort = Ordinamento
 prefs-machine-learning-section = Machine Learning
     .description = Configura le funzionalità di apprendimento automatico.
 prefs-machine-learning-face-detection = Rilevamento del volto
-    .subtitle = Abilita il rilevamento del volto quando Fotema si avvia. Questo è un processo che richiede molto tempo.
+    .subtitle = Abilita il rilevamento del volto quando { -app-name } si avvia. Questo è un processo che richiede molto tempo.
 prefs-ui-section = UI
     .description = Personalizza l'interfaccia utente.
 prefs-ui-selfies = Selfie
     .subtitle = Mostra un album separato per i selfie scattati su dispositivi iOS. Riavvia { -app-name } per applicare.
+prefs-library-section =
+    .title = Libreria
+    .description =
+        Configura la directory della libreria.
+        Attenzione: la modifica della directory delle immagini può causare la rielaborazione di tutte le immagini da parte di { -app-name }.
+prefs-library-section-pictures-dir =
+    .title = Directory delle immagini
+    .tooltip = Scegli la directory delle immagini.
+onboard-select-pictures =
+    .title = Benvenuti in { -app-name }.
+    .description =
+        Seleziona la directory in cui tieni la tua libreria di immagini.
+
+        Se hai utilizzato una versione precedente di { -app-name } in cui la tua libreria di immagini veniva rilevata automaticamente, seleziona la stessa directory qui per evitare qualsiasi elaborazione duplicata delle immagini.
+    .button = Seleziona directory
+banner-convert-videos = Conversione video.
+banner-button-stop =
+    .label = Interrompere
+    .tooltip = Interrompi tutte le attività in background.
+banner-stopping = Interruzione delle attività...
