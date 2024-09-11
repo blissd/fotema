@@ -64,6 +64,14 @@
   </branding>
 
   <releases>
+    <release version="1.14.1" date="2024-09-11">
+      <description>
+        <ul>
+          <li>Accommodate even narrower displays.</li>
+          <li>Translation updates. Thank you!</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.14.0" date="2024-09-08">
       <description>
         <ul>
