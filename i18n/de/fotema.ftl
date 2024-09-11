@@ -253,6 +253,28 @@ prefs-ui-chronological-album-sort = Sortierreihenfolge
     .ascending = Aufsteigend
     .descending = Absteigend
 prefs-machine-learning-face-detection = Gesichtserkennung
-    .subtitle = Aktivieren Sie die Gesichtserkennung beim Starten von Fotema. Dies ist ein zeitaufwändiger Prozess.
+    .subtitle = Aktivieren Sie die Gesichtserkennung beim Starten von { -app-name }. Dies ist ein zeitaufwändiger Prozess.
 prefs-ui-section = UI
     .description = Optimieren Sie die Benutzeroberfläche.
+prefs-library-section =
+    .title = Mediathek
+    .description =
+        Konfiguriere die Mediathek.
+        Warnung: Ein Wechsel des Bilderverzeichnisses kann dazu führen, dass { -app-name } alle Ihre Bilder neu verarbeitet.
+prefs-library-section-pictures-dir =
+    .title = Bilder-Verzeichnis
+    .tooltip = Wähle das Verzeichnis der Bilder.
+banner-button-stop =
+    .label = Stop
+    .tooltip = Beende alle Prozesse im Hintergrund.
+onboard-select-pictures =
+    .title = Willkommen bei { -app-name }.
+    .description =
+        Bitte wähle das Verzeichnis aus, in dem deine Bilder aufbewahrt werden.
+
+        Wenn du eine frühere Version von { -app-name } verwendet hast, in dem das Bild-Verzeichnis automatisch erkannt wurde, wähle hier bitte das gleiche Verzeichnis aus, um eine doppelte Verarbeitung von Bildern zu vermeiden.
+    .button = Ordner auswählen
+prefs-machine-learning-section = Künstliches Lernen
+    .description = Konfiguriere die Funktionen für künstliches Lernen.
+banner-stopping = Prozesse werden angehalten...
+banner-convert-videos = Videos werden umgewandelt.
