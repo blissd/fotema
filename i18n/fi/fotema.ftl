@@ -271,7 +271,7 @@ person-rename-dialog =
 prefs-machine-learning-section = Koneoppiminen
     .description = Määritä koneoppimisen ominaisuudet.
 prefs-machine-learning-face-detection = Kasvojentunnistus
-    .subtitle = Käytä kasvojentunnistusta, kun Fotema käynnistyy. Tämä toimenpide saattaa kestää kauan.
+    .subtitle = Käytä kasvojentunnistusta, kun { -app-name } käynnistyy. Tämä toimenpide saattaa kestää kauan.
 prefs-ui-section = Käyttöliittymä
     .description = Muokkaa käyttöliittymää.
 prefs-ui-chronological-album-sort = Järjestys
@@ -285,3 +285,18 @@ banner-button-stop =
     .tooltip = Pysäytä kaikki taustatehtävät.
 banner-stopping = Pysätetään tehtäviä...
 banner-convert-videos = Muunnetaan videoita.
+prefs-library-section-pictures-dir =
+    .title = Kuvat-kansio
+    .tooltip = Valitse kuvien kansio.
+prefs-library-section =
+    .title = Kirjasto
+    .description =
+        Määritä kirjaston kansio.
+        Varoitus: kuvakansion vaihtaminen voi aiheuttaa sen, että{ -app-name } käsittelee kaikki kuvat uudelleen.
+onboard-select-pictures =
+    .title = Tervetuloa, tämä on { -app-name }.
+    .description =
+        Valitse kansio, jossa pidät kuvakirjastoasi.
+
+        Jos olet käyttänyt{ -app-name }n aiempia versioita, joissa kuvakirjasto havaittiin automaattisesti, niin valitse sama kansio välttääksesi kuvien käsittelyn uudelleen.
+    .button = Valitse kansio
