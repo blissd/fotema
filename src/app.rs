@@ -281,7 +281,8 @@ impl SimpleComponent for App {
             set_visible: true,
 
             // See https://linuxphoneapps.org/docs/resources/developer-information/#hardware-specs-to-consider
-            set_width_request: 360,
+            // Minimum width has been reduced for https://github.com/blissd/fotema/issues/190
+            set_width_request: 240,
             set_height_request: 294,
 
             connect_close_request[sender] => move |_| {
