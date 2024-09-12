@@ -298,5 +298,5 @@ onboard-select-pictures =
     .description =
         Valitse kansio, jossa pidät kuvakirjastoasi.
 
-        Jos olet käyttänyt{ -app-name }n aiempia versioita, joissa kuvakirjasto havaittiin automaattisesti, niin valitse sama kansio välttääksesi kuvien käsittelyn uudelleen.
+        Jos olet käyttänyt { -app-name }n aiempia versioita, joissa kuvakirjasto havaittiin automaattisesti, niin valitse sama kansio välttääksesi kuvien käsittelyn uudelleen.
     .button = Valitse kansio
