@@ -133,7 +133,7 @@ prefs-ui-selfies = السيلفيات
 prefs-machine-learning-section = تعلم الىلة
     .description = يضبط مزايا تعلم الآلة.
 prefs-machine-learning-face-detection = كشف الوجوه
-    .subtitle = يُفَعِّل كشف الوجوه عند إطلاق فوتيما. هذه العملية ستستغرق وقتًا.
+    .subtitle = يُفَعِّل كشف الوجوه عند إطلاق { -app-name }. هذه العملية ستستغرق وقتًا.
 prefs-ui-section = واجهة المستخدم
     .description = طوّع واجهة المستخدم.
 banner-button-stop =
@@ -141,3 +141,18 @@ banner-button-stop =
     .tooltip = أوقف جميع مهام الخلفية.
 banner-stopping = توقف …
 banner-convert-videos = يجري تحويل الفيديوهات.
+onboard-select-pictures =
+    .title = مرحبًا بك في { -app-name }
+    .description =
+        من فضلك اختر الدليل الذي يحوي مكتبة صورك.
+
+        إن استخدمت إصدارًا قديمًا من { -app-name } حيث وُجِدَت مكتبة صورك تلقائيًا، فاختر نفس الدليل هنا لمنع إجراء الصور مجددًا.
+    .button = اختر دليلًا
+prefs-library-section =
+    .title = المكتبة
+    .description =
+        يضبط دليل المكتبة
+        تحذير: تغيير دليل الصور قد يجعل { -app-name } يعيد إجراء صورك.
+prefs-library-section-pictures-dir =
+    .title = دليل الصور
+    .tooltip = اختر دليل الصور.
