@@ -7,6 +7,7 @@ use relm4::{
     gtk::glib,
     Worker,
     shared_state::Reducer,
+    Sender,
 };
 
 use crate::app::Settings;
@@ -333,7 +334,7 @@ impl Controllers {
         self.enqueue(Box::new(move || sender.emit(VideoTranscodeInput::Start)));
     }
 
-    fn add_task_load_library(&mut self) {
+    fn add_task_load_library(&mut self, bootstrap_sender: Sender<BootstrapInput>) {
         let sender = self.load_library.sender().clone();
         let stale = self.library_stale.clone();
         let library_state = self.shared_state.clone();
@@ -341,6 +342,8 @@ impl Controllers {
             if stale.load(Ordering::Relaxed) || library_state.read().is_empty() {
                 info!("Library stale or empty so refreshing.");
                 sender.emit(LoadLibraryInput::Refresh);
+            } else {
+                bootstrap_sender.emit(BootstrapInput::TaskCompleted(TaskName::LoadLibrary, None));
             }
         }));
     }
@@ -541,7 +544,7 @@ impl Bootstrap {
         // Tasks will execute in the order added.
 
         // Initial library load to reduce time from starting app and seeing a photo grid
-        controllers.add_task_load_library();
+        controllers.add_task_load_library(sender.input_sender().clone());
         controllers.add_task_photo_scan();
         controllers.add_task_video_scan();
         controllers.add_task_photo_enrich();
@@ -550,7 +553,7 @@ impl Bootstrap {
         // If loaded library is currently empty, then refresh now that the photo and video scans
         // are complete. Note: should do this after enriching because otherwise Fotema won't
         // have processed the orientation metadata and will display pictures incorrectly.
-        controllers.add_task_load_library();
+        controllers.add_task_load_library(sender.input_sender().clone());
 
         controllers.add_task_photo_thumbnail();
         controllers.add_task_video_thumbnail();
@@ -562,7 +565,7 @@ impl Bootstrap {
 
         // This is the last background task to complete. Refresh library if there
         // has been a visible change to the library state.
-        controllers.add_task_load_library();
+        controllers.add_task_load_library(sender.input_sender().clone());
 
         Ok(controllers)
     }
@@ -624,6 +627,13 @@ impl Worker for Bootstrap {
                 // Now that tasks are shutdown, it is safe to reconfigure with
                 // the new directory.
                 sender.input(BootstrapInput::Configure(self.settings_state.read().pictures_base_dir.clone()));
+            },
+            BootstrapInput::TaskCompleted(TaskName::LoadLibrary, _) if self.controllers.is_some()  => {
+                info!("Forwarding {:?} to controllers and marking library as fresh.", msg);
+                if let Some(ref mut controllers) = self.controllers {
+                    controllers.library_stale.store(false, Ordering::Relaxed);
+                    controllers.update(msg, sender);
+                }
             },
             msg if self.controllers.is_some() => {
                 info!("Forwarding {:?} to controllers.", msg);
