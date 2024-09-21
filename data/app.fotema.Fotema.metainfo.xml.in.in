@@ -64,6 +64,14 @@
   </branding>
 
   <releases>
+    <release version="1.14.2" date="2024-09-21">
+      <description>
+        <ul>
+          <li>Fotema no longer refreshes albums during startup if no photo/video updates are detected.</li>
+          <li>Translation updates. Thank you!</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.14.1" date="2024-09-11">
       <description>
         <ul>
