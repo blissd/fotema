@@ -292,7 +292,7 @@ prefs-library-section =
     .title = Kirjasto
     .description =
         Määritä kirjaston kansio.
-        Varoitus: kuvakansion vaihtaminen voi aiheuttaa sen, että{ -app-name } käsittelee kaikki kuvat uudelleen.
+        Varoitus: kuvakansion vaihtaminen voi aiheuttaa sen, että { -app-name } käsittelee kaikki kuvat uudelleen.
 onboard-select-pictures =
     .title = Tervetuloa, tämä on { -app-name }.
     .description =
