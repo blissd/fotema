@@ -1261,7 +1261,7 @@ dependencies = [
  "ffmpeg-next",
  "futures",
  "gdk4",
- "gio 0.20.1",
+ "gio 0.20.4",
  "glycin",
  "gtk",
  "h3o",
@@ -1431,7 +1431,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8730751991b97419fc3f0c2dca2c9e45b48edf46e48e0f965964ecf33889812f"
 dependencies = [
  "gdk-pixbuf-sys 0.20.1",
- "gio 0.20.1",
+ "gio 0.20.4",
  "glib 0.20.3",
  "libc",
 ]
@@ -1488,7 +1488,7 @@ dependencies = [
  "cairo-rs 0.20.1",
  "gdk-pixbuf 0.20.1",
  "gdk4-sys",
- "gio 0.20.1",
+ "gio 0.20.4",
  "glib 0.20.3",
  "libc",
  "pango 0.20.1",
@@ -1519,7 +1519,7 @@ checksum = "d48ff9cbd61a1a87b36faed4793d0d8603a2cd8db38f5df7800448ddc1a3d462"
 dependencies = [
  "gdk4",
  "gdk4-wayland-sys",
- "gio 0.20.1",
+ "gio 0.20.4",
  "glib 0.20.3",
  "libc",
 ]
@@ -1543,7 +1543,7 @@ checksum = "c4b89c2149f74668d630279559fb5e2b4f11a77124b73d04518cc344854cd626"
 dependencies = [
  "gdk4",
  "gdk4-x11-sys",
- "gio 0.20.1",
+ "gio 0.20.4",
  "glib 0.20.3",
  "libc",
 ]
@@ -1640,9 +1640,9 @@ dependencies = [
 
 [[package]]
 name = "gio"
-version = "0.20.1"
+version = "0.20.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dcacaa37401cad0a95aadd266bc39c72a131d454fc012f6dfd217f891d76cc52"
+checksum = "b8d999e8fb09583e96080867e364bc1e701284ad206c76a5af480d63833ad43c"
 dependencies = [
  "futures-channel",
  "futures-core",
@@ -1792,7 +1792,7 @@ dependencies = [
  "futures-timer",
  "futures-util",
  "gdk4",
- "gio 0.20.1",
+ "gio 0.20.4",
  "glycin-utils",
  "gufo-common",
  "gufo-exif",
@@ -1969,7 +1969,7 @@ dependencies = [
  "futures-channel",
  "gdk-pixbuf 0.20.1",
  "gdk4",
- "gio 0.20.1",
+ "gio 0.20.4",
  "glib 0.20.3",
  "graphene-rs",
  "gsk4",
@@ -2694,7 +2694,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2ff9c222b5c783729de45185f07b2fec2d43a7f9c63961e777d3667e20443878"
 dependencies = [
  "gdk4",
- "gio 0.20.1",
+ "gio 0.20.4",
  "glib 0.20.3",
  "gtk4",
  "libadwaita-sys",
@@ -2798,7 +2798,7 @@ checksum = "fc9921cc829fb2d546bd6a3a158a4134002098887e0bb01ceb4535521af610ec"
 dependencies = [
  "gdk-pixbuf 0.20.1",
  "gdk4",
- "gio 0.20.1",
+ "gio 0.20.4",
  "glib 0.20.3",
  "gtk4",
  "libc",
@@ -3449,7 +3449,7 @@ version = "0.20.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5764e5a174a5a0ec054fe5962ce6d4fc7052e2d0dcc23bbc77202b40a4a403d3"
 dependencies = [
- "gio 0.20.1",
+ "gio 0.20.4",
  "glib 0.20.3",
  "libc",
  "pango-sys 0.20.1",
