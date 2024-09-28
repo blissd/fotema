@@ -97,12 +97,6 @@ pub struct ViewNav {
     // Info for photo
     view_info: Controller<ViewInfo>,
 
-    // Photo and photo info views
-    split_view: adw::OverlaySplitView,
-
-    left_button: gtk::Button,
-    right_button: gtk::Button,
-
     /// Index into shared state for currently viewed item.
     current_index: Option<usize>,
 
@@ -112,6 +106,11 @@ pub struct ViewNav {
     // Visual items filtered by album filter.
     // This is to support the next and previous buttons.
     filtered_items: Vec<Arc<Visual>>,
+
+    //
+    is_narrow: bool,
+
+    shows_infobar: bool,
 }
 
 #[relm4::component(pub async)]
@@ -150,10 +149,13 @@ impl SimpleAsyncComponent for ViewNav {
             },
 
             #[wrap(Some)]
-            #[local_ref]
-            set_content = &split_view -> adw::OverlaySplitView {
-                set_collapsed: false,
-                set_show_sidebar: false,
+            #[name(split_view)]
+            set_content = &adw::OverlaySplitView {
+                #[watch]
+                set_collapsed: model.is_narrow,
+
+                #[watch]
+                set_show_sidebar: model.shows_infobar,
 
                 #[wrap(Some)]
                 set_sidebar = model.view_info.widget(),
@@ -169,12 +171,17 @@ impl SimpleAsyncComponent for ViewNav {
                         set_margin_all: 18,
                         set_spacing: 12,
 
-                        #[local_ref]
-                        left_button -> gtk::Button {
+
+                        #[name(left_button)]
+                        gtk::Button {
                             set_icon_name: "left-symbolic",
                             add_css_class: "osd",
                             add_css_class: "circular",
                             set_tooltip_text: Some(&fl!("viewer-previous", "tooltip")),
+
+                            #[watch]
+                            set_sensitive: model.is_left_button_sensitive(),
+
                             connect_clicked => ViewNavInput::GoLeft,
                         },
                     },
@@ -186,12 +193,16 @@ impl SimpleAsyncComponent for ViewNav {
                         set_margin_all: 18,
                         set_spacing: 12,
 
-                        #[local_ref]
-                        right_button -> gtk::Button {
+                        #[name(right_button)]
+                        gtk::Button {
                             set_icon_name: "right-symbolic",
                             add_css_class: "osd",
                             add_css_class: "circular",
                             set_tooltip_text: Some(&fl!("viewer-next", "tooltip")),
+
+                            #[watch]
+                            set_sensitive: model.is_right_button_sensitive(),
+
                             connect_clicked => ViewNavInput::GoRight,
                         },
                     },
@@ -209,8 +220,6 @@ impl SimpleAsyncComponent for ViewNav {
         sender: AsyncComponentSender<Self>,
     ) -> AsyncComponentParts<Self>  {
 
-        let split_view = adw::OverlaySplitView::new();
-
         let view_one = ViewOne::builder()
             .launch((people_repo.clone(), transcode_progress_monitor))
             .forward(sender.input_sender(), |msg| match msg {
@@ -225,22 +234,17 @@ impl SimpleAsyncComponent for ViewNav {
 
         layout_state.subscribe(sender.input_sender(), |layout| ViewNavInput::Adapt(*layout));
 
-        let left_button = gtk::Button::new();
-        let right_button = gtk::Button::new();
-
         let model = ViewNav {
             state,
             people_repo,
             view_one,
             view_info,
             current_index: None,
-            left_button: left_button.clone(),
-            right_button: right_button.clone(),
-            split_view: split_view.clone(),
             filter: AlbumFilter::None,
             filtered_items: Vec::new(),
+            is_narrow: false,
+            shows_infobar: false,
         };
-
 
         let restore_action = {
             let sender = sender.clone();
@@ -311,13 +315,10 @@ impl SimpleAsyncComponent for ViewNav {
                 let visual = &self.filtered_items[index];
                 self.current_index = Some(index);
 
-                self.update_nav_buttons();
-
                 self.view_one.emit(ViewOneInput::View(visual.clone()));
             },
             ViewNavInput::ToggleInfo => {
-                let show = self.split_view.shows_sidebar();
-                self.split_view.set_show_sidebar(!show);
+                self.shows_infobar = !self.shows_infobar;
             },
             ViewNavInput::ShowPhotoInfo(visual_id, image_info) => {
                 self.view_info.emit(ViewInfoInput::Photo(visual_id, image_info));
@@ -356,14 +357,10 @@ impl SimpleAsyncComponent for ViewNav {
                 sender.input(ViewNavInput::ViewByIndex(index + 1));
             },
             ViewNavInput::Adapt(adaptive::Layout::Narrow) => {
-                let show = self.split_view.shows_sidebar();
-                self.split_view.set_collapsed(true);
-                self.split_view.set_show_sidebar(show);
+                self.is_narrow = true;
             },
             ViewNavInput::Adapt(adaptive::Layout::Wide) => {
-                let show = self.split_view.shows_sidebar();
-                self.split_view.set_collapsed(false);
-                self.split_view.set_show_sidebar(show);
+                self.is_narrow = false;
             },
             ViewNavInput::RestoreIgnoredFaces => {
                 let Some(index) = self.current_index else {
@@ -406,7 +403,7 @@ impl SimpleAsyncComponent for ViewNav {
                 self.view_one.emit(ViewOneInput::Refresh);
             },
             ViewNavInput::ScanForFaces => {
- let Some(index) = self.current_index else {
+            let Some(index) = self.current_index else {
                     return;
                 };
 
@@ -426,26 +423,28 @@ impl SimpleAsyncComponent for ViewNav {
 }
 
 impl ViewNav {
-    fn update_nav_buttons(&self) {
+
+    fn is_left_button_sensitive(&self) -> bool {
         if self.filtered_items.len() <= 1 {
-            self.left_button.set_sensitive(false);
-            self.right_button.set_sensitive(false);
-            return;
+            return false;
         }
 
         let Some(index) = self.current_index else {
-            return;
+            return false;
         };
 
-        if index == 0 {
-            self.left_button.set_sensitive(false);
-            self.right_button.set_sensitive(true);
-        } else if index == self.filtered_items.len() -1 {
-            self.left_button.set_sensitive(true);
-            self.right_button.set_sensitive(false);
-        } else {
-            self.left_button.set_sensitive(true);
-            self.right_button.set_sensitive(true);
+        index > 0
+    }
+
+    fn is_right_button_sensitive(&self) -> bool {
+        if self.filtered_items.len() <= 1 {
+            return false;
         }
+
+        let Some(index) = self.current_index else {
+            return false;
+        };
+
+        index != self.filtered_items.len() - 1
     }
 }
