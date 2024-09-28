@@ -10,5 +10,7 @@ Keywords=Gnome;GTK;Pictures;Photos;Photography;Viewer;
 # Translators: Do NOT translate or transliterate this text (this is an icon file name)!
 Icon=@icon@
 StartupNotify=true
+StartupWMClass=@app-id@
 # Translators: Do NOT translate or transliterate this text (these are enum types)!
 X-Purism-FormFactor=Workstation;Mobile;
+
