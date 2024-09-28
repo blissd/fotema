@@ -64,6 +64,13 @@
   </branding>
 
   <releases>
+    <release version="1.14.4" date="2024-09-28">
+      <description>
+        <ul>
+          <li>Fix missing icon in Phosh app overview. For real this time. Maybe.</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.14.3" date="2024-09-28">
       <description>
         <ul>
