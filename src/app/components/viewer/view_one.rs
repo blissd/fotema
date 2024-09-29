@@ -47,17 +47,19 @@ pub enum ViewOneInput {
 
     PlayToggle,
 
-    VideoEnded,
 
     SkipBackwards,
 
     SkipForward,
 
+    // Signal when video ends
+    VideoEnded,
+
     // Constantly sent during video playback so we can update the timestamp.
-    Timestamp,
+    VideoTimestamp,
 
     // Video has been "prepared", so duration should be available
-    Prepared,
+    VideoPrepared,
 }
 
 #[derive(Debug)]
@@ -434,8 +436,8 @@ impl SimpleAsyncComponent for ViewOne {
                             let sender2 = sender.clone();
                             let sender3 = sender.clone();
                             video.connect_ended_notify(move |_| sender1.input(ViewOneInput::VideoEnded));
-                            video.connect_timestamp_notify(move |_| sender2.input(ViewOneInput::Timestamp));
-                            video.connect_prepared_notify(move |_| sender3.input(ViewOneInput::Prepared));
+                            video.connect_timestamp_notify(move |_| sender2.input(ViewOneInput::VideoTimestamp));
+                            video.connect_prepared_notify(move |_| sender3.input(ViewOneInput::VideoPrepared));
                         }
 
                         video.play();
@@ -459,7 +461,7 @@ impl SimpleAsyncComponent for ViewOne {
                     self.face_thumbnails.emit(FaceThumbnailsInput::Hide);
                 }
             },
-            ViewOneInput::Prepared => {
+            ViewOneInput::VideoPrepared => {
                 // Video details, like duration, aren't available until the video
                 // has been prepared.
                 if let Some(ref video) = self.video {
@@ -539,7 +541,7 @@ impl SimpleAsyncComponent for ViewOne {
                 self.play_button.set_icon_name("arrow-circular-top-left-symbolic");
                 self.skip_forward.set_sensitive(false);
             },
-            ViewOneInput::Timestamp => {
+            ViewOneInput::VideoTimestamp => {
                 if let Some(ref video) = self.video {
                     let current_ts = fotema_core::time::format_hhmmss(&TimeDelta::microseconds(video.timestamp()));
                     let total_ts = fotema_core::time::format_hhmmss(&TimeDelta::microseconds(video.duration()));
