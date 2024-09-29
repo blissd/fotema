@@ -76,7 +76,7 @@ pub struct ViewOne {
 
     video: Option<gtk::MediaFile>,
 
-    video_controls: gtk::Box,
+    is_transcode_required: bool,
 
     play_button: gtk::Button,
 
@@ -115,11 +115,15 @@ impl SimpleAsyncComponent for ViewOne {
                 set_vexpand: true,
                 set_halign: gtk::Align::Center,
 
-                #[local_ref]
-                add_overlay =  &video_controls -> gtk::Box {
+                // video_controls
+                add_overlay = &gtk::Box {
                     set_orientation: gtk::Orientation::Vertical,
+                    set_spacing: 12,
                     set_halign: gtk::Align::Center,
                     set_valign: gtk::Align::End,
+
+                    #[watch]
+                    set_visible: model.is_video_controls_visible(),
 
                     gtk::Frame {
                         set_halign: gtk::Align::Center,
@@ -246,8 +250,6 @@ impl SimpleAsyncComponent for ViewOne {
 
         let picture = gtk::Picture::new();
 
-        let video_controls = gtk::Box::new(gtk::Orientation::Horizontal, 12);
-
         let play_button = gtk::Button::new();
 
         let mute_button = gtk::Button::new();
@@ -275,7 +277,7 @@ impl SimpleAsyncComponent for ViewOne {
         let model = ViewOne {
             picture: picture.clone(),
             video: None,
-            video_controls: video_controls.clone(),
+            is_transcode_required: false,
             play_button: play_button.clone(),
             mute_button: mute_button.clone(),
             skip_backwards: skip_backwards.clone(),
@@ -305,8 +307,8 @@ impl SimpleAsyncComponent for ViewOne {
 
                 self.picture.set_visible(false);
                 self.transcode_status.set_visible(false);
-                self.video_controls.set_visible(false);
                 self.broken_status.set_visible(false);
+                self.is_transcode_required = false;
 
                 let visual_path = visual.picture_path.as_ref()
                     .or_else(|| visual.video_path.as_ref());
@@ -383,15 +385,14 @@ impl SimpleAsyncComponent for ViewOne {
                     let _ = sender.output(ViewOneOutput::PhotoShown(visual.visual_id.clone(), image.info().clone()));
                 } else { // video or motion photo
                     let is_transcoded = visual.video_transcoded_path.as_ref().is_some_and(|x| x.exists());
+                    self.is_transcode_required = visual.is_transcode_required.is_some_and(|x| x) && !is_transcoded;
 
-                    if visual.is_transcode_required.is_some_and(|x| x) && !is_transcoded {
+                    if self.is_transcode_required {
                         self.picture.set_visible(false);
                         self.transcode_status.set_visible(true);
-                        self.video_controls.set_visible(false);
                     } else {
                         self.picture.set_visible(true);
                         self.transcode_status.set_visible(false);
-                        self.video_controls.set_visible(true);
 
                         // if a video is transcoded then the rotation transformation will
                         // already have been applied.
@@ -557,5 +558,11 @@ impl SimpleAsyncComponent for ViewOne {
                 self.face_thumbnails.emit(FaceThumbnailsInput::Refresh);
             },
         }
+    }
+}
+
+impl ViewOne {
+    fn is_video_controls_visible(&self) -> bool {
+        self.video.is_some() && !self.is_transcode_required
     }
 }
