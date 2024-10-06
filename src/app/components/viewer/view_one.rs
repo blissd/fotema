@@ -23,15 +23,18 @@ use super::face_thumbnails::{FaceThumbnails, FaceThumbnailsInput};
 
 use std::sync::Arc;
 
-use tracing::{event, Level};
+use tracing::{debug, info, event, Level};
 
 const TEN_SECS_IN_MICROS: i64 = 10_000_000;
 const FIFTEEN_SECS_IN_MICROS: i64 = 15_000_000;
 
 #[derive(Debug)]
 pub enum ViewOneInput {
+    // Load an item.
+    Load(Arc<Visual>),
+
     // View an item.
-    View(Arc<Visual>),
+    View,
 
     // The photo/video page has been hidden so any playing media should stop.
     Hidden,
@@ -47,17 +50,19 @@ pub enum ViewOneInput {
 
     PlayToggle,
 
-    VideoEnded,
 
     SkipBackwards,
 
     SkipForward,
 
+    // Signal when video ends
+    VideoEnded,
+
     // Constantly sent during video playback so we can update the timestamp.
-    Timestamp,
+    VideoTimestamp,
 
     // Video has been "prepared", so duration should be available
-    Prepared,
+    VideoPrepared,
 }
 
 #[derive(Debug)]
@@ -74,7 +79,7 @@ pub struct ViewOne {
 
     video: Option<gtk::MediaFile>,
 
-    video_controls: gtk::Box,
+    is_transcode_required: bool,
 
     play_button: gtk::Button,
 
@@ -113,11 +118,15 @@ impl SimpleAsyncComponent for ViewOne {
                 set_vexpand: true,
                 set_halign: gtk::Align::Center,
 
-                #[local_ref]
-                add_overlay =  &video_controls -> gtk::Box {
+                // video_controls
+                add_overlay = &gtk::Box {
                     set_orientation: gtk::Orientation::Vertical,
+                    set_spacing: 12,
                     set_halign: gtk::Align::Center,
                     set_valign: gtk::Align::End,
+
+                    #[watch]
+                    set_visible: model.is_video_controls_visible(),
 
                     gtk::Frame {
                         set_halign: gtk::Align::Center,
@@ -244,8 +253,6 @@ impl SimpleAsyncComponent for ViewOne {
 
         let picture = gtk::Picture::new();
 
-        let video_controls = gtk::Box::new(gtk::Orientation::Horizontal, 12);
-
         let play_button = gtk::Button::new();
 
         let mute_button = gtk::Button::new();
@@ -273,7 +280,7 @@ impl SimpleAsyncComponent for ViewOne {
         let model = ViewOne {
             picture: picture.clone(),
             video: None,
-            video_controls: video_controls.clone(),
+            is_transcode_required: false,
             play_button: play_button.clone(),
             mute_button: mute_button.clone(),
             skip_backwards: skip_backwards.clone(),
@@ -293,18 +300,13 @@ impl SimpleAsyncComponent for ViewOne {
 
     async fn update(&mut self, msg: Self::Input, sender: AsyncComponentSender<Self>) {
         match msg {
-            ViewOneInput::Hidden => {
-                self.video = None;
-                self.picture.set_paintable(None::<&gdk::Paintable>);
-                self.face_thumbnails.emit(FaceThumbnailsInput::Hide);
-            },
-            ViewOneInput::View(visual) => {
-                event!(Level::INFO, "Showing item for {}", visual.visual_id);
+            ViewOneInput::Load(visual) => {
+                info!("Load visual {}", visual.visual_id);
 
                 self.picture.set_visible(false);
                 self.transcode_status.set_visible(false);
-                self.video_controls.set_visible(false);
                 self.broken_status.set_visible(false);
+                self.is_transcode_required = false;
 
                 let visual_path = visual.picture_path.as_ref()
                     .or_else(|| visual.video_path.as_ref());
@@ -381,15 +383,14 @@ impl SimpleAsyncComponent for ViewOne {
                     let _ = sender.output(ViewOneOutput::PhotoShown(visual.visual_id.clone(), image.info().clone()));
                 } else { // video or motion photo
                     let is_transcoded = visual.video_transcoded_path.as_ref().is_some_and(|x| x.exists());
+                    self.is_transcode_required = visual.is_transcode_required.is_some_and(|x| x) && !is_transcoded;
 
-                    if visual.is_transcode_required.is_some_and(|x| x) && !is_transcoded {
+                    if self.is_transcode_required {
                         self.picture.set_visible(false);
                         self.transcode_status.set_visible(true);
-                        self.video_controls.set_visible(false);
                     } else {
                         self.picture.set_visible(true);
                         self.transcode_status.set_visible(false);
-                        self.video_controls.set_visible(true);
 
                         // if a video is transcoded then the rotation transformation will
                         // already have been applied.
@@ -434,12 +435,11 @@ impl SimpleAsyncComponent for ViewOne {
                             let sender2 = sender.clone();
                             let sender3 = sender.clone();
                             video.connect_ended_notify(move |_| sender1.input(ViewOneInput::VideoEnded));
-                            video.connect_timestamp_notify(move |_| sender2.input(ViewOneInput::Timestamp));
-                            video.connect_prepared_notify(move |_| sender3.input(ViewOneInput::Prepared));
+                            video.connect_timestamp_notify(move |_| sender2.input(ViewOneInput::VideoTimestamp));
+                            video.connect_prepared_notify(move |_| sender3.input(ViewOneInput::VideoPrepared));
                         }
 
-                        video.play();
-                        self.play_button.set_icon_name("pause-symbolic");
+                        self.play_button.set_icon_name("play-symbolic");
 
                         self.video = Some(video);
                         self.picture.set_paintable(self.video.as_ref());
@@ -459,7 +459,37 @@ impl SimpleAsyncComponent for ViewOne {
                     self.face_thumbnails.emit(FaceThumbnailsInput::Hide);
                 }
             },
-            ViewOneInput::Prepared => {
+            ViewOneInput::View => {
+                info!("View");
+                if let Some(video) = self.video.as_ref() {
+                    debug!("Playing video");
+                    video.play();
+                    self.play_button.set_icon_name("pause-symbolic");
+                }
+            },
+            ViewOneInput::Hidden => {
+                info!("Hide");
+                if let Some(video) = self.video.as_ref() {
+                    debug!("Pausing video");
+                    if video.is_ended() {
+                        video.seek(0);
+
+                        // I'd like to just set the play_button icon to pause-symbolic and
+                        // play the video. However, if we just call play, then the play button icon
+                        // doesn't update and stays as the replay icon.
+                        //
+                        // Playing, pausing, and sending a new message seems
+                        // to work around that.
+                        video.play();
+                        video.pause();
+                        sender.input(ViewOneInput::PlayToggle);
+                    } else if video.is_playing() {
+                        video.pause();
+                        self.play_button.set_icon_name("play-symbolic");
+                    }
+                }
+            },
+            ViewOneInput::VideoPrepared => {
                 // Video details, like duration, aren't available until the video
                 // has been prepared.
                 if let Some(ref video) = self.video {
@@ -539,7 +569,7 @@ impl SimpleAsyncComponent for ViewOne {
                 self.play_button.set_icon_name("arrow-circular-top-left-symbolic");
                 self.skip_forward.set_sensitive(false);
             },
-            ViewOneInput::Timestamp => {
+            ViewOneInput::VideoTimestamp => {
                 if let Some(ref video) = self.video {
                     let current_ts = fotema_core::time::format_hhmmss(&TimeDelta::microseconds(video.timestamp()));
                     let total_ts = fotema_core::time::format_hhmmss(&TimeDelta::microseconds(video.duration()));
@@ -555,5 +585,11 @@ impl SimpleAsyncComponent for ViewOne {
                 self.face_thumbnails.emit(FaceThumbnailsInput::Refresh);
             },
         }
+    }
+}
+
+impl ViewOne {
+    fn is_video_controls_visible(&self) -> bool {
+        self.video.is_some() && !self.is_transcode_required
     }
 }
