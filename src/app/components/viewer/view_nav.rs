@@ -348,15 +348,15 @@ impl SimpleAsyncComponent for ViewNav {
                 // on how many items are in the album being viewed.
                 if self.album.len() == 1 {
                     self.carousel.append(self.carousel_pages[0].widget());
-                    self.carousel_pages[0].emit(ViewOneInput::View(self.album[0].clone()));
+                    self.carousel_pages[0].emit(ViewOneInput::Load(self.album[0].clone()));
                     self.carousel_last_page_index = 0;
                 } else if self.album.len() == 2 {
                     self.carousel.append(self.carousel_pages[0].widget());
-                    self.carousel_pages[0].emit(ViewOneInput::View(self.album[0].clone()));
+                    self.carousel_pages[0].emit(ViewOneInput::Load(self.album[0].clone()));
                     self.carousel_last_page_index = 0;
 
                     self.carousel.append(self.carousel_pages[1].widget());
-                    self.carousel_pages[1].emit(ViewOneInput::View(self.album[1].clone()));
+                    self.carousel_pages[1].emit(ViewOneInput::Load(self.album[1].clone()));
 
                     self.carousel.scroll_to(&self.carousel.nth_page(index as u32), false);
                 } else if self.album.len() >= 3 {
@@ -366,26 +366,28 @@ impl SimpleAsyncComponent for ViewNav {
 
                     if index == 0 {
                         // Starting on _first_ item of album.
-                        self.carousel_pages[0].emit(ViewOneInput::View(self.album[0].clone()));
-                        self.carousel_pages[1].emit(ViewOneInput::View(self.album[1].clone()));
-                        self.carousel_pages[2].emit(ViewOneInput::View(self.album[2].clone()));
+                        self.carousel_pages[0].emit(ViewOneInput::Load(self.album[0].clone()));
+                        self.carousel_pages[1].emit(ViewOneInput::Load(self.album[1].clone()));
+                        self.carousel_pages[2].emit(ViewOneInput::Load(self.album[2].clone()));
                         self.carousel.scroll_to(&self.carousel.nth_page(0), false);
                         self.carousel_last_page_index = 0;
                     } else if index == self.album.len() - 1 {
                         // Starting on _last_ item of album.
-                        self.carousel_pages[0].emit(ViewOneInput::View(self.album[index - 2].clone()));
-                        self.carousel_pages[1].emit(ViewOneInput::View(self.album[index - 1].clone()));
-                        self.carousel_pages[2].emit(ViewOneInput::View(self.album[index].clone()));
+                        self.carousel_pages[0].emit(ViewOneInput::Load(self.album[index - 2].clone()));
+                        self.carousel_pages[1].emit(ViewOneInput::Load(self.album[index - 1].clone()));
+                        self.carousel_pages[2].emit(ViewOneInput::Load(self.album[index].clone()));
                         self.carousel.scroll_to(&self.carousel.nth_page(2), false);
                         self.carousel_last_page_index = 2;
                     } else {
                         // Starting somewhere between first and last item.
-                        self.carousel_pages[0].emit(ViewOneInput::View(self.album[index - 1].clone()));
-                        self.carousel_pages[1].emit(ViewOneInput::View(self.album[index].clone()));
-                        self.carousel_pages[2].emit(ViewOneInput::View(self.album[index + 1].clone()));
+                        self.carousel_pages[0].emit(ViewOneInput::Load(self.album[index - 1].clone()));
+                        self.carousel_pages[1].emit(ViewOneInput::Load(self.album[index].clone()));
+                        self.carousel_pages[2].emit(ViewOneInput::Load(self.album[index + 1].clone()));
                         self.carousel.scroll_to(&self.carousel.nth_page(1), false);
                         self.carousel_last_page_index = 1;
                     }
+
+                    self.carousel_pages[self.carousel_last_page_index as usize].emit(ViewOneInput::View);
                 }
             },
             ViewNavInput::SwipeTo(page_index) => {
@@ -398,9 +400,22 @@ impl SimpleAsyncComponent for ViewNav {
 
                 debug!("len={}, pre index={}, pos={}", self.album.len(), index, self.carousel.position());
 
+                // View the page swiped to, and hide the others.
+                // This will play/stop videos as appropriate.
+                for i in 0..self.carousel_pages.len() {
+                    if i == page_index as usize {
+                        debug!("Viewing page at index {}", i);
+                        self.carousel_pages[i].emit(ViewOneInput::View);
+                    } else {
+                        debug!("Hiding page at index {}", i);
+                        self.carousel_pages[i].emit(ViewOneInput::Hidden);
+                    }
+                }
+
                 if self.album.len() <= 3 {
                     // number of items in album == number of carousel page
                     self.album_index = Some(page_index as usize);
+                    self.carousel_last_page_index = page_index;
                     return;
                 }
 
@@ -444,7 +459,7 @@ impl SimpleAsyncComponent for ViewNav {
 
                     // Pre-load item that will be visible on _next_ left swipe
                     if index > 0 {
-                        self.carousel_pages[0].emit(ViewOneInput::View(self.album[index - 1].clone()));
+                        self.carousel_pages[0].emit(ViewOneInput::Load(self.album[index - 1].clone()));
                     }
                 } else if page == self.carousel.nth_page(2) && index < self.album.len() - 1 {
                     debug!("Swiped right");
@@ -460,7 +475,7 @@ impl SimpleAsyncComponent for ViewNav {
 
                     // Pre-load item that will be visible on _next_ right swipe
                     if index < self.album.len() - 1 {
-                        self.carousel_pages[2].emit(ViewOneInput::View(self.album[index + 1].clone()));
+                        self.carousel_pages[2].emit(ViewOneInput::Load(self.album[index + 1].clone()));
                     }
                 }
 

@@ -23,15 +23,18 @@ use super::face_thumbnails::{FaceThumbnails, FaceThumbnailsInput};
 
 use std::sync::Arc;
 
-use tracing::{event, Level};
+use tracing::{debug, info, event, Level};
 
 const TEN_SECS_IN_MICROS: i64 = 10_000_000;
 const FIFTEEN_SECS_IN_MICROS: i64 = 15_000_000;
 
 #[derive(Debug)]
 pub enum ViewOneInput {
+    // Load an item.
+    Load(Arc<Visual>),
+
     // View an item.
-    View(Arc<Visual>),
+    View,
 
     // The photo/video page has been hidden so any playing media should stop.
     Hidden,
@@ -297,13 +300,8 @@ impl SimpleAsyncComponent for ViewOne {
 
     async fn update(&mut self, msg: Self::Input, sender: AsyncComponentSender<Self>) {
         match msg {
-            ViewOneInput::Hidden => {
-                self.video = None;
-                self.picture.set_paintable(None::<&gdk::Paintable>);
-                self.face_thumbnails.emit(FaceThumbnailsInput::Hide);
-            },
-            ViewOneInput::View(visual) => {
-                event!(Level::INFO, "Showing item for {}", visual.visual_id);
+            ViewOneInput::Load(visual) => {
+                info!("Load visual {}", visual.visual_id);
 
                 self.picture.set_visible(false);
                 self.transcode_status.set_visible(false);
@@ -441,8 +439,7 @@ impl SimpleAsyncComponent for ViewOne {
                             video.connect_prepared_notify(move |_| sender3.input(ViewOneInput::VideoPrepared));
                         }
 
-                        video.play();
-                        self.play_button.set_icon_name("pause-symbolic");
+                        self.play_button.set_icon_name("play-symbolic");
 
                         self.video = Some(video);
                         self.picture.set_paintable(self.video.as_ref());
@@ -460,6 +457,36 @@ impl SimpleAsyncComponent for ViewOne {
                     }
                 } else {
                     self.face_thumbnails.emit(FaceThumbnailsInput::Hide);
+                }
+            },
+            ViewOneInput::View => {
+                info!("View");
+                if let Some(video) = self.video.as_ref() {
+                    debug!("Playing video");
+                    video.play();
+                    self.play_button.set_icon_name("pause-symbolic");
+                }
+            },
+            ViewOneInput::Hidden => {
+                info!("Hide");
+                if let Some(video) = self.video.as_ref() {
+                    debug!("Pausing video");
+                    if video.is_ended() {
+                        video.seek(0);
+
+                        // I'd like to just set the play_button icon to pause-symbolic and
+                        // play the video. However, if we just call play, then the play button icon
+                        // doesn't update and stays as the replay icon.
+                        //
+                        // Playing, pausing, and sending a new message seems
+                        // to work around that.
+                        video.play();
+                        video.pause();
+                        sender.input(ViewOneInput::PlayToggle);
+                    } else if video.is_playing() {
+                        video.pause();
+                        self.play_button.set_icon_name("play-symbolic");
+                    }
                 }
             },
             ViewOneInput::VideoPrepared => {
