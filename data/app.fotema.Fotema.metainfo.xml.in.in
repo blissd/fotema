@@ -20,33 +20,6 @@
     </ul>
   </description>
 
-  <screenshots>
-    <screenshot type="default" environment="gnome">
-      <image>https://github.com/blissd/fotema/blob/v1.10.0/data/resources/screenshots/all-photos.png?raw=true</image>
-      <caption>All photos view</caption>
-    </screenshot>
-    <screenshot environment="gnome">
-      <image>https://github.com/blissd/fotema/blob/v1.10.0/data/resources/screenshots/places-view.png?raw=true</image>
-      <caption>Places view</caption>
-    </screenshot>
-    <screenshot environment="gnome">
-      <image>https://github.com/blissd/fotema/blob/v1.10.0/data/resources/screenshots/person-thumbnails.png?raw=true</image>
-      <caption>Photo viewer with automatically detected faces</caption>
-    </screenshot>
-    <screenshot environment="gnome">
-      <image>https://github.com/blissd/fotema/blob/v1.10.0/data/resources/screenshots/person-select.png?raw=true</image>
-      <caption>Naming a person</caption>
-    </screenshot>
-    <screenshot environment="gnome">
-      <image>https://github.com/blissd/fotema/blob/v1.10.0/data/resources/screenshots/people-album.png?raw=true</image>
-      <caption>People view</caption>
-    </screenshot>
-    <screenshot environment="gnome">
-      <image>https://github.com/blissd/fotema/blob/v1.10.0/data/resources/screenshots/folders-view.png?raw=true</image>
-      <caption>Folders view</caption>
-    </screenshot>
-  </screenshots>
-
   <url type="homepage">https://github.com/blissd/fotema</url>
   <url type="bugtracker">https://github.com/blissd/fotema/issues</url>
   <url type="translate">https://hosted.weblate.org/projects/fotema/app</url>
@@ -115,6 +88,33 @@
     <content_attribute id="money-purchasing">none</content_attribute>
     <content_attribute id="money-gambling">none</content_attribute>
   </content_rating>
+
+  <screenshots>
+    <screenshot type="default" environment="gnome">
+      <image>https://github.com/blissd/fotema/blob/v1.10.0/data/resources/screenshots/all-photos.png?raw=true</image>
+      <caption>All photos view</caption>
+    </screenshot>
+    <screenshot environment="gnome">
+      <image>https://github.com/blissd/fotema/blob/v1.10.0/data/resources/screenshots/places-view.png?raw=true</image>
+      <caption>Places view</caption>
+    </screenshot>
+    <screenshot environment="gnome">
+      <image>https://github.com/blissd/fotema/blob/v1.10.0/data/resources/screenshots/person-thumbnails.png?raw=true</image>
+      <caption>Photo viewer with automatically detected faces</caption>
+    </screenshot>
+    <screenshot environment="gnome">
+      <image>https://github.com/blissd/fotema/blob/v1.10.0/data/resources/screenshots/person-select.png?raw=true</image>
+      <caption>Naming a person</caption>
+    </screenshot>
+    <screenshot environment="gnome">
+      <image>https://github.com/blissd/fotema/blob/v1.10.0/data/resources/screenshots/people-album.png?raw=true</image>
+      <caption>People view</caption>
+    </screenshot>
+    <screenshot environment="gnome">
+      <image>https://github.com/blissd/fotema/blob/v1.10.0/data/resources/screenshots/folders-view.png?raw=true</image>
+      <caption>Folders view</caption>
+    </screenshot>
+  </screenshots>
 
   <releases>
     <release version="1.14.4" date="2024-09-28">
