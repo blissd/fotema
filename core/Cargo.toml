@@ -35,7 +35,7 @@ walkdir = "2.5.0"
 opencv = {version = "0.93.1", default-features = false, features = ["clang-runtime", "objdetect", "imgcodecs", "dnn"]}
 itertools = "0.13.0"
 reqwest = { version = "0.12.8", features = ["blocking"] }
-futures = "0.3.30"
+futures = "0.3.31"
 
 [dev-dependencies]
 tempfile = "3.13.0"
