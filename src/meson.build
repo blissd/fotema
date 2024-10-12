@@ -29,6 +29,14 @@ run_command(
 cargo_options = [ '--manifest-path', meson.project_source_root() / 'Cargo.toml' ]
 cargo_options += [ '--target-dir', meson.project_build_root() / 'src' ]
 
+if get_option('sandboxed')
+  # This is the path used by flatpak-cargo-generator in flatpak-builder-tools
+  # See https://github.com/flathub/app.fotema.Fotema
+  cargo_env = [ 'CARGO_HOME=' + meson.project_source_root() / 'cargo' ]
+else
+  cargo_env = [ 'CARGO_HOME=' + meson.project_build_root() / 'cargo-home' ]
+endif
+
 if get_option('profile') == 'default'
   cargo_options += [ '--release' ]
   rust_target = 'release'
