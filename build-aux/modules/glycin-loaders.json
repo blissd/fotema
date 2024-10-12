@@ -75,41 +75,6 @@
           }
         }
       ]
-    },
-    {
-      "name": "libjxl",
-      "buildsystem": "cmake-ninja",
-      "config-opts": [
-        "-D CMAKE_BUILD_TYPE=Release",
-        "-D BUILD_TESTING=OFF",
-        "-D JPEGXL_TEST_TOOLS=OFF",
-        "-D JPEGXL_ENABLE_BENCHMARK=OFF",
-        "-D JPEGXL_ENABLE_DEVTOOLS=OFF",
-        "-D JPEGXL_ENABLE_EXAMPLES=OFF",
-        "-D JPEGXL_ENABLE_FUZZERS=OFF",
-        "-D JPEGXL_ENABLE_PLUGINS=ON",
-        "-D JPEGXL_ENABLE_VIEWERS=OFF",
-        "-D JPEGXL_FORCE_SYSTEM_BROTLI=ON",
-        "-D JPEGXL_BUNDLE_LIBPNG=OFF",
-        "-D JPEGXL_ENABLE_TOOLS=OFF",
-        "-D JPEGXL_ENABLE_MANPAGES=OFF",
-        "-D JPEGXL_ENABLE_DOXYGEN=OFF",
-        "-D JPEGXL_ENABLE_TRANSCODE_JPEG=OFF"
-      ],
-      "cleanup": [
-        "/bin/*"
-      ],
-      "sources": [
-        {
-          "type": "git",
-          "url": "https://github.com/libjxl/libjxl.git",
-          "tag": "v0.11.0",
-          "x-checker-data": {
-            "type": "git"
-          },
-          "commit": "4df1e9eccdf86b8df4c0c7c08f529263906f9c4f"
-        }
-      ]
     }
   ]
 }
