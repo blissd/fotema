@@ -117,6 +117,15 @@
   </screenshots>
 
   <releases>
+    <release version="1.15.0" date="2024-10-12">
+      <description>
+        <ul>
+          <li>Lovely new icon by Tobias Bernard.</li>
+          <li>Update to GNOME 47 runtime.</li>
+          <li>Swipe between photos and videos.</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.14.4" date="2024-09-28">
       <description>
         <ul>

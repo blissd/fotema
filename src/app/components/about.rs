@@ -33,6 +33,7 @@ impl SimpleComponent for AboutDialog {
             .developer_name("David Bliss")
             .developers(vec!["David Bliss"])
             .designers(vec!["David Bliss"])
+            .artists(vec!["Tobias Bernard https://tobiasbernard.com/"])
             .can_close(true)
             .build();
 
@@ -49,6 +50,12 @@ impl SimpleComponent for AboutDialog {
         about.add_legal_section("FFmpeg", Some("Copyright © 2024 FFmpeg"), gtk::License::Gpl30, None);
         about.add_legal_section("libheif", Some("Copyright © 2017–2023 Dirk Farin"), gtk::License::Lgpl30, None);
         about.add_legal_section("libde265", Some("Copyright © 2017–2023 Dirk Farin"), gtk::License::Lgpl30, None);
+
+        about.set_release_notes("<ul>
+          <li>Lovely new icon by Tobias Bernard.</li>
+          <li>Update to GNOME 47 runtime.</li>
+          <li>Swipe between photos and videos.</li>
+        </ul>");
 
         about
     }
