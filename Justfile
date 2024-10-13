@@ -9,6 +9,10 @@ default:
 fmt:
   cargo fmt --verbose --all -- --check
 
+# Install Git hooks
+git-hooks:
+    cp hooks/pre-commit.hook .git/hooks/pre-commit
+
 clippy:
   cargo clippy --all-targets --all-features -- -D warnings
 

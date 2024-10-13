@@ -55,3 +55,7 @@ if test $? != 0; then
 else
     echo "--Checking style pass--"
 fi
+
+# Run linter
+echo "--Checking licences--"
+just lint
