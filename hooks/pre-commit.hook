@@ -6,7 +6,7 @@ install_rustfmt() {
         curl https://sh.rustup.rs -sSf  | sh -s -- -y
         export PATH=$PATH:$HOME/.cargo/bin
         if ! which rustup >/dev/null 2>&1; then
-            echo "Failed to install rustup. Performing the commit without style checking."
+            >&2 echo "Failed to install rustup. Performing the commit without style checking."
             exit 0
         fi
     fi
@@ -18,7 +18,7 @@ install_rustfmt() {
 }
 
 if ! which cargo >/dev/null 2>&1 || ! cargo fmt --help >/dev/null 2>&1; then
-    echo "Unable to check the project’s code style, because rustfmt could not be run."
+    >&2 echo "Unable to check the project’s code style, because rustfmt could not be run."
 
     if [ ! -t 1 ]; then
         # No input is possible
@@ -38,8 +38,8 @@ if ! which cargo >/dev/null 2>&1 || ! cargo fmt --help >/dev/null 2>&1; then
         case $yn in
             [Yy]* ) install_rustfmt; break;;
             [Nn]* ) echo "Performing commit."; exit 0;;
-            [Qq]* | "" ) echo "Aborting commit."; exit 1 >/dev/null 2>&1;;
-            * ) echo "Invalid input";;
+            [Qq]* | "" ) >&2 echo "Aborting commit."; exit 1 >/dev/null 2>&1;;
+            * ) >&2 echo "Invalid input";;
         esac
     done
 
@@ -48,8 +48,8 @@ fi
 echo "--Checking style--"
 cargo fmt --all -- --check
 if test $? != 0; then
-    echo "--Checking style fail--"
-    echo "Please fix the above issues, either manually or by running: cargo fmt --all"
+    >&2 echo "--Checking style fail--"
+    >&2 echo "Please fix the above issues, either manually or by running: cargo fmt --all"
 
     exit 1
 else
@@ -58,4 +58,12 @@ fi
 
 # Run linter
 echo "--Checking licences--"
-just lint
+REUSE_LINT=$(reuse lint)
+if test $? != 0; then
+    >&2 echo "$REUSE_LINT"
+    >&2 echo "--Checking licenses fail--"
+    >&2 echo "Please add missing licence information for each non-compliant file."
+    exit 1
+else
+    echo "--Checking style pass--"
+fi
