@@ -34,14 +34,8 @@ SPDX-License-Identifier = "GPL-3.0-or-later"
 [[annotations]]
 path = "data/icons/**.svg"
 precedence = "aggregate"
-SPDX-FileCopyrightText = "© 2024 David Bliss <david@fotema.app>"
-SPDX-License-Identifier = "GPL-3.0-or-later"
-
-[[annotations]]
-path = "data/icons/**.svg"
-precedence = "aggregate"
-SPDX-FileCopyrightText = "© 2024 David Bliss <david@fotema.app>"
-SPDX-License-Identifier = "CC0-1.0"
+SPDX-FileCopyrightText = "© 2024 Tobias Bernard <hi@tobiasbernard.com>"
+SPDX-License-Identifier = " CC0-1.0"
 
 [[annotations]]
 # NOTE attribution is unclear. Icons are from the GNOME Icon Library
