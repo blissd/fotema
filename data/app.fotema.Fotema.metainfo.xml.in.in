@@ -117,6 +117,13 @@
   </screenshots>
 
   <releases>
+    <release version="1.15.1" date="2024-10-15">
+      <description>
+        <ul>
+          <li>Taller default window on first run so button isn't hidden.</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.15.0" date="2024-10-12">
       <description>
         <ul>
