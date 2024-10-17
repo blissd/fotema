@@ -117,6 +117,13 @@
   </screenshots>
 
   <releases>
+    <release version="1.15.2" date="2024-10-17">
+      <description>
+        <ul>
+          <li>Revert back to GNOME 46 runtime to fix memory leak in video playback.</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.15.1" date="2024-10-15">
       <description>
         <ul>

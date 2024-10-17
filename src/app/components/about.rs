@@ -2,8 +2,8 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use relm4::{adw, gtk, ComponentParts, ComponentSender, SimpleComponent};
 use relm4::adw::prelude::AdwDialogExt;
+use relm4::{adw, gtk, ComponentParts, ComponentSender, SimpleComponent};
 
 use crate::config::{APP_ID, VERSION};
 use crate::fl;
@@ -37,25 +37,37 @@ impl SimpleComponent for AboutDialog {
             .can_close(true)
             .build();
 
-        about.add_acknowledgement_section(Some(&fl!("about-opensource")), &[
-            "Relm 4 https://relm4.org/",
-            "Glycin https://gitlab.gnome.org/sophie-h/glycin",
-            "FFmpeg https://ffmpeg.org/",
-            "libheif https://github.com/strukturag/libheif",
-            "libde265 https://github.com/strukturag/libde265",
-            "OpenStreetMap https://www.openstreetmap.org",
-            "Shumate https://gitlab.gnome.org/GNOME/libshumate",
-        ]);
+        about.add_acknowledgement_section(
+            Some(&fl!("about-opensource")),
+            &[
+                "Relm 4 https://relm4.org/",
+                "Glycin https://gitlab.gnome.org/sophie-h/glycin",
+                "FFmpeg https://ffmpeg.org/",
+                "libheif https://github.com/strukturag/libheif",
+                "libde265 https://github.com/strukturag/libde265",
+                "OpenStreetMap https://www.openstreetmap.org",
+                "Shumate https://gitlab.gnome.org/GNOME/libshumate",
+            ],
+        );
 
-        about.add_legal_section("FFmpeg", Some("Copyright © 2024 FFmpeg"), gtk::License::Gpl30, None);
-        about.add_legal_section("libheif", Some("Copyright © 2017–2023 Dirk Farin"), gtk::License::Lgpl30, None);
-        about.add_legal_section("libde265", Some("Copyright © 2017–2023 Dirk Farin"), gtk::License::Lgpl30, None);
-
-        about.set_release_notes("<ul>
-          <li>Lovely new icon by Tobias Bernard.</li>
-          <li>Update to GNOME 47 runtime.</li>
-          <li>Swipe between photos and videos.</li>
-        </ul>");
+        about.add_legal_section(
+            "FFmpeg",
+            Some("Copyright © 2024 FFmpeg"),
+            gtk::License::Gpl30,
+            None,
+        );
+        about.add_legal_section(
+            "libheif",
+            Some("Copyright © 2017–2023 Dirk Farin"),
+            gtk::License::Lgpl30,
+            None,
+        );
+        about.add_legal_section(
+            "libde265",
+            Some("Copyright © 2017–2023 Dirk Farin"),
+            gtk::License::Lgpl30,
+            None,
+        );
 
         about
     }
