@@ -187,7 +187,7 @@ pub(super) struct App {
     header_bar: adw::HeaderBar,
 
     // Activity indicator. Only shown when progress bar is hidden.
-    spinner: adw::Spinner,
+    spinner: gtk::Spinner,
 
     bootstrap_progress: Controller<ProgressPanel>,
 
@@ -364,7 +364,7 @@ impl SimpleComponent for App {
                                     },
 
                                     #[local_ref]
-                                    pack_end = &spinner -> adw::Spinner,
+                                    pack_end = &spinner -> gtk::Spinner,
                                 },
 
                                 // NOTE I would like this to be an adw::ViewStack
@@ -696,7 +696,7 @@ impl SimpleComponent for App {
 
         let header_bar = adw::HeaderBar::new();
 
-        let spinner = adw::Spinner::builder().visible(false).build();
+        let spinner = gtk::Spinner::builder().visible(false).build();
 
         let banner = adw::Banner::builder()
             .button_label(fl!("banner-button-stop", "label"))
@@ -768,6 +768,9 @@ impl SimpleComponent for App {
         // Get startup window size and propagate so all components have correct narrow/wide layout.
         sender.input(AppMsg::Activate(widgets.main_window.default_width()));
 
+        model.spinner.set_visible(true);
+        model.spinner.start();
+
         let settings = settings_state.read();
         let is_onboarding_complete = settings.is_onboarding_complete && settings.pictures_base_dir.exists();
         if is_onboarding_complete {
@@ -803,11 +806,7 @@ impl SimpleComponent for App {
             AppMsg::ToggleSidebar => {
                 let show = self.main_navigation.shows_sidebar();
                 self.main_navigation.set_show_sidebar(!show);
-
-                // FIXME refactor model to not store a bunch of widgets and instead
-                // have some enums to represent current app states.
-                let task_running = self.banner.is_revealed();
-                self.spinner.set_visible(show && task_running);
+                self.spinner.set_visible(show);
             },
             AppMsg::SwitchView => {
                 let child = self.main_stack.visible_child();
@@ -889,6 +888,7 @@ impl SimpleComponent for App {
                 self.people_page.emit(PeopleAlbumInput::Refresh);
             },
             AppMsg::TaskStarted(task_name) => {
+                self.spinner.start();
                 self.spinner.set_visible(!self.main_navigation.shows_sidebar());
                 self.banner.set_revealed(true);
                 self.banner.set_button_label(Some(&fl!("banner-button-stop", "label")));
@@ -937,7 +937,7 @@ impl SimpleComponent for App {
             },
             AppMsg::BootstrapCompleted => {
                 info!("Bootstrap completed.");
-                self.spinner.set_visible(false);
+                self.spinner.stop();
                 self.banner.set_revealed(false);
             },
             AppMsg::TranscodeAll => {
