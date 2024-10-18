@@ -1015,7 +1015,7 @@ dependencies = [
  "bytemuck",
  "cfg-if",
  "document-features",
- "image 0.25.3",
+ "image 0.25.4",
  "num-traits",
  "thiserror",
 ]
@@ -1264,7 +1264,7 @@ dependencies = [
  "gtk",
  "h3o",
  "half",
- "image 0.25.3",
+ "image 0.25.4",
  "itertools 0.13.0",
  "kamadak-exif",
  "opencv",
@@ -2460,9 +2460,9 @@ dependencies = [
 
 [[package]]
 name = "image"
-version = "0.25.3"
+version = "0.25.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d97eb9a8e0cd5b76afea91d7eecd5cf8338cd44ced04256cf1f800474b227c52"
+checksum = "bc144d44a31d753b02ce64093d532f55ff8dc4ebf2ffb8a63c0dda691385acae"
 dependencies = [
  "bytemuck",
  "byteorder-lite",
@@ -2500,7 +2500,7 @@ dependencies = [
  "ab_glyph",
  "approx",
  "getrandom",
- "image 0.25.3",
+ "image 0.25.4",
  "itertools 0.12.1",
  "nalgebra 0.32.6",
  "num",
@@ -4139,7 +4139,7 @@ version = "1.0.0"
 source = "git+https://github.com/blissd/rust-faces.git?branch=patch#7a70d2c2810827714a48f9ceb18df0bafcb42ddb"
 dependencies = [
  "directories",
- "image 0.25.3",
+ "image 0.25.4",
  "imageproc",
  "indicatif",
  "itertools 0.11.0",
