@@ -20,7 +20,6 @@ gio = "0.20.4"
 glycin = { version = "2.0.1", features = ["gdk4"] }
 h3o = "0.6.4"
 image = "0.25.4"
-half = "2.4.1"
 kamadak-exif = "0.5.5"
 rayon = "1.10.0"
 refinery = { version = "0.8.14", features = ["rusqlite"] }

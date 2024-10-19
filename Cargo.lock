@@ -1214,7 +1214,6 @@ dependencies = [
  "gio",
  "glycin",
  "h3o",
- "half",
  "image 0.25.4",
  "itertools 0.13.0",
  "kamadak-exif",
