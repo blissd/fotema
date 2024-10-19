@@ -18,10 +18,8 @@ ffmpeg-next = "7.1.0"
 gdk4 = "0.9.2"
 gio = "0.20.4"
 glycin = { version = "2.0.1", features = ["gdk4"] }
-gtk = "0.18.1"
 h3o = "0.6.4"
 image = "0.25.4"
-half = "2.4.1"
 kamadak-exif = "0.5.5"
 rayon = "1.10.0"
 refinery = { version = "0.8.14", features = ["rusqlite"] }
@@ -36,7 +34,4 @@ opencv = {version = "0.93.1", default-features = false, features = ["clang-runti
 itertools = "0.13.0"
 reqwest = { version = "0.12.8", features = ["blocking"] }
 futures = "0.3.31"
-
-[dev-dependencies]
-tempfile = "3.13.0"
 
