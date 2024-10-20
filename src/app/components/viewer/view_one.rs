@@ -22,11 +22,52 @@ use fotema_core::people;
 use super::face_thumbnails::{FaceThumbnails, FaceThumbnailsInput};
 
 use std::sync::Arc;
+use std::path::PathBuf;
 
 use tracing::{debug, info, event, Level};
 
 const TEN_SECS_IN_MICROS: i64 = 10_000_000;
 const FIFTEEN_SECS_IN_MICROS: i64 = 15_000_000;
+
+#[derive(Debug, Eq, PartialEq)]
+pub enum Viewing {
+    Photo,
+    MotionPhoto,
+    Video,
+    Transcode,
+    Error,
+    None,
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub enum Audio {
+    Muted,
+    Audible,
+    None,
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub enum Playback {
+    Playing,
+    Paused,
+    Ended,
+    None,
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub enum Broken {
+    /// Visual item has no path in database. Shouldn't really happen.
+    MissingPath,
+
+    /// Visual item no longer on file system.
+    MissingInFileSystem(PathBuf),
+
+    /// Glycin couldn't load the file.
+    Failed,
+
+    /// Not broken.
+    None,
+}
 
 #[derive(Debug)]
 pub enum ViewOneInput {
@@ -49,7 +90,6 @@ pub enum ViewOneInput {
     MuteToggle,
 
     PlayToggle,
-
 
     SkipBackwards,
 
@@ -75,29 +115,22 @@ pub enum ViewOneOutput {
 }
 
 pub struct ViewOne {
+    viewing: Viewing,
+    audio: Audio,
+    playback: Playback,
+    broken: Broken,
+
     picture: gtk::Picture,
 
     video: Option<gtk::MediaFile>,
 
-    is_transcode_required: bool,
+    /// Should the video skip backwards/forwards buttons be enabled.
+    is_skipping_allowed: bool,
 
-    play_button: gtk::Button,
-
-    mute_button: gtk::Button,
-
-    skip_backwards: gtk::Button,
-
-    skip_forward: gtk::Button,
-
-    video_timestamp: gtk::Label,
-
-    transcode_button: gtk::Button,
-
-    transcode_status: adw::StatusPage,
+    /// Label text displaying video timestamp
+    video_timestamp: String,
 
     transcode_progress: Controller<ProgressPanel>,
-
-    broken_status: adw::StatusPage,
 
     face_thumbnails: AsyncController<FaceThumbnails>,
 }
@@ -126,17 +159,22 @@ impl SimpleAsyncComponent for ViewOne {
                     set_valign: gtk::Align::End,
 
                     #[watch]
-                    set_visible: model.is_video_controls_visible(),
+                    set_visible: model.viewing == Viewing::Video || model.viewing == Viewing::MotionPhoto,
 
                     gtk::Frame {
                         set_halign: gtk::Align::Center,
                         add_css_class: "osd",
 
+                        #[watch]
+                        set_visible: model.viewing == Viewing::Video,
+
                         #[wrap(Some)]
-                        #[local_ref]
-                        set_child = &video_timestamp -> gtk::Label{
+                        set_child = &gtk::Label {
                             set_halign: gtk::Align::Center,
                             add_css_class: "photo-grid-month-label",
+
+                            #[watch]
+                            set_text: &model.video_timestamp,
                         },
                     },
                     gtk::Box {
@@ -148,69 +186,105 @@ impl SimpleAsyncComponent for ViewOne {
                         set_margin_bottom: 18,
                         set_spacing: 12,
 
-                        #[local_ref]
-                        skip_backwards -> gtk::Button {
+                        #[watch]
+                        set_visible: model.viewing == Viewing::Video || model.viewing == Viewing::MotionPhoto,
+
+                        gtk::Button {
                             set_icon_name: "skip-backwards-10-symbolic",
                             add_css_class: "circular",
                             add_css_class: "osd",
                             set_tooltip_text: Some(&fl!("viewer-skip-backwards-10-seconds", "tooltip")),
+
+                            #[watch]
+                            set_visible: model.viewing == Viewing::Video && model.is_skipping_allowed,
+
+                            #[watch]
+                            set_sensitive: model.playback == Playback::Playing
+                                && model.is_skipping_allowed,
+
                             connect_clicked => ViewOneInput::SkipBackwards,
                         },
 
-                        #[local_ref]
-                        play_button -> gtk::Button {
-                            set_icon_name: "play-symbolic",
+                        gtk::Button {
+                            #[watch]
+                            set_icon_name: model.play_button_icon_name(),
+
                             add_css_class: "circular",
                             add_css_class: "osd",
                             set_tooltip_text: Some(&fl!("viewer-play", "tooltip")),
+
+                            #[watch]
+                            set_visible: model.viewing == Viewing::Video || model.viewing == Viewing::MotionPhoto,
+
                             connect_clicked => ViewOneInput::PlayToggle,
                         },
 
-                        #[local_ref]
-                        skip_forward -> gtk::Button {
+                        gtk::Button {
                             set_icon_name: "skip-forward-10-symbolic",
                             add_css_class: "circular",
                             add_css_class: "osd",
                             set_tooltip_text: Some(&fl!("viewer-skip-forward-10-seconds", "tooltip")),
+
+                            #[watch]
+                            set_visible: model.viewing == Viewing::Video && model.is_skipping_allowed,
+
+                            #[watch]
+                            set_sensitive: model.playback == Playback::Playing
+                                && model.is_skipping_allowed,
+
                             connect_clicked => ViewOneInput::SkipForward,
                         },
 
-                        #[local_ref]
-                        mute_button -> gtk::Button {
-                            set_icon_name: "audio-volume-muted-symbolic",
+                        gtk::Button {
+                            #[watch]
+                            set_icon_name: model.mute_button_icon_name(),
+
                             set_margin_start: 36,
                             add_css_class: "circular",
                             add_css_class: "osd",
                             set_tooltip_text: Some(&fl!("viewer-mute", "tooltip")),
+
+                            #[watch]
+                            set_visible: model.viewing == Viewing::Video || model.viewing == Viewing::MotionPhoto,
+
                             connect_clicked => ViewOneInput::MuteToggle,
                         },
                     },
                 },
 
+                // Overlay of detected faces
                 add_overlay = &gtk::Box {
                     set_orientation: gtk::Orientation::Horizontal,
                     set_halign: gtk::Align::Start,
                     set_valign: gtk::Align::End,
                     set_margin_all: 8,
+                    #[watch]
+                    set_visible: model.viewing == Viewing::Photo || model.viewing == Viewing::MotionPhoto,
                     container_add: model.face_thumbnails.widget(),
                 },
 
                 #[wrap(Some)]
                 set_child = &gtk::Box {
+
+                    #[watch]
+                    set_visible: model.viewing == Viewing::Photo || model.viewing == Viewing::MotionPhoto || model.viewing == Viewing::Video,
+
                     #[local_ref]
                     picture -> gtk::Picture {
                     }
                 },
             },
 
-            #[local_ref]
-            transcode_status -> adw::StatusPage {
+            adw::StatusPage {
                 set_valign: gtk::Align::Start,
                 set_vexpand: true,
 
                 set_visible: false,
                 set_icon_name: Some("playback-error-symbolic"),
                 set_description: Some(&fl!("viewer-convert-all-description")),
+
+                #[watch]
+                set_visible: model.viewing == Viewing::Transcode,
 
                 #[wrap(Some)]
                 set_child = &adw::Clamp {
@@ -221,8 +295,8 @@ impl SimpleAsyncComponent for ViewOne {
                     set_child = &gtk::Box {
                         set_orientation: gtk::Orientation::Vertical,
 
-                        #[local_ref]
-                        transcode_button -> gtk::Button {
+                        // FIXME hide while transcodes are in progress
+                        gtk::Button {
                             set_label: &fl!("viewer-convert-all-button"),
                             add_css_class: "suggested-action",
                             add_css_class: "pill",
@@ -234,13 +308,18 @@ impl SimpleAsyncComponent for ViewOne {
                 }
             },
 
-            #[local_ref]
-            broken_status -> adw::StatusPage {
+            adw::StatusPage {
                 set_valign: gtk::Align::Start,
                 set_vexpand: true,
 
-                set_visible: false,
-                set_icon_name: Some("sad-computer-symbolic"),
+                #[watch]
+                set_icon_name: model.broken_status_icon_name(),
+
+                #[watch]
+                set_description: model.broken_status_description().as_ref().map(|x| x.as_str()),
+
+                #[watch]
+                set_visible: model.viewing == Viewing::Error,
             }
         }
     }
@@ -253,43 +332,25 @@ impl SimpleAsyncComponent for ViewOne {
 
         let picture = gtk::Picture::new();
 
-        let play_button = gtk::Button::new();
-
-        let mute_button = gtk::Button::new();
-
-        let skip_backwards = gtk::Button::new();
-
-        let skip_forward = gtk::Button::new();
-
-        let video_timestamp = gtk::Label::new(None);
-
-        let transcode_button = gtk::Button::new();
-
         let transcode_progress = ProgressPanel::builder()
             .launch(transcode_progress_monitor.clone())
             .detach();
-
-        let transcode_status = adw::StatusPage::new();
-
-        let broken_status = adw::StatusPage::new();
 
         let face_thumbnails = FaceThumbnails::builder()
             .launch(people_repo)
             .detach();
 
         let model = ViewOne {
+            viewing: Viewing::None,
+            audio: Audio::None,
+            playback: Playback::None,
+            broken: Broken::None,
+
             picture: picture.clone(),
             video: None,
-            is_transcode_required: false,
-            play_button: play_button.clone(),
-            mute_button: mute_button.clone(),
-            skip_backwards: skip_backwards.clone(),
-            skip_forward: skip_forward.clone(),
-            video_timestamp: video_timestamp.clone(),
-            transcode_button: transcode_button.clone(),
-            transcode_status: transcode_status.clone(),
+            is_skipping_allowed: false,
+            video_timestamp: "".into(),
             transcode_progress,
-            broken_status: broken_status.clone(),
             face_thumbnails,
         };
 
@@ -303,34 +364,24 @@ impl SimpleAsyncComponent for ViewOne {
             ViewOneInput::Load(visual) => {
                 info!("Load visual {}", visual.visual_id);
 
-                self.picture.set_visible(false);
-                self.transcode_status.set_visible(false);
-                self.broken_status.set_visible(false);
-                self.is_transcode_required = false;
-
                 let visual_path = visual.picture_path.as_ref()
                     .or_else(|| visual.video_path.as_ref());
 
+                self.viewing = Viewing::None;
+                self.audio = Audio::None;
+                self.playback = Playback::None;
+                self.broken = Broken::None;
+                self.is_skipping_allowed = false;
+
                 let Some(visual_path) = visual_path else {
-                    if visual.is_video_only() {
-                        self.broken_status.set_icon_name(Some("item-missing-symbolic"));
-                    } else {
-                        self.broken_status.set_icon_name(Some("image-missing-symbolic"));
-                    }
-                    self.broken_status.set_description(Some(&fl!("viewer-error-missing-path")));
-                    self.broken_status.set_visible(true);
+                    self.viewing = Viewing::Error;
+                    self.broken = Broken::MissingPath;
                     return;
                 };
 
                 if !visual_path.exists() {
-                    if visual.is_video_only() {
-                        self.broken_status.set_icon_name(Some("item-missing-symbolic"));
-                    } else {
-                        self.broken_status.set_icon_name(Some("image-missing-symbolic"));
-                    }
-                    self.broken_status.set_description(Some(&fl!("viewer-error-missing-file",
-                        file_name = visual_path.to_string_lossy())));
-                    self.broken_status.set_visible(true);
+                    self.viewing = Viewing::Error;
+                    self.broken = Broken::MissingInFileSystem(visual_path.clone());
                     return;
                 }
 
@@ -343,6 +394,8 @@ impl SimpleAsyncComponent for ViewOne {
                 }
 
                 if visual.is_photo_only() {
+                    self.viewing = Viewing::Photo;
+
                     // Apply a CSS transformation to respect the EXIF orientation
                     // NOTE: don't use Glycin to apply the transformation here because it is
                     // too slow.
@@ -353,45 +406,37 @@ impl SimpleAsyncComponent for ViewOne {
                     let file = gio::File::for_path(visual_path);
 
                     let mut loader = glycin::Loader::new(file);
-                    loader.sandbox_selector(glycin::SandboxSelector::FlatpakSpawn);
                     loader.apply_transformations(false);
 
                     let image = loader.load().await;
 
                     let Ok(image) = image else {
                         event!(Level::ERROR, "Failed loading image: {:?}", image);
-                        self.broken_status.set_icon_name(Some("sad-computer-symbolic"));
-                        self.broken_status.set_description(Some(&fl!("viewer-error-failed-to-load")));
-                        self.broken_status.set_visible(true);
+                        self.viewing = Viewing::Error;
+                        self.broken = Broken::Failed;
                         return;
                     };
 
                     let frame = image.next_frame().await;
                     let Ok(frame) = frame else {
                         event!(Level::ERROR, "Failed getting image frame: {:?}", frame);
-                        self.broken_status.set_icon_name(Some("sad-computer-symbolic"));
-                        self.broken_status.set_description(Some(&fl!("viewer-error-failed-to-load")));
-                        self.broken_status.set_visible(true);
+                        self.viewing = Viewing::Error;
+                        self.broken = Broken::Failed;
                         return;
                     };
 
                     let texture = frame.texture();
 
                     self.picture.set_paintable(Some(&texture));
-                    self.picture.set_visible(true);
 
                     let _ = sender.output(ViewOneOutput::PhotoShown(visual.visual_id.clone(), image.info().clone()));
                 } else { // video or motion photo
                     let is_transcoded = visual.video_transcoded_path.as_ref().is_some_and(|x| x.exists());
-                    self.is_transcode_required = visual.is_transcode_required.is_some_and(|x| x) && !is_transcoded;
+                    let is_transcode_required = visual.is_transcode_required.is_some_and(|x| x) && !is_transcoded;
 
-                    if self.is_transcode_required {
-                        self.picture.set_visible(false);
-                        self.transcode_status.set_visible(true);
+                    if is_transcode_required {
+                        self.viewing = Viewing::Transcode;
                     } else {
-                        self.picture.set_visible(true);
-                        self.transcode_status.set_visible(false);
-
                         // if a video is transcoded then the rotation transformation will
                         // already have been applied.
                         if !is_transcoded {
@@ -410,26 +455,25 @@ impl SimpleAsyncComponent for ViewOne {
 
                         let video = gtk::MediaFile::for_filename(video_path);
                         if visual.is_motion_photo() {
-                           self.mute_button.set_icon_name("audio-volume-muted-symbolic");
-                           self.skip_backwards.set_visible(false);
-                           self.skip_forward.set_visible(false);
-                           self.video_timestamp.set_visible(false);
-                           video.set_muted(true);
-                           video.set_loop(true);
+                            self.viewing = Viewing::MotionPhoto;
+
+                            self.playback = Playback::Playing;
+                            video.set_loop(true);
+
+                            self.audio = Audio::Muted;
+                            video.set_muted(true);
                         } else {
-                            self.mute_button.set_icon_name("multimedia-volume-control-symbolic");
-                            self.skip_backwards.set_visible(true);
-                            self.skip_forward.set_visible(true);
-                            self.skip_forward.set_sensitive(true);
-                            self.video_timestamp.set_visible(true);
+                            self.viewing = Viewing::Video;
+
+                            self.playback = Playback::Paused;
+                            video.set_loop(false);
 
                             // Instead of video.set_muted(false), we must mute and then
                             // send a message to unmute. This seems to work around the problem
                             // of videos staying muted after viewing muting and unmuting.
+                            self.audio = Audio::Muted;
                             video.set_muted(true);
                             sender.input(ViewOneInput::MuteToggle);
-
-                            video.set_loop(false);
 
                             let sender1 = sender.clone();
                             let sender2 = sender.clone();
@@ -439,22 +483,17 @@ impl SimpleAsyncComponent for ViewOne {
                             video.connect_prepared_notify(move |_| sender3.input(ViewOneInput::VideoPrepared));
                         }
 
-                        self.play_button.set_icon_name("play-symbolic");
-
                         self.video = Some(video);
                         self.picture.set_paintable(self.video.as_ref());
-                        self.picture.set_visible(true);
                         let _ = sender.output(ViewOneOutput::VideoShown(visual.visual_id.clone()));
                     }
                 }
 
                 // Overlay faces in picture, but only if transcode status page not visible.
-                if !self.transcode_status.is_visible() {
-                    if let Some(ref picture_id) = visual.picture_id {
-                        self.face_thumbnails.emit(FaceThumbnailsInput::View(*picture_id));
-                    } else {
-                        self.face_thumbnails.emit(FaceThumbnailsInput::Hide);
-                    }
+                if self.viewing == Viewing::Transcode {
+                    self.face_thumbnails.emit(FaceThumbnailsInput::Hide);
+                } else if let Some(ref picture_id) = visual.picture_id {
+                    self.face_thumbnails.emit(FaceThumbnailsInput::View(*picture_id));
                 } else {
                     self.face_thumbnails.emit(FaceThumbnailsInput::Hide);
                 }
@@ -463,8 +502,8 @@ impl SimpleAsyncComponent for ViewOne {
                 info!("View");
                 if let Some(video) = self.video.as_ref() {
                     debug!("Playing video");
+                    self.playback = Playback::Playing;
                     video.play();
-                    self.play_button.set_icon_name("pause-symbolic");
                 }
             },
             ViewOneInput::Hidden => {
@@ -482,10 +521,11 @@ impl SimpleAsyncComponent for ViewOne {
                         // to work around that.
                         video.play();
                         video.pause();
+                        self.playback = Playback::Paused;
                         sender.input(ViewOneInput::PlayToggle);
                     } else if video.is_playing() {
+                        self.playback = Playback::Paused;
                         video.pause();
-                        self.play_button.set_icon_name("play-symbolic");
                     }
                 }
             },
@@ -493,22 +533,18 @@ impl SimpleAsyncComponent for ViewOne {
                 // Video details, like duration, aren't available until the video
                 // has been prepared.
                 if let Some(ref video) = self.video {
-                    if video.duration() < FIFTEEN_SECS_IN_MICROS {
-                        self.skip_backwards.set_visible(false);
-                        self.skip_forward.set_visible(false);
-                    } else {
-                        self.skip_backwards.set_visible(true);
-                        self.skip_forward.set_visible(true);
-                    }
+                    // Only enable the skip buttons if the video is long enough for
+                    // skipping in chunks of 10 seconds to make some sense.
+                    self.is_skipping_allowed = video.duration() >= FIFTEEN_SECS_IN_MICROS;
                 }
             },
             ViewOneInput::MuteToggle => {
                 if let Some(ref video) = self.video {
                     if video.is_muted() {
-                        self.mute_button.set_icon_name("multimedia-volume-control-symbolic");
+                        self.audio = Audio::Audible;
                         video.set_muted(false);
                     } else {
-                        self.mute_button.set_icon_name("audio-volume-muted-symbolic");
+                        self.audio = Audio::Muted;
                         video.set_muted(true);
                     }
                 }
@@ -526,14 +562,14 @@ impl SimpleAsyncComponent for ViewOne {
                         // to work around that.
                         video.play();
                         video.pause();
+                        self.playback = Playback::Ended;
                         sender.input(ViewOneInput::PlayToggle);
                     } else if video.is_playing() {
+                        self.playback = Playback::Paused;
                         video.pause();
-                        self.play_button.set_icon_name("play-symbolic");
                     } else { // is paused
+                        self.playback = Playback::Playing;
                         video.play();
-                        self.play_button.set_icon_name("pause-symbolic");
-                        self.skip_forward.set_sensitive(true);
                     }
                 }
             },
@@ -544,7 +580,7 @@ impl SimpleAsyncComponent for ViewOne {
                         video.seek(video.duration() - TEN_SECS_IN_MICROS);
                         video.play();
                         video.pause();
-                        self.play_button.set_icon_name("play-symbolic");
+                        self.playback = Playback::Ended;
                         sender.input(ViewOneInput::PlayToggle);
                     } else if ts < TEN_SECS_IN_MICROS {
                         video.seek(0);
@@ -566,19 +602,17 @@ impl SimpleAsyncComponent for ViewOne {
                 }
             },
             ViewOneInput::VideoEnded => {
-                self.play_button.set_icon_name("arrow-circular-top-left-symbolic");
-                self.skip_forward.set_sensitive(false);
+                self.playback = Playback::Ended;
             },
             ViewOneInput::VideoTimestamp => {
                 if let Some(ref video) = self.video {
                     let current_ts = fotema_core::time::format_hhmmss(&TimeDelta::microseconds(video.timestamp()));
                     let total_ts = fotema_core::time::format_hhmmss(&TimeDelta::microseconds(video.duration()));
-                    self.video_timestamp.set_text(&format!("{}/{}", current_ts, total_ts));
+                    self.video_timestamp = format!("{}/{}", current_ts, total_ts).into();
                 }
             },
             ViewOneInput::TranscodeAll => {
                 event!(Level::INFO, "Transcode all");
-                self.transcode_button.set_visible(false);
                 let _ = sender.output(ViewOneOutput::TranscodeAll);
             },
             ViewOneInput::Refresh => {
@@ -589,7 +623,39 @@ impl SimpleAsyncComponent for ViewOne {
 }
 
 impl ViewOne {
-    fn is_video_controls_visible(&self) -> bool {
-        self.video.is_some() && !self.is_transcode_required
+    fn play_button_icon_name(&self) -> &str {
+        match self.playback {
+            Playback::Playing => "pause-symbolic",
+            Playback::Ended => "arrow-circular-top-left-symbolic",
+            Playback::Paused => "play-symbolic",
+            Playback::None => "arrow-circular-top-left-symbolic",
+        }
+    }
+
+    fn mute_button_icon_name(&self) -> &str {
+        match self.audio {
+            Audio::Audible => "multimedia-volume-control-symbolic",
+            Audio::Muted => "audio-volume-muted-symbolic",
+            Audio::None => "arrow-circular-top-left-symbolic",
+        }
+    }
+
+    fn broken_status_icon_name(&self) -> Option<&str> {
+        match self.broken {
+            Broken::MissingPath => Some("item-missing-symbolic"),
+            Broken::MissingInFileSystem(_) => Some("item-missing-symbolic"),
+            Broken::Failed => Some("sad-computer-symbolic"),
+            Broken::None => None,
+        }
+    }
+
+    fn broken_status_description(&self) -> Option<String> {
+        match self.broken {
+            Broken::MissingPath => Some(fl!("viewer-error-missing-path")),
+            Broken::MissingInFileSystem(ref visual_path) => Some(fl!("viewer-error-missing-file",
+                        file_name = visual_path.to_string_lossy())),
+            Broken::Failed => Some(fl!("viewer-error-failed-to-load")),
+            Broken::None => None::<String>,
+        }
     }
 }

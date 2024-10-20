@@ -120,8 +120,7 @@ impl Thumbnailer {
     ) -> Result<()> {
         let file = gio::File::for_path(source_path);
 
-        let mut loader = glycin::Loader::new(file);
-        loader.sandbox_selector(glycin::SandboxSelector::FlatpakSpawn);
+        let loader = glycin::Loader::new(file);
 
         let image = loader.load().await?;
 

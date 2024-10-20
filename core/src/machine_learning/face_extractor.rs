@@ -352,8 +352,7 @@ impl FaceExtractor {
     async fn open_image(source_path: &Path) -> Result<DynamicImage> {
         let file = gio::File::for_path(source_path);
 
-        let mut loader = glycin::Loader::new(file);
-        loader.sandbox_selector(glycin::SandboxSelector::FlatpakSpawn);
+        let loader = glycin::Loader::new(file);
         let image = loader.load().await?;
         let frame = image.next_frame().await?;
         let bytes = frame.texture().save_to_png_bytes();
