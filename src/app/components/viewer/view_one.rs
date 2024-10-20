@@ -115,8 +115,6 @@ pub struct ViewOne {
 
     video_timestamp: gtk::Label,
 
-    transcode_button: gtk::Button,
-
     transcode_progress: Controller<ProgressPanel>,
 
     broken_status: adw::StatusPage,
@@ -275,8 +273,8 @@ impl SimpleAsyncComponent for ViewOne {
                     set_child = &gtk::Box {
                         set_orientation: gtk::Orientation::Vertical,
 
-                        #[local_ref]
-                        transcode_button -> gtk::Button {
+                        // FIXME hide while transcodes are in progress
+                        gtk::Button {
                             set_label: &fl!("viewer-convert-all-button"),
                             add_css_class: "suggested-action",
                             add_css_class: "pill",
@@ -316,8 +314,6 @@ impl SimpleAsyncComponent for ViewOne {
 
         let video_timestamp = gtk::Label::new(None);
 
-        let transcode_button = gtk::Button::new();
-
         let transcode_progress = ProgressPanel::builder()
             .launch(transcode_progress_monitor.clone())
             .detach();
@@ -339,7 +335,6 @@ impl SimpleAsyncComponent for ViewOne {
             skip_backwards: skip_backwards.clone(),
             skip_forward: skip_forward.clone(),
             video_timestamp: video_timestamp.clone(),
-            transcode_button: transcode_button.clone(),
             transcode_progress,
             broken_status: broken_status.clone(),
             face_thumbnails,
@@ -621,7 +616,6 @@ impl SimpleAsyncComponent for ViewOne {
             },
             ViewOneInput::TranscodeAll => {
                 event!(Level::INFO, "Transcode all");
-                self.transcode_button.set_visible(false);
                 let _ = sender.output(ViewOneOutput::TranscodeAll);
             },
             ViewOneInput::Refresh => {
