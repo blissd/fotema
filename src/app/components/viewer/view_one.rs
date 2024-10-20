@@ -127,7 +127,8 @@ pub struct ViewOne {
     /// Should the video skip backwards/forwards buttons be enabled.
     is_skipping_allowed: bool,
 
-    video_timestamp: gtk::Label,
+    /// Label text displaying video timestamp
+    video_timestamp: String,
 
     transcode_progress: Controller<ProgressPanel>,
 
@@ -168,10 +169,12 @@ impl SimpleAsyncComponent for ViewOne {
                         set_visible: model.viewing == Viewing::Video,
 
                         #[wrap(Some)]
-                        #[local_ref]
-                        set_child = &video_timestamp -> gtk::Label{
+                        set_child = &gtk::Label {
                             set_halign: gtk::Align::Center,
                             add_css_class: "photo-grid-month-label",
+
+                            #[watch]
+                            set_text: &model.video_timestamp,
                         },
                     },
                     gtk::Box {
@@ -329,8 +332,6 @@ impl SimpleAsyncComponent for ViewOne {
 
         let picture = gtk::Picture::new();
 
-        let video_timestamp = gtk::Label::new(None);
-
         let transcode_progress = ProgressPanel::builder()
             .launch(transcode_progress_monitor.clone())
             .detach();
@@ -348,7 +349,7 @@ impl SimpleAsyncComponent for ViewOne {
             picture: picture.clone(),
             video: None,
             is_skipping_allowed: false,
-            video_timestamp: video_timestamp.clone(),
+            video_timestamp: "".into(),
             transcode_progress,
             face_thumbnails,
         };
@@ -607,7 +608,7 @@ impl SimpleAsyncComponent for ViewOne {
                 if let Some(ref video) = self.video {
                     let current_ts = fotema_core::time::format_hhmmss(&TimeDelta::microseconds(video.timestamp()));
                     let total_ts = fotema_core::time::format_hhmmss(&TimeDelta::microseconds(video.duration()));
-                    self.video_timestamp.set_text(&format!("{}/{}", current_ts, total_ts));
+                    self.video_timestamp = format!("{}/{}", current_ts, total_ts).into();
                 }
             },
             ViewOneInput::TranscodeAll => {
