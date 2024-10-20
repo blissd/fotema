@@ -22,6 +22,7 @@ use fotema_core::people;
 use super::face_thumbnails::{FaceThumbnails, FaceThumbnailsInput};
 
 use std::sync::Arc;
+use std::path::PathBuf;
 
 use tracing::{debug, info, event, Level};
 
@@ -50,6 +51,21 @@ pub enum Playback {
     Playing,
     Paused,
     Ended,
+    None,
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub enum Broken {
+    /// Visual item has no path in database. Shouldn't really happen.
+    MissingPath,
+
+    /// Visual item no longer on file system.
+    MissingInFileSystem(PathBuf),
+
+    /// Glycin couldn't load the file.
+    Failed,
+
+    /// Not broken.
     None,
 }
 
@@ -102,6 +118,7 @@ pub struct ViewOne {
     viewing: Viewing,
     audio: Audio,
     playback: Playback,
+    broken: Broken,
 
     picture: gtk::Picture,
 
@@ -114,8 +131,6 @@ pub struct ViewOne {
     video_timestamp: gtk::Label,
 
     transcode_progress: Controller<ProgressPanel>,
-
-    broken_status: adw::StatusPage,
 
     face_thumbnails: AsyncController<FaceThumbnails>,
 }
@@ -284,13 +299,15 @@ impl SimpleAsyncComponent for ViewOne {
                 }
             },
 
-            #[local_ref]
-            broken_status -> adw::StatusPage {
+            adw::StatusPage {
                 set_valign: gtk::Align::Start,
                 set_vexpand: true,
 
-                set_visible: false,
-                set_icon_name: Some("sad-computer-symbolic"),
+                #[watch]
+                set_icon_name: model.broken_status_icon_name(),
+
+                #[watch]
+                set_description: model.broken_status_description().as_ref().map(|x| x.as_str()),
 
                 #[watch]
                 set_visible: model.viewing == Viewing::Error,
@@ -316,8 +333,6 @@ impl SimpleAsyncComponent for ViewOne {
             .launch(transcode_progress_monitor.clone())
             .detach();
 
-        let broken_status = adw::StatusPage::new();
-
         let face_thumbnails = FaceThumbnails::builder()
             .launch(people_repo)
             .detach();
@@ -326,6 +341,7 @@ impl SimpleAsyncComponent for ViewOne {
             viewing: Viewing::None,
             audio: Audio::None,
             playback: Playback::None,
+            broken: Broken::None,
 
             picture: picture.clone(),
             video: None,
@@ -333,7 +349,6 @@ impl SimpleAsyncComponent for ViewOne {
             skip_forward: skip_forward.clone(),
             video_timestamp: video_timestamp.clone(),
             transcode_progress,
-            broken_status: broken_status.clone(),
             face_thumbnails,
         };
 
@@ -350,26 +365,20 @@ impl SimpleAsyncComponent for ViewOne {
                 let visual_path = visual.picture_path.as_ref()
                     .or_else(|| visual.video_path.as_ref());
 
+                self.viewing = Viewing::None;
+                self.audio = Audio::None;
+                self.playback = Playback::None;
+                self.broken = Broken::None;
+
                 let Some(visual_path) = visual_path else {
                     self.viewing = Viewing::Error;
-                    if visual.is_video_only() {
-                        self.broken_status.set_icon_name(Some("item-missing-symbolic"));
-                    } else {
-                        self.broken_status.set_icon_name(Some("image-missing-symbolic"));
-                    }
-                    self.broken_status.set_description(Some(&fl!("viewer-error-missing-path")));
+                    self.broken = Broken::MissingPath;
                     return;
                 };
 
                 if !visual_path.exists() {
                     self.viewing = Viewing::Error;
-                    if visual.is_video_only() {
-                        self.broken_status.set_icon_name(Some("item-missing-symbolic"));
-                    } else {
-                        self.broken_status.set_icon_name(Some("image-missing-symbolic"));
-                    }
-                    self.broken_status.set_description(Some(&fl!("viewer-error-missing-file",
-                        file_name = visual_path.to_string_lossy())));
+                    self.broken = Broken::MissingInFileSystem(visual_path.clone());
                     return;
                 }
 
@@ -399,21 +408,17 @@ impl SimpleAsyncComponent for ViewOne {
                     let image = loader.load().await;
 
                     let Ok(image) = image else {
-                        self.viewing = Viewing::Error;
-
                         event!(Level::ERROR, "Failed loading image: {:?}", image);
-                        self.broken_status.set_icon_name(Some("sad-computer-symbolic"));
-                        self.broken_status.set_description(Some(&fl!("viewer-error-failed-to-load")));
+                        self.viewing = Viewing::Error;
+                        self.broken = Broken::Failed;
                         return;
                     };
 
                     let frame = image.next_frame().await;
                     let Ok(frame) = frame else {
-                        self.viewing = Viewing::Error;
-
                         event!(Level::ERROR, "Failed getting image frame: {:?}", frame);
-                        self.broken_status.set_icon_name(Some("sad-computer-symbolic"));
-                        self.broken_status.set_description(Some(&fl!("viewer-error-failed-to-load")));
+                        self.viewing = Viewing::Error;
+                        self.broken = Broken::Failed;
                         return;
                     };
 
@@ -638,4 +643,22 @@ impl ViewOne {
         }
     }
 
+    fn broken_status_icon_name(&self) -> Option<&str> {
+        match self.broken {
+            Broken::MissingPath => Some("item-missing-symbolic"),
+            Broken::MissingInFileSystem(_) => Some("item-missing-symbolic"),
+            Broken::Failed => Some("sad-computer-symbolic"),
+            Broken::None => None,
+        }
+    }
+
+    fn broken_status_description(&self) -> Option<String> {
+        match self.broken {
+            Broken::MissingPath => Some(fl!("viewer-error-missing-path")),
+            Broken::MissingInFileSystem(ref visual_path) => Some(fl!("viewer-error-missing-file",
+                        file_name = visual_path.to_string_lossy())),
+            Broken::Failed => Some(fl!("viewer-error-failed-to-load")),
+            Broken::None => None::<String>,
+        }
+    }
 }
