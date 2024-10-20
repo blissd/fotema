@@ -109,8 +109,6 @@ pub struct ViewOne {
 
     is_transcode_required: bool,
 
-    mute_button: gtk::Button,
-
     skip_backwards: gtk::Button,
 
     skip_forward: gtk::Button,
@@ -220,9 +218,10 @@ impl SimpleAsyncComponent for ViewOne {
                             connect_clicked => ViewOneInput::SkipForward,
                         },
 
-                        #[local_ref]
-                        mute_button -> gtk::Button {
-                            set_icon_name: "audio-volume-muted-symbolic",
+                        gtk::Button {
+                            #[watch]
+                            set_icon_name: model.mute_button_icon_name(),
+
                             set_margin_start: 36,
                             add_css_class: "circular",
                             add_css_class: "osd",
@@ -314,10 +313,6 @@ impl SimpleAsyncComponent for ViewOne {
 
         let picture = gtk::Picture::new();
 
-        let play_button = gtk::Button::new();
-
-        let mute_button = gtk::Button::new();
-
         let skip_backwards = gtk::Button::new();
 
         let skip_forward = gtk::Button::new();
@@ -346,7 +341,6 @@ impl SimpleAsyncComponent for ViewOne {
             picture: picture.clone(),
             video: None,
             is_transcode_required: false,
-            mute_button: mute_button.clone(),
             skip_backwards: skip_backwards.clone(),
             skip_forward: skip_forward.clone(),
             video_timestamp: video_timestamp.clone(),
@@ -470,24 +464,24 @@ impl SimpleAsyncComponent for ViewOne {
                         let video = gtk::MediaFile::for_filename(video_path);
                         if visual.is_motion_photo() {
                             self.viewing = Viewing::MotionPhoto;
-                            self.playback = Playback::Playing;
 
-                           self.mute_button.set_icon_name("audio-volume-muted-symbolic");
-                           video.set_muted(true);
-                           video.set_loop(true);
+                            self.playback = Playback::Playing;
+                            video.set_loop(true);
+
+                            self.audio = Audio::Muted;
+                            video.set_muted(true);
                         } else {
                             self.viewing = Viewing::Video;
-                            self.playback = Playback::Paused;
 
-                            self.mute_button.set_icon_name("multimedia-volume-control-symbolic");
+                            self.playback = Playback::Paused;
+                            video.set_loop(false);
 
                             // Instead of video.set_muted(false), we must mute and then
                             // send a message to unmute. This seems to work around the problem
                             // of videos staying muted after viewing muting and unmuting.
+                            self.audio = Audio::Muted;
                             video.set_muted(true);
                             sender.input(ViewOneInput::MuteToggle);
-
-                            video.set_loop(false);
 
                             let sender1 = sender.clone();
                             let sender2 = sender.clone();
@@ -561,10 +555,10 @@ impl SimpleAsyncComponent for ViewOne {
             ViewOneInput::MuteToggle => {
                 if let Some(ref video) = self.video {
                     if video.is_muted() {
-                        self.mute_button.set_icon_name("multimedia-volume-control-symbolic");
+                        self.audio = Audio::Audible;
                         video.set_muted(false);
                     } else {
-                        self.mute_button.set_icon_name("audio-volume-muted-symbolic");
+                        self.audio = Audio::Muted;
                         video.set_muted(true);
                     }
                 }
@@ -656,6 +650,14 @@ impl ViewOne {
             Playback::Ended => "arrow-circular-top-left-symbolic",
             Playback::Paused => "play-symbolic",
             Playback::None => "arrow-circular-top-left-symbolic",
+        }
+    }
+
+    fn mute_button_icon_name(&self) -> &str {
+        match self.audio {
+            Audio::Audible => "multimedia-volume-control-symbolic",
+            Audio::Muted => "audio-volume-muted-symbolic",
+            Audio::None => "arrow-circular-top-left-symbolic",
         }
     }
 
