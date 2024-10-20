@@ -124,9 +124,8 @@ pub struct ViewOne {
 
     video: Option<gtk::MediaFile>,
 
-    skip_backwards: gtk::Button,
-
-    skip_forward: gtk::Button,
+    /// Should the video skip backwards/forwards buttons be enabled.
+    is_skipping_allowed: bool,
 
     video_timestamp: gtk::Label,
 
@@ -187,15 +186,18 @@ impl SimpleAsyncComponent for ViewOne {
                         #[watch]
                         set_visible: model.viewing == Viewing::Video || model.viewing == Viewing::MotionPhoto,
 
-                        #[local_ref]
-                        skip_backwards -> gtk::Button {
+                        gtk::Button {
                             set_icon_name: "skip-backwards-10-symbolic",
                             add_css_class: "circular",
                             add_css_class: "osd",
                             set_tooltip_text: Some(&fl!("viewer-skip-backwards-10-seconds", "tooltip")),
 
                             #[watch]
-                            set_visible: model.viewing == Viewing::Video,
+                            set_visible: model.viewing == Viewing::Video && model.is_skipping_allowed,
+
+                            #[watch]
+                            set_sensitive: model.playback == Playback::Playing
+                                && model.is_skipping_allowed,
 
                             connect_clicked => ViewOneInput::SkipBackwards,
                         },
@@ -214,15 +216,18 @@ impl SimpleAsyncComponent for ViewOne {
                             connect_clicked => ViewOneInput::PlayToggle,
                         },
 
-                        #[local_ref]
-                        skip_forward -> gtk::Button {
+                        gtk::Button {
                             set_icon_name: "skip-forward-10-symbolic",
                             add_css_class: "circular",
                             add_css_class: "osd",
                             set_tooltip_text: Some(&fl!("viewer-skip-forward-10-seconds", "tooltip")),
 
                             #[watch]
-                            set_visible: model.viewing == Viewing::Video,
+                            set_visible: model.viewing == Viewing::Video && model.is_skipping_allowed,
+
+                            #[watch]
+                            set_sensitive: model.playback == Playback::Playing
+                                && model.is_skipping_allowed,
 
                             connect_clicked => ViewOneInput::SkipForward,
                         },
@@ -244,6 +249,7 @@ impl SimpleAsyncComponent for ViewOne {
                     },
                 },
 
+                // Overlay of detected faces
                 add_overlay = &gtk::Box {
                     set_orientation: gtk::Orientation::Horizontal,
                     set_halign: gtk::Align::Start,
@@ -323,10 +329,6 @@ impl SimpleAsyncComponent for ViewOne {
 
         let picture = gtk::Picture::new();
 
-        let skip_backwards = gtk::Button::new();
-
-        let skip_forward = gtk::Button::new();
-
         let video_timestamp = gtk::Label::new(None);
 
         let transcode_progress = ProgressPanel::builder()
@@ -345,8 +347,7 @@ impl SimpleAsyncComponent for ViewOne {
 
             picture: picture.clone(),
             video: None,
-            skip_backwards: skip_backwards.clone(),
-            skip_forward: skip_forward.clone(),
+            is_skipping_allowed: false,
             video_timestamp: video_timestamp.clone(),
             transcode_progress,
             face_thumbnails,
@@ -369,6 +370,7 @@ impl SimpleAsyncComponent for ViewOne {
                 self.audio = Audio::None;
                 self.playback = Playback::None;
                 self.broken = Broken::None;
+                self.is_skipping_allowed = false;
 
                 let Some(visual_path) = visual_path else {
                     self.viewing = Viewing::Error;
@@ -530,13 +532,9 @@ impl SimpleAsyncComponent for ViewOne {
                 // Video details, like duration, aren't available until the video
                 // has been prepared.
                 if let Some(ref video) = self.video {
-                    if video.duration() < FIFTEEN_SECS_IN_MICROS {
-                        //self.skip_backwards.set_visible(false);
-                       // self.skip_forward.set_visible(false);
-                    } else {
-                        //self.skip_backwards.set_visible(true);
-                        //self.skip_forward.set_visible(true);
-                    }
+                    // Only enable the skip buttons if the video is long enough for
+                    // skipping in chunks of 10 seconds to make some sense.
+                    self.is_skipping_allowed = video.duration() >= FIFTEEN_SECS_IN_MICROS;
                 }
             },
             ViewOneInput::MuteToggle => {
@@ -571,7 +569,6 @@ impl SimpleAsyncComponent for ViewOne {
                     } else { // is paused
                         self.playback = Playback::Playing;
                         video.play();
-                        self.skip_forward.set_sensitive(true);
                     }
                 }
             },
@@ -605,7 +602,6 @@ impl SimpleAsyncComponent for ViewOne {
             },
             ViewOneInput::VideoEnded => {
                 self.playback = Playback::Ended;
-                self.skip_forward.set_sensitive(false);
             },
             ViewOneInput::VideoTimestamp => {
                 if let Some(ref video) = self.video {
