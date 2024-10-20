@@ -28,6 +28,16 @@ use tracing::{debug, info, event, Level};
 const TEN_SECS_IN_MICROS: i64 = 10_000_000;
 const FIFTEEN_SECS_IN_MICROS: i64 = 15_000_000;
 
+#[derive(Debug, Eq, PartialEq)]
+pub enum Viewing {
+    Photo,
+    MotionPhoto,
+    Video,
+    Transcode,
+    Error,
+    None,
+}
+
 #[derive(Debug)]
 pub enum ViewOneInput {
     // Load an item.
@@ -75,6 +85,8 @@ pub enum ViewOneOutput {
 }
 
 pub struct ViewOne {
+    viewing: Viewing,
+
     picture: gtk::Picture,
 
     video: Option<gtk::MediaFile>,
@@ -126,11 +138,14 @@ impl SimpleAsyncComponent for ViewOne {
                     set_valign: gtk::Align::End,
 
                     #[watch]
-                    set_visible: model.is_video_controls_visible(),
+                    set_visible: model.viewing == Viewing::Video || model.viewing == Viewing::MotionPhoto,
 
                     gtk::Frame {
                         set_halign: gtk::Align::Center,
                         add_css_class: "osd",
+
+                        #[watch]
+                        set_visible: model.viewing == Viewing::Video,
 
                         #[wrap(Some)]
                         #[local_ref]
@@ -148,12 +163,19 @@ impl SimpleAsyncComponent for ViewOne {
                         set_margin_bottom: 18,
                         set_spacing: 12,
 
+                        #[watch]
+                        set_visible: model.viewing == Viewing::Video || model.viewing == Viewing::MotionPhoto,
+
                         #[local_ref]
                         skip_backwards -> gtk::Button {
                             set_icon_name: "skip-backwards-10-symbolic",
                             add_css_class: "circular",
                             add_css_class: "osd",
                             set_tooltip_text: Some(&fl!("viewer-skip-backwards-10-seconds", "tooltip")),
+
+                            #[watch]
+                            set_visible: model.viewing == Viewing::Video,
+
                             connect_clicked => ViewOneInput::SkipBackwards,
                         },
 
@@ -163,6 +185,10 @@ impl SimpleAsyncComponent for ViewOne {
                             add_css_class: "circular",
                             add_css_class: "osd",
                             set_tooltip_text: Some(&fl!("viewer-play", "tooltip")),
+
+                            #[watch]
+                            set_visible: model.viewing == Viewing::Video || model.viewing == Viewing::MotionPhoto,
+
                             connect_clicked => ViewOneInput::PlayToggle,
                         },
 
@@ -172,6 +198,10 @@ impl SimpleAsyncComponent for ViewOne {
                             add_css_class: "circular",
                             add_css_class: "osd",
                             set_tooltip_text: Some(&fl!("viewer-skip-forward-10-seconds", "tooltip")),
+
+                            #[watch]
+                            set_visible: model.viewing == Viewing::Video,
+
                             connect_clicked => ViewOneInput::SkipForward,
                         },
 
@@ -182,6 +212,10 @@ impl SimpleAsyncComponent for ViewOne {
                             add_css_class: "circular",
                             add_css_class: "osd",
                             set_tooltip_text: Some(&fl!("viewer-mute", "tooltip")),
+
+                            #[watch]
+                            set_visible: model.viewing == Viewing::Video || model.viewing == Viewing::MotionPhoto,
+
                             connect_clicked => ViewOneInput::MuteToggle,
                         },
                     },
@@ -192,11 +226,17 @@ impl SimpleAsyncComponent for ViewOne {
                     set_halign: gtk::Align::Start,
                     set_valign: gtk::Align::End,
                     set_margin_all: 8,
+                    #[watch]
+                    set_visible: model.viewing == Viewing::Photo || model.viewing == Viewing::MotionPhoto,
                     container_add: model.face_thumbnails.widget(),
                 },
 
                 #[wrap(Some)]
                 set_child = &gtk::Box {
+
+                    #[watch]
+                    set_visible: model.viewing == Viewing::Photo || model.viewing == Viewing::MotionPhoto || model.viewing == Viewing::Video,
+
                     #[local_ref]
                     picture -> gtk::Picture {
                     }
@@ -211,6 +251,9 @@ impl SimpleAsyncComponent for ViewOne {
                 set_visible: false,
                 set_icon_name: Some("playback-error-symbolic"),
                 set_description: Some(&fl!("viewer-convert-all-description")),
+
+                #[watch]
+                set_visible: model.viewing == Viewing::Transcode,
 
                 #[wrap(Some)]
                 set_child = &adw::Clamp {
@@ -241,6 +284,9 @@ impl SimpleAsyncComponent for ViewOne {
 
                 set_visible: false,
                 set_icon_name: Some("sad-computer-symbolic"),
+
+                #[watch]
+                set_visible: model.viewing == Viewing::Error,
             }
         }
     }
@@ -278,6 +324,7 @@ impl SimpleAsyncComponent for ViewOne {
             .detach();
 
         let model = ViewOne {
+            viewing: Viewing::None,
             picture: picture.clone(),
             video: None,
             is_transcode_required: false,
@@ -303,26 +350,24 @@ impl SimpleAsyncComponent for ViewOne {
             ViewOneInput::Load(visual) => {
                 info!("Load visual {}", visual.visual_id);
 
-                self.picture.set_visible(false);
-                self.transcode_status.set_visible(false);
-                self.broken_status.set_visible(false);
                 self.is_transcode_required = false;
 
                 let visual_path = visual.picture_path.as_ref()
                     .or_else(|| visual.video_path.as_ref());
 
                 let Some(visual_path) = visual_path else {
+                    self.viewing = Viewing::Error;
                     if visual.is_video_only() {
                         self.broken_status.set_icon_name(Some("item-missing-symbolic"));
                     } else {
                         self.broken_status.set_icon_name(Some("image-missing-symbolic"));
                     }
                     self.broken_status.set_description(Some(&fl!("viewer-error-missing-path")));
-                    self.broken_status.set_visible(true);
                     return;
                 };
 
                 if !visual_path.exists() {
+                    self.viewing = Viewing::Error;
                     if visual.is_video_only() {
                         self.broken_status.set_icon_name(Some("item-missing-symbolic"));
                     } else {
@@ -330,7 +375,6 @@ impl SimpleAsyncComponent for ViewOne {
                     }
                     self.broken_status.set_description(Some(&fl!("viewer-error-missing-file",
                         file_name = visual_path.to_string_lossy())));
-                    self.broken_status.set_visible(true);
                     return;
                 }
 
@@ -343,6 +387,8 @@ impl SimpleAsyncComponent for ViewOne {
                 }
 
                 if visual.is_photo_only() {
+                    self.viewing = Viewing::Photo;
+
                     // Apply a CSS transformation to respect the EXIF orientation
                     // NOTE: don't use Glycin to apply the transformation here because it is
                     // too slow.
@@ -358,26 +404,27 @@ impl SimpleAsyncComponent for ViewOne {
                     let image = loader.load().await;
 
                     let Ok(image) = image else {
+                        self.viewing = Viewing::Error;
+
                         event!(Level::ERROR, "Failed loading image: {:?}", image);
                         self.broken_status.set_icon_name(Some("sad-computer-symbolic"));
                         self.broken_status.set_description(Some(&fl!("viewer-error-failed-to-load")));
-                        self.broken_status.set_visible(true);
                         return;
                     };
 
                     let frame = image.next_frame().await;
                     let Ok(frame) = frame else {
+                        self.viewing = Viewing::Error;
+
                         event!(Level::ERROR, "Failed getting image frame: {:?}", frame);
                         self.broken_status.set_icon_name(Some("sad-computer-symbolic"));
                         self.broken_status.set_description(Some(&fl!("viewer-error-failed-to-load")));
-                        self.broken_status.set_visible(true);
                         return;
                     };
 
                     let texture = frame.texture();
 
                     self.picture.set_paintable(Some(&texture));
-                    self.picture.set_visible(true);
 
                     let _ = sender.output(ViewOneOutput::PhotoShown(visual.visual_id.clone(), image.info().clone()));
                 } else { // video or motion photo
@@ -385,12 +432,8 @@ impl SimpleAsyncComponent for ViewOne {
                     self.is_transcode_required = visual.is_transcode_required.is_some_and(|x| x) && !is_transcoded;
 
                     if self.is_transcode_required {
-                        self.picture.set_visible(false);
-                        self.transcode_status.set_visible(true);
+                        self.viewing = Viewing::Transcode;
                     } else {
-                        self.picture.set_visible(true);
-                        self.transcode_status.set_visible(false);
-
                         // if a video is transcoded then the rotation transformation will
                         // already have been applied.
                         if !is_transcoded {
@@ -409,18 +452,13 @@ impl SimpleAsyncComponent for ViewOne {
 
                         let video = gtk::MediaFile::for_filename(video_path);
                         if visual.is_motion_photo() {
+                            self.viewing = Viewing::MotionPhoto;
                            self.mute_button.set_icon_name("audio-volume-muted-symbolic");
-                           self.skip_backwards.set_visible(false);
-                           self.skip_forward.set_visible(false);
-                           self.video_timestamp.set_visible(false);
                            video.set_muted(true);
                            video.set_loop(true);
                         } else {
+                            self.viewing = Viewing::Video;
                             self.mute_button.set_icon_name("multimedia-volume-control-symbolic");
-                            self.skip_backwards.set_visible(true);
-                            self.skip_forward.set_visible(true);
-                            self.skip_forward.set_sensitive(true);
-                            self.video_timestamp.set_visible(true);
 
                             // Instead of video.set_muted(false), we must mute and then
                             // send a message to unmute. This seems to work around the problem
@@ -442,7 +480,6 @@ impl SimpleAsyncComponent for ViewOne {
 
                         self.video = Some(video);
                         self.picture.set_paintable(self.video.as_ref());
-                        self.picture.set_visible(true);
                         let _ = sender.output(ViewOneOutput::VideoShown(visual.visual_id.clone()));
                     }
                 }
@@ -493,11 +530,11 @@ impl SimpleAsyncComponent for ViewOne {
                 // has been prepared.
                 if let Some(ref video) = self.video {
                     if video.duration() < FIFTEEN_SECS_IN_MICROS {
-                        self.skip_backwards.set_visible(false);
-                        self.skip_forward.set_visible(false);
+                        //self.skip_backwards.set_visible(false);
+                       // self.skip_forward.set_visible(false);
                     } else {
-                        self.skip_backwards.set_visible(true);
-                        self.skip_forward.set_visible(true);
+                        //self.skip_backwards.set_visible(true);
+                        //self.skip_forward.set_visible(true);
                     }
                 }
             },
@@ -591,4 +628,5 @@ impl ViewOne {
     fn is_video_controls_visible(&self) -> bool {
         self.video.is_some() && !self.is_transcode_required
     }
+
 }
