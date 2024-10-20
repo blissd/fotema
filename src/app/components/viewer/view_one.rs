@@ -38,6 +38,21 @@ pub enum Viewing {
     None,
 }
 
+#[derive(Debug, Eq, PartialEq)]
+pub enum Audio {
+    Muted,
+    Audible,
+    None,
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub enum Playback {
+    Playing,
+    Paused,
+    Ended,
+    None,
+}
+
 #[derive(Debug)]
 pub enum ViewOneInput {
     // Load an item.
@@ -59,7 +74,6 @@ pub enum ViewOneInput {
     MuteToggle,
 
     PlayToggle,
-
 
     SkipBackwards,
 
@@ -86,14 +100,14 @@ pub enum ViewOneOutput {
 
 pub struct ViewOne {
     viewing: Viewing,
+    audio: Audio,
+    playback: Playback,
 
     picture: gtk::Picture,
 
     video: Option<gtk::MediaFile>,
 
     is_transcode_required: bool,
-
-    play_button: gtk::Button,
 
     mute_button: gtk::Button,
 
@@ -179,9 +193,10 @@ impl SimpleAsyncComponent for ViewOne {
                             connect_clicked => ViewOneInput::SkipBackwards,
                         },
 
-                        #[local_ref]
-                        play_button -> gtk::Button {
-                            set_icon_name: "play-symbolic",
+                        gtk::Button {
+                            #[watch]
+                            set_icon_name: model.play_button_icon_name(),
+
                             add_css_class: "circular",
                             add_css_class: "osd",
                             set_tooltip_text: Some(&fl!("viewer-play", "tooltip")),
@@ -325,10 +340,12 @@ impl SimpleAsyncComponent for ViewOne {
 
         let model = ViewOne {
             viewing: Viewing::None,
+            audio: Audio::None,
+            playback: Playback::None,
+
             picture: picture.clone(),
             video: None,
             is_transcode_required: false,
-            play_button: play_button.clone(),
             mute_button: mute_button.clone(),
             skip_backwards: skip_backwards.clone(),
             skip_forward: skip_forward.clone(),
@@ -453,11 +470,15 @@ impl SimpleAsyncComponent for ViewOne {
                         let video = gtk::MediaFile::for_filename(video_path);
                         if visual.is_motion_photo() {
                             self.viewing = Viewing::MotionPhoto;
+                            self.playback = Playback::Playing;
+
                            self.mute_button.set_icon_name("audio-volume-muted-symbolic");
                            video.set_muted(true);
                            video.set_loop(true);
                         } else {
                             self.viewing = Viewing::Video;
+                            self.playback = Playback::Paused;
+
                             self.mute_button.set_icon_name("multimedia-volume-control-symbolic");
 
                             // Instead of video.set_muted(false), we must mute and then
@@ -475,8 +496,6 @@ impl SimpleAsyncComponent for ViewOne {
                             video.connect_timestamp_notify(move |_| sender2.input(ViewOneInput::VideoTimestamp));
                             video.connect_prepared_notify(move |_| sender3.input(ViewOneInput::VideoPrepared));
                         }
-
-                        self.play_button.set_icon_name("play-symbolic");
 
                         self.video = Some(video);
                         self.picture.set_paintable(self.video.as_ref());
@@ -499,8 +518,8 @@ impl SimpleAsyncComponent for ViewOne {
                 info!("View");
                 if let Some(video) = self.video.as_ref() {
                     debug!("Playing video");
+                    self.playback = Playback::Playing;
                     video.play();
-                    self.play_button.set_icon_name("pause-symbolic");
                 }
             },
             ViewOneInput::Hidden => {
@@ -518,10 +537,11 @@ impl SimpleAsyncComponent for ViewOne {
                         // to work around that.
                         video.play();
                         video.pause();
+                        self.playback = Playback::Paused;
                         sender.input(ViewOneInput::PlayToggle);
                     } else if video.is_playing() {
+                        self.playback = Playback::Paused;
                         video.pause();
-                        self.play_button.set_icon_name("play-symbolic");
                     }
                 }
             },
@@ -562,13 +582,14 @@ impl SimpleAsyncComponent for ViewOne {
                         // to work around that.
                         video.play();
                         video.pause();
+                        self.playback = Playback::Ended;
                         sender.input(ViewOneInput::PlayToggle);
                     } else if video.is_playing() {
+                        self.playback = Playback::Paused;
                         video.pause();
-                        self.play_button.set_icon_name("play-symbolic");
                     } else { // is paused
+                        self.playback = Playback::Playing;
                         video.play();
-                        self.play_button.set_icon_name("pause-symbolic");
                         self.skip_forward.set_sensitive(true);
                     }
                 }
@@ -580,7 +601,7 @@ impl SimpleAsyncComponent for ViewOne {
                         video.seek(video.duration() - TEN_SECS_IN_MICROS);
                         video.play();
                         video.pause();
-                        self.play_button.set_icon_name("play-symbolic");
+                        self.playback = Playback::Ended;
                         sender.input(ViewOneInput::PlayToggle);
                     } else if ts < TEN_SECS_IN_MICROS {
                         video.seek(0);
@@ -602,7 +623,7 @@ impl SimpleAsyncComponent for ViewOne {
                 }
             },
             ViewOneInput::VideoEnded => {
-                self.play_button.set_icon_name("arrow-circular-top-left-symbolic");
+                self.playback = Playback::Ended;
                 self.skip_forward.set_sensitive(false);
             },
             ViewOneInput::VideoTimestamp => {
@@ -627,6 +648,15 @@ impl SimpleAsyncComponent for ViewOne {
 impl ViewOne {
     fn is_video_controls_visible(&self) -> bool {
         self.video.is_some() && !self.is_transcode_required
+    }
+
+    fn play_button_icon_name(&self) -> &str {
+        match self.playback {
+            Playback::Playing => "pause-symbolic",
+            Playback::Ended => "arrow-circular-top-left-symbolic",
+            Playback::Paused => "play-symbolic",
+            Playback::None => "arrow-circular-top-left-symbolic",
+        }
     }
 
 }
