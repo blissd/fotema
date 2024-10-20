@@ -353,7 +353,6 @@ impl SimpleAsyncComponent for ViewOne {
                     let file = gio::File::for_path(visual_path);
 
                     let mut loader = glycin::Loader::new(file);
-                    loader.sandbox_selector(glycin::SandboxSelector::FlatpakSpawn);
                     loader.apply_transformations(false);
 
                     let image = loader.load().await;
