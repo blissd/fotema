@@ -117,8 +117,6 @@ pub struct ViewOne {
 
     transcode_button: gtk::Button,
 
-    transcode_status: adw::StatusPage,
-
     transcode_progress: Controller<ProgressPanel>,
 
     broken_status: adw::StatusPage,
@@ -257,8 +255,7 @@ impl SimpleAsyncComponent for ViewOne {
                 },
             },
 
-            #[local_ref]
-            transcode_status -> adw::StatusPage {
+            adw::StatusPage {
                 set_valign: gtk::Align::Start,
                 set_vexpand: true,
 
@@ -325,8 +322,6 @@ impl SimpleAsyncComponent for ViewOne {
             .launch(transcode_progress_monitor.clone())
             .detach();
 
-        let transcode_status = adw::StatusPage::new();
-
         let broken_status = adw::StatusPage::new();
 
         let face_thumbnails = FaceThumbnails::builder()
@@ -345,7 +340,6 @@ impl SimpleAsyncComponent for ViewOne {
             skip_forward: skip_forward.clone(),
             video_timestamp: video_timestamp.clone(),
             transcode_button: transcode_button.clone(),
-            transcode_status: transcode_status.clone(),
             transcode_progress,
             broken_status: broken_status.clone(),
             face_thumbnails,
@@ -498,12 +492,10 @@ impl SimpleAsyncComponent for ViewOne {
                 }
 
                 // Overlay faces in picture, but only if transcode status page not visible.
-                if !self.transcode_status.is_visible() {
-                    if let Some(ref picture_id) = visual.picture_id {
-                        self.face_thumbnails.emit(FaceThumbnailsInput::View(*picture_id));
-                    } else {
-                        self.face_thumbnails.emit(FaceThumbnailsInput::Hide);
-                    }
+                if self.viewing == Viewing::Transcode {
+                    self.face_thumbnails.emit(FaceThumbnailsInput::Hide);
+                } else if let Some(ref picture_id) = visual.picture_id {
+                    self.face_thumbnails.emit(FaceThumbnailsInput::View(*picture_id));
                 } else {
                     self.face_thumbnails.emit(FaceThumbnailsInput::Hide);
                 }
@@ -640,10 +632,6 @@ impl SimpleAsyncComponent for ViewOne {
 }
 
 impl ViewOne {
-    fn is_video_controls_visible(&self) -> bool {
-        self.video.is_some() && !self.is_transcode_required
-    }
-
     fn play_button_icon_name(&self) -> &str {
         match self.playback {
             Playback::Playing => "pause-symbolic",
