@@ -107,8 +107,6 @@ pub struct ViewOne {
 
     video: Option<gtk::MediaFile>,
 
-    is_transcode_required: bool,
-
     skip_backwards: gtk::Button,
 
     skip_forward: gtk::Button,
@@ -331,7 +329,6 @@ impl SimpleAsyncComponent for ViewOne {
 
             picture: picture.clone(),
             video: None,
-            is_transcode_required: false,
             skip_backwards: skip_backwards.clone(),
             skip_forward: skip_forward.clone(),
             video_timestamp: video_timestamp.clone(),
@@ -349,8 +346,6 @@ impl SimpleAsyncComponent for ViewOne {
         match msg {
             ViewOneInput::Load(visual) => {
                 info!("Load visual {}", visual.visual_id);
-
-                self.is_transcode_required = false;
 
                 let visual_path = visual.picture_path.as_ref()
                     .or_else(|| visual.video_path.as_ref());
@@ -429,9 +424,9 @@ impl SimpleAsyncComponent for ViewOne {
                     let _ = sender.output(ViewOneOutput::PhotoShown(visual.visual_id.clone(), image.info().clone()));
                 } else { // video or motion photo
                     let is_transcoded = visual.video_transcoded_path.as_ref().is_some_and(|x| x.exists());
-                    self.is_transcode_required = visual.is_transcode_required.is_some_and(|x| x) && !is_transcoded;
+                    let is_transcode_required = visual.is_transcode_required.is_some_and(|x| x) && !is_transcoded;
 
-                    if self.is_transcode_required {
+                    if is_transcode_required {
                         self.viewing = Viewing::Transcode;
                     } else {
                         // if a video is transcoded then the rotation transformation will
