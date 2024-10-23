@@ -590,6 +590,8 @@ impl SimpleComponent for App {
                 ViewNavOutput::ScanForFaces(picture_id) => AppMsg::ScanPictureForFaces(picture_id),
             });
 
+        settings_state.subscribe(view_nav.sender(), |settings| ViewNavInput::Sort(settings.album_sort));
+
         let selfies_page = Album::builder()
             .launch((state.clone(), active_view.clone(), ViewName::Selfies, AlbumFilter::Selfies))
             .forward(sender.input_sender(), |msg| match msg {
