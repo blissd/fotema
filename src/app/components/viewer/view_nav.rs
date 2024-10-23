@@ -9,8 +9,10 @@ use relm4::prelude::*;
 use relm4::actions::{RelmAction, RelmActionGroup};
 
 use crate::app::components::albums::album_filter::AlbumFilter;
+use crate::app::components::albums::album_sort::AlbumSort;
 use super::view_one::{ViewOne, ViewOneInput, ViewOneOutput};
 use super::view_info::{ViewInfo, ViewInfoInput};
+
 use crate::app::components::progress_monitor::ProgressMonitor;
 use crate::app::SharedState;
 use crate::adaptive;
@@ -20,7 +22,6 @@ use fotema_core::Visual;
 use fotema_core::people;
 use fotema_core::PictureId;
 use fotema_core::VisualId;
-
 use std::sync::Arc;
 
 use tracing::{debug, error, info};
@@ -78,6 +79,9 @@ pub enum ViewNavInput {
 
     /// Scan for more faces.
     ScanForFaces,
+
+    // Sort
+    Sort(AlbumSort),
 }
 
 #[derive(Debug)]
@@ -108,6 +112,8 @@ pub struct ViewNav {
 
     // Album currently displayed item is a member of
     album_filter: AlbumFilter,
+
+    album_sort: AlbumSort,
 
     // Visual items filtered by album filter.
     // This is to support the next and previous buttons.
@@ -275,6 +281,7 @@ impl SimpleAsyncComponent for ViewNav {
             view_info,
             album_index: None,
             album_filter: AlbumFilter::None,
+            album_sort: AlbumSort::default(),
             album: Vec::new(),
             is_narrow: false,
             shows_infobar: false,
@@ -333,6 +340,8 @@ impl SimpleAsyncComponent for ViewNav {
                         .filter(|v| album_filter.clone().filter(v))
                         .cloned()
                         .collect();
+
+                    self.album_sort.sort(&mut self.album);
                 }
 
                 self.album_index = self.album
@@ -588,6 +597,11 @@ impl SimpleAsyncComponent for ViewNav {
                     let _ = sender.output(ViewNavOutput::ScanForFaces(picture_id));
                 }
             },
+            ViewNavInput::Sort(album_sort) => {
+                self.album_sort = album_sort;
+                self.album_filter = AlbumFilter::None;
+                self.album.clear();
+            }
         }
     }
 }
