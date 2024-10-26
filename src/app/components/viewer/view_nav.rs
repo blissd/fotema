@@ -161,69 +161,34 @@ impl SimpleAsyncComponent for ViewNav {
             },
 
             #[wrap(Some)]
-            set_content = &adw::OverlaySplitView {
-                #[watch]
-                set_collapsed: model.is_narrow,
-
-                #[watch]
-                set_show_sidebar: model.shows_infobar,
-
-                #[wrap(Some)]
-                set_sidebar = model.view_info.widget(),
-
-                set_sidebar_position: gtk::PackType::End,
-
-                #[wrap(Some)]
-                set_content = &gtk::Overlay {
-                    add_overlay =  &gtk::Box {
-                        set_halign: gtk::Align::Start,
-                        set_valign: gtk::Align::Center,
-                        set_orientation: gtk::Orientation::Horizontal,
-                        set_margin_all: 18,
-                        set_spacing: 12,
-
-                        gtk::Button {
-                            set_icon_name: "left-symbolic",
-                            add_css_class: "osd",
-                            add_css_class: "circular",
-                            set_tooltip_text: Some(&fl!("viewer-previous", "tooltip")),
-
-                            #[watch]
-                            set_sensitive: model.is_left_button_sensitive(),
-
-                            connect_clicked => ViewNavInput::GoLeft,
-                        },
-                    },
-
-                    add_overlay =  &gtk::Box {
-                        set_halign: gtk::Align::End,
-                        set_valign: gtk::Align::Center,
-                        set_orientation: gtk::Orientation::Horizontal,
-                        set_margin_all: 18,
-                        set_spacing: 12,
-
-                        gtk::Button {
-                            set_icon_name: "right-symbolic",
-                            add_css_class: "osd",
-                            add_css_class: "circular",
-                            set_tooltip_text: Some(&fl!("viewer-next", "tooltip")),
-
-                            #[watch]
-                            set_sensitive: model.is_right_button_sensitive(),
-
-                            connect_clicked => ViewNavInput::GoRight,
-                        },
-                    },
-
-                    #[wrap(Some)]
-                    #[local_ref]
-                    set_child = &carousel -> adw::Carousel {
-                        connect_page_changed => move |_, idx| {
-                            sender.input(ViewNavInput::SwipeTo(idx));
-                        },
-                    }
+            set_content = &adw::MultiLayoutView {
+                add_layout = adw::Layout::new(&adw::OverlaySplitView::builder()
+                    .content(&adw::LayoutSlot::new("primary"))
+                    .sidebar(&adw::LayoutSlot::new("secondary"))
+                    .build()) {
+                    // name of layout
+                    set_name: Some("sidebar"),
                 },
-            }
+                add_layout = adw::Layout::new(&adw::BottomSheet::builder()
+                    .content(&adw::LayoutSlot::new("primary"))
+                    .sheet(&adw::LayoutSlot::new("secondary"))
+                    .open(true)
+                    .modal(false)
+                    .build()) {
+                    // name of layout
+                    set_name: Some("bottomsheet"),
+                },
+
+                set_child: ("primary", &overlay),
+                set_child: ("secondary",model.view_info.widget()),
+
+                #[watch]
+                set_layout_name: if model.is_narrow {
+                    "bottomsheet"
+                } else {
+                    "sidebar"
+                },
+            },
         }
     }
 
@@ -233,34 +198,88 @@ impl SimpleAsyncComponent for ViewNav {
         sender: AsyncComponentSender<Self>,
     ) -> AsyncComponentParts<Self>  {
 
-       let mut carousel_pages = Vec::with_capacity(3);
-
-        carousel_pages.push(ViewOne::builder()
-            .launch((people_repo.clone(), transcode_progress_monitor.clone()))
-            .forward(sender.input_sender(), |msg| match msg {
-                ViewOneOutput::PhotoShown(id, info) => ViewNavInput::ShowPhotoInfo(id, info),
-                ViewOneOutput::VideoShown(id) => ViewNavInput::ShowVideoInfo(id),
-                ViewOneOutput::TranscodeAll => ViewNavInput::TranscodeAll,
-            }));
-
-        carousel_pages.push(ViewOne::builder()
-            .launch((people_repo.clone(), transcode_progress_monitor.clone()))
-            .forward(sender.input_sender(), |msg| match msg {
-                ViewOneOutput::PhotoShown(id, info) => ViewNavInput::ShowPhotoInfo(id, info),
-                ViewOneOutput::VideoShown(id) => ViewNavInput::ShowVideoInfo(id),
-                ViewOneOutput::TranscodeAll => ViewNavInput::TranscodeAll,
-            }));
-
-        carousel_pages.push(ViewOne::builder()
-            .launch((people_repo.clone(), transcode_progress_monitor.clone()))
-            .forward(sender.input_sender(), |msg| match msg {
-                ViewOneOutput::PhotoShown(id, info) => ViewNavInput::ShowPhotoInfo(id, info),
-                ViewOneOutput::VideoShown(id) => ViewNavInput::ShowVideoInfo(id),
-                ViewOneOutput::TranscodeAll => ViewNavInput::TranscodeAll,
-            }));
-
-        let carousel = adw::Carousel::builder()
+        // Can't fully configure a MultiViewLayout using the relm4 view macro, so have to do some
+        // of it here.
+        let overlay = gtk::Overlay::builder()
             .build();
+
+        {
+            let button_box = gtk::Box::builder()
+                .halign(gtk::Align::Start)
+                .valign(gtk::Align::Center)
+                .orientation(gtk::Orientation::Horizontal)
+                .margin_start(18).margin_end(18).margin_top(18).margin_bottom(18)
+                .spacing(12)
+                .build();
+
+            let button = gtk::Button::builder()
+                .icon_name("left-symbolic")
+                .css_classes(["osd", "circular"])
+                .tooltip_text(&fl!("viewer-previous", "tooltip"))
+                .build();
+
+            button_box.append(&button);
+
+            overlay.add_overlay(&button_box);
+        }
+
+        {
+            let button_box = gtk::Box::builder()
+                .halign(gtk::Align::End)
+                .valign(gtk::Align::Center)
+                .orientation(gtk::Orientation::Horizontal)
+                .margin_start(18).margin_end(18).margin_top(18).margin_bottom(18)
+                .spacing(12)
+                .build();
+
+            let button = gtk::Button::builder()
+                .icon_name("right-symbolic")
+                .css_classes(["osd", "circular"])
+                .tooltip_text(&fl!("viewer-next", "tooltip"))
+                .build();
+
+            button_box.append(&button);
+
+            overlay.add_overlay(&button_box);
+        }
+
+
+        let carousel = adw::Carousel::builder().build();
+
+        overlay.set_child(Some(&carousel));
+
+        {
+            let sender = sender.clone();
+            carousel.connect_page_changed(move |_, idx| sender.input(ViewNavInput::SwipeTo(idx)));
+        }
+
+
+        let mut carousel_pages = Vec::with_capacity(3);
+
+        carousel_pages.push(ViewOne::builder()
+            .launch((people_repo.clone(), transcode_progress_monitor.clone()))
+            .forward(sender.input_sender(), |msg| match msg {
+                ViewOneOutput::PhotoShown(id, info) => ViewNavInput::ShowPhotoInfo(id, info),
+                ViewOneOutput::VideoShown(id) => ViewNavInput::ShowVideoInfo(id),
+                ViewOneOutput::TranscodeAll => ViewNavInput::TranscodeAll,
+            }));
+
+        carousel_pages.push(ViewOne::builder()
+            .launch((people_repo.clone(), transcode_progress_monitor.clone()))
+            .forward(sender.input_sender(), |msg| match msg {
+                ViewOneOutput::PhotoShown(id, info) => ViewNavInput::ShowPhotoInfo(id, info),
+                ViewOneOutput::VideoShown(id) => ViewNavInput::ShowVideoInfo(id),
+                ViewOneOutput::TranscodeAll => ViewNavInput::TranscodeAll,
+            }));
+
+        carousel_pages.push(ViewOne::builder()
+            .launch((people_repo.clone(), transcode_progress_monitor.clone()))
+            .forward(sender.input_sender(), |msg| match msg {
+                ViewOneOutput::PhotoShown(id, info) => ViewNavInput::ShowPhotoInfo(id, info),
+                ViewOneOutput::VideoShown(id) => ViewNavInput::ShowVideoInfo(id),
+                ViewOneOutput::TranscodeAll => ViewNavInput::TranscodeAll,
+            }));
+
 
         let view_info = ViewInfo::builder()
             .launch(state.clone())
