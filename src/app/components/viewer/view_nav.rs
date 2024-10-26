@@ -7,6 +7,7 @@ use relm4::gtk::prelude::*;
 use relm4::*;
 use relm4::prelude::*;
 use relm4::actions::{RelmAction, RelmActionGroup};
+use relm4::binding::*;
 
 use crate::app::components::albums::album_filter::AlbumFilter;
 use crate::app::components::albums::album_sort::AlbumSort;
@@ -122,7 +123,8 @@ pub struct ViewNav {
     //
     is_narrow: bool,
 
-    shows_infobar: bool,
+    /// Is infobar in sidebar or bottom sheet visible?
+    show_infobar: BoolBinding,
 }
 
 #[relm4::component(pub async)]
@@ -162,19 +164,13 @@ impl SimpleAsyncComponent for ViewNav {
 
             #[wrap(Some)]
             set_content = &adw::MultiLayoutView {
-                add_layout = adw::Layout::new(&adw::OverlaySplitView::builder()
-                    .content(&adw::LayoutSlot::new("primary"))
-                    .sidebar(&adw::LayoutSlot::new("secondary"))
-                    .build()) {
+                add_layout = adw::Layout::new(&sidebar) {
                     // name of layout
                     set_name: Some("sidebar"),
                 },
-                add_layout = adw::Layout::new(&adw::BottomSheet::builder()
-                    .content(&adw::LayoutSlot::new("primary"))
-                    .sheet(&adw::LayoutSlot::new("secondary"))
-                    .open(true)
-                    .modal(false)
-                    .build()) {
+
+                //#[local]
+                add_layout = adw::Layout::new(&bottom_sheet) {
                     // name of layout
                     set_name: Some("bottomsheet"),
                 },
@@ -243,6 +239,26 @@ impl SimpleAsyncComponent for ViewNav {
             overlay.add_overlay(&button_box);
         }
 
+        let sidebar = adw::OverlaySplitView::builder()
+            .content(&adw::LayoutSlot::new("primary"))
+            .sidebar(&adw::LayoutSlot::new("secondary"))
+            .sidebar_position(gtk::PackType::End)
+            .collapsed(false)
+            .build();
+
+        let bottom_sheet = adw::BottomSheet::builder()
+            .content(&adw::LayoutSlot::new("primary"))
+            .sheet(&adw::LayoutSlot::new("secondary"))
+            .modal(false)
+            .build();
+
+        let show_infobar = BoolBinding::new(false);
+        sidebar.add_write_only_binding(&show_infobar, "show-sidebar");
+
+        // Use two-way binding for bottom sheet.
+        // Bottom sheet can be closed by user without using the toggle button so we need the
+        // bool binding to be updated when that happens.
+        bottom_sheet.add_binding(&show_infobar, "open");
 
         let carousel = adw::Carousel::builder().build();
 
@@ -299,7 +315,7 @@ impl SimpleAsyncComponent for ViewNav {
             album_sort: AlbumSort::default(),
             album: Vec::new(),
             is_narrow: false,
-            shows_infobar: false,
+            show_infobar,
         };
 
         let restore_action = {
@@ -518,7 +534,7 @@ impl SimpleAsyncComponent for ViewNav {
                 self.carousel_last_page_index = page_index;
             },
             ViewNavInput::ToggleInfo => {
-                self.shows_infobar = !self.shows_infobar;
+                self.show_infobar.set_value(!self.show_infobar.value());
             },
             ViewNavInput::ShowPhotoInfo(visual_id, image_info) => {
                 self.view_info.emit(ViewInfoInput::Photo(visual_id, image_info));
