@@ -110,6 +110,7 @@ impl SimpleAsyncComponent for FaceThumbnails {
         let person_dialog = adw::Dialog::builder()
             .child(person_select.widget())
             .presentation_mode(adw::DialogPresentationMode::BottomSheet)
+            .height_request(400) // FIXME make more dynamic?
             .build();
 
         let model = Self {
