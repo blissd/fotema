@@ -214,6 +214,9 @@ impl SimpleAsyncComponent for ViewNav {
                 .tooltip_text(&fl!("viewer-previous", "tooltip"))
                 .build();
 
+            let sender = sender.clone();
+            button.connect_clicked(move |_| sender.input(ViewNavInput::GoLeft));
+
             button_box.append(&button);
 
             overlay.add_overlay(&button_box);
@@ -233,6 +236,9 @@ impl SimpleAsyncComponent for ViewNav {
                 .css_classes(["osd", "circular"])
                 .tooltip_text(&fl!("viewer-next", "tooltip"))
                 .build();
+
+            let sender = sender.clone();
+            button.connect_clicked(move |_| sender.input(ViewNavInput::GoRight));
 
             button_box.append(&button);
 
