@@ -161,7 +161,6 @@ impl SimpleAsyncComponent for ViewNav {
             },
 
             #[wrap(Some)]
-            #[name(split_view)]
             set_content = &adw::OverlaySplitView {
                 #[watch]
                 set_collapsed: model.is_narrow,
@@ -183,8 +182,6 @@ impl SimpleAsyncComponent for ViewNav {
                         set_margin_all: 18,
                         set_spacing: 12,
 
-
-                        #[name(left_button)]
                         gtk::Button {
                             set_icon_name: "left-symbolic",
                             add_css_class: "osd",
@@ -205,7 +202,6 @@ impl SimpleAsyncComponent for ViewNav {
                         set_margin_all: 18,
                         set_spacing: 12,
 
-                        #[name(right_button)]
                         gtk::Button {
                             set_icon_name: "right-symbolic",
                             add_css_class: "osd",
