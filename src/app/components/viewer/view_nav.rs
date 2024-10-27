@@ -125,6 +125,14 @@ pub struct ViewNav {
 
     /// Is infobar in sidebar or bottom sheet visible?
     show_infobar: BoolBinding,
+
+    /// Is right arrow button sensitive?
+    /// FIXME sensitivity could be controlled by the relm4 'watch' macro if this can move
+    /// back to being declared by the relm4 'view' macro.
+    right_button_sensitive: BoolBinding,
+
+    /// Is left arrow button sensitive
+    left_button_sensitive: BoolBinding,
 }
 
 #[relm4::component(pub async)]
@@ -194,6 +202,9 @@ impl SimpleAsyncComponent for ViewNav {
         sender: AsyncComponentSender<Self>,
     ) -> AsyncComponentParts<Self>  {
 
+        let left_button_sensitive = BoolBinding::new(false);
+        let right_button_sensitive = BoolBinding::new(false);
+
         // Can't fully configure a MultiViewLayout using the relm4 view macro, so have to do some
         // of it here.
         let overlay = gtk::Overlay::builder()
@@ -213,6 +224,8 @@ impl SimpleAsyncComponent for ViewNav {
                 .css_classes(["osd", "circular"])
                 .tooltip_text(&fl!("viewer-previous", "tooltip"))
                 .build();
+
+            button.add_write_only_binding(&left_button_sensitive, "sensitive");
 
             let sender = sender.clone();
             button.connect_clicked(move |_| sender.input(ViewNavInput::GoLeft));
@@ -236,6 +249,8 @@ impl SimpleAsyncComponent for ViewNav {
                 .css_classes(["osd", "circular"])
                 .tooltip_text(&fl!("viewer-next", "tooltip"))
                 .build();
+
+            button.add_write_only_binding(&right_button_sensitive, "sensitive");
 
             let sender = sender.clone();
             button.connect_clicked(move |_| sender.input(ViewNavInput::GoRight));
@@ -322,6 +337,8 @@ impl SimpleAsyncComponent for ViewNav {
             album: Vec::new(),
             is_narrow: false,
             show_infobar,
+            left_button_sensitive,
+            right_button_sensitive,
         };
 
         let restore_action = {
@@ -640,6 +657,10 @@ impl SimpleAsyncComponent for ViewNav {
                 self.album.clear();
             }
         }
+
+        // Couldn't use 'watch' macro with adw::MultiViewLayout.
+        self.left_button_sensitive.set_value(self.is_left_button_sensitive());
+        self.right_button_sensitive.set_value(self.is_right_button_sensitive());
     }
 }
 
