@@ -271,6 +271,8 @@ impl SimpleAsyncComponent for ViewNav {
             .content(&adw::LayoutSlot::new("primary"))
             .sheet(&adw::LayoutSlot::new("secondary"))
             .modal(false)
+            .can_close(true)
+            .show_drag_handle(true)
             .build();
 
         let show_infobar = BoolBinding::new(false);
