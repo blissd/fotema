@@ -72,6 +72,8 @@ impl SimpleComponent for ViewInfo {
     view! {
         gtk::ScrolledWindow {
             set_hscrollbar_policy: gtk::PolicyType::Never,
+            set_propagate_natural_height: true,
+
             gtk::Box {
                 set_orientation: gtk::Orientation::Vertical,
                 set_margin_all: 12,

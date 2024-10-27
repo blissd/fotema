@@ -7,6 +7,7 @@ use relm4::gtk::prelude::*;
 use relm4::*;
 use relm4::prelude::*;
 use relm4::actions::{RelmAction, RelmActionGroup};
+use relm4::binding::*;
 
 use crate::app::components::albums::album_filter::AlbumFilter;
 use crate::app::components::albums::album_sort::AlbumSort;
@@ -122,7 +123,16 @@ pub struct ViewNav {
     //
     is_narrow: bool,
 
-    shows_infobar: bool,
+    /// Is infobar in sidebar or bottom sheet visible?
+    show_infobar: BoolBinding,
+
+    /// Is right arrow button sensitive?
+    /// FIXME sensitivity could be controlled by the relm4 'watch' macro if this can move
+    /// back to being declared by the relm4 'view' macro.
+    right_button_sensitive: BoolBinding,
+
+    /// Is left arrow button sensitive
+    left_button_sensitive: BoolBinding,
 }
 
 #[relm4::component(pub async)]
@@ -161,73 +171,28 @@ impl SimpleAsyncComponent for ViewNav {
             },
 
             #[wrap(Some)]
-            #[name(split_view)]
-            set_content = &adw::OverlaySplitView {
-                #[watch]
-                set_collapsed: model.is_narrow,
-
-                #[watch]
-                set_show_sidebar: model.shows_infobar,
-
-                #[wrap(Some)]
-                set_sidebar = model.view_info.widget(),
-
-                set_sidebar_position: gtk::PackType::End,
-
-                #[wrap(Some)]
-                set_content = &gtk::Overlay {
-                    add_overlay =  &gtk::Box {
-                        set_halign: gtk::Align::Start,
-                        set_valign: gtk::Align::Center,
-                        set_orientation: gtk::Orientation::Horizontal,
-                        set_margin_all: 18,
-                        set_spacing: 12,
-
-
-                        #[name(left_button)]
-                        gtk::Button {
-                            set_icon_name: "left-symbolic",
-                            add_css_class: "osd",
-                            add_css_class: "circular",
-                            set_tooltip_text: Some(&fl!("viewer-previous", "tooltip")),
-
-                            #[watch]
-                            set_sensitive: model.is_left_button_sensitive(),
-
-                            connect_clicked => ViewNavInput::GoLeft,
-                        },
-                    },
-
-                    add_overlay =  &gtk::Box {
-                        set_halign: gtk::Align::End,
-                        set_valign: gtk::Align::Center,
-                        set_orientation: gtk::Orientation::Horizontal,
-                        set_margin_all: 18,
-                        set_spacing: 12,
-
-                        #[name(right_button)]
-                        gtk::Button {
-                            set_icon_name: "right-symbolic",
-                            add_css_class: "osd",
-                            add_css_class: "circular",
-                            set_tooltip_text: Some(&fl!("viewer-next", "tooltip")),
-
-                            #[watch]
-                            set_sensitive: model.is_right_button_sensitive(),
-
-                            connect_clicked => ViewNavInput::GoRight,
-                        },
-                    },
-
-                    #[wrap(Some)]
-                    #[local_ref]
-                    set_child = &carousel -> adw::Carousel {
-                        connect_page_changed => move |_, idx| {
-                            sender.input(ViewNavInput::SwipeTo(idx));
-                        },
-                    }
+            set_content = &adw::MultiLayoutView {
+                add_layout = adw::Layout::new(&sidebar) {
+                    // name of layout
+                    set_name: Some("sidebar"),
                 },
-            }
+
+                //#[local]
+                add_layout = adw::Layout::new(&bottom_sheet) {
+                    // name of layout
+                    set_name: Some("bottomsheet"),
+                },
+
+                set_child: ("primary", &overlay),
+                set_child: ("secondary",model.view_info.widget()),
+
+                #[watch]
+                set_layout_name: if model.is_narrow {
+                    "bottomsheet"
+                } else {
+                    "sidebar"
+                },
+            },
         }
     }
 
@@ -237,34 +202,123 @@ impl SimpleAsyncComponent for ViewNav {
         sender: AsyncComponentSender<Self>,
     ) -> AsyncComponentParts<Self>  {
 
-       let mut carousel_pages = Vec::with_capacity(3);
+        let left_button_sensitive = BoolBinding::new(false);
+        let right_button_sensitive = BoolBinding::new(false);
 
-        carousel_pages.push(ViewOne::builder()
-            .launch((people_repo.clone(), transcode_progress_monitor.clone()))
-            .forward(sender.input_sender(), |msg| match msg {
-                ViewOneOutput::PhotoShown(id, info) => ViewNavInput::ShowPhotoInfo(id, info),
-                ViewOneOutput::VideoShown(id) => ViewNavInput::ShowVideoInfo(id),
-                ViewOneOutput::TranscodeAll => ViewNavInput::TranscodeAll,
-            }));
-
-        carousel_pages.push(ViewOne::builder()
-            .launch((people_repo.clone(), transcode_progress_monitor.clone()))
-            .forward(sender.input_sender(), |msg| match msg {
-                ViewOneOutput::PhotoShown(id, info) => ViewNavInput::ShowPhotoInfo(id, info),
-                ViewOneOutput::VideoShown(id) => ViewNavInput::ShowVideoInfo(id),
-                ViewOneOutput::TranscodeAll => ViewNavInput::TranscodeAll,
-            }));
-
-        carousel_pages.push(ViewOne::builder()
-            .launch((people_repo.clone(), transcode_progress_monitor.clone()))
-            .forward(sender.input_sender(), |msg| match msg {
-                ViewOneOutput::PhotoShown(id, info) => ViewNavInput::ShowPhotoInfo(id, info),
-                ViewOneOutput::VideoShown(id) => ViewNavInput::ShowVideoInfo(id),
-                ViewOneOutput::TranscodeAll => ViewNavInput::TranscodeAll,
-            }));
-
-        let carousel = adw::Carousel::builder()
+        // Can't fully configure a MultiViewLayout using the relm4 view macro, so have to do some
+        // of it here.
+        let overlay = gtk::Overlay::builder()
             .build();
+
+        {
+            let button_box = gtk::Box::builder()
+                .halign(gtk::Align::Start)
+                .valign(gtk::Align::Center)
+                .orientation(gtk::Orientation::Horizontal)
+                .margin_start(18).margin_end(18).margin_top(18).margin_bottom(18)
+                .spacing(12)
+                .build();
+
+            let button = gtk::Button::builder()
+                .icon_name("left-symbolic")
+                .css_classes(["osd", "circular"])
+                .tooltip_text(&fl!("viewer-previous", "tooltip"))
+                .build();
+
+            button.add_write_only_binding(&left_button_sensitive, "sensitive");
+
+            let sender = sender.clone();
+            button.connect_clicked(move |_| sender.input(ViewNavInput::GoLeft));
+
+            button_box.append(&button);
+
+            overlay.add_overlay(&button_box);
+        }
+
+        {
+            let button_box = gtk::Box::builder()
+                .halign(gtk::Align::End)
+                .valign(gtk::Align::Center)
+                .orientation(gtk::Orientation::Horizontal)
+                .margin_start(18).margin_end(18).margin_top(18).margin_bottom(18)
+                .spacing(12)
+                .build();
+
+            let button = gtk::Button::builder()
+                .icon_name("right-symbolic")
+                .css_classes(["osd", "circular"])
+                .tooltip_text(&fl!("viewer-next", "tooltip"))
+                .build();
+
+            button.add_write_only_binding(&right_button_sensitive, "sensitive");
+
+            let sender = sender.clone();
+            button.connect_clicked(move |_| sender.input(ViewNavInput::GoRight));
+
+            button_box.append(&button);
+
+            overlay.add_overlay(&button_box);
+        }
+
+        let sidebar = adw::OverlaySplitView::builder()
+            .content(&adw::LayoutSlot::new("primary"))
+            .sidebar(&adw::LayoutSlot::new("secondary"))
+            .sidebar_position(gtk::PackType::End)
+            .collapsed(false)
+            .build();
+
+        let bottom_sheet = adw::BottomSheet::builder()
+            .content(&adw::LayoutSlot::new("primary"))
+            .sheet(&adw::LayoutSlot::new("secondary"))
+            .modal(false)
+            .can_close(true)
+            .show_drag_handle(true)
+            .build();
+
+        let show_infobar = BoolBinding::new(false);
+        sidebar.add_write_only_binding(&show_infobar, "show-sidebar");
+
+        // Use two-way binding for bottom sheet.
+        // Bottom sheet can be closed by user without using the toggle button so we need the
+        // bool binding to be updated when that happens.
+        bottom_sheet.add_binding(&show_infobar, "open");
+
+        let carousel = adw::Carousel::builder().build();
+
+        overlay.set_child(Some(&carousel));
+
+        {
+            let sender = sender.clone();
+            carousel.connect_page_changed(move |_, idx| sender.input(ViewNavInput::SwipeTo(idx)));
+        }
+
+
+        let mut carousel_pages = Vec::with_capacity(3);
+
+        carousel_pages.push(ViewOne::builder()
+            .launch((people_repo.clone(), transcode_progress_monitor.clone()))
+            .forward(sender.input_sender(), |msg| match msg {
+                ViewOneOutput::PhotoShown(id, info) => ViewNavInput::ShowPhotoInfo(id, info),
+                ViewOneOutput::VideoShown(id) => ViewNavInput::ShowVideoInfo(id),
+                ViewOneOutput::TranscodeAll => ViewNavInput::TranscodeAll,
+            }));
+
+        carousel_pages.push(ViewOne::builder()
+            .launch((people_repo.clone(), transcode_progress_monitor.clone()))
+            .forward(sender.input_sender(), |msg| match msg {
+                ViewOneOutput::PhotoShown(id, info) => ViewNavInput::ShowPhotoInfo(id, info),
+                ViewOneOutput::VideoShown(id) => ViewNavInput::ShowVideoInfo(id),
+                ViewOneOutput::TranscodeAll => ViewNavInput::TranscodeAll,
+            }));
+
+        carousel_pages.push(ViewOne::builder()
+            .launch((people_repo.clone(), transcode_progress_monitor.clone()))
+            .forward(sender.input_sender(), |msg| match msg {
+                ViewOneOutput::PhotoShown(id, info) => ViewNavInput::ShowPhotoInfo(id, info),
+                ViewOneOutput::VideoShown(id) => ViewNavInput::ShowVideoInfo(id),
+                ViewOneOutput::TranscodeAll => ViewNavInput::TranscodeAll,
+            }));
+
 
         let view_info = ViewInfo::builder()
             .launch(state.clone())
@@ -284,7 +338,9 @@ impl SimpleAsyncComponent for ViewNav {
             album_sort: AlbumSort::default(),
             album: Vec::new(),
             is_narrow: false,
-            shows_infobar: false,
+            show_infobar,
+            left_button_sensitive,
+            right_button_sensitive,
         };
 
         let restore_action = {
@@ -503,7 +559,7 @@ impl SimpleAsyncComponent for ViewNav {
                 self.carousel_last_page_index = page_index;
             },
             ViewNavInput::ToggleInfo => {
-                self.shows_infobar = !self.shows_infobar;
+                self.show_infobar.set_value(!self.show_infobar.value());
             },
             ViewNavInput::ShowPhotoInfo(visual_id, image_info) => {
                 self.view_info.emit(ViewInfoInput::Photo(visual_id, image_info));
@@ -603,6 +659,10 @@ impl SimpleAsyncComponent for ViewNav {
                 self.album.clear();
             }
         }
+
+        // Couldn't use 'watch' macro with adw::MultiViewLayout.
+        self.left_button_sensitive.set_value(self.is_left_button_sensitive());
+        self.right_button_sensitive.set_value(self.is_right_button_sensitive());
     }
 }
 
