@@ -69,6 +69,9 @@ pub enum ViewNavInput {
     /// Go to the next photo
     GoRight,
 
+    /// How much of the bottom of the view that the bottom sheet obscures.
+    SheetHeight(i32),
+
     /// Adapt to layout
     Adapt(adaptive::Layout),
 
@@ -133,6 +136,9 @@ pub struct ViewNav {
 
     /// Is left arrow button sensitive
     left_button_sensitive: BoolBinding,
+
+    /// How much to shift the viewed item up when the bottom sheet is visible.
+    bottom_margin: I32Binding,
 }
 
 #[relm4::component(pub async)]
@@ -202,14 +208,16 @@ impl SimpleAsyncComponent for ViewNav {
         sender: AsyncComponentSender<Self>,
     ) -> AsyncComponentParts<Self>  {
 
-        let left_button_sensitive = BoolBinding::new(false);
-        let right_button_sensitive = BoolBinding::new(false);
 
         // Can't fully configure a MultiViewLayout using the relm4 view macro, so have to do some
         // of it here.
-        let overlay = gtk::Overlay::builder()
-            .build();
+        let overlay = gtk::Overlay::builder().build();
 
+        // Slide up the viewed item when the bottom sheet is visible.
+        let bottom_margin = I32Binding::new(0);
+        overlay.add_write_only_binding(&bottom_margin, "margin-bottom");
+
+        let left_button_sensitive = BoolBinding::new(false);
         {
             let button_box = gtk::Box::builder()
                 .halign(gtk::Align::Start)
@@ -235,6 +243,7 @@ impl SimpleAsyncComponent for ViewNav {
             overlay.add_overlay(&button_box);
         }
 
+        let right_button_sensitive = BoolBinding::new(false);
         {
             let button_box = gtk::Box::builder()
                 .halign(gtk::Align::End)
@@ -274,6 +283,13 @@ impl SimpleAsyncComponent for ViewNav {
             .can_close(true)
             .show_drag_handle(true)
             .build();
+
+        {
+            let sender = sender.clone();
+            bottom_sheet.connect_sheet_height_notify(move |sheet| {
+                sender.input(ViewNavInput::SheetHeight(sheet.sheet_height()));
+            });
+        }
 
         let show_infobar = BoolBinding::new(false);
         sidebar.add_write_only_binding(&show_infobar, "show-sidebar");
@@ -341,6 +357,7 @@ impl SimpleAsyncComponent for ViewNav {
             show_infobar,
             left_button_sensitive,
             right_button_sensitive,
+            bottom_margin,
         };
 
         let restore_action = {
@@ -657,6 +674,10 @@ impl SimpleAsyncComponent for ViewNav {
                 self.album_sort = album_sort;
                 self.album_filter = AlbumFilter::None;
                 self.album.clear();
+            },
+            ViewNavInput::SheetHeight(height) => {
+                let shift = (height as f32 * 0.60) as i32;
+                self.bottom_margin.set_value(shift);
             }
         }
 
