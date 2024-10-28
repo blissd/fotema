@@ -26,8 +26,15 @@ use tracing::{event, Level};
 
 #[derive(Debug)]
 pub enum ViewInfoInput {
+    /// Show photo details
     Photo(VisualId, ImageInfo),
+
+    /// Show video details
     Video(VisualId),
+
+    /// Show file-only details.
+    FileOnly(VisualId),
+
     OpenFolder,
 }
 
@@ -292,6 +299,23 @@ impl SimpleComponent for ViewInfo {
                 let file = gtk::gio::File::for_path(path);
                 let launcher = gtk::FileLauncher::new(Some(&file));
                 launcher.open_containing_folder(None::<&adw::ApplicationWindow>, None::<&gio::Cancellable>, |_| ());
+            },
+            ViewInfoInput::FileOnly(ref visual_id) => {
+                let result = {
+                    let data = self.state.read();
+                    data.iter().find(|&x| x.visual_id == *visual_id).cloned()
+                };
+
+                let Some(ref vis) = result else {
+                    event!(Level::WARN, "No visual item");
+                    return;
+                };
+
+                self.video_details.set_visible(false);
+                self.image_details.set_visible(false);
+                self.exif_details.set_visible(false);
+
+                let _ = self.update_file_details(vis.clone());
             },
             ViewInfoInput::Photo(ref visual_id, ref image_info) => {
                 let result = {

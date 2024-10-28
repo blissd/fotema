@@ -107,11 +107,22 @@ pub enum ViewOneInput {
 
 #[derive(Debug)]
 pub enum ViewOneOutput {
+    /// User has clicked transcode button.
     TranscodeAll,
 
+    /// Successfully showing a photo.
     PhotoShown(VisualId, glycin::ImageInfo),
 
+    /// Successfully showing a video.
     VideoShown(VisualId),
+
+    /// Error showing photo or video.
+    ErrorShown(VisualId),
+
+    /// Showing transcode status.
+    TranscodeShown(VisualId),
+
+    // TODO is a NothingShown value needed?
 }
 
 pub struct ViewOne {
@@ -123,6 +134,11 @@ pub struct ViewOne {
     picture: gtk::Picture,
 
     video: Option<gtk::MediaFile>,
+
+    /// Info for loaded image
+    image_info: Option<glycin::ImageInfo>,
+
+    visual_id: Option<VisualId>,
 
     /// Should the video skip backwards/forwards buttons be enabled.
     is_skipping_allowed: bool,
@@ -348,6 +364,8 @@ impl SimpleAsyncComponent for ViewOne {
 
             picture: picture.clone(),
             video: None,
+            image_info: None,
+            visual_id: None,
             is_skipping_allowed: false,
             video_timestamp: "".into(),
             transcode_progress,
@@ -372,6 +390,7 @@ impl SimpleAsyncComponent for ViewOne {
                 self.playback = Playback::None;
                 self.broken = Broken::None;
                 self.is_skipping_allowed = false;
+                self.visual_id = None;
 
                 let Some(visual_path) = visual_path else {
                     self.viewing = Viewing::Error;
@@ -387,6 +406,9 @@ impl SimpleAsyncComponent for ViewOne {
 
                 self.picture.set_paintable(None::<&gdk::Paintable>);
                 self.video = None;
+                self.image_info = None;
+
+                self.visual_id = Some(visual.visual_id.clone());
 
                 // clear orientation transformation css classes
                 for orient in PictureOrientation::iter() {
@@ -425,11 +447,10 @@ impl SimpleAsyncComponent for ViewOne {
                         return;
                     };
 
+                    self.image_info = Some(image.info().clone());
+
                     let texture = frame.texture();
-
                     self.picture.set_paintable(Some(&texture));
-
-                    let _ = sender.output(ViewOneOutput::PhotoShown(visual.visual_id.clone(), image.info().clone()));
                 } else { // video or motion photo
                     let is_transcoded = visual.video_transcoded_path.as_ref().is_some_and(|x| x.exists());
                     let is_transcode_required = visual.is_transcode_required.is_some_and(|x| x) && !is_transcoded;
@@ -485,7 +506,6 @@ impl SimpleAsyncComponent for ViewOne {
 
                         self.video = Some(video);
                         self.picture.set_paintable(self.video.as_ref());
-                        let _ = sender.output(ViewOneOutput::VideoShown(visual.visual_id.clone()));
                     }
                 }
 
@@ -500,11 +520,34 @@ impl SimpleAsyncComponent for ViewOne {
             },
             ViewOneInput::View => {
                 info!("View");
-                if let Some(video) = self.video.as_ref() {
-                    debug!("Playing video");
-                    self.playback = Playback::Playing;
-                    video.play();
-                }
+
+                let Some(visual_id) = self.visual_id.as_ref() else {
+                    return;
+                };
+
+                match self.viewing {
+                    Viewing::Photo => {
+                        let Some(info) = self.image_info.as_ref() else {
+                            return;
+                        };
+                        let _ = sender.output(ViewOneOutput::PhotoShown(visual_id.clone(), info.clone()));
+                    },
+                    Viewing::MotionPhoto | Viewing::Video => {
+                        if let Some(video) = self.video.as_ref() {
+                            debug!("Playing video");
+                            self.playback = Playback::Playing;
+                            video.play();
+                        }
+                        let _ = sender.output(ViewOneOutput::VideoShown(visual_id.clone()));
+                    },
+                    Viewing::Transcode => {
+                        let _ = sender.output(ViewOneOutput::TranscodeShown(visual_id.clone()));
+                    }
+                    Viewing::Error => {
+                        let _ = sender.output(ViewOneOutput::ErrorShown(visual_id.clone()));
+                    },
+                    Viewing::None => {},
+                };
             },
             ViewOneInput::Hidden => {
                 info!("Hide");
