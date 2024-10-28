@@ -117,6 +117,16 @@
   </screenshots>
 
   <releases>
+    <release version="1.16.0" date="2024-10-27">
+      <description>
+        <ul>
+          <li>Show info panel as bottom sheet when window is narrow.</li>
+          <li>Photo view next/previous buttons should respect sort order.</li>
+          <li>Bug fix: info panel sometimes shows info for wrong file.</li>
+          <li>Bug fix: person selector is too short.</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.15.3" date="2024-10-23">
       <description>
         <ul>
