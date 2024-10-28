@@ -60,6 +60,9 @@ pub enum ViewNavInput {
     /// Inform info bar of video details.
     ShowVideoInfo(VisualId),
 
+    ShowTranscode(VisualId),
+    ShowError(VisualId),
+
     /// Transcode all incompatible videos
     TranscodeAll,
 
@@ -314,25 +317,31 @@ impl SimpleAsyncComponent for ViewNav {
         carousel_pages.push(ViewOne::builder()
             .launch((people_repo.clone(), transcode_progress_monitor.clone()))
             .forward(sender.input_sender(), |msg| match msg {
+                ViewOneOutput::TranscodeAll => ViewNavInput::TranscodeAll,
                 ViewOneOutput::PhotoShown(id, info) => ViewNavInput::ShowPhotoInfo(id, info),
                 ViewOneOutput::VideoShown(id) => ViewNavInput::ShowVideoInfo(id),
-                ViewOneOutput::TranscodeAll => ViewNavInput::TranscodeAll,
+                ViewOneOutput::ErrorShown(id) => ViewNavInput::ShowError(id),
+                ViewOneOutput::TranscodeShown(id) => ViewNavInput::ShowTranscode(id),
             }));
 
         carousel_pages.push(ViewOne::builder()
             .launch((people_repo.clone(), transcode_progress_monitor.clone()))
             .forward(sender.input_sender(), |msg| match msg {
+                ViewOneOutput::TranscodeAll => ViewNavInput::TranscodeAll,
                 ViewOneOutput::PhotoShown(id, info) => ViewNavInput::ShowPhotoInfo(id, info),
                 ViewOneOutput::VideoShown(id) => ViewNavInput::ShowVideoInfo(id),
-                ViewOneOutput::TranscodeAll => ViewNavInput::TranscodeAll,
+                ViewOneOutput::ErrorShown(id) => ViewNavInput::ShowError(id),
+                ViewOneOutput::TranscodeShown(id) => ViewNavInput::ShowTranscode(id),
             }));
 
         carousel_pages.push(ViewOne::builder()
             .launch((people_repo.clone(), transcode_progress_monitor.clone()))
             .forward(sender.input_sender(), |msg| match msg {
+                ViewOneOutput::TranscodeAll => ViewNavInput::TranscodeAll,
                 ViewOneOutput::PhotoShown(id, info) => ViewNavInput::ShowPhotoInfo(id, info),
                 ViewOneOutput::VideoShown(id) => ViewNavInput::ShowVideoInfo(id),
-                ViewOneOutput::TranscodeAll => ViewNavInput::TranscodeAll,
+                ViewOneOutput::ErrorShown(id) => ViewNavInput::ShowError(id),
+                ViewOneOutput::TranscodeShown(id) => ViewNavInput::ShowTranscode(id),
             }));
 
 
@@ -583,6 +592,12 @@ impl SimpleAsyncComponent for ViewNav {
             },
             ViewNavInput::ShowVideoInfo(visual_id) => {
                 self.view_info.emit(ViewInfoInput::Video(visual_id));
+            },
+            ViewNavInput::ShowTranscode(visual_id) => {
+                self.view_info.emit(ViewInfoInput::Video(visual_id));
+            },
+            ViewNavInput::ShowError(visual_id) => {
+                self.view_info.emit(ViewInfoInput::FileOnly(visual_id));
             },
             ViewNavInput::TranscodeAll => {
                 info!("Transcode all");
