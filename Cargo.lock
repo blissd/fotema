@@ -1371,9 +1371,9 @@ dependencies = [
 
 [[package]]
 name = "gdk4"
-version = "0.9.2"
+version = "0.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c121aeeb0cf7545877ae615dac6bfd088b739d8abee4d55e7143b06927d16a31"
+checksum = "d3fb4af2d606b0ac4e81f982f0d064bcb71ca73859ce5f30475f7eb2e2be4bc3"
 dependencies = [
  "cairo-rs",
  "gdk-pixbuf",
