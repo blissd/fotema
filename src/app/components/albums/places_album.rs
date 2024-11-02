@@ -219,8 +219,12 @@ impl SimpleComponent for PlacesAlbum {
                 let zoom_level = self.viewport.zoom_level();
                 debug!("zoom level = {}", zoom_level);
                 self.update_on_zoom(&PlacesAlbum::zoom_to_resolution(zoom_level));
-                // a zoom is also a move
-                self.update_on_move(&sender);
+                if zoom_level > MIN_ZOOM_LEVEL as f64 && zoom_level < MAX_ZOOM_LEVEL as f64 {
+                    // A zoom is also a move.
+                    // But don't move if zoomed all the way in or out otherwise the viewport
+                    // will slide around.
+                    self.update_on_move(&sender);
+                }
             },
             PlacesAlbumInput::Move => {
                 self.update_on_move(&sender);
