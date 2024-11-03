@@ -9,8 +9,8 @@
   "sources": [
     {
       "type": "archive",
-      "url": "https://gitlab.gnome.org/GNOME/libshumate/-/archive/1.2.2/libshumate-1.2.2.tar.gz",
-      "sha256": "17c104d7ea07a9568e8063f7a915cb6836a998ec11d496f641df2a8068196a0b"
+      "url": "https://gitlab.gnome.org/GNOME/libshumate/-/archive/1.3.0/libshumate-1.3.0.tar.gz",
+      "sha256": "bd0ce2c1412de3fe6359dbfa8333f0f3dafe43260283e8f81c90c85b48788eac"
     }
   ],
   "modules": [
