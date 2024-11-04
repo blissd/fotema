@@ -58,7 +58,7 @@ month-thumbnail-label =
 about-opensource = Açık Kaynaklı Projeler
 # Translator note: add one translator per-line to get a translation
 # credit in the Fotema's "About" page.
-about-translator-credits = queeup <queeup@zoho.com>
+about-translator-credits = David Bliss <hello@fotema.app>
 
 ## Photo/Video Viewer
 
@@ -206,3 +206,4 @@ banner-extract-motion-photos = Hareketli fotoğraflar işleniyor.
 primary-menu-preferences = Tercihler
 # Menu item to show "about" dialog
 primary-menu-about = { -app-name } Hakkında
+people-page = Kişiler
