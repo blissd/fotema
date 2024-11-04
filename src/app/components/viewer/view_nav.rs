@@ -402,7 +402,6 @@ impl SimpleAsyncComponent for ViewNav {
         {
             let sender = sender.clone();
             keys.connect_key_pressed(move |_, key, _, _| {
-                info!("key press");
                 match key {
                     gdk::Key::Left => {
                         sender.input(ViewNavInput::GoLeft);
