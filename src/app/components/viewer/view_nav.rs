@@ -8,6 +8,8 @@ use relm4::*;
 use relm4::prelude::*;
 use relm4::actions::{RelmAction, RelmActionGroup};
 use relm4::binding::*;
+use relm4::gtk::glib;
+use relm4::gtk::gdk;
 
 use crate::app::components::albums::album_filter::AlbumFilter;
 use crate::app::components::albums::album_sort::AlbumSort;
@@ -395,6 +397,25 @@ impl SimpleAsyncComponent for ViewNav {
         actions.add_action(ignore_unknown_faces_action);
         actions.add_action(scan_faces_action);
         actions.register_for_widget(&root);
+
+        let keys = gtk::EventControllerKey::new();
+        {
+            let sender = sender.clone();
+            keys.connect_key_pressed(move |_, key, _, _| {
+                match key {
+                    gdk::Key::Left => {
+                        sender.input(ViewNavInput::GoLeft);
+                        glib::Propagation::Stop
+                    },
+                    gdk::Key::Right => {
+                        sender.input(ViewNavInput::GoRight);
+                        glib::Propagation::Stop
+                    },
+                    _ => glib::Propagation::Proceed,
+                }
+            });
+        }
+        root.add_controller(keys);
 
         let widgets = view_output!();
         AsyncComponentParts { model, widgets }
