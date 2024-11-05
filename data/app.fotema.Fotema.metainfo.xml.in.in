@@ -117,6 +117,14 @@
   </screenshots>
 
   <releases>
+    <release version="1.17.0" date="2024-11-05">
+      <description>
+        <ul>
+          <li>Navigate viewer with left and right arrow keys.</li>
+          <li>Translation updates. Thank you everyone who puts in the time for translations--you are fab.</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.16.0" date="2024-10-27">
       <description>
         <ul>
