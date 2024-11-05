@@ -18,7 +18,7 @@
       "only-arches": [
         "aarch64"
       ],
-      "url": "https://github.com/microsoft/onnxruntime/releases/download/v1.20.0onnxruntime-linux-aarch64-1.20.0.tgz",
+      "url": "https://github.com/microsoft/onnxruntime/releases/download/v1.20.0/onnxruntime-linux-aarch64-1.20.0.tgz",
       "sha256": "b4d7c6e2c45f8edabe5d28e9bc59ec8d5a4a4af36660cda16e94b2ad85f2a52a"
     }
   ]
