@@ -144,7 +144,7 @@ month-thumbnail-label =
         [10] Outubro { $year }
         [11] Novembro { $year }
         [12] Dezembro { $year }
-       *[outro] { $year }
+       *[other] { $year }
     }
 about-opensource = Projetos de Código Aberto
 about-translator-credits = David Bliss <hello@fotema.app>
