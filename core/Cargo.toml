@@ -27,7 +27,7 @@ rusqlite = { version = "0.31.0", features = ["bundled", "chrono"] }
 rust-faces = {git = "https://github.com/blissd/rust-faces.git", branch = "patch", features = ["viz"]}
 sm_motion_photo = "0.1.5"
 strum = { version = "0.26.2", features = ["derive"] }
-tempfile = "3.13.0"
+tempfile = "3.14.0"
 tracing = "0.1.40"
 walkdir = "2.5.0"
 opencv = {version = "0.93.1", default-features = false, features = ["clang-runtime", "objdetect", "imgcodecs", "dnn"]}
