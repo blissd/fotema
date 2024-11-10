@@ -158,184 +158,185 @@ impl SimpleAsyncComponent for ViewOne {
     type Output = ViewOneOutput;
 
     view! {
-        gtk::Box {
-            set_orientation: gtk::Orientation::Vertical,
+        #[root]
+        gtk::Overlay {
             set_vexpand: true,
             set_hexpand: true,
 
-            gtk::Overlay {
-                set_vexpand: true,
-                set_halign: gtk::Align::Center,
+            // Overlay of detected faces
+            add_overlay = &gtk::Box {
+                set_orientation: gtk::Orientation::Horizontal,
+                set_halign: gtk::Align::Start,
+                set_valign: gtk::Align::End,
+                set_margin_all: 8,
 
-                // video_controls
-                add_overlay = &gtk::Box {
-                    set_orientation: gtk::Orientation::Vertical,
-                    set_spacing: 12,
+                #[watch]
+                set_visible: model.viewing == Viewing::Photo || model.viewing == Viewing::MotionPhoto,
+                container_add: model.face_thumbnails.widget(),
+            },
+
+            // video_controls
+            add_overlay = &gtk::Box {
+                set_orientation: gtk::Orientation::Vertical,
+                set_spacing: 12,
+                set_halign: gtk::Align::Center,
+                set_valign: gtk::Align::End,
+
+                #[watch]
+                set_visible: model.viewing == Viewing::Video || model.viewing == Viewing::MotionPhoto,
+
+                gtk::Frame {
+                    set_halign: gtk::Align::Center,
+                    add_css_class: "osd",
+
+                    #[watch]
+                    set_visible: model.viewing == Viewing::Video,
+
+                    #[wrap(Some)]
+                    set_child = &gtk::Label {
+                        set_halign: gtk::Align::Center,
+                        add_css_class: "photo-grid-month-label",
+
+                        #[watch]
+                        set_text: &model.video_timestamp,
+                    },
+                },
+                gtk::Box {
                     set_halign: gtk::Align::Center,
                     set_valign: gtk::Align::End,
+                    set_orientation: gtk::Orientation::Horizontal,
+                    set_margin_start: 18,
+                    set_margin_end: 18,
+                    set_margin_bottom: 18,
+                    set_spacing: 12,
 
                     #[watch]
                     set_visible: model.viewing == Viewing::Video || model.viewing == Viewing::MotionPhoto,
 
-                    gtk::Frame {
-                        set_halign: gtk::Align::Center,
+                    gtk::Button {
+                        set_icon_name: "skip-backwards-10-symbolic",
+                        add_css_class: "circular",
                         add_css_class: "osd",
+                        set_tooltip_text: Some(&fl!("viewer-skip-backwards-10-seconds", "tooltip")),
 
                         #[watch]
-                        set_visible: model.viewing == Viewing::Video,
+                        set_visible: model.viewing == Viewing::Video && model.is_skipping_allowed,
 
-                        #[wrap(Some)]
-                        set_child = &gtk::Label {
-                            set_halign: gtk::Align::Center,
-                            add_css_class: "photo-grid-month-label",
+                        #[watch]
+                        set_sensitive: model.playback == Playback::Playing
+                            && model.is_skipping_allowed,
 
-                            #[watch]
-                            set_text: &model.video_timestamp,
-                        },
+                        connect_clicked => ViewOneInput::SkipBackwards,
                     },
-                    gtk::Box {
-                        set_halign: gtk::Align::Center,
-                        set_valign: gtk::Align::End,
-                        set_orientation: gtk::Orientation::Horizontal,
-                        set_margin_start: 18,
-                        set_margin_end: 18,
-                        set_margin_bottom: 18,
-                        set_spacing: 12,
+
+                    gtk::Button {
+                        #[watch]
+                        set_icon_name: model.play_button_icon_name(),
+
+                        add_css_class: "circular",
+                        add_css_class: "osd",
+                        set_tooltip_text: Some(&fl!("viewer-play", "tooltip")),
 
                         #[watch]
                         set_visible: model.viewing == Viewing::Video || model.viewing == Viewing::MotionPhoto,
 
-                        gtk::Button {
-                            set_icon_name: "skip-backwards-10-symbolic",
-                            add_css_class: "circular",
-                            add_css_class: "osd",
-                            set_tooltip_text: Some(&fl!("viewer-skip-backwards-10-seconds", "tooltip")),
-
-                            #[watch]
-                            set_visible: model.viewing == Viewing::Video && model.is_skipping_allowed,
-
-                            #[watch]
-                            set_sensitive: model.playback == Playback::Playing
-                                && model.is_skipping_allowed,
-
-                            connect_clicked => ViewOneInput::SkipBackwards,
-                        },
-
-                        gtk::Button {
-                            #[watch]
-                            set_icon_name: model.play_button_icon_name(),
-
-                            add_css_class: "circular",
-                            add_css_class: "osd",
-                            set_tooltip_text: Some(&fl!("viewer-play", "tooltip")),
-
-                            #[watch]
-                            set_visible: model.viewing == Viewing::Video || model.viewing == Viewing::MotionPhoto,
-
-                            connect_clicked => ViewOneInput::PlayToggle,
-                        },
-
-                        gtk::Button {
-                            set_icon_name: "skip-forward-10-symbolic",
-                            add_css_class: "circular",
-                            add_css_class: "osd",
-                            set_tooltip_text: Some(&fl!("viewer-skip-forward-10-seconds", "tooltip")),
-
-                            #[watch]
-                            set_visible: model.viewing == Viewing::Video && model.is_skipping_allowed,
-
-                            #[watch]
-                            set_sensitive: model.playback == Playback::Playing
-                                && model.is_skipping_allowed,
-
-                            connect_clicked => ViewOneInput::SkipForward,
-                        },
-
-                        gtk::Button {
-                            #[watch]
-                            set_icon_name: model.mute_button_icon_name(),
-
-                            set_margin_start: 36,
-                            add_css_class: "circular",
-                            add_css_class: "osd",
-                            set_tooltip_text: Some(&fl!("viewer-mute", "tooltip")),
-
-                            #[watch]
-                            set_visible: model.viewing == Viewing::Video || model.viewing == Viewing::MotionPhoto,
-
-                            connect_clicked => ViewOneInput::MuteToggle,
-                        },
+                        connect_clicked => ViewOneInput::PlayToggle,
                     },
-                },
 
-                // Overlay of detected faces
-                add_overlay = &gtk::Box {
-                    set_orientation: gtk::Orientation::Horizontal,
-                    set_halign: gtk::Align::Start,
-                    set_valign: gtk::Align::End,
-                    set_margin_all: 8,
-                    #[watch]
-                    set_visible: model.viewing == Viewing::Photo || model.viewing == Viewing::MotionPhoto,
-                    container_add: model.face_thumbnails.widget(),
-                },
+                    gtk::Button {
+                        set_icon_name: "skip-forward-10-symbolic",
+                        add_css_class: "circular",
+                        add_css_class: "osd",
+                        set_tooltip_text: Some(&fl!("viewer-skip-forward-10-seconds", "tooltip")),
 
-                #[wrap(Some)]
-                set_child = &gtk::Box {
+                        #[watch]
+                        set_visible: model.viewing == Viewing::Video && model.is_skipping_allowed,
+
+                        #[watch]
+                        set_sensitive: model.playback == Playback::Playing
+                            && model.is_skipping_allowed,
+
+                        connect_clicked => ViewOneInput::SkipForward,
+                    },
+
+                    gtk::Button {
+                        #[watch]
+                        set_icon_name: model.mute_button_icon_name(),
+
+                        set_margin_start: 36,
+                        add_css_class: "circular",
+                        add_css_class: "osd",
+                        set_tooltip_text: Some(&fl!("viewer-mute", "tooltip")),
+
+                        #[watch]
+                        set_visible: model.viewing == Viewing::Video || model.viewing == Viewing::MotionPhoto,
+
+                        connect_clicked => ViewOneInput::MuteToggle,
+                    }
+                }
+            },
+
+            #[wrap(Some)]
+            set_child = &gtk::Box {
+                set_orientation: gtk::Orientation::Vertical,
+
+                gtk::Box {
+                    set_vexpand: true,
+                    set_halign: gtk::Align::Center,
 
                     #[watch]
                     set_visible: model.viewing == Viewing::Photo || model.viewing == Viewing::MotionPhoto || model.viewing == Viewing::Video,
 
                     #[local_ref]
-                    picture -> gtk::Picture {
-                    }
+                    picture -> gtk::Picture {}
                 },
-            },
 
-            adw::StatusPage {
-                set_valign: gtk::Align::Start,
-                set_vexpand: true,
+                adw::StatusPage {
+                    set_valign: gtk::Align::Start,
+                    set_vexpand: true,
 
-                set_visible: false,
-                set_icon_name: Some("playback-error-symbolic"),
-                set_description: Some(&fl!("viewer-convert-all-description")),
+                    set_visible: false,
+                    set_icon_name: Some("playback-error-symbolic"),
+                    set_description: Some(&fl!("viewer-convert-all-description")),
 
-                #[watch]
-                set_visible: model.viewing == Viewing::Transcode,
-
-                #[wrap(Some)]
-                set_child = &adw::Clamp {
-                    set_orientation: gtk::Orientation::Horizontal,
-                    set_maximum_size: 400,
+                    #[watch]
+                    set_visible: model.viewing == Viewing::Transcode,
 
                     #[wrap(Some)]
-                    set_child = &gtk::Box {
-                        set_orientation: gtk::Orientation::Vertical,
+                    set_child = &adw::Clamp {
+                        set_orientation: gtk::Orientation::Horizontal,
+                        set_maximum_size: 400,
 
-                        // FIXME hide while transcodes are in progress
-                        gtk::Button {
-                            set_label: &fl!("viewer-convert-all-button"),
-                            add_css_class: "suggested-action",
-                            add_css_class: "pill",
-                            connect_clicked => ViewOneInput::TranscodeAll,
-                        },
+                        #[wrap(Some)]
+                        set_child = &gtk::Box {
+                            set_orientation: gtk::Orientation::Vertical,
 
-                        model.transcode_progress.widget(),
+                            // FIXME hide while transcodes are in progress
+                            gtk::Button {
+                                set_label: &fl!("viewer-convert-all-button"),
+                                add_css_class: "suggested-action",
+                                add_css_class: "pill",
+                                connect_clicked => ViewOneInput::TranscodeAll,
+                            },
+
+                            model.transcode_progress.widget(),
+                        }
                     }
+                },
+
+                adw::StatusPage {
+                    set_valign: gtk::Align::Start,
+                    set_vexpand: true,
+
+                    #[watch]
+                    set_icon_name: model.broken_status_icon_name(),
+
+                    #[watch]
+                    set_description: model.broken_status_description().as_ref().map(|x| x.as_str()),
+
+                    #[watch]
+                    set_visible: model.viewing == Viewing::Error,
                 }
-            },
-
-            adw::StatusPage {
-                set_valign: gtk::Align::Start,
-                set_vexpand: true,
-
-                #[watch]
-                set_icon_name: model.broken_status_icon_name(),
-
-                #[watch]
-                set_description: model.broken_status_description().as_ref().map(|x| x.as_str()),
-
-                #[watch]
-                set_visible: model.viewing == Viewing::Error,
             }
         }
     }
