@@ -94,7 +94,7 @@ infobar-dimensions = Méretek
 people-set-face-thumbnail = Beállítás előnézeti képként
 people-set-name = Név beállítása
 prefs-machine-learning-face-detection = Arcok azonosítása
-    .subtitle = Engedélyezi az arcok azonosítását a Fotema indításakor. Ez időigényes folyamat.
+    .subtitle = Engedélyezi az arcok azonosítását a { -app-name } indításakor. Ez időigényes folyamat.
 progress-metadata-photos = Fotó metaadatok feldolgozása.
 progress-metadata-videos = Videó metaadatok feldolgozása.
 progress-thumbnails-photos = Fotó miniatűrök előállítása.
@@ -135,3 +135,18 @@ banner-button-stop =
     .tooltip = Minden háttérfolyamat leállítása.
 banner-stopping = Folyamatok leállítása...
 banner-convert-videos = Videók konvertálása.
+prefs-library-section =
+    .title = Könyvtár
+    .description =
+        Könyvtár mappa konfigurálása.
+        Figyelem: a fotókat tartalmazó mappa megváltoztatása esetén a { -app-name } előfordulhat, hogy az összes képet újraolvassa.
+prefs-library-section-pictures-dir =
+    .title = Képek mappa
+    .tooltip = Válassza ki a képek mappáját.
+onboard-select-pictures =
+    .title = Üdvözli a { -app-name }.
+    .description =
+        Kérjük válassza ki a mappát, ahol a fotóit szeretné tárolni.
+
+        Ha már korábban használta a { -app-name } alkalmazást és a fotók mappája automatikusan felismerésre kerül, kérjük válassza ugyanazt a mappát, hogy elkerülje a képek dupla felismerését.
+    .button = Mappa kiválasztása
