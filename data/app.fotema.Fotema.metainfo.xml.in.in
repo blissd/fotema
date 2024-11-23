@@ -117,6 +117,14 @@
   </screenshots>
 
   <releases>
+    <release version="1.18.0" date="2024-11-23">
+      <description>
+        <ul>
+          <li>Anchor face list in bottom left corner of window, not corner of photo.</li>
+          <li>Translation updates.</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.17.0" date="2024-11-05">
       <description>
         <ul>
