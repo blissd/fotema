@@ -170,7 +170,7 @@ month-thumbnail-label =
 # About Dialog
 # Translator note: add one translator per-line to get a translation
 # credit in the Fotema's "About" page.
-about-translator-credits = Jiri Grönroos <jiri.gronroos+l10n@iki.fi>
+about-translator-credits = David Bliss <hello@fotema.app>
 # Photo/Video Viewer
 # Skip video backwards 10 seconds button.
 # Attributes:
