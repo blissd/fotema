@@ -28,7 +28,7 @@ rust-faces = {git = "https://github.com/blissd/rust-faces.git", branch = "patch"
 sm_motion_photo = "0.1.5"
 strum = { version = "0.26.2", features = ["derive"] }
 tempfile = "3.14.0"
-tracing = "0.1.40"
+tracing = "0.1.41"
 walkdir = "2.5.0"
 opencv = {version = "0.93.4", default-features = false, features = ["clang-runtime", "objdetect", "imgcodecs", "dnn"]}
 itertools = "0.13.0"
