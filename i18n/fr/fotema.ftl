@@ -276,7 +276,7 @@ prefs-ui-section = Interface
 prefs-ui-selfies = Portraits
     .subtitle = Affiche un album à part pour les selfies pris sur les appareils iOS. Redémarrez { -app-name } pour appliquer ce paramètre.
 prefs-machine-learning-face-detection = Détection des visages
-    .subtitle = Activer la détection des visages au lancement de Fotema. Ce processus peut prendre du temps.
+    .subtitle = Activer la détection des visages au lancement de { -app-name }. Ce processus peut prendre du temps.
 banner-button-stop =
     .label = Arrêter
     .tooltip = Arrêter toutes les tâches en arrière-plan.
@@ -288,3 +288,18 @@ prefs-ui-chronological-album-sort = Ordre de tri
     .descending = Décroissant
 prefs-machine-learning-section = Apprentissage automatique
     .description = Configurer les fonctions d’apprentissage automatique.
+prefs-library-section =
+    .title = Bibliothèque
+    .description =
+        Configurer le répertoire de la bibliothèque.
+        Avertissement : un changement du répertoire de votre bibliothèque entraînera un nouveau traitement de toutes vos images par { -app-name }.
+prefs-library-section-pictures-dir =
+    .title = Répertoire d’images
+    .tooltip = Choisissez un répertoire d’images.
+onboard-select-pictures =
+    .title = Bienvenue dans { -app-name }.
+    .description =
+        Veuillez sélectionner le répertoire où vous conservez votre bibliothèque d’images.
+
+        Si vous utilisiez une version plus ancienne de { -app-name } où votre bibliothèque était automatiquement détectée, sélectionnez le même répertoire pour éviter un duplicata du traitement d’images.
+    .button = Sélectionner un répertoire
