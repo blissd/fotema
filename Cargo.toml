@@ -17,7 +17,7 @@ lto = "thin"
 
 [dependencies]
 gettext-rs = { version = "0.7", features = ["gettext-system"] }
-tracing = "0.1.37"
+tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.18", features = ["chrono", "env-filter"] }
 relm4 = { version = "0.9.1", features = ["libadwaita", "gnome_47"] }
 itertools = "0.13.0"
