@@ -181,7 +181,7 @@ prefs-title = Préférences
 infobar-video-codec = Codec vidéo
 # Progress bar for background tasks
 # Generating thumbnails from photos
-progress-thumbnails-photos = Génération des vignettes des photos.
+progress-thumbnails-photos = Vignettage des photos
 # Photo/Video Information Sidebar
 # Duration (HH:MM) of video.
 infobar-video-duration = Durée
@@ -203,7 +203,7 @@ prefs-views-selfies = Portraits
 progress-motion-photo = Traitement des photos animées.
 # Progress bar for background tasks
 # Generating thumbnails from videos
-progress-thumbnails-videos = Génération des vignettes des vidéos.
+progress-thumbnails-videos = Vignettage des vidéos
 # Progress bar for background tasks
 # Not doing any background work
 progress-idle = Repos.
