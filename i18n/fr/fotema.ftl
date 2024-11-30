@@ -181,7 +181,7 @@ prefs-title = Préférences
 infobar-video-codec = Codec vidéo
 # Progress bar for background tasks
 # Generating thumbnails from photos
-progress-thumbnails-photos = Génération des vignettes des photos.
+progress-thumbnails-photos = Vignettage des photos
 # Photo/Video Information Sidebar
 # Duration (HH:MM) of video.
 infobar-video-duration = Durée
@@ -203,7 +203,7 @@ prefs-views-selfies = Portraits
 progress-motion-photo = Traitement des photos animées.
 # Progress bar for background tasks
 # Generating thumbnails from videos
-progress-thumbnails-videos = Génération des vignettes des vidéos.
+progress-thumbnails-videos = Vignettage des vidéos
 # Progress bar for background tasks
 # Not doing any background work
 progress-idle = Repos.
@@ -276,7 +276,7 @@ prefs-ui-section = Interface
 prefs-ui-selfies = Portraits
     .subtitle = Affiche un album à part pour les selfies pris sur les appareils iOS. Redémarrez { -app-name } pour appliquer ce paramètre.
 prefs-machine-learning-face-detection = Détection des visages
-    .subtitle = Activer la détection des visages au lancement de Fotema. Ce processus peut prendre du temps.
+    .subtitle = Activer la détection des visages au lancement de { -app-name }. Ce processus peut prendre du temps.
 banner-button-stop =
     .label = Arrêter
     .tooltip = Arrêter toutes les tâches en arrière-plan.
@@ -288,3 +288,18 @@ prefs-ui-chronological-album-sort = Ordre de tri
     .descending = Décroissant
 prefs-machine-learning-section = Apprentissage automatique
     .description = Configurer les fonctions d’apprentissage automatique.
+prefs-library-section =
+    .title = Bibliothèque
+    .description =
+        Configurer le répertoire de la bibliothèque.
+        Avertissement : un changement du répertoire de votre bibliothèque entraînera un nouveau traitement de toutes vos images par { -app-name }.
+prefs-library-section-pictures-dir =
+    .title = Répertoire d’images
+    .tooltip = Choisissez un répertoire d’images.
+onboard-select-pictures =
+    .title = Bienvenue dans { -app-name }.
+    .description =
+        Veuillez sélectionner le répertoire où vous conservez votre bibliothèque d’images.
+
+        Si vous utilisiez une version plus ancienne de { -app-name } où votre bibliothèque était automatiquement détectée, sélectionnez le même répertoire pour éviter un duplicata du traitement d’images.
+    .button = Sélectionner un répertoire
