@@ -93,7 +93,7 @@ impl SimpleAsyncComponent for Onboard {
                         .directory(true)
                         .identifier(identifier)
                         .modal(true) // can't be modal without identifier.
-                        .multiple(true);
+                        .multiple(false);
 
                     match request.send().await.and_then(|r| r.response()) {
                         Ok(files) => {
