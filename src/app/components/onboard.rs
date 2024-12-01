@@ -2,8 +2,11 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+
 use ashpd::{
     desktop::file_chooser::OpenFileRequest,
+    documents::{DocumentID, Documents, Permission},
+    AppID,
     WindowIdentifier,
 };
 
@@ -14,9 +17,13 @@ use relm4::prelude::*;
 
 use crate::fl;
 
-use tracing::{error, info};
+use regex::Regex;
+
+use tracing::{debug, error, info};
 
 use std::path::PathBuf;
+use std::str::FromStr;
+use std::fs::File;
 
 #[derive(Debug)]
 pub enum OnboardInput {
@@ -93,15 +100,35 @@ impl SimpleAsyncComponent for Onboard {
                         .directory(true)
                         .identifier(identifier)
                         .modal(true) // can't be modal without identifier.
-                        .multiple(true);
+                        .multiple(false);
 
                     match request.send().await.and_then(|r| r.response()) {
                         Ok(files) => {
                             info!("Open: {:?}", files);
-                            if let Some(dir) = files.uris().first().and_then(|uri| uri.to_file_path().ok()) {
-                                info!("User has chosen picture library at: {:?}", dir);
-                                let _ = sender.output(OnboardOutput::Done(dir));
+                            let Some(dir) = files.uris().first().and_then(|uri| uri.to_file_path().ok()) else {
+                                error!("No directory!");
+                                return;
+                            };
+                            info!("User has chosen picture library at: {:?}", dir);
+
+                            // Parse Document ID from file chooser path.
+                            let doc_id = dir.to_str()
+                                .and_then(|s| {
+                                    let re = Regex::new(r"^/run/user/[0-9]+/doc/([0-9a-fA-F]+)/").unwrap();
+                                    re.captures(s)
+                                })
+                                .and_then(|re_match| re_match.get(1))
+                                .map(|doc_id_match| doc_id_match.as_str());
+
+                            if let Some(doc_id) = doc_id {
+                                debug!("Document ID={:?}", doc_id);
+                                // TODO use XDG Documents API go get host path from doc_id
+                                //let proxy = Documents::new().await.unwrap();
+                                //let hp = proxy.host_paths(&[doc_id]).await.unwrap();
+                                //info!("Host paths={:?}", hp);
                             }
+
+                            let _ = sender.output(OnboardOutput::Done(dir));
                         }
                         Err(err) => {
                             error!("Failed to open a file: {err}");

@@ -1173,6 +1173,7 @@ dependencies = [
  "libshumate",
  "libshumate-sys",
  "rayon",
+ "regex",
  "relm4",
  "rust-embed",
  "strum",
