@@ -606,7 +606,8 @@ impl SimpleAsyncComponent for ViewNav {
                 self.carousel_last_page_index = page_index;
             },
             ViewNavInput::ToggleInfo => {
-                self.show_infobar.set_value(!self.show_infobar.value());
+                let show_infobar = !self.show_infobar.value();
+                self.show_infobar.set_value(show_infobar);
             },
             ViewNavInput::ShowPhotoInfo(visual_id, image_info) => {
                 self.view_info.emit(ViewInfoInput::Photo(visual_id, image_info));
@@ -647,6 +648,9 @@ impl SimpleAsyncComponent for ViewNav {
             },
             ViewNavInput::Adapt(adaptive::Layout::Wide) => {
                 self.is_narrow = false;
+                // The bottomsheet will shift up the content, so un-shift content
+                // when bottomsheet is hidden.
+                self.bottom_margin.set_value(0);
             },
             ViewNavInput::RestoreIgnoredFaces => {
                 let Some(index) = self.album_index else {
