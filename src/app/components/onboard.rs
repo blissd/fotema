@@ -5,8 +5,6 @@
 
 use ashpd::{
     desktop::file_chooser::OpenFileRequest,
-    documents::{DocumentID, Documents, Permission},
-    AppID,
     WindowIdentifier,
 };
 
@@ -22,8 +20,6 @@ use regex::Regex;
 use tracing::{debug, error, info};
 
 use std::path::PathBuf;
-use std::str::FromStr;
-use std::fs::File;
 
 #[derive(Debug)]
 pub enum OnboardInput {
