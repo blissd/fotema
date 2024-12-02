@@ -607,11 +607,6 @@ impl SimpleAsyncComponent for ViewNav {
             },
             ViewNavInput::ToggleInfo => {
                 let show_infobar = !self.show_infobar.value();
-                if !show_infobar {
-                    // The bottomsheet will shift up the content, so un-shift content
-                    // when infobar is hidden.
-                    //self.bottom_margin.set_value(0);
-                }
                 self.show_infobar.set_value(show_infobar);
             },
             ViewNavInput::ShowPhotoInfo(visual_id, image_info) => {
