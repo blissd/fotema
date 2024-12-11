@@ -79,6 +79,8 @@ pub struct FaceThumbnails {
     person_select: AsyncController<PersonSelect>,
 }
 
+const AVATAR_SIZE: i32 = 50;
+
 #[relm4::component(pub async)]
 impl SimpleAsyncComponent for FaceThumbnails {
     type Init = people::Repository;
@@ -228,7 +230,7 @@ impl SimpleAsyncComponent for FaceThumbnails {
                                 .build();
 
                             let avatar = adw::Avatar::builder()
-                                .size(50)
+                                .size(AVATAR_SIZE)
                                 .build();
 
                             let img = gdk::Texture::from_filename(&thumbnail_path).ok();
