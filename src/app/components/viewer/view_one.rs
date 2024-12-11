@@ -207,7 +207,7 @@ impl SimpleAsyncComponent for ViewOne {
                     set_orientation: gtk::Orientation::Horizontal,
                     set_margin_start: 18,
                     set_margin_end: 18,
-                    set_margin_bottom: 18,
+                    set_margin_bottom: 18 + 50, // 50 = height of face thumbnail bar
                     set_spacing: 12,
 
                     #[watch]
@@ -295,7 +295,6 @@ impl SimpleAsyncComponent for ViewOne {
                     set_valign: gtk::Align::Start,
                     set_vexpand: true,
 
-                    set_visible: false,
                     set_icon_name: Some("playback-error-symbolic"),
                     set_description: Some(&fl!("viewer-convert-all-description")),
 

@@ -79,6 +79,8 @@ pub struct FaceThumbnails {
     person_select: AsyncController<PersonSelect>,
 }
 
+const AVATAR_SIZE: i32 = 50;
+
 #[relm4::component(pub async)]
 impl SimpleAsyncComponent for FaceThumbnails {
     type Init = people::Repository;
@@ -86,10 +88,18 @@ impl SimpleAsyncComponent for FaceThumbnails {
     type Output = FaceThumbnailsOutput;
 
     view! {
-        #[name(face_thumbnails)]
-        gtk::Box {
-            set_orientation: gtk::Orientation::Horizontal,
-            set_spacing: 8,
+        gtk::ScrolledWindow {
+            set_hexpand: true,
+            set_vscrollbar_policy: gtk::PolicyType::Never,
+            set_hscrollbar_policy: gtk::PolicyType::External, // scroll bar not visible, but faces scrollable
+            set_propagate_natural_width: true,
+
+            #[name(face_thumbnails)]
+            gtk::Box {
+                set_hexpand: true,
+                set_orientation: gtk::Orientation::Horizontal,
+                set_spacing: 8,
+            }
         }
     }
 
@@ -220,7 +230,7 @@ impl SimpleAsyncComponent for FaceThumbnails {
                                 .build();
 
                             let avatar = adw::Avatar::builder()
-                                .size(50)
+                                .size(AVATAR_SIZE)
                                 .build();
 
                             let img = gdk::Texture::from_filename(&thumbnail_path).ok();
