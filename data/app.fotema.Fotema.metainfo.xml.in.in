@@ -117,6 +117,14 @@
   </screenshots>
 
   <releases>
+    <release version="1.18.3" date="2024-12-11">
+      <description>
+        <ul>
+          <li>Bug fix: face thumbnail bar now scrolls if many faces present.</li>
+          <li>Bug fix: Animated photo controls no longer overlap face thumbnail bar.</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.18.2" date="2024-12-01">
       <description>
         <ul>
