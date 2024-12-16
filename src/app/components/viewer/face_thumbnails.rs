@@ -88,18 +88,10 @@ impl SimpleAsyncComponent for FaceThumbnails {
     type Output = FaceThumbnailsOutput;
 
     view! {
-        gtk::ScrolledWindow {
-            set_hexpand: true,
-            set_vscrollbar_policy: gtk::PolicyType::Never,
-            set_hscrollbar_policy: gtk::PolicyType::External, // scroll bar not visible, but faces scrollable
-            set_propagate_natural_width: true,
-
-            #[name(face_thumbnails)]
-            gtk::Box {
-                set_hexpand: true,
-                set_orientation: gtk::Orientation::Horizontal,
-                set_spacing: 8,
-            }
+        #[name(face_thumbnails)]
+        gtk::Box {
+            set_orientation: gtk::Orientation::Horizontal,
+            set_spacing: 8,
         }
     }
 
