@@ -1,0 +1,12 @@
+-app-name = Fotema
+library-page = Meediakogu
+years-album = Aasta
+months-album = Kuu
+videos-album = Videod
+folder-album = Kaust
+places-page = Asukohad
+people-page = Inimesed
+all-album = Päev
+animated-album = Animeeritud
+folders-album = Kaustad
+selfies-album = Selfid
