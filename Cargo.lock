@@ -3941,7 +3941,7 @@ dependencies = [
 [[package]]
 name = "rust-faces"
 version = "1.0.0"
-source = "git+https://github.com/blissd/rust-faces.git?branch=patch#7a70d2c2810827714a48f9ceb18df0bafcb42ddb"
+source = "git+https://github.com/blissd/fotema-rust-faces.git?tag=v1.0.0#43c0d5acd6f3f4d90c6487708f2e511a73bf7c9e"
 dependencies = [
  "directories",
  "image 0.25.5",
