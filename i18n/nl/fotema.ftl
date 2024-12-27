@@ -3,7 +3,7 @@
 videos-album = Video's
 # Main Navigation Pages
 # Title for album of iOS live photos and Android motion photos.
-animated-album = Bewegend
+animated-album = Geanimeerd
 # Photo/Video Information Sidebar
 # Video container format, such as "MKV" or "QuickTime".
 infobar-video-container-format = Containerformaat
@@ -87,7 +87,9 @@ viewer-previous =
 # About Dialog
 # Translator note: add one translator per-line to get a translation
 # credit in the Fotema's "About" page.
-about-translator-credits = David Bliss <hello@fotema.app>
+about-translator-credits =
+    Heimen Stoffels https://linktr.ee/vistaus
+    Philip Goto https://philipgoto.nl/
 # Photo/Video Viewer
 # Go to next button when viewing photo or video.
 # Attributes:
@@ -120,7 +122,7 @@ viewer-mute =
     .tooltip = Dempen/Ontdempen
 # Photo/Video Viewer
 # Convert all incompatible videos description.
-viewer-convert-all-description = Deze video moet worden omgezet voordat afspelen mogelijk is. Dit proces is eenmalig, maar kan wel enige tijd duren.
+viewer-convert-all-description = Deze video moet worden omgezet voordat afspelen mogelĳk is. Dit proces is eenmalig, maar kan wel enige tijd duren.
 # Photo/Video Viewer
 # Viewer failed to load an image or video.
 viewer-error-failed-to-load = Laden mislukt
@@ -141,7 +143,7 @@ viewer-error-missing-path = De bestandslocatie is niet aangetroffen in de databa
 # Attributes:
 #  .tooltip - tooltip text for open folder action button.
 infobar-folder = Map
-    .tooltip = Bijbehorende map openen
+    .tooltip = Bĳbehorende map openen
 # Terms
 -app-name = Fotema
 # Notification banner for background tasks
@@ -228,3 +230,18 @@ banner-metadata-photos = Bezig met verwerken van metagegevens…
 # Notification banner for background tasks
 # Processing new videos to extract metadata from video container.
 banner-metadata-videos = Bezig met verwerken van metagegevens…
+progress-detect-faces-photos = Gezichten in foto's detecteren.
+progress-recognize-faces-photos = Personen in foto's herkennen.
+person-menu-rename = Persoon hernoemen
+person-menu-delete = Persoon verwĳderen
+banner-stopping = Taken stoppen…
+prefs-ui-section = Interface
+    .description = Pas de gebruikers­interface aan.
+people-page = Personen
+banner-convert-videos = Video's converteren.
+people-face-ignore = Negeren
+people-set-name = Naam instellen
+people-set-face-thumbnail = Als miniatuur gebruiken
+people-person-search =
+    .placeholder = Naam van persoon
+people-not-this-person = Niet { $name }
