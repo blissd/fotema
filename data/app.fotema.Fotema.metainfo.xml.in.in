@@ -117,11 +117,12 @@
   </screenshots>
 
   <releases>
-    <release version="1.18.3" date="2024-12-11">
+    <release version="1.18.3" date="2024-12-27">
       <description>
         <ul>
-          <li>Bug fix: face thumbnail bar now scrolls if many faces present.</li>
           <li>Bug fix: Animated photo controls no longer overlap face thumbnail bar.</li>
+          <li>Bug fix: download face detection models from correct URL.</li>
+          <li>Translation updates.</li>
         </ul>
       </description>
     </release>
