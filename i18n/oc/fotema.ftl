@@ -60,3 +60,93 @@ banner-convert-videos = Conversion de las vidèos.
 banner-stopping = Arrèst dels prètzfaches...
 viewer-next =
     .tooltip = Seguenta
+people-page-status-off =
+    .title = Activar la deteccion de las caras?
+    .description = { -app-name } pòt detectar automaticament de las caras e reconéisser las personas sus las fòtos, mas aqueste processús pòt trigar. Volètz activar aquesta foncionalitat ?
+    .notice = { -app-name } deu telecargar environ 45 Mo. de donadas per reconéisser las caras e las personas.
+    .enable = Activar
+people-page-status-no-people =
+    .title = Degun pas identificat
+    .description =
+        { -app-name } recercarà las caras dins las fòtos novèlas a la dubertura venenta.
+        Nomenatz las personas que figuran dins vòstras fòtos per que { -app-name } pòsca far un album per caduna.
+about-opensource = Projèctes liures
+about-translator-credits = Quentin PAGÈS
+viewer-faces-menu =
+    .tooltip = Menú de las caras
+    .restore-ignored = Restaurar totas las caras ignoradas
+    .ignore-unknown = Ignorar totas las caras desconegudas
+    .scan = Recercar mai de caras
+viewer-mute =
+    .tooltip = Amudir/Desamudir
+viewer-convert-all-description = Aquesta vidèo deu convertida abans lectura. Aquò pòt trigar, mas serà pas mai necessari los autres còps.
+viewer-error-missing-file =
+    Impossible d’afichar lo fichièr, manca :
+    { $file_name }
+viewer-error-missing-path = Emplaçament del fichièr non present dins la basa de donadas
+infobar-folder = Dossièr
+    .tooltip = Dobrir lo dossièr contenent
+infobar-video-codec = Còdec vidèo
+infobar-audio-codec = Còdec àudio
+prefs-ui-selfies = Retraches
+    .subtitle = Aficha un album pels selfies preses suls aparelhs iOS. Reaviatz { -app-name } per aplicar aqueste paramètre.
+prefs-ui-chronological-album-sort = Òrdre de triada
+    .subtitle = Triada cronologica pels albums.
+    .ascending = Ascendenta
+    .descending = Descendenta
+prefs-machine-learning-section = Aprentissatge automatic
+    .description = Configurar las foncions d’aprentissatge automatic.
+prefs-machine-learning-face-detection = Deteccion de las caras
+    .subtitle = Activar la deteccion de las caras al lançament de { -app-name }. Aquò pòt trigar.
+prefs-library-section =
+    .title = Bibliotèca
+    .description =
+        Configurar lo repertòri de la bibliotèca.
+        Avertiment : un cambiament de repertòri d’imatge pòt menar { -app-name } a retractar totas las imatges.
+prefs-library-section-pictures-dir =
+    .title = Repertòri dels imatges
+    .tooltip = Causissètz lo repertòri dels imatges.
+progress-motion-photo = Tractament de las fòtos animadas.
+progress-detect-faces-photos = Deteccion de las caras de las fòtos.
+banner-metadata-photos = Tractament de las metadonadas de las fòtos.
+banner-extract-motion-photos = Tractament de las fòtos animadas.
+banner-detect-faces-photos = Deteccion de las caras de las fòtos. Aquò pòt trigar.
+banner-button-stop =
+    .label = Arrestar
+    .tooltip = Arrestar totes los prètzfaches en rèireplan.
+person-rename-dialog =
+    .heading = Renomenar la persona ?
+    .placeholder = Nom novèl
+    .cancel-button = Anullar
+    .rename-button = Renomenar
+prefs-ui-section = Interfàcia
+    .description = Personalizatz l’interfàcia utilizaire.
+month-thumbnail-label =
+    { $month ->
+        [1] Genièr { $year }
+        [2] Febrièr { $year }
+        [3] Març { $year }
+        [4] Abril { $year }
+        [5] Mai { $year }
+        [6] Junh { $year }
+        [7] Julhet { $year }
+        [8] Agost { $year }
+        [9] Setembre { $year }
+        [10] Octòbre { $year }
+        [11] Novembre { $year }
+        [12] Decembre { $year }
+       *[other] { $year }
+    }
+banner-metadata-videos = Tractament de las metadonadas de las vidèos.
+person-delete-dialog =
+    .heading = Suprimir la persona ?
+    .body = Cap de fòto o vidèo serà pas suprimida.
+    .cancel-button = Anullar
+    .delete-button = Suprimir
+onboard-select-pictures =
+    .title = Vos desiram la benvenguda dins { -app-name }.
+    .description =
+        Mercés de seleccionar un repertòri ont gardatz vòstra fototèca.
+
+        S’avètz utilizat una version anteriora { -app-name } ont vòstra fototèca foguèt automaticament descobèrta, alara mercés de seleccionar lo meteis repertòri aquí per evitar los tractaments d’imatge en doble.
+    .button = Causir un repertòri
