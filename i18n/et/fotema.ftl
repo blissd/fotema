@@ -126,7 +126,7 @@ month-thumbnail-label =
         [10] Oktoober { $year }
         [11] November { $year }
         [12] Detsember { $year }
-       *[muu] { $year }
+       *[other] { $year }
     }
 banner-stopping = Peatame pooleliolevaid tegevusi...
 person-rename-dialog =
