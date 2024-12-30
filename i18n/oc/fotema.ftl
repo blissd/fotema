@@ -102,7 +102,7 @@ prefs-library-section =
     .title = Bibliotèca
     .description =
         Configurar lo repertòri de la bibliotèca.
-        Avertiment : un cambiament de repertòri d’imatge pòt menar { -app-name } a retractar totas las imatges.
+        Avertiment : un cambiament de repertòri d’imatge pòt menar { -app-name } a retractar totes los imatges.
 prefs-library-section-pictures-dir =
     .title = Repertòri dels imatges
     .tooltip = Causissètz lo repertòri dels imatges.
