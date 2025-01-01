@@ -8,6 +8,7 @@ version = "0.1.0"
 authors = ["David Bliss <hello@fotema.app>"]
 edition = "2021"
 publish = false
+rust-version = "1.83.0"
 
 [workspace]
 members = ["core"]
