@@ -1573,9 +1573,9 @@ checksum = "d2fabcfbdc87f4758337ca535fb41a6d701b65693ce38287d856d1674551ec9b"
 
 [[package]]
 name = "glycin"
-version = "2.0.2"
+version = "2.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8c4206f0d933268b06a8809c496d7f7d7b0626bb33aa97a4a209e795913157c6"
+checksum = "a0c0c43ba80d02ea8cd540163e7cb49eced263fe3100c91c505acf5f9399ccb5"
 dependencies = [
  "async-fs",
  "async-io",
