@@ -5,7 +5,7 @@
   "sdk": "org.gnome.Sdk",
   "sdk-extensions": [
     "org.freedesktop.Sdk.Extension.rust-stable",
-    "org.freedesktop.Sdk.Extension.llvm18"
+    "org.freedesktop.Sdk.Extension.llvm19"
   ],
   "command": "fotema",
   "finish-args": [
@@ -20,8 +20,8 @@
     "--env=RUST_LOG=fotema=debug,relm4=warn,glycin=warn"
   ],
   "build-options": {
-    "append-path": "/usr/lib/sdk/rust-stable/bin:/usr/lib/sdk/llvm18/bin",
-    "prepend-ld-library-path": "/usr/lib/sdk/llvm18/lib",
+    "append-path": "/usr/lib/sdk/rust-stable/bin:/usr/lib/sdk/llvm19/bin",
+    "prepend-ld-library-path": "/usr/lib/sdk/llvm19/lib",
     "build-args": [
       "--share=network"
     ],
@@ -70,11 +70,11 @@
       "run-tests": true,
 
       "build-options": {
-        "append-path": "/usr/lib/sdk/rust-stable/bin:/usr/lib/sdk/llvm18/bin",
-        "prepend-ld-library-path": "/usr/lib/sdk/llvm18/lib",
+        "append-path": "/usr/lib/sdk/rust-stable/bin:/usr/lib/sdk/llvm19/bin",
+        "prepend-ld-library-path": "/usr/lib/sdk/llvm19/lib",
         "env": {
             "OPENCV_INCLUDE_PATHS": "/app/include/opencv4",
-            "LIBCLANG_PATH": "/usr/lib/sdk/llvm18/lib",
+            "LIBCLANG_PATH": "/usr/lib/sdk/llvm19/lib",
             "ORT_STRATEGY": "system"
         }
       },
