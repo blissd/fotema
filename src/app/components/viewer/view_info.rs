@@ -102,6 +102,10 @@ impl SimpleComponent for ViewInfo {
                         add_css_class: "property",
                         set_subtitle_selectable: true,
 
+                        add_prefix = &gtk::Image {
+                            set_icon_name: Some("file-cabinet-symbolic"),
+                        },
+
                         add_suffix = &gtk::Button {
                             set_valign: gtk::Align::Center,
                             set_icon_name: "folder-open-symbolic",
@@ -116,6 +120,10 @@ impl SimpleComponent for ViewInfo {
                         set_title: &fl!("infobar-file-name"),
                         add_css_class: "property",
                         set_subtitle_selectable: true,
+
+                        add_prefix = &gtk::Image {
+                            set_icon_name: Some("image-alt-symbolic"),
+                        }
                     },
                 },
 
@@ -126,6 +134,10 @@ impl SimpleComponent for ViewInfo {
                         set_title: &fl!("infobar-file-created"),
                         add_css_class: "property",
                         set_subtitle_selectable: true,
+
+                        add_prefix = &gtk::Image {
+                            set_icon_name: Some("today-symbolic"),
+                        }
                     },
 
                     #[local_ref]
@@ -133,6 +145,10 @@ impl SimpleComponent for ViewInfo {
                         set_title: &fl!("infobar-file-modified"),
                         add_css_class: "property",
                         set_subtitle_selectable: true,
+
+                        add_prefix = &gtk::Image {
+                            set_icon_name: Some("today-symbolic"),
+                        }
                     },
                 },
 
@@ -143,6 +159,10 @@ impl SimpleComponent for ViewInfo {
                         set_title: &fl!("infobar-dimensions"),
                         add_css_class: "property",
                         set_subtitle_selectable: true,
+
+                        add_prefix = &gtk::Image {
+                            set_icon_name: Some("ruler-corner-symbolic"),
+                        }
                     },
 
                     #[local_ref]
@@ -150,6 +170,9 @@ impl SimpleComponent for ViewInfo {
                         set_title: &fl!("infobar-file-format"),
                         add_css_class: "property",
                         set_subtitle_selectable: true,
+                        add_prefix = &gtk::Image {
+                            set_icon_name: Some("checkerboard-symbolic"),
+                        }
                     },
 
                     #[local_ref]
@@ -157,6 +180,9 @@ impl SimpleComponent for ViewInfo {
                         set_title: &fl!("infobar-file-size"),
                         add_css_class: "property",
                         set_subtitle_selectable: true,
+                        add_prefix = &gtk::Image {
+                            set_icon_name: Some("weight-symbolic"),
+                        }
                     },
                 },
 
@@ -167,6 +193,9 @@ impl SimpleComponent for ViewInfo {
                         set_title: &fl!("infobar-originally-created"),
                         add_css_class: "property",
                         set_subtitle_selectable: true,
+                        add_prefix = &gtk::Image {
+                            set_icon_name: Some("today-symbolic"),
+                        }
                     },
 
                     #[local_ref]
@@ -174,6 +203,9 @@ impl SimpleComponent for ViewInfo {
                         set_title: &fl!("infobar-originally-modified"),
                         add_css_class: "property",
                         set_subtitle_selectable: true,
+                        add_prefix = &gtk::Image {
+                            set_icon_name: Some("today-symbolic"),
+                        }
                     },
                 },
 
@@ -185,6 +217,9 @@ impl SimpleComponent for ViewInfo {
                         set_title: &fl!("infobar-video-duration"),
                         add_css_class: "property",
                         set_subtitle_selectable: true,
+                        add_prefix = &gtk::Image {
+                            set_icon_name: Some("stopwatch-symbolic"),
+                        }
                     },
 
                     #[local_ref]
@@ -192,6 +227,9 @@ impl SimpleComponent for ViewInfo {
                         set_title: &fl!("infobar-dimensions"),
                         add_css_class: "property",
                         set_subtitle_selectable: true,
+                        add_prefix = &gtk::Image {
+                            set_icon_name: Some("ruler-corner-symbolic"),
+                        }
                     },
 
                     #[local_ref]
@@ -199,6 +237,9 @@ impl SimpleComponent for ViewInfo {
                         set_title: &fl!("infobar-file-size"),
                         add_css_class: "property",
                         set_subtitle_selectable: true,
+                        add_prefix = &gtk::Image {
+                            set_icon_name: Some("weight-symbolic"),
+                        }
                     },
 
                     #[local_ref]
@@ -206,6 +247,9 @@ impl SimpleComponent for ViewInfo {
                         set_title: &fl!("infobar-originally-created"),
                         add_css_class: "property",
                         set_subtitle_selectable: true,
+                        add_prefix = &gtk::Image {
+                            set_icon_name: Some("today-symbolic"),
+                        }
                     },
 
                     #[local_ref]
@@ -213,6 +257,9 @@ impl SimpleComponent for ViewInfo {
                         set_title: &fl!("infobar-video-container-format"),
                         add_css_class: "property",
                         set_subtitle_selectable: true,
+                        add_prefix = &gtk::Image {
+                            set_icon_name: Some("checkerboard-symbolic"),
+                        }
                     },
 
                     #[local_ref]
@@ -220,6 +267,9 @@ impl SimpleComponent for ViewInfo {
                         set_title: &fl!("infobar-video-codec"),
                         add_css_class: "property",
                         set_subtitle_selectable: true,
+                        add_prefix = &gtk::Image {
+                            set_icon_name: Some("video-reel-symbolic"),
+                        }
                     },
 
                     #[local_ref]
@@ -227,6 +277,9 @@ impl SimpleComponent for ViewInfo {
                         set_title: &fl!("infobar-audio-codec"),
                         add_css_class: "property",
                         set_subtitle_selectable: true,
+                        add_prefix = &gtk::Image {
+                            set_icon_name: Some("sound-wave-symbolic"),
+                        }
                     },
                 },
 

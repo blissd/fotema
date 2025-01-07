@@ -38,5 +38,12 @@ SPDX-License-Identifier: GPL-3.0-or-later
     <file alias="sad-computer-symbolic.svg" preprocess="xml-stripblanks">icons/sad-computer-symbolic.svg</file>
     <file alias="item-missing-symbolic.svg" preprocess="xml-stripblanks">icons/item-missing-symbolic.svg</file>
     <file alias="reaction-add-symbolic.svg" preprocess="xml-stripblanks">icons/reaction-add-symbolic.svg</file>
+    <file alias="today-alt-symbolic.svg" preprocess="xml-stripblanks">icons/today-alt-symbolic.svg</file>
+    <file alias="ruler-corner-symbolic.svg" preprocess="xml-stripblanks">icons/ruler-corner-symbolic.svg</file>
+    <file alias="checkerboard-symbolic.svg" preprocess="xml-stripblanks">icons/checkerboard-symbolic.svg</file>
+    <file alias="file-cabinet-symbolic.svg" preprocess="xml-stripblanks">icons/file-cabinet-symbolic.svg</file>
+    <file alias="stopwatch-symbolic.svg" preprocess="xml-stripblanks">icons/stopwatch-symbolic.svg</file>
+    <file alias="sound-wave-symbolic.svg" preprocess="xml-stripblanks">icons/sound-wave-symbolic.svg</file>
+    <file alias="weight-symbolic.svg" preprocess="xml-stripblanks">icons/weight-symbolic.svg</file>
   </gresource>
 </gresources>
