@@ -40,6 +40,9 @@ pub enum ViewInfoInput {
     FileOnly(VisualId),
 
     OpenFolder,
+
+    /// Refresh faces
+    RefreshFaces
 }
 
 pub struct ViewInfo {
@@ -115,8 +118,6 @@ impl SimpleComponent for ViewInfo {
                         set_subtitle_selectable: true,
                     },
                 },
-
-                model.face_thumbnails.widget(),
 
                 #[local_ref]
                 date_time_details -> adw::PreferencesGroup {
@@ -228,6 +229,8 @@ impl SimpleComponent for ViewInfo {
                         set_subtitle_selectable: true,
                     },
                 },
+
+                model.face_thumbnails.widget(),
             }
         }
     }
@@ -375,6 +378,9 @@ impl SimpleComponent for ViewInfo {
                     let _ = self.update_video_details(vis.clone());
                 }
             },
+            ViewInfoInput::RefreshFaces => {
+                self.face_thumbnails.emit(FaceThumbnailsInput::Refresh);
+            }
         }
     }
 }

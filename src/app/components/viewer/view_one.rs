@@ -18,8 +18,6 @@ use chrono::TimeDelta;
 use crate::app::components::progress_monitor::ProgressMonitor;
 use crate::app::components::progress_panel::ProgressPanel;
 use crate::fl;
-use fotema_core::people;
-use super::face_thumbnails::{FaceThumbnails, FaceThumbnailsInput};
 
 use std::sync::Arc;
 use std::path::PathBuf;
@@ -79,10 +77,6 @@ pub enum ViewOneInput {
 
     // The photo/video page has been hidden so any playing media should stop.
     Hidden,
-
-    /// Refresh view. Probably because face thumbnails have updated elsewhere.
-    /// FIXME not sure I like view_nav.rs being responsible for ignoring/restoring faces.
-    Refresh,
 
     // Transcode all incompatible videos
     TranscodeAll,
@@ -147,13 +141,11 @@ pub struct ViewOne {
     video_timestamp: String,
 
     transcode_progress: Controller<ProgressPanel>,
-
-    face_thumbnails: AsyncController<FaceThumbnails>,
 }
 
 #[relm4::component(pub async)]
 impl SimpleAsyncComponent for ViewOne {
-    type Init = (people::Repository, Arc<Reducer<ProgressMonitor>>);
+    type Init = Arc<Reducer<ProgressMonitor>>;
     type Input = ViewOneInput;
     type Output = ViewOneOutput;
 
@@ -162,18 +154,6 @@ impl SimpleAsyncComponent for ViewOne {
         gtk::Overlay {
             set_vexpand: true,
             set_hexpand: true,
-
-            // Overlay of detected faces
-            add_overlay = &gtk::Box {
-                set_orientation: gtk::Orientation::Horizontal,
-                set_halign: gtk::Align::Start,
-                set_valign: gtk::Align::End,
-                set_margin_all: 8,
-
-                #[watch]
-                set_visible: model.viewing == Viewing::Photo || model.viewing == Viewing::MotionPhoto,
-                container_add: model.face_thumbnails.widget(),
-            },
 
             // video_controls
             add_overlay = &gtk::Box {
@@ -207,7 +187,7 @@ impl SimpleAsyncComponent for ViewOne {
                     set_orientation: gtk::Orientation::Horizontal,
                     set_margin_start: 18,
                     set_margin_end: 18,
-                    set_margin_bottom: 18 + 50, // 50 = height of face thumbnail bar
+                    set_margin_bottom: 18,
                     set_spacing: 12,
 
                     #[watch]
@@ -341,7 +321,7 @@ impl SimpleAsyncComponent for ViewOne {
     }
 
     async fn init(
-        (people_repo, transcode_progress_monitor): Self::Init,
+        transcode_progress_monitor: Self::Init,
         root: Self::Root,
         _sender: AsyncComponentSender<Self>,
     ) -> AsyncComponentParts<Self>  {
@@ -350,10 +330,6 @@ impl SimpleAsyncComponent for ViewOne {
 
         let transcode_progress = ProgressPanel::builder()
             .launch(transcode_progress_monitor.clone())
-            .detach();
-
-        let face_thumbnails = FaceThumbnails::builder()
-            .launch(people_repo)
             .detach();
 
         let model = ViewOne {
@@ -369,7 +345,6 @@ impl SimpleAsyncComponent for ViewOne {
             is_skipping_allowed: false,
             video_timestamp: "".into(),
             transcode_progress,
-            face_thumbnails,
         };
 
         let widgets = view_output!();
@@ -508,15 +483,6 @@ impl SimpleAsyncComponent for ViewOne {
                         self.picture.set_paintable(self.video.as_ref());
                     }
                 }
-
-                // Overlay faces in picture, but only if transcode status page not visible.
-                if self.viewing == Viewing::Transcode {
-                    self.face_thumbnails.emit(FaceThumbnailsInput::Hide);
-                } else if let Some(ref picture_id) = visual.picture_id {
-                    self.face_thumbnails.emit(FaceThumbnailsInput::View(*picture_id));
-                } else {
-                    self.face_thumbnails.emit(FaceThumbnailsInput::Hide);
-                }
             },
             ViewOneInput::View => {
                 info!("View");
@@ -542,7 +508,7 @@ impl SimpleAsyncComponent for ViewOne {
                     },
                     Viewing::Transcode => {
                         let _ = sender.output(ViewOneOutput::TranscodeShown(visual_id.clone()));
-                    }
+                    },
                     Viewing::Error => {
                         let _ = sender.output(ViewOneOutput::ErrorShown(visual_id.clone()));
                     },
@@ -657,9 +623,6 @@ impl SimpleAsyncComponent for ViewOne {
             ViewOneInput::TranscodeAll => {
                 event!(Level::INFO, "Transcode all");
                 let _ = sender.output(ViewOneOutput::TranscodeAll);
-            },
-            ViewOneInput::Refresh => {
-                self.face_thumbnails.emit(FaceThumbnailsInput::Refresh);
             },
         }
     }
