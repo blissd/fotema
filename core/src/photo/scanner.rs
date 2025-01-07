@@ -40,6 +40,7 @@ impl Scanner {
             String::from("jpg"),
             String::from("jxl"),
             String::from("png"),
+            String::from("qoi"),
             String::from("tiff"),
             String::from("webp"),
         ];

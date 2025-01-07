@@ -8,8 +8,8 @@
   "sources": [
     {
       "type": "archive",
-      "url": "https://download.gnome.org/sources/glycin/1.1/glycin-1.1.2.tar.xz",
-      "sha256": "41c72be1ec9ba55da90c82fc18573b742dff582b09afc37b4565c47e99cc8ff4",
+      "url": "https://download.gnome.org/sources/glycin/1.1/glycin-1.1.4.tar.xz",
+      "sha256": "d1b6d590b699b6681a67d01198a581a7f710d8ca7450934dd7f5db241fa12500",
       "x-checker-data": {
         "type": "gnome",
         "name": "glycin"
