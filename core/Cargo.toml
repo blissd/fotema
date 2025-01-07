@@ -17,7 +17,7 @@ fast_image_resize = { version = "5.1.0", features = ["image"] }
 ffmpeg-next = "7.1.0"
 gdk4 = "0.9.5"
 gio = "0.20.7"
-glycin = { version = "2.0.2", features = ["gdk4"] }
+glycin = { version = "2.0.3", features = ["gdk4"] }
 h3o = "0.6.4"
 image = "0.25.5"
 kamadak-exif = "0.6.1"

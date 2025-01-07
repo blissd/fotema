@@ -348,7 +348,7 @@ impl SimpleAsyncComponent for ViewNav {
 
 
         let view_info = ViewInfo::builder()
-            .launch(state.clone())
+            .launch((state.clone(), people_repo.clone()))
             .detach();
 
         layout_state.subscribe(sender.input_sender(), |layout| ViewNavInput::Adapt(*layout));
