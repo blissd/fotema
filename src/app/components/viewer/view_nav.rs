@@ -317,7 +317,7 @@ impl SimpleAsyncComponent for ViewNav {
         let mut carousel_pages = Vec::with_capacity(3);
 
         carousel_pages.push(ViewOne::builder()
-            .launch((people_repo.clone(), transcode_progress_monitor.clone()))
+            .launch(transcode_progress_monitor.clone())
             .forward(sender.input_sender(), |msg| match msg {
                 ViewOneOutput::TranscodeAll => ViewNavInput::TranscodeAll,
                 ViewOneOutput::PhotoShown(id, info) => ViewNavInput::ShowPhotoInfo(id, info),
@@ -327,7 +327,7 @@ impl SimpleAsyncComponent for ViewNav {
             }));
 
         carousel_pages.push(ViewOne::builder()
-            .launch((people_repo.clone(), transcode_progress_monitor.clone()))
+            .launch(transcode_progress_monitor.clone())
             .forward(sender.input_sender(), |msg| match msg {
                 ViewOneOutput::TranscodeAll => ViewNavInput::TranscodeAll,
                 ViewOneOutput::PhotoShown(id, info) => ViewNavInput::ShowPhotoInfo(id, info),
@@ -337,7 +337,7 @@ impl SimpleAsyncComponent for ViewNav {
             }));
 
         carousel_pages.push(ViewOne::builder()
-            .launch((people_repo.clone(), transcode_progress_monitor.clone()))
+            .launch(transcode_progress_monitor.clone())
             .forward(sender.input_sender(), |msg| match msg {
                 ViewOneOutput::TranscodeAll => ViewNavInput::TranscodeAll,
                 ViewOneOutput::PhotoShown(id, info) => ViewNavInput::ShowPhotoInfo(id, info),
@@ -348,7 +348,7 @@ impl SimpleAsyncComponent for ViewNav {
 
 
         let view_info = ViewInfo::builder()
-            .launch(state.clone())
+            .launch((state.clone(), people_repo.clone()))
             .detach();
 
         layout_state.subscribe(sender.input_sender(), |layout| ViewNavInput::Adapt(*layout));
@@ -671,7 +671,7 @@ impl SimpleAsyncComponent for ViewNav {
                     }
                 }
 
-                self.carousel_pages[self.carousel.position() as usize].emit(ViewOneInput::Refresh);
+                self.view_info.emit(ViewInfoInput::RefreshFaces);
             },
             ViewNavInput::IgnoreUnknownFaces => {
                 let Some(index) = self.album_index else {
@@ -691,7 +691,7 @@ impl SimpleAsyncComponent for ViewNav {
                     }
                 }
 
-                self.carousel_pages[self.carousel.position() as usize].emit(ViewOneInput::Refresh);
+                self.view_info.emit(ViewInfoInput::RefreshFaces);
             },
             ViewNavInput::ScanForFaces => {
 

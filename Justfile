@@ -36,11 +36,6 @@ license:
         --copyright-style spdx-symbol \
         .
 
-# Build and install a flatpak release version
-release:
-    flatpak run org.flatpak.Builder --user --install --force-clean _flatpak_app/release build-aux/app.fotema.Fotema.json
-
-
 # Build and install flatpak development version
 devel:
     flatpak run org.flatpak.Builder --user --install --force-clean _flatpak_app/devel build-aux/app.fotema.Fotema.Devel.json

@@ -6,11 +6,15 @@
 ///Inspired by how Loupe displays its property view.
 
 use fotema_core::VisualId;
+use fotema_core::people;
+use super::face_thumbnails::{FaceThumbnails, FaceThumbnailsInput};
+
 use gtk::prelude::OrientableExt;
 
 use relm4::gtk;
 use relm4::gtk::gio;
 use relm4::*;
+use relm4::prelude::*;
 use relm4::adw::prelude::*;
 use humansize::{format_size, DECIMAL};
 use glycin::ImageInfo;
@@ -36,6 +40,9 @@ pub enum ViewInfoInput {
     FileOnly(VisualId),
 
     OpenFolder,
+
+    /// Refresh faces
+    RefreshFaces
 }
 
 pub struct ViewInfo {
@@ -67,12 +74,14 @@ pub struct ViewInfo {
     video_file_size: adw::ActionRow,
     video_originally_created_at: adw::ActionRow,
     video_duration: adw::ActionRow,
+
+    face_thumbnails: AsyncController<FaceThumbnails>,
 }
 
 
 #[relm4::component(pub)]
 impl SimpleComponent for ViewInfo {
-    type Init = SharedState;
+    type Init = (SharedState, people::Repository);
     type Input = ViewInfoInput;
     type Output = ();
 
@@ -220,12 +229,14 @@ impl SimpleComponent for ViewInfo {
                         set_subtitle_selectable: true,
                     },
                 },
+
+                model.face_thumbnails.widget(),
             }
         }
     }
 
     fn init(
-        state: Self::Init,
+        (state, people_repo): Self::Init,
         _root: Self::Root,
         _sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
@@ -255,6 +266,10 @@ impl SimpleComponent for ViewInfo {
         let video_file_size = adw::ActionRow::new();
         let video_originally_created_at = adw::ActionRow::new();
 
+        let face_thumbnails = FaceThumbnails::builder()
+            .launch(people_repo)
+            .detach();
+
         let model = ViewInfo {
             state,
 
@@ -283,6 +298,8 @@ impl SimpleComponent for ViewInfo {
             video_codec: video_codec.clone(),
             video_audio_codec: video_audio_codec.clone(),
             video_dimensions: video_dimensions.clone(),
+
+            face_thumbnails,
         };
 
         let widgets = view_output!();
@@ -332,11 +349,16 @@ impl SimpleComponent for ViewInfo {
 
                 let _ = self.update_file_details(vis.clone());
 
-                if vis.picture_id.is_some() {
+                if let Some(picture_id) = vis.picture_id {
                     let _ = self.update_photo_details(vis.clone(), image_info);
+                    self.face_thumbnails.emit(FaceThumbnailsInput::View(picture_id));
+                } else {
+                    self.face_thumbnails.emit(FaceThumbnailsInput::Hide);
                 }
             },
             ViewInfoInput::Video(ref visual_id) => {
+                self.face_thumbnails.emit(FaceThumbnailsInput::Hide);
+
                 let result = {
                     let data = self.state.read();
                     data.iter().find(|&x| x.visual_id == *visual_id).cloned()
@@ -356,6 +378,9 @@ impl SimpleComponent for ViewInfo {
                     let _ = self.update_video_details(vis.clone());
                 }
             },
+            ViewInfoInput::RefreshFaces => {
+                self.face_thumbnails.emit(FaceThumbnailsInput::Refresh);
+            }
         }
     }
 }
