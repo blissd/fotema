@@ -35,6 +35,7 @@ impl Scanner {
     {
         let picture_suffixes = [
             String::from("avif"),
+            String::from("exr"),
             String::from("heic"), // not supported by image-rs
             String::from("jpeg"),
             String::from("jpg"),
