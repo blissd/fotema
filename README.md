@@ -30,12 +30,6 @@ To build a local development release, run:
 just devel
 ```
 
-To build a local release, run:
-
-```shell
-just release
-```
-
 ## Roadmap
 Aspirationally, this is what I want to add to Fotema.
 
