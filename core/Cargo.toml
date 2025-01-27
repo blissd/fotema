@@ -30,7 +30,7 @@ strum = { version = "0.26.2", features = ["derive"] }
 tempfile = "3.14.0"
 tracing = "0.1.41"
 walkdir = "2.5.0"
-opencv = {version = "0.93.6", default-features = false, features = ["clang-runtime", "objdetect", "imgcodecs", "dnn"]}
+opencv = {version = "0.94.2", default-features = false, features = ["clang-runtime", "objdetect", "imgcodecs", "dnn"]}
 itertools = "0.14.0"
 reqwest = { version = "0.12.12", features = ["blocking"] }
 futures = "0.3.31"
