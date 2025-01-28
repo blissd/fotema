@@ -63,10 +63,10 @@ pub fn loader() -> Result<FluentLanguageLoader, I18nEmbedError> {
 
     let loader = loader.select_languages_negotiate(
         &requested_languages,
-        i18n_embed::fluent::NegotiationStrategy::Lookup,
+        i18n_embed::fluent::NegotiationStrategy::Filtering,
     );
 
-    info!("Final languages: {:?}", loader.current_languages());
+    info!("Current languages: {:?}", loader.current_languages());
 
     Ok(loader)
 }
