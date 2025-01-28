@@ -12,6 +12,7 @@ use i18n_embed::LanguageLoader;
 use lazy_static::lazy_static;
 use unic_langid::LanguageIdentifier;
 
+use std::fs;
 use std::path::PathBuf;
 use tracing::info;
 
@@ -43,12 +44,17 @@ pub fn loader() -> Result<FluentLanguageLoader, I18nEmbedError> {
 
     // FIXME why can't all languages be derived from file system assets?
     // The 'available_languages() methods don't return all the languages :-/
-    let all_languages = &[
-        "de", "en-US", "fi", "fr", "hi", "id", "it", "nb-NO", "nl", "ru", "tr",
-    ];
-
+    // Instead, list directories in the I18NDIR and assume each directory name is a language code.
+    let paths = fs::read_dir(I18NDIR).unwrap();
+    let all_languages: Vec<String> = paths
+        .map(|p| p.unwrap().file_name().to_string_lossy().to_string())
+        .collect();
     let all_languages: Vec<LanguageIdentifier> =
         all_languages.iter().map(|id| id.parse().unwrap()).collect();
+
+    all_languages
+        .iter()
+        .for_each(|lang| info!("Available language: {}", lang));
 
     let i18n_assets = i18n_embed::FileSystemAssets::try_new(PathBuf::from(I18NDIR))?;
 
@@ -57,15 +63,8 @@ pub fn loader() -> Result<FluentLanguageLoader, I18nEmbedError> {
 
     let loader = loader.select_languages_negotiate(
         &requested_languages,
-        i18n_embed::fluent::NegotiationStrategy::Filtering,
+        i18n_embed::fluent::NegotiationStrategy::Lookup,
     );
-
-    // FIXME I don't understand why I have to create a second loader to get the correct
-    // languages to be used :-/
-
-    let negotiated_languates = loader.current_languages();
-    let loader = FluentLanguageLoader::new("fotema", "en-US".parse().unwrap());
-    loader.load_languages(&i18n_assets, &negotiated_languates)?;
 
     info!("Final languages: {:?}", loader.current_languages());
 
