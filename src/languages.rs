@@ -42,10 +42,14 @@ pub fn loader() -> Result<FluentLanguageLoader, I18nEmbedError> {
     let requested_languages = DesktopLanguageRequester::requested_languages();
     info!("Requested languages: {:?}", requested_languages);
 
+    let i18n_assets = i18n_embed::FileSystemAssets::try_new(PathBuf::from(I18NDIR))?;
+
+    let loader = FluentLanguageLoader::new("fotema", "en-US".parse().unwrap());
+
     // FIXME why can't all languages be derived from file system assets?
     // The 'available_languages() methods don't return all the languages :-/
     // Instead, list directories in the I18NDIR and assume each directory name is a language code.
-    let paths = fs::read_dir(I18NDIR).unwrap();
+    /*   let paths = fs::read_dir(I18NDIR).unwrap();
     let all_languages: Vec<String> = paths
         .map(|p| p.unwrap().file_name().to_string_lossy().to_string())
         .collect();
@@ -55,11 +59,8 @@ pub fn loader() -> Result<FluentLanguageLoader, I18nEmbedError> {
     all_languages
         .iter()
         .for_each(|lang| info!("Available language: {}", lang));
-
-    let i18n_assets = i18n_embed::FileSystemAssets::try_new(PathBuf::from(I18NDIR))?;
-
-    let loader = FluentLanguageLoader::new("fotema", "en-US".parse().unwrap());
     loader.load_languages(&i18n_assets, &all_languages)?;
+    */
 
     i18n_embed::select(&loader, &i18n_assets, &requested_languages).unwrap();
 
