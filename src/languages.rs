@@ -61,10 +61,7 @@ pub fn loader() -> Result<FluentLanguageLoader, I18nEmbedError> {
     let loader = FluentLanguageLoader::new("fotema", "en-US".parse().unwrap());
     loader.load_languages(&i18n_assets, &all_languages)?;
 
-    let loader = loader.select_languages_negotiate(
-        &requested_languages,
-        i18n_embed::fluent::NegotiationStrategy::Filtering,
-    );
+    i18n_embed::select(&loader, &i18n_assets, &requested_languages).unwrap();
 
     info!("Current languages: {:?}", loader.current_languages());
 
