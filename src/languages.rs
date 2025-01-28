@@ -42,6 +42,10 @@ pub fn loader() -> Result<FluentLanguageLoader, I18nEmbedError> {
     let requested_languages = DesktopLanguageRequester::requested_languages();
     info!("Requested languages: {:?}", requested_languages);
 
+    let i18n_assets = i18n_embed::FileSystemAssets::try_new(PathBuf::from(I18NDIR))?;
+
+    let loader = FluentLanguageLoader::new("fotema", "en-US".parse().unwrap());
+
     // FIXME why can't all languages be derived from file system assets?
     // The 'available_languages() methods don't return all the languages :-/
     // Instead, list directories in the I18NDIR and assume each directory name is a language code.
@@ -55,18 +59,21 @@ pub fn loader() -> Result<FluentLanguageLoader, I18nEmbedError> {
     all_languages
         .iter()
         .for_each(|lang| info!("Available language: {}", lang));
-
-    let i18n_assets = i18n_embed::FileSystemAssets::try_new(PathBuf::from(I18NDIR))?;
-
-    let loader = FluentLanguageLoader::new("fotema", "en-US".parse().unwrap());
     loader.load_languages(&i18n_assets, &all_languages)?;
 
     let loader = loader.select_languages_negotiate(
         &requested_languages,
-        i18n_embed::fluent::NegotiationStrategy::Lookup,
+        i18n_embed::fluent::NegotiationStrategy::Filtering,
     );
 
-    info!("Final languages: {:?}", loader.current_languages());
+    // FIXME I don't understand why I have to create a second loader to get the correct
+    // languages to be used :-/
+
+    let negotiated_languates = loader.current_languages();
+    let loader = FluentLanguageLoader::new("fotema", "en-US".parse().unwrap());
+    loader.load_languages(&i18n_assets, &negotiated_languates)?;
+
+    info!("Current languages: {:?}", loader.current_languages());
 
     Ok(loader)
 }
