@@ -99,4 +99,3 @@ impl SimpleComponent for ProgressPanel {
         }
     }
 }
-

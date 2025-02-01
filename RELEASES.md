@@ -8,7 +8,7 @@ SPDX-License-Identifier: GFDL-1.3-or-later
 
 ## Linux Distributions
 
-The only supported Linux distribution is Flatpak and the only supported version of Fotema is the one [published to Flathub](https://flathub.org/apps/app.fotema.Fotema). 
+The only supported Linux distribution is Flatpak and the only supported version of Fotema is the one [published to Flathub](https://flathub.org/apps/app.fotema.Fotema).
 
 ## Versioning
 
