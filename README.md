@@ -24,6 +24,18 @@ Fotema is available on Flathub.
 
 Install `flatpak`, `flatpak-builder`, and [just](https://github.com/casey/just).
 
+Install [pre-commit](https://pre-commit.com).
+
+```shell
+dnf install pre-commit
+```
+
+Or, alternatively, install pre-commit with [uv](https://github.com/astral-sh/uv):
+
+```shell
+uv tool install pre-commit
+```
+
 To build a local development release, run:
 
 ```shell
