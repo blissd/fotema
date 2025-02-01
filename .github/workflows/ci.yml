@@ -40,4 +40,3 @@ jobs:
         manifest-path: build-aux/app.fotema.Fotema.Devel.json
         run-tests: true
         upload-artifact: false
-

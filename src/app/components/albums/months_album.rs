@@ -289,4 +289,3 @@ impl MonthsAlbum {
         self.sort.scroll_to_end(&mut self.photo_grid);
     }
 }
-

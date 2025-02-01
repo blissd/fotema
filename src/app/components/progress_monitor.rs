@@ -85,4 +85,3 @@ impl Reducible for ProgressMonitor {
         true // subscribers only notified if 'true' is returned
     }
 }
-

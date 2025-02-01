@@ -41,4 +41,3 @@ Aspirationally, this is what I want to add to Fotema.
 * A dashboard page showcasing people, places, and events.
 * Swipe and keyboard support for the photo/video viewer.
 * Fewer (preferably zero) Flatpak permissions.
-

@@ -375,4 +375,3 @@ onboard-select-pictures =
     If you have used an earlier version of { -app-name } where your picture library was automatically discovered, then please select the same directory here to avoid any duplicate processing of pictures.
 
   .button = Select Directory
-

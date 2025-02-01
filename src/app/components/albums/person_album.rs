@@ -376,4 +376,3 @@ impl SimpleComponent for PersonAlbum {
         }
     }
 }
-

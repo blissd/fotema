@@ -17,4 +17,3 @@ cargo vendor > "$DIST/.cargo/config"
 sed -i 's/^directory = ".*"/directory = "vendor"/g' "$DIST/.cargo/config"
 # Move vendor into dist tarball directory
 mv vendor "$DIST"
-

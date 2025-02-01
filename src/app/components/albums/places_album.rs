@@ -465,4 +465,3 @@ impl PlacesAlbum {
         frame
     }
 }
-

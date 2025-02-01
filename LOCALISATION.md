@@ -49,4 +49,3 @@ of Fotema and run with:
 just devel
 LANG=fr flatpak run app.fotema.Fotema.Devel
 ```
-
