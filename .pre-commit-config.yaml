@@ -27,3 +27,12 @@ repos:
         entry: cargo fmt --all -- --check --color always
         language: system
         pass_filenames: false
+  - repo: local
+    hooks:
+      - id: flatpak-builder-lint
+        name: flatpak-builder-lint
+        description: Lint flatpak manifest
+        files: build-aux/app.fotema.Fotema.*.json
+        entry: flatpak run --command=flatpak-builder-lint org.flatpak.Builder manifest build-aux/app.fotema.Fotema.Devel.json
+        language: system
+        pass_filenames: false
