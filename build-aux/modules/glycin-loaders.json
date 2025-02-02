@@ -1,51 +1,38 @@
 {
-  "name": "glycin-loaders",
   "buildsystem": "meson",
   "config-opts": [
     "-Dglycin-loaders=true",
     "-Dlibglycin=false"
   ],
-  "sources": [
-    {
-      "type": "archive",
-      "url": "https://download.gnome.org/sources/glycin/1.1/glycin-1.1.4.tar.xz",
-      "sha256": "d1b6d590b699b6681a67d01198a581a7f710d8ca7450934dd7f5db241fa12500",
-      "x-checker-data": {
-        "type": "gnome",
-        "name": "glycin"
-      }
-    }
-  ],
   "modules": [
     {
-      "name": "libde265",
       "buildsystem": "cmake-ninja",
-      "config-opts": [
-        "-DCMAKE_INSTALL_PREFIX=/app/lib/libheif-heic",
-        "-DENABLE_SDL=OFF",
-        "-DCMAKE_BUILD_TYPE=Release"
-      ],
       "cleanup": [
         "/lib/libheif-heic/bin",
         "/lib/libheif-heic/include",
         "/lib/libheif-heic/lib/cmake",
         "/lib/libheif-heic/lib/pkgconfig"
       ],
+      "config-opts": [
+        "-DCMAKE_INSTALL_PREFIX=/app/lib/libheif-heic",
+        "-DENABLE_SDL=OFF",
+        "-DCMAKE_BUILD_TYPE=Release"
+      ],
+      "name": "libde265",
       "sources": [
         {
-          "type": "git",
-          "url": "https://github.com/strukturag/libde265.git",
           "commit": "17bb8d9fcea62db8cdeb0fc7ef8d15dbd19a22e4",
           "tag": "v1.0.15",
+          "type": "git",
+          "url": "https://github.com/strukturag/libde265.git",
           "x-checker-data": {
-            "type": "git",
-            "tag-pattern": "^v([\\d.]+)$"
+            "tag-pattern": "^v([\\d.]+)$",
+            "type": "git"
           }
         }
       ]
     },
     {
-      "name": "libheif",
       "buildsystem": "cmake-ninja",
       "config-opts": [
         "-DWITH_LIBDE265_PLUGIN=On",
@@ -64,18 +51,31 @@
         "-DWITH_EXAMPLES=OFF",
         "-DCMAKE_COMPILE_WARNING_AS_ERROR=OFF"
       ],
+      "name": "libheif",
       "sources": [
         {
-          "type": "git",
-          "url": "https://github.com/strukturag/libheif.git",
           "commit": "cd95b113d78d0696105a9e678cbd19487ee13d6c",
           "tag": "v1.19.5",
+          "type": "git",
+          "url": "https://github.com/strukturag/libheif.git",
           "x-checker-data": {
-            "type": "git",
-            "tag-pattern": "^v([\\d.]+)$"
+            "tag-pattern": "^v([\\d.]+)$",
+            "type": "git"
           }
         }
       ]
+    }
+  ],
+  "name": "glycin-loaders",
+  "sources": [
+    {
+      "sha256": "d1b6d590b699b6681a67d01198a581a7f710d8ca7450934dd7f5db241fa12500",
+      "type": "archive",
+      "url": "https://download.gnome.org/sources/glycin/1.1/glycin-1.1.4.tar.xz",
+      "x-checker-data": {
+        "name": "glycin",
+        "type": "gnome"
+      }
     }
   ]
 }
