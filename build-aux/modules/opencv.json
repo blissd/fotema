@@ -1,7 +1,6 @@
 {
-  "name": "opencv",
-  "buildsystem": "cmake-ninja",
   "builddir": true,
+  "buildsystem": "cmake-ninja",
   "cleanup": [
     "/bin/*",
     "/share/opencv4/*"
@@ -31,15 +30,16 @@
     "-D BUILD_opencv_python2=OFF",
     "-D BUILD_opencv_python3=OFF"
   ],
+  "name": "opencv",
   "sources": [
     {
+      "sha256": "9a7c11f924eff5f8d8070e297b322ee68b9227e003fd600d4b8122198091665f",
       "type": "archive",
       "url": "https://github.com/opencv/opencv/archive/4.11.0.tar.gz",
-      "sha256": "9a7c11f924eff5f8d8070e297b322ee68b9227e003fd600d4b8122198091665f",
       "x-checker-data": {
-        "type": "anitya",
         "project-id": 6615,
         "stable-only": true,
+        "type": "anitya",
         "url-template": "https://github.com/opencv/opencv/archive/$version.tar.gz"
       }
     }
