@@ -2,28 +2,28 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use relm4::gtk;
-use relm4::gtk::prelude::*;
-use relm4::*;
-use relm4::prelude::*;
 use relm4::actions::{RelmAction, RelmActionGroup};
 use relm4::binding::*;
-use relm4::gtk::glib;
+use relm4::gtk;
 use relm4::gtk::gdk;
+use relm4::gtk::glib;
+use relm4::gtk::prelude::*;
+use relm4::prelude::*;
+use relm4::*;
 
+use super::view_info::{ViewInfo, ViewInfoInput};
+use super::view_one::{ViewOne, ViewOneInput, ViewOneOutput};
 use crate::app::components::albums::album_filter::AlbumFilter;
 use crate::app::components::albums::album_sort::AlbumSort;
-use super::view_one::{ViewOne, ViewOneInput, ViewOneOutput};
-use super::view_info::{ViewInfo, ViewInfoInput};
 
+use crate::adaptive;
 use crate::app::components::progress_monitor::ProgressMonitor;
 use crate::app::SharedState;
-use crate::adaptive;
 use crate::fl;
 
-use fotema_core::Visual;
 use fotema_core::people;
 use fotema_core::PictureId;
+use fotema_core::Visual;
 use fotema_core::VisualId;
 use std::sync::Arc;
 
@@ -34,10 +34,18 @@ use tracing::{debug, error, info};
 relm4::new_action_group!(ViewNavActionGroup, "viewnav");
 
 // Restore all ignored faces.
-relm4::new_stateless_action!(RestoreIgnoredFacesAction, ViewNavActionGroup, "restore_ignored_faces");
+relm4::new_stateless_action!(
+    RestoreIgnoredFacesAction,
+    ViewNavActionGroup,
+    "restore_ignored_faces"
+);
 
 // Ignore all faces that aren't associated with a person.
-relm4::new_stateless_action!(IgnoreUnknownFacesAction, ViewNavActionGroup, "ignore_unknown_faces");
+relm4::new_stateless_action!(
+    IgnoreUnknownFacesAction,
+    ViewNavActionGroup,
+    "ignore_unknown_faces"
+);
 
 // Scan file for faces again using the most thorough scan possible.
 relm4::new_stateless_action!(ScanForFacesAction, ViewNavActionGroup, "scan_faces");
@@ -148,7 +156,12 @@ pub struct ViewNav {
 
 #[relm4::component(pub async)]
 impl SimpleAsyncComponent for ViewNav {
-    type Init = (SharedState, Arc<Reducer<ProgressMonitor>>, Arc<adaptive::LayoutState>, people::Repository);
+    type Init = (
+        SharedState,
+        Arc<Reducer<ProgressMonitor>>,
+        Arc<adaptive::LayoutState>,
+        people::Repository,
+    );
     type Input = ViewNavInput;
     type Output = ViewNavOutput;
 
@@ -211,9 +224,7 @@ impl SimpleAsyncComponent for ViewNav {
         (state, transcode_progress_monitor, layout_state, people_repo): Self::Init,
         root: Self::Root,
         sender: AsyncComponentSender<Self>,
-    ) -> AsyncComponentParts<Self>  {
-
-
+    ) -> AsyncComponentParts<Self> {
         // Can't fully configure a MultiViewLayout using the relm4 view macro, so have to do some
         // of it here.
         let overlay = gtk::Overlay::builder().build();
@@ -228,7 +239,10 @@ impl SimpleAsyncComponent for ViewNav {
                 .halign(gtk::Align::Start)
                 .valign(gtk::Align::Center)
                 .orientation(gtk::Orientation::Horizontal)
-                .margin_start(18).margin_end(18).margin_top(18).margin_bottom(18)
+                .margin_start(18)
+                .margin_end(18)
+                .margin_top(18)
+                .margin_bottom(18)
                 .spacing(12)
                 .build();
 
@@ -254,7 +268,10 @@ impl SimpleAsyncComponent for ViewNav {
                 .halign(gtk::Align::End)
                 .valign(gtk::Align::Center)
                 .orientation(gtk::Orientation::Horizontal)
-                .margin_start(18).margin_end(18).margin_top(18).margin_bottom(18)
+                .margin_start(18)
+                .margin_end(18)
+                .margin_top(18)
+                .margin_bottom(18)
                 .spacing(12)
                 .build();
 
@@ -313,39 +330,43 @@ impl SimpleAsyncComponent for ViewNav {
             carousel.connect_page_changed(move |_, idx| sender.input(ViewNavInput::SwipeTo(idx)));
         }
 
-
         let mut carousel_pages = Vec::with_capacity(3);
 
-        carousel_pages.push(ViewOne::builder()
-            .launch(transcode_progress_monitor.clone())
-            .forward(sender.input_sender(), |msg| match msg {
-                ViewOneOutput::TranscodeAll => ViewNavInput::TranscodeAll,
-                ViewOneOutput::PhotoShown(id, info) => ViewNavInput::ShowPhotoInfo(id, info),
-                ViewOneOutput::VideoShown(id) => ViewNavInput::ShowVideoInfo(id),
-                ViewOneOutput::ErrorShown(id) => ViewNavInput::ShowError(id),
-                ViewOneOutput::TranscodeShown(id) => ViewNavInput::ShowTranscode(id),
-            }));
+        carousel_pages.push(
+            ViewOne::builder()
+                .launch(transcode_progress_monitor.clone())
+                .forward(sender.input_sender(), |msg| match msg {
+                    ViewOneOutput::TranscodeAll => ViewNavInput::TranscodeAll,
+                    ViewOneOutput::PhotoShown(id, info) => ViewNavInput::ShowPhotoInfo(id, info),
+                    ViewOneOutput::VideoShown(id) => ViewNavInput::ShowVideoInfo(id),
+                    ViewOneOutput::ErrorShown(id) => ViewNavInput::ShowError(id),
+                    ViewOneOutput::TranscodeShown(id) => ViewNavInput::ShowTranscode(id),
+                }),
+        );
 
-        carousel_pages.push(ViewOne::builder()
-            .launch(transcode_progress_monitor.clone())
-            .forward(sender.input_sender(), |msg| match msg {
-                ViewOneOutput::TranscodeAll => ViewNavInput::TranscodeAll,
-                ViewOneOutput::PhotoShown(id, info) => ViewNavInput::ShowPhotoInfo(id, info),
-                ViewOneOutput::VideoShown(id) => ViewNavInput::ShowVideoInfo(id),
-                ViewOneOutput::ErrorShown(id) => ViewNavInput::ShowError(id),
-                ViewOneOutput::TranscodeShown(id) => ViewNavInput::ShowTranscode(id),
-            }));
+        carousel_pages.push(
+            ViewOne::builder()
+                .launch(transcode_progress_monitor.clone())
+                .forward(sender.input_sender(), |msg| match msg {
+                    ViewOneOutput::TranscodeAll => ViewNavInput::TranscodeAll,
+                    ViewOneOutput::PhotoShown(id, info) => ViewNavInput::ShowPhotoInfo(id, info),
+                    ViewOneOutput::VideoShown(id) => ViewNavInput::ShowVideoInfo(id),
+                    ViewOneOutput::ErrorShown(id) => ViewNavInput::ShowError(id),
+                    ViewOneOutput::TranscodeShown(id) => ViewNavInput::ShowTranscode(id),
+                }),
+        );
 
-        carousel_pages.push(ViewOne::builder()
-            .launch(transcode_progress_monitor.clone())
-            .forward(sender.input_sender(), |msg| match msg {
-                ViewOneOutput::TranscodeAll => ViewNavInput::TranscodeAll,
-                ViewOneOutput::PhotoShown(id, info) => ViewNavInput::ShowPhotoInfo(id, info),
-                ViewOneOutput::VideoShown(id) => ViewNavInput::ShowVideoInfo(id),
-                ViewOneOutput::ErrorShown(id) => ViewNavInput::ShowError(id),
-                ViewOneOutput::TranscodeShown(id) => ViewNavInput::ShowTranscode(id),
-            }));
-
+        carousel_pages.push(
+            ViewOne::builder()
+                .launch(transcode_progress_monitor.clone())
+                .forward(sender.input_sender(), |msg| match msg {
+                    ViewOneOutput::TranscodeAll => ViewNavInput::TranscodeAll,
+                    ViewOneOutput::PhotoShown(id, info) => ViewNavInput::ShowPhotoInfo(id, info),
+                    ViewOneOutput::VideoShown(id) => ViewNavInput::ShowVideoInfo(id),
+                    ViewOneOutput::ErrorShown(id) => ViewNavInput::ShowError(id),
+                    ViewOneOutput::TranscodeShown(id) => ViewNavInput::ShowTranscode(id),
+                }),
+        );
 
         let view_info = ViewInfo::builder()
             .launch((state.clone(), people_repo.clone()))
@@ -401,18 +422,16 @@ impl SimpleAsyncComponent for ViewNav {
         let keys = gtk::EventControllerKey::new();
         {
             let sender = sender.clone();
-            keys.connect_key_pressed(move |_, key, _, _| {
-                match key {
-                    gdk::Key::Left => {
-                        sender.input(ViewNavInput::GoLeft);
-                        glib::Propagation::Stop
-                    },
-                    gdk::Key::Right => {
-                        sender.input(ViewNavInput::GoRight);
-                        glib::Propagation::Stop
-                    },
-                    _ => glib::Propagation::Proceed,
+            keys.connect_key_pressed(move |_, key, _, _| match key {
+                gdk::Key::Left => {
+                    sender.input(ViewNavInput::GoLeft);
+                    glib::Propagation::Stop
                 }
+                gdk::Key::Right => {
+                    sender.input(ViewNavInput::GoRight);
+                    glib::Propagation::Stop
+                }
+                _ => glib::Propagation::Proceed,
             });
         }
         root.add_controller(keys);
@@ -425,8 +444,10 @@ impl SimpleAsyncComponent for ViewNav {
         match msg {
             ViewNavInput::Hidden => {
                 self.album_index = None;
-                self.carousel_pages.iter().for_each(|page| page.emit(ViewOneInput::Hidden));
-            },
+                self.carousel_pages
+                    .iter()
+                    .for_each(|page| page.emit(ViewOneInput::Hidden));
+            }
             ViewNavInput::View(visual_id, album_filter) => {
                 info!("Showing item for {}", visual_id);
                 while self.carousel.n_pages() > 0 {
@@ -436,10 +457,11 @@ impl SimpleAsyncComponent for ViewNav {
                 // To support next/previous navigation we must have a view of the visual
                 // items filtered with the same album filter as the album the user is currently
                 // looking at.
-               if self.album_filter != album_filter {
+                if self.album_filter != album_filter {
                     self.album_filter = album_filter.clone();
                     let items = self.state.read();
-                    self.album = items.iter()
+                    self.album = items
+                        .iter()
                         .filter(|v| album_filter.clone().filter(v))
                         .cloned()
                         .collect();
@@ -447,9 +469,7 @@ impl SimpleAsyncComponent for ViewNav {
                     self.album_sort.sort(&mut self.album);
                 }
 
-                self.album_index = self.album
-                    .iter()
-                    .position(|x| x.visual_id == visual_id);
+                self.album_index = self.album.iter().position(|x| x.visual_id == visual_id);
 
                 let Some(index) = self.album_index else {
                     error!("Cannot find index for visual item {}", visual_id);
@@ -470,7 +490,8 @@ impl SimpleAsyncComponent for ViewNav {
                     self.carousel.append(self.carousel_pages[1].widget());
                     self.carousel_pages[1].emit(ViewOneInput::Load(self.album[1].clone()));
 
-                    self.carousel.scroll_to(&self.carousel.nth_page(index as u32), false);
+                    self.carousel
+                        .scroll_to(&self.carousel.nth_page(index as u32), false);
                 } else if self.album.len() >= 3 {
                     self.carousel.append(self.carousel_pages[0].widget());
                     self.carousel.append(self.carousel_pages[1].widget());
@@ -485,23 +506,28 @@ impl SimpleAsyncComponent for ViewNav {
                         self.carousel_last_page_index = 0;
                     } else if index == self.album.len() - 1 {
                         // Starting on _last_ item of album.
-                        self.carousel_pages[0].emit(ViewOneInput::Load(self.album[index - 2].clone()));
-                        self.carousel_pages[1].emit(ViewOneInput::Load(self.album[index - 1].clone()));
+                        self.carousel_pages[0]
+                            .emit(ViewOneInput::Load(self.album[index - 2].clone()));
+                        self.carousel_pages[1]
+                            .emit(ViewOneInput::Load(self.album[index - 1].clone()));
                         self.carousel_pages[2].emit(ViewOneInput::Load(self.album[index].clone()));
                         self.carousel.scroll_to(&self.carousel.nth_page(2), false);
                         self.carousel_last_page_index = 2;
                     } else {
                         // Starting somewhere between first and last item.
-                        self.carousel_pages[0].emit(ViewOneInput::Load(self.album[index - 1].clone()));
+                        self.carousel_pages[0]
+                            .emit(ViewOneInput::Load(self.album[index - 1].clone()));
                         self.carousel_pages[1].emit(ViewOneInput::Load(self.album[index].clone()));
-                        self.carousel_pages[2].emit(ViewOneInput::Load(self.album[index + 1].clone()));
+                        self.carousel_pages[2]
+                            .emit(ViewOneInput::Load(self.album[index + 1].clone()));
                         self.carousel.scroll_to(&self.carousel.nth_page(1), false);
                         self.carousel_last_page_index = 1;
                     }
 
-                    self.carousel_pages[self.carousel_last_page_index as usize].emit(ViewOneInput::View);
+                    self.carousel_pages[self.carousel_last_page_index as usize]
+                        .emit(ViewOneInput::View);
                 }
-            },
+            }
             ViewNavInput::SwipeTo(page_index) => {
                 debug!("Swiped to {}", page_index);
 
@@ -510,7 +536,12 @@ impl SimpleAsyncComponent for ViewNav {
                     return;
                 };
 
-                debug!("len={}, pre index={}, pos={}", self.album.len(), index, self.carousel.position());
+                debug!(
+                    "len={}, pre index={}, pos={}",
+                    self.album.len(),
+                    index,
+                    self.carousel.position()
+                );
 
                 // View the page swiped to, and hide the others.
                 // This will play/stop videos as appropriate.
@@ -571,7 +602,8 @@ impl SimpleAsyncComponent for ViewNav {
 
                     // Pre-load item that will be visible on _next_ left swipe
                     if index > 0 {
-                        self.carousel_pages[0].emit(ViewOneInput::Load(self.album[index - 1].clone()));
+                        self.carousel_pages[0]
+                            .emit(ViewOneInput::Load(self.album[index - 1].clone()));
                     }
                 } else if page == self.carousel.nth_page(2) && index < self.album.len() - 1 {
                     debug!("Swiped right");
@@ -587,51 +619,63 @@ impl SimpleAsyncComponent for ViewNav {
 
                     // Pre-load item that will be visible on _next_ right swipe
                     if index < self.album.len() - 1 {
-                        self.carousel_pages[2].emit(ViewOneInput::Load(self.album[index + 1].clone()));
+                        self.carousel_pages[2]
+                            .emit(ViewOneInput::Load(self.album[index + 1].clone()));
                     }
                 }
 
-                if self.carousel_last_page_index != page_index && self.carousel.position() != 1.0 && index > 1 && index < self.album.len() - 1 {
+                if self.carousel_last_page_index != page_index
+                    && self.carousel.position() != 1.0
+                    && index > 1
+                    && index < self.album.len() - 1
+                {
                     debug!("Repositioning to middle");
-                    self.carousel.scroll_to(self.carousel_pages[1].widget(), false);
+                    self.carousel
+                        .scroll_to(self.carousel_pages[1].widget(), false);
                 }
 
                 assert!(self.carousel_pages[0].widget() == &self.carousel.nth_page(0));
                 assert!(self.carousel_pages[1].widget() == &self.carousel.nth_page(1));
                 assert!(self.carousel_pages[2].widget() == &self.carousel.nth_page(2));
 
-                debug!("len={}, post index={}, pos={}", self.album.len(), index, self.carousel.position());
+                debug!(
+                    "len={}, post index={}, pos={}",
+                    self.album.len(),
+                    index,
+                    self.carousel.position()
+                );
 
                 self.album_index = Some(index);
                 self.carousel_last_page_index = page_index;
-            },
+            }
             ViewNavInput::ToggleInfo => {
                 let show_infobar = !self.show_infobar.value();
                 self.show_infobar.set_value(show_infobar);
-            },
+            }
             ViewNavInput::ShowPhotoInfo(visual_id, image_info) => {
-                self.view_info.emit(ViewInfoInput::Photo(visual_id, image_info));
-            },
+                self.view_info
+                    .emit(ViewInfoInput::Photo(visual_id, image_info));
+            }
             ViewNavInput::ShowVideoInfo(visual_id) => {
                 self.view_info.emit(ViewInfoInput::Video(visual_id));
-            },
+            }
             ViewNavInput::ShowTranscode(visual_id) => {
                 self.view_info.emit(ViewInfoInput::Video(visual_id));
-            },
+            }
             ViewNavInput::ShowError(visual_id) => {
                 self.view_info.emit(ViewInfoInput::FileOnly(visual_id));
-            },
+            }
             ViewNavInput::TranscodeAll => {
                 info!("Transcode all");
                 // FIXME refactor to remove message forwarding.
                 // ViewOne should send straight to transcoder.
                 let _ = sender.output(ViewNavOutput::TranscodeAll);
-            },
+            }
             ViewNavInput::GoLeft => {
                 if self.album_index.is_some_and(|index| index > 0) {
                     self.carousel.scroll_to(&self.carousel.nth_page(0), false);
                 }
-            },
+            }
             ViewNavInput::GoRight => {
                 let album_len = self.album.len();
                 if self.album_index.is_some_and(|index| index < album_len - 1) {
@@ -639,19 +683,20 @@ impl SimpleAsyncComponent for ViewNav {
                     if position < self.carousel.n_pages() {
                         // WARN when scrolling right the animation should be disabled to hide
                         // the glitchy flashes related to my rather janky infinite scrolling :-(
-                        self.carousel.scroll_to(&self.carousel.nth_page(position), false);
+                        self.carousel
+                            .scroll_to(&self.carousel.nth_page(position), false);
                     }
                 }
-            },
+            }
             ViewNavInput::Adapt(adaptive::Layout::Narrow) => {
                 self.is_narrow = true;
-            },
+            }
             ViewNavInput::Adapt(adaptive::Layout::Wide) => {
                 self.is_narrow = false;
                 // The bottomsheet will shift up the content, so un-shift content
                 // when bottomsheet is hidden.
                 self.bottom_margin.set_value(0);
-            },
+            }
             ViewNavInput::RestoreIgnoredFaces => {
                 let Some(index) = self.album_index else {
                     return;
@@ -672,7 +717,7 @@ impl SimpleAsyncComponent for ViewNav {
                 }
 
                 self.view_info.emit(ViewInfoInput::RefreshFaces);
-            },
+            }
             ViewNavInput::IgnoreUnknownFaces => {
                 let Some(index) = self.album_index else {
                     return;
@@ -692,9 +737,8 @@ impl SimpleAsyncComponent for ViewNav {
                 }
 
                 self.view_info.emit(ViewInfoInput::RefreshFaces);
-            },
+            }
             ViewNavInput::ScanForFaces => {
-
                 let Some(index) = self.album_index else {
                     return;
                 };
@@ -709,12 +753,12 @@ impl SimpleAsyncComponent for ViewNav {
                 if let Some(picture_id) = visual.picture_id {
                     let _ = sender.output(ViewNavOutput::ScanForFaces(picture_id));
                 }
-            },
+            }
             ViewNavInput::Sort(album_sort) => {
                 self.album_sort = album_sort;
                 self.album_filter = AlbumFilter::None;
                 self.album.clear();
-            },
+            }
             ViewNavInput::SheetHeight(height) => {
                 let shift = (height as f32 * 0.60) as i32;
                 self.bottom_margin.set_value(shift);
@@ -722,8 +766,10 @@ impl SimpleAsyncComponent for ViewNav {
         }
 
         // Couldn't use 'watch' macro with adw::MultiViewLayout.
-        self.left_button_sensitive.set_value(self.is_left_button_sensitive());
-        self.right_button_sensitive.set_value(self.is_right_button_sensitive());
+        self.left_button_sensitive
+            .set_value(self.is_left_button_sensitive());
+        self.right_button_sensitive
+            .set_value(self.is_right_button_sensitive());
     }
 }
 
@@ -734,6 +780,8 @@ impl ViewNav {
 
     fn is_right_button_sensitive(&self) -> bool {
         !self.album.is_empty()
-            && self.album_index.is_some_and(|index| index != self.album.len() - 1)
+            && self
+                .album_index
+                .is_some_and(|index| index != self.album.len() - 1)
     }
 }

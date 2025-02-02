@@ -2,24 +2,23 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use relm4::adw::{self, prelude::*};
-use relm4::gtk::{self, gio, gdk};
-use relm4::*;
-use relm4::prelude::*;
 use relm4::actions::{RelmAction, RelmActionGroup};
+use relm4::adw::{self, prelude::*};
+use relm4::gtk::{self, gdk, gio};
+use relm4::prelude::*;
+use relm4::*;
 
 use crate::fl;
 use fotema_core::people;
-use fotema_core::PictureId;
 use fotema_core::FaceId;
 use fotema_core::PersonId;
+use fotema_core::PictureId;
 
 use super::person_select::{PersonSelect, PersonSelectInput, PersonSelectOutput};
 
 use tracing::{debug, error, info};
 
 use std::path::PathBuf;
-
 
 relm4::new_action_group!(FaceActionGroup, "face");
 
@@ -60,13 +59,10 @@ pub enum FaceThumbnailsInput {
 
     /// The person selection dialog has selected or created a new person and should be dismissed.
     PersonSelected,
-
 }
 
 #[derive(Debug)]
-pub enum FaceThumbnailsOutput {
-
-}
+pub enum FaceThumbnailsOutput {}
 
 pub struct FaceThumbnails {
     people_repo: people::Repository,
@@ -107,15 +103,15 @@ impl SimpleAsyncComponent for FaceThumbnails {
         people_repo: Self::Init,
         root: Self::Root,
         sender: AsyncComponentSender<Self>,
-    ) -> AsyncComponentParts<Self>  {
-
+    ) -> AsyncComponentParts<Self> {
         let widgets = view_output!();
 
-        let person_select = PersonSelect::builder()
-            .launch(people_repo.clone())
-            .forward(sender.input_sender(), |msg| match msg {
+        let person_select = PersonSelect::builder().launch(people_repo.clone()).forward(
+            sender.input_sender(),
+            |msg| match msg {
                 PersonSelectOutput::Done => FaceThumbnailsInput::PersonSelected,
-            });
+            },
+        );
 
         let person_dialog = adw::Dialog::builder()
             .child(person_select.widget())
@@ -129,7 +125,6 @@ impl SimpleAsyncComponent for FaceThumbnails {
             face_thumbnails: widgets.face_thumbnails.clone(),
             person_dialog,
             person_select,
-
         };
 
         AsyncComponentParts { model, widgets }
@@ -139,13 +134,12 @@ impl SimpleAsyncComponent for FaceThumbnails {
         match msg {
             FaceThumbnailsInput::Hide => {
                 self.face_thumbnails.remove_all();
-            },
+            }
             FaceThumbnailsInput::View(picture_id) => {
                 self.picture_id = Some(picture_id);
                 sender.input(FaceThumbnailsInput::Refresh);
-            },
+            }
             FaceThumbnailsInput::Refresh => {
-
                 self.face_thumbnails.remove_all();
 
                 let Some(picture_id) = self.picture_id else {
@@ -162,7 +156,8 @@ impl SimpleAsyncComponent for FaceThumbnails {
 
                 if let Ok(faces) = result {
                     debug!("Found {} faces", faces.len());
-                    faces.into_iter()
+                    faces
+                        .into_iter()
                         .filter(|(face, _)| face.thumbnail_path.exists())
                         .for_each(|(face, person)| {
                             let mut group = RelmActionGroup::<FaceActionGroup>::new();
@@ -183,15 +178,27 @@ impl SimpleAsyncComponent for FaceThumbnails {
                                 let set_thumbnail: RelmAction<FaceThumbnailAction> = {
                                     let sender = sender.clone();
                                     RelmAction::new_stateless(move |_| {
-                                        sender.input(FaceThumbnailsInput::SetThumbnail(person.person_id, face.face_id));
+                                        sender.input(FaceThumbnailsInput::SetThumbnail(
+                                            person.person_id,
+                                            face.face_id,
+                                        ));
                                     })
                                 };
                                 group.add_action(set_thumbnail);
 
                                 let menu_items = vec![
-                                  //  gio::MenuItem::new(Some(&fl!("people-view-more-photos", name = person.name.clone())), None),
-                                    gio::MenuItem::new(Some(&fl!("people-set-face-thumbnail")), Some("face.thumbnail")),
-                                    gio::MenuItem::new(Some(&fl!("people-not-this-person", name = person.name.clone())), Some("face.not_person")),
+                                    //  gio::MenuItem::new(Some(&fl!("people-view-more-photos", name = person.name.clone())), None),
+                                    gio::MenuItem::new(
+                                        Some(&fl!("people-set-face-thumbnail")),
+                                        Some("face.thumbnail"),
+                                    ),
+                                    gio::MenuItem::new(
+                                        Some(&fl!(
+                                            "people-not-this-person",
+                                            name = person.name.clone()
+                                        )),
+                                        Some("face.not_person"),
+                                    ),
                                 ];
 
                                 (menu_items, person.thumbnail_path)
@@ -200,7 +207,10 @@ impl SimpleAsyncComponent for FaceThumbnails {
                                     let sender = sender.clone();
                                     let thumbnail_path = face.thumbnail_path.clone();
                                     RelmAction::new_stateless(move |_| {
-                                        sender.input(FaceThumbnailsInput::SetPerson(face.face_id, thumbnail_path.clone()));
+                                        sender.input(FaceThumbnailsInput::SetPerson(
+                                            face.face_id,
+                                            thumbnail_path.clone(),
+                                        ));
                                     })
                                 };
                                 group.add_action(set_person);
@@ -214,8 +224,14 @@ impl SimpleAsyncComponent for FaceThumbnails {
                                 group.add_action(not_a_face);
 
                                 let menu_items = vec![
-                                    gio::MenuItem::new(Some(&fl!("people-set-name")), Some("face.set_person")),
-                                    gio::MenuItem::new(Some(&fl!("people-face-ignore")), Some("face.ignore")),
+                                    gio::MenuItem::new(
+                                        Some(&fl!("people-set-name")),
+                                        Some("face.set_person"),
+                                    ),
+                                    gio::MenuItem::new(
+                                        Some(&fl!("people-face-ignore")),
+                                        Some("face.ignore"),
+                                    ),
                                 ];
 
                                 (menu_items, face.thumbnail_path)
@@ -225,13 +241,9 @@ impl SimpleAsyncComponent for FaceThumbnails {
                                 menu_model.append_item(&item);
                             }
 
-                            let pop = gtk::PopoverMenu::builder()
-                                .menu_model(&menu_model)
-                                .build();
+                            let pop = gtk::PopoverMenu::builder().menu_model(&menu_model).build();
 
-                            let avatar = adw::Avatar::builder()
-                                .size(AVATAR_SIZE)
-                                .build();
+                            let avatar = adw::Avatar::builder().size(AVATAR_SIZE).build();
 
                             let img = gdk::Texture::from_filename(&thumbnail_path).ok();
                             avatar.set_custom_image(img.as_ref());
@@ -246,10 +258,7 @@ impl SimpleAsyncComponent for FaceThumbnails {
                             frame.set_child(Some(&children));
 
                             let frame = if !is_known_person {
-
-                                let overlay = gtk::Overlay::builder()
-                                    .child(&frame)
-                                    .build();
+                                let overlay = gtk::Overlay::builder().child(&frame).build();
 
                                 let face_icon = gtk::Image::builder()
                                     .width_request(16)
@@ -277,7 +286,7 @@ impl SimpleAsyncComponent for FaceThumbnails {
                             group.register_for_widget(&frame);
 
                             let click = gtk::GestureClick::new();
-                            click.connect_released(move |_click,_,_,_| {
+                            click.connect_released(move |_click, _, _, _| {
                                 pop.popup();
                             });
 
@@ -289,44 +298,44 @@ impl SimpleAsyncComponent for FaceThumbnails {
                             self.face_thumbnails.append(&frame);
                         });
                 }
-            },
+            }
             FaceThumbnailsInput::SetPerson(face_id, thumbnail) => {
                 debug!("Set person for face {}", face_id);
                 if let Some(root) = gtk::Widget::root(self.face_thumbnails.widget_ref()) {
-
-                    self.person_select.emit(PersonSelectInput::Activate(face_id, thumbnail));
+                    self.person_select
+                        .emit(PersonSelectInput::Activate(face_id, thumbnail));
                     self.person_dialog.present(Some(&root));
                 } else {
                     error!("Couldn't get root widget!");
                 }
                 sender.input(FaceThumbnailsInput::Refresh);
-            },
+            }
             FaceThumbnailsInput::SetThumbnail(person_id, face_id) => {
                 debug!("Set face {} as thumbnail for person {}", face_id, person_id);
                 if let Err(e) = self.people_repo.set_person_thumbnail(person_id, face_id) {
                     error!("Failed setting thumbnail: {}", e);
                 }
                 sender.input(FaceThumbnailsInput::Refresh);
-            },
+            }
             FaceThumbnailsInput::NotPerson(face_id) => {
                 debug!("Set not person for face: {}", face_id);
                 if let Err(e) = self.people_repo.mark_not_person(face_id) {
                     error!("Failed marking face as not person: {}", e);
                 }
                 sender.input(FaceThumbnailsInput::Refresh);
-            },
+            }
             FaceThumbnailsInput::Ignore(face_id) => {
                 debug!("Ignoring face: {}", face_id);
                 if let Err(e) = self.people_repo.mark_ignore(face_id) {
                     error!("Failed marking face as not a face: {}", e);
                 }
                 sender.input(FaceThumbnailsInput::Refresh);
-            },
+            }
             FaceThumbnailsInput::PersonSelected => {
                 debug!("Dismissing dialog.");
                 self.person_dialog.close();
                 sender.input(FaceThumbnailsInput::Refresh);
-            },
+            }
         }
     }
 }

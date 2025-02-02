@@ -4,9 +4,8 @@
 
 use relm4::adw::{self, prelude::*};
 use relm4::gtk::{self, gdk};
-use relm4::*;
 use relm4::prelude::*;
-
+use relm4::*;
 
 use crate::fl;
 use fotema_core::people;
@@ -90,8 +89,7 @@ impl SimpleAsyncComponent for PersonSelect {
         people_repo: Self::Init,
         root: Self::Root,
         sender: AsyncComponentSender<Self>,
-    ) -> AsyncComponentParts<Self>  {
-
+    ) -> AsyncComponentParts<Self> {
         let avatar = adw::Avatar::builder()
             .size(100)
             .show_initials(false)
@@ -162,10 +160,7 @@ impl SimpleAsyncComponent for PersonSelect {
                 let people = self.people_repo.all_people().unwrap_or_default();
 
                 for person in people {
-                    let avatar = adw::Avatar::builder()
-                        .size(50)
-                        .name(&person.name)
-                        .build();
+                    let avatar = adw::Avatar::builder().size(50).name(&person.name).build();
 
                     let img = gdk::Texture::from_filename(&person.thumbnail_path).ok();
                     avatar.set_custom_image(img.as_ref());
@@ -187,7 +182,7 @@ impl SimpleAsyncComponent for PersonSelect {
                     self.people_list.append(&row);
                     self.all_people.push(person.person_id);
                 }
-            },
+            }
             PersonSelectInput::Associate(person_id) => {
                 if let Some(face_id) = self.face_id {
                     debug!("Associating face {} with person {}", face_id, person_id);
@@ -198,10 +193,15 @@ impl SimpleAsyncComponent for PersonSelect {
                 self.people_list.remove_all();
                 self.all_people.clear();
                 let _ = sender.output(PersonSelectOutput::Done);
-            },
+            }
             PersonSelectInput::AssociateByIndex(person_id_index) => {
-                if let (Some(face_id), Some(person_id)) = (self.face_id, self.all_people.get(person_id_index)) {
-                    debug!("Associating face {} with person {} by idnex", face_id, person_id);
+                if let (Some(face_id), Some(person_id)) =
+                    (self.face_id, self.all_people.get(person_id_index))
+                {
+                    debug!(
+                        "Associating face {} with person {} by idnex",
+                        face_id, person_id
+                    );
                     if let Err(e) = self.people_repo.mark_as_person(face_id, *person_id) {
                         error!("Failed associating face with person: {:?}", e);
                     }
@@ -209,7 +209,7 @@ impl SimpleAsyncComponent for PersonSelect {
                 self.people_list.remove_all();
                 self.all_people.clear();
                 let _ = sender.output(PersonSelectOutput::Done);
-            },
+            }
             PersonSelectInput::NewPerson => {
                 if let Some(face_id) = self.face_id {
                     debug!("Face {} is a new person", face_id);
@@ -221,7 +221,7 @@ impl SimpleAsyncComponent for PersonSelect {
                 self.people_list.remove_all();
                 self.all_people.clear();
                 let _ = sender.output(PersonSelectOutput::Done);
-            },
+            }
         }
     }
 }

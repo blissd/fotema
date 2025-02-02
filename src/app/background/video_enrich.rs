@@ -2,23 +2,20 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use relm4::prelude::*;
-use relm4::Worker;
-use relm4::shared_state::Reducer;
 use anyhow::*;
 use fotema_core::video::metadata;
 use rayon::prelude::*;
+use relm4::prelude::*;
+use relm4::shared_state::Reducer;
+use relm4::Worker;
 
 use tracing::{error, info};
 
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
 use crate::app::components::progress_monitor::{
-    ProgressMonitor,
-    ProgressMonitorInput,
-    TaskName,
-    MediaType
+    MediaType, ProgressMonitor, ProgressMonitorInput, TaskName,
 };
 
 #[derive(Debug)]
@@ -43,19 +40,18 @@ pub struct VideoEnrich {
 }
 
 impl VideoEnrich {
-
     fn enrich(
         stop: Arc<AtomicBool>,
         mut repo: fotema_core::video::Repository,
         progress_monitor: Arc<Reducer<ProgressMonitor>>,
-        sender: &ComponentSender<VideoEnrich>) -> Result<()>
-     {
+        sender: &ComponentSender<VideoEnrich>,
+    ) -> Result<()> {
         let start = std::time::Instant::now();
 
         let unprocessed = repo.find_need_metadata_update()?;
 
         let count = unprocessed.len();
-         info!("Found {} videos as candidates for enriching", count);
+        info!("Found {} videos as candidates for enriching", count);
 
         // Short-circuit before sending progress messages to stop
         // banner from appearing and disappearing.
@@ -66,7 +62,10 @@ impl VideoEnrich {
 
         let _ = sender.output(VideoEnrichOutput::Started);
 
-        progress_monitor.emit(ProgressMonitorInput::Start(TaskName::Enrich(MediaType::Video), count));
+        progress_monitor.emit(ProgressMonitorInput::Start(
+            TaskName::Enrich(MediaType::Video),
+            count,
+        ));
 
         let metadatas = unprocessed
             .par_iter()
@@ -82,7 +81,11 @@ impl VideoEnrich {
 
         progress_monitor.emit(ProgressMonitorInput::Complete);
 
-        info!("Enriched {} videos in {} seconds.", count, start.elapsed().as_secs());
+        info!(
+            "Enriched {} videos in {} seconds.",
+            count,
+            start.elapsed().as_secs()
+        );
 
         if let Err(e) = sender.output(VideoEnrichOutput::Completed(count)) {
             error!("Failed sending VideoEnrichOutput::Completed: {:?}", e);
@@ -93,18 +96,21 @@ impl VideoEnrich {
 }
 
 impl Worker for VideoEnrich {
-    type Init = (Arc<AtomicBool>, fotema_core::video::Repository, Arc<Reducer<ProgressMonitor>>);
+    type Init = (
+        Arc<AtomicBool>,
+        fotema_core::video::Repository,
+        Arc<Reducer<ProgressMonitor>>,
+    );
     type Input = VideoEnrichInput;
     type Output = VideoEnrichOutput;
 
-    fn init((stop, repo, progress_monitor): Self::Init, _sender: ComponentSender<Self>) -> Self  {
+    fn init((stop, repo, progress_monitor): Self::Init, _sender: ComponentSender<Self>) -> Self {
         VideoEnrich {
             stop,
             repo,
             progress_monitor,
         }
     }
-
 
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {

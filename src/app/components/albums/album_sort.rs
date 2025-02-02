@@ -2,10 +2,10 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
 use relm4::gtk;
-use strum::EnumString;
+use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
 use strum::AsRefStr;
+use strum::EnumString;
 use strum::FromRepr;
 
 // Sort album
@@ -27,7 +27,10 @@ impl AlbumSort {
         }
     }
 
-    pub fn scroll_to_end<T: RelmGridItem>(&self, grid: &mut TypedGridView<T, gtk::SingleSelection>) {
+    pub fn scroll_to_end<T: RelmGridItem>(
+        &self,
+        grid: &mut TypedGridView<T, gtk::SingleSelection>,
+    ) {
         if grid.is_empty() {
             return;
         }
@@ -45,11 +48,8 @@ impl AlbumSort {
             AlbumSort::Descending => 0,
         };
 
-        grid.view.scroll_to(
-            index,
-            gtk::ListScrollFlags::SELECT,
-            None,
-        );
+        grid.view
+            .scroll_to(index, gtk::ListScrollFlags::SELECT, None);
 
         for i in 0..(grid.filters_len()) {
             grid.set_filter_status(i, true);

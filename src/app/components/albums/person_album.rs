@@ -2,30 +2,30 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use gtk::prelude::OrientableExt;
 use fotema_core::VisualId;
-use relm4::gtk;
-use relm4::gtk::prelude::*;
-use relm4::*;
-use relm4::binding::*;
+use gtk::prelude::OrientableExt;
+use relm4::actions::{RelmAction, RelmActionGroup};
 use relm4::adw;
 use relm4::adw::prelude::*;
+use relm4::binding::*;
+use relm4::gtk;
 use relm4::gtk::gdk;
-use relm4::actions::{RelmAction, RelmActionGroup};
+use relm4::gtk::prelude::*;
+use relm4::*;
 
 use crate::app::adaptive;
-use crate::app::SharedState;
-use crate::app::ActiveView;
-use crate::app::ViewName;
-use crate::app::components::albums:: {
+use crate::app::components::albums::{
     album::{Album, AlbumInput, AlbumOutput},
     album_filter::AlbumFilter,
     album_sort::AlbumSort,
 };
+use crate::app::ActiveView;
+use crate::app::SharedState;
+use crate::app::ViewName;
 
+use crate::fl;
 use fotema_core::people;
 use fotema_core::PictureId;
-use crate::fl;
 
 use tracing::{error, info};
 
@@ -42,7 +42,6 @@ relm4::new_stateless_action!(DeleteAction, PersonActionGroup, "delete");
 
 #[derive(Debug)]
 pub enum PersonAlbumInput {
-
     /// Album is visible
     Activate,
 
@@ -155,14 +154,18 @@ impl SimpleComponent for PersonAlbum {
             .build();
 
         let album = Album::builder()
-            .launch((state.clone(), active_view.clone(), ViewName::Person, AlbumFilter::None))
+            .launch((
+                state.clone(),
+                active_view.clone(),
+                ViewName::Person,
+                AlbumFilter::None,
+            ))
             .forward(sender.input_sender(), |msg| match msg {
                 AlbumOutput::Selected(id, _) => PersonAlbumInput::Selected(id),
                 AlbumOutput::ScrollOffset(offset) => PersonAlbumInput::ScrollOffset(offset),
             });
 
-        let title = gtk::Label::builder()
-            .build();
+        let title = gtk::Label::builder().build();
 
         let model = PersonAlbum {
             repo,
@@ -175,7 +178,9 @@ impl SimpleComponent for PersonAlbum {
             edge_length: I32Binding::new(NARROW_EDGE_LENGTH),
         };
 
-        model.avatar.add_write_only_binding(&model.edge_length, "size");
+        model
+            .avatar
+            .add_write_only_binding(&model.edge_length, "size");
         let widgets = view_output!();
 
         let mut actions = RelmActionGroup::<PersonActionGroup>::new();
@@ -214,7 +219,7 @@ impl SimpleComponent for PersonAlbum {
                 self.album.sender().emit(AlbumInput::Sort(sort));
                 self.album.sender().emit(AlbumInput::ScrollToTop)
                 //self.album.sender().emit(AlbumInput::ScrollOffset(0.0));
-            },
+            }
             PersonAlbumInput::View(person) => {
                 info!("Viewing album for person: {}", person.person_id);
 
@@ -226,35 +231,49 @@ impl SimpleComponent for PersonAlbum {
                     self.avatar.set_visible(true);
                 }
 
-                self.picture_ids = self.repo.find_pictures_for_person(person.person_id).unwrap_or_default();
-                info!("Person {} has {} items to view.", person.person_id, self.picture_ids.len());
+                self.picture_ids = self
+                    .repo
+                    .find_pictures_for_person(person.person_id)
+                    .unwrap_or_default();
+                info!(
+                    "Person {} has {} items to view.",
+                    person.person_id,
+                    self.picture_ids.len()
+                );
                 self.album.sender().emit(AlbumInput::Activate);
-                self.album.sender().emit(AlbumInput::Filter(AlbumFilter::Any(self.picture_ids.clone())));
+                self.album
+                    .sender()
+                    .emit(AlbumInput::Filter(AlbumFilter::Any(
+                        self.picture_ids.clone(),
+                    )));
                 self.album.sender().emit(AlbumInput::ScrollToTop);
 
                 self.title.set_label(&person.name);
                 self.person = Some(person);
             }
             PersonAlbumInput::Selected(visual_id) => {
-                let _ = sender.output(PersonAlbumOutput::Selected(visual_id, AlbumFilter::Any(self.picture_ids.clone())));
-            },
+                let _ = sender.output(PersonAlbumOutput::Selected(
+                    visual_id,
+                    AlbumFilter::Any(self.picture_ids.clone()),
+                ));
+            }
             PersonAlbumInput::Adapt(layout @ adaptive::Layout::Narrow) => {
                 self.edge_length.set_value(NARROW_EDGE_LENGTH);
                 // FIXME album should directly subscribe to layout state.
                 self.album.sender().emit(AlbumInput::Adapt(layout));
-            },
+            }
             PersonAlbumInput::Adapt(layout @ adaptive::Layout::Wide) => {
                 self.edge_length.set_value(WIDE_EDGE_LENGTH);
                 // FIXME album should directly subscribe to layout state.
                 self.album.sender().emit(AlbumInput::Adapt(layout));
-            },
+            }
             PersonAlbumInput::ScrollOffset(offset) => {
                 if offset >= 210.0 && self.avatar.is_visible() {
                     self.avatar.set_visible(false);
                 } else if offset == 0.0 && !self.avatar.is_visible() {
                     self.avatar.set_visible(true);
                 }
-            },
+            }
             PersonAlbumInput::RenameDialog => {
                 let Some(ref person) = self.person else {
                     info!("Asked to rename person, but no person for album");
@@ -272,7 +291,6 @@ impl SimpleComponent for PersonAlbum {
                     .default_response("rename")
                     .extra_child(&person_name)
                     .build();
-
 
                 dialog.add_response("cancel", "Cancel");
                 dialog.set_default_response(Some("cancel"));
@@ -309,23 +327,23 @@ impl SimpleComponent for PersonAlbum {
                 } else {
                     error!("Couldn't get root widget!");
                 }
-            },
+            }
             PersonAlbumInput::Rename(name) => {
-                 let Some(ref mut person) = self.person else {
+                let Some(ref mut person) = self.person else {
                     info!("Asked to rename person, but no person for album");
                     return;
                 };
 
                 info!("Renaming {} to {}", person.name, name);
 
-                 if let Err(e) = self.repo.rename_person(person.person_id, &name) {
+                if let Err(e) = self.repo.rename_person(person.person_id, &name) {
                     error!("Failed to rename person: {}", e);
                     return;
                 }
                 self.title.set_label(&name);
                 person.name = name;
                 let _ = sender.output(PersonAlbumOutput::Renamed);
-            },
+            }
             PersonAlbumInput::DeleteDialog => {
                 let Some(ref person) = self.person else {
                     info!("Asked to delete person, but no person for album");
@@ -349,7 +367,7 @@ impl SimpleComponent for PersonAlbum {
 
                 dialog.connect_response(None, move |_, response| {
                     if response == "delete" {
-                       sender.input(PersonAlbumInput::Delete);
+                        sender.input(PersonAlbumInput::Delete);
                     }
                 });
 
@@ -358,7 +376,7 @@ impl SimpleComponent for PersonAlbum {
                 } else {
                     error!("Couldn't get root widget!");
                 }
-            },
+            }
             PersonAlbumInput::Delete => {
                 let Some(ref person) = self.person else {
                     info!("Asked to delete person, but no person for album");
@@ -372,7 +390,7 @@ impl SimpleComponent for PersonAlbum {
                 self.person = None;
                 self.picture_ids.clear();
                 let _ = sender.output(PersonAlbumOutput::Deleted);
-            },
+            }
         }
     }
 }

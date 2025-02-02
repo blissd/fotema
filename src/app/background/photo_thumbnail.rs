@@ -2,26 +2,22 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use relm4::prelude::*;
-use relm4::Worker;
-use relm4::Reducer;
-use rayon::prelude::*;
-use futures::executor::block_on;
 use anyhow::*;
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
+use futures::executor::block_on;
+use rayon::prelude::*;
+use relm4::prelude::*;
+use relm4::Reducer;
+use relm4::Worker;
 use std::result::Result::Ok;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use tracing::{error, info};
 
 use std::panic;
 
 use crate::app::components::progress_monitor::{
-    ProgressMonitor,
-    ProgressMonitorInput,
-    TaskName,
-    MediaType
+    MediaType, ProgressMonitor, ProgressMonitorInput, TaskName,
 };
-
 
 #[derive(Debug)]
 pub enum PhotoThumbnailInput {
@@ -35,7 +31,6 @@ pub enum PhotoThumbnailOutput {
 
     // Thumbnail generation has completed
     Completed(usize),
-
 }
 
 pub struct PhotoThumbnail {
@@ -51,14 +46,13 @@ pub struct PhotoThumbnail {
 }
 
 impl PhotoThumbnail {
-
     fn enrich(
         stop: Arc<AtomicBool>,
         repo: fotema_core::photo::Repository,
         thumbnailer: fotema_core::photo::Thumbnailer,
         progress_monitor: Arc<Reducer<ProgressMonitor>>,
-        sender: ComponentSender<Self>) -> Result<()>
-     {
+        sender: ComponentSender<Self>,
+    ) -> Result<()> {
         let start = std::time::Instant::now();
 
         let mut unprocessed: Vec<fotema_core::photo::model::Picture> = repo
@@ -72,7 +66,7 @@ impl PhotoThumbnail {
         unprocessed.reverse();
 
         let count = unprocessed.len();
-         info!("Found {} photos to generate thumbnails for", count);
+        info!("Found {} photos to generate thumbnails for", count);
 
         // Short-circuit before sending progress messages to stop
         // banner from appearing and disappearing.
@@ -83,7 +77,10 @@ impl PhotoThumbnail {
 
         let _ = sender.output(PhotoThumbnailOutput::Started);
 
-        progress_monitor.emit(ProgressMonitorInput::Start(TaskName::Thumbnail(MediaType::Photo), count));
+        progress_monitor.emit(ProgressMonitorInput::Start(
+            TaskName::Thumbnail(MediaType::Photo),
+            count,
+        ));
 
         // One thread per CPU core... makes my laptop sluggish and hot... also likes memory.
         // Might need to consider constraining number of CPUs to use less memory or to
@@ -92,28 +89,39 @@ impl PhotoThumbnail {
             .par_iter()
             .take_any_while(|_| !stop.load(Ordering::Relaxed))
             .for_each(|pic| {
-
                 // Careful! panic::catch_unwind returns Ok(Err) if the evaluated expression returns
                 // an error but doesn't panic.
                 let result = panic::catch_unwind(|| {
-                    block_on(async {thumbnailer.thumbnail(&pic.picture_id, &pic.path).await})
-                        .and_then(|thumbnail_path| repo.clone().add_thumbnail(&pic.picture_id, &thumbnail_path))
+                    block_on(async { thumbnailer.thumbnail(&pic.picture_id, &pic.path).await })
+                        .and_then(|thumbnail_path| {
+                            repo.clone().add_thumbnail(&pic.picture_id, &thumbnail_path)
+                        })
                 });
 
                 // If we got an err, then there was a panic.
                 // If we got Ok(Err(e)) there wasn't a panic, but we still failed.
                 if let Ok(Err(e)) = result {
-                    error!("Failed generate or add thumbnail: {:?}: Photo path: {:?}", e, pic.path);
+                    error!(
+                        "Failed generate or add thumbnail: {:?}: Photo path: {:?}",
+                        e, pic.path
+                    );
                     let _ = repo.clone().mark_broken(&pic.picture_id);
                 } else if result.is_err() {
-                    error!("Panicked generate or add thumbnail: Photo path: {:?}", pic.path);
+                    error!(
+                        "Panicked generate or add thumbnail: Photo path: {:?}",
+                        pic.path
+                    );
                     let _ = repo.clone().mark_broken(&pic.picture_id);
                 }
 
                 progress_monitor.emit(ProgressMonitorInput::Advance);
             });
 
-        info!("Generated {} photo thumbnails in {} seconds.", count, start.elapsed().as_secs());
+        info!(
+            "Generated {} photo thumbnails in {} seconds.",
+            count,
+            start.elapsed().as_secs()
+        );
 
         progress_monitor.emit(ProgressMonitorInput::Complete);
 
@@ -124,11 +132,19 @@ impl PhotoThumbnail {
 }
 
 impl Worker for PhotoThumbnail {
-    type Init = (Arc<AtomicBool>, fotema_core::photo::Thumbnailer, fotema_core::photo::Repository, Arc<Reducer<ProgressMonitor>>);
+    type Init = (
+        Arc<AtomicBool>,
+        fotema_core::photo::Thumbnailer,
+        fotema_core::photo::Repository,
+        Arc<Reducer<ProgressMonitor>>,
+    );
     type Input = PhotoThumbnailInput;
     type Output = PhotoThumbnailOutput;
 
-    fn init((stop, thumbnailer, repo, progress_monitor): Self::Init, _sender: ComponentSender<Self>) -> Self  {
+    fn init(
+        (stop, thumbnailer, repo, progress_monitor): Self::Init,
+        _sender: ComponentSender<Self>,
+    ) -> Self {
         PhotoThumbnail {
             stop,
             thumbnailer,
@@ -136,7 +152,6 @@ impl Worker for PhotoThumbnail {
             progress_monitor,
         }
     }
-
 
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
@@ -149,7 +164,9 @@ impl Worker for PhotoThumbnail {
 
                 // Avoid runtime panic from calling block_on
                 rayon::spawn(move || {
-                    if let Err(e) = PhotoThumbnail::enrich(stop, repo, thumbnailer, progress_monitor, sender) {
+                    if let Err(e) =
+                        PhotoThumbnail::enrich(stop, repo, thumbnailer, progress_monitor, sender)
+                    {
                         error!("Failed to update previews: {}", e);
                     }
                 });

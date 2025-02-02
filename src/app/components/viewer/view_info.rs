@@ -2,26 +2,25 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+use super::face_thumbnails::{FaceThumbnails, FaceThumbnailsInput};
+use fotema_core::people;
 /// Properties view for a photo.
 ///Inspired by how Loupe displays its property view.
-
 use fotema_core::VisualId;
-use fotema_core::people;
-use super::face_thumbnails::{FaceThumbnails, FaceThumbnailsInput};
 
 use gtk::prelude::OrientableExt;
 
+use chrono::{DateTime, Utc};
+use glycin::ImageInfo;
+use humansize::{format_size, DECIMAL};
+use relm4::adw::prelude::*;
 use relm4::gtk;
 use relm4::gtk::gio;
-use relm4::*;
 use relm4::prelude::*;
-use relm4::adw::prelude::*;
-use humansize::{format_size, DECIMAL};
-use glycin::ImageInfo;
+use relm4::*;
 use std::fs;
-use std::sync::Arc;
 use std::path::PathBuf;
-use chrono::{DateTime, Utc};
+use std::sync::Arc;
 
 use crate::app::SharedState;
 use crate::fl;
@@ -42,7 +41,7 @@ pub enum ViewInfoInput {
     OpenFolder,
 
     /// Refresh faces
-    RefreshFaces
+    RefreshFaces,
 }
 
 pub struct ViewInfo {
@@ -77,7 +76,6 @@ pub struct ViewInfo {
 
     face_thumbnails: AsyncController<FaceThumbnails>,
 }
-
 
 #[relm4::component(pub)]
 impl SimpleComponent for ViewInfo {
@@ -293,7 +291,6 @@ impl SimpleComponent for ViewInfo {
         _root: Self::Root,
         _sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-
         let folder = adw::ActionRow::new();
         let file_name = adw::ActionRow::new();
 
@@ -319,9 +316,7 @@ impl SimpleComponent for ViewInfo {
         let video_file_size = adw::ActionRow::new();
         let video_originally_created_at = adw::ActionRow::new();
 
-        let face_thumbnails = FaceThumbnails::builder()
-            .launch(people_repo)
-            .detach();
+        let face_thumbnails = FaceThumbnails::builder().launch(people_repo).detach();
 
         let model = ViewInfo {
             state,
@@ -368,8 +363,12 @@ impl SimpleComponent for ViewInfo {
                 };
                 let file = gtk::gio::File::for_path(path);
                 let launcher = gtk::FileLauncher::new(Some(&file));
-                launcher.open_containing_folder(None::<&adw::ApplicationWindow>, None::<&gio::Cancellable>, |_| ());
-            },
+                launcher.open_containing_folder(
+                    None::<&adw::ApplicationWindow>,
+                    None::<&gio::Cancellable>,
+                    |_| (),
+                );
+            }
             ViewInfoInput::FileOnly(ref visual_id) => {
                 let result = {
                     let data = self.state.read();
@@ -386,7 +385,7 @@ impl SimpleComponent for ViewInfo {
                 self.exif_details.set_visible(false);
 
                 let _ = self.update_file_details(vis.clone());
-            },
+            }
             ViewInfoInput::Photo(ref visual_id, ref image_info) => {
                 let result = {
                     let data = self.state.read();
@@ -404,11 +403,12 @@ impl SimpleComponent for ViewInfo {
 
                 if let Some(picture_id) = vis.picture_id {
                     let _ = self.update_photo_details(vis.clone(), image_info);
-                    self.face_thumbnails.emit(FaceThumbnailsInput::View(picture_id));
+                    self.face_thumbnails
+                        .emit(FaceThumbnailsInput::View(picture_id));
                 } else {
                     self.face_thumbnails.emit(FaceThumbnailsInput::Hide);
                 }
-            },
+            }
             ViewInfoInput::Video(ref visual_id) => {
                 self.face_thumbnails.emit(FaceThumbnailsInput::Hide);
 
@@ -430,7 +430,7 @@ impl SimpleComponent for ViewInfo {
                 if vis.video_id.is_some() {
                     let _ = self.update_video_details(vis.clone());
                 }
-            },
+            }
             ViewInfoInput::RefreshFaces => {
                 self.face_thumbnails.emit(FaceThumbnailsInput::Refresh);
             }
@@ -442,14 +442,16 @@ impl SimpleComponent for ViewInfo {
 const FALLBACK: &str = "–";
 
 impl ViewInfo {
-
     fn update_file_details(&mut self, vis: Arc<fotema_core::visual::Visual>) -> Result<(), String> {
         let Some(ref path) = vis.path() else {
             return Err("No picture or video path".to_string());
         };
 
         Self::update_row(&self.folder, vis.folder_name());
-        Self::update_row(&self.file_name, path.file_name().map(|x| x.to_string_lossy().to_string()));
+        Self::update_row(
+            &self.file_name,
+            path.file_name().map(|x| x.to_string_lossy().to_string()),
+        );
         self.path = Some(path.to_path_buf());
 
         // FIXME duplicated from Scanner
@@ -462,7 +464,6 @@ impl ViewInfo {
             .map(Into::<DateTime<Utc>>::into)
             .map(|x| x.format("%Y-%m-%d %H:%M:%S %:z").to_string())
             .ok();
-
 
         let fs_modified_at: Option<String> = metadata
             .modified()
@@ -482,7 +483,11 @@ impl ViewInfo {
         Ok(())
     }
 
-    fn update_photo_details(&mut self, vis: Arc<fotema_core::visual::Visual>, image_info: &ImageInfo) -> Result<(), String> {
+    fn update_photo_details(
+        &mut self,
+        vis: Arc<fotema_core::visual::Visual>,
+        image_info: &ImageInfo,
+    ) -> Result<(), String> {
         let Some(ref picture_path) = vis.picture_path else {
             return Err("No picture path".to_string());
         };
@@ -498,7 +503,10 @@ impl ViewInfo {
         let has_image_details = [
             Self::update_row(&self.image_size, Some(image_size)),
             Self::update_row(&self.image_format, image_info.details.format_name.as_ref()),
-            Self::update_row(&self.image_file_size, Some(format_size(fs_file_size_bytes, DECIMAL))),
+            Self::update_row(
+                &self.image_file_size,
+                Some(format_size(fs_file_size_bytes, DECIMAL)),
+            ),
         ]
         .into_iter()
         .any(|x| x);
@@ -533,15 +541,17 @@ impl ViewInfo {
         Ok(())
     }
 
-    fn update_video_details(&mut self, vis: Arc<fotema_core::visual::Visual>) -> Result<(), String> {
+    fn update_video_details(
+        &mut self,
+        vis: Arc<fotema_core::visual::Visual>,
+    ) -> Result<(), String> {
         let Some(ref video_path) = vis.video_path else {
             return Err("No video path".to_string());
         };
 
         // FIXME duplicated from Scanner
         let file = fs::File::open(video_path).map_err(|e| e.to_string())?;
-        let fs_file_size_bytes = file.metadata().ok()
-            .map(|x| format_size(x.len(), DECIMAL));
+        let fs_file_size_bytes = file.metadata().ok().map(|x| format_size(x.len(), DECIMAL));
 
         let metadata = fotema_core::video::metadata::from_path(video_path).ok();
         if metadata.is_none() {

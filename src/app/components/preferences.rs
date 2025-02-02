@@ -2,22 +2,19 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use ashpd::{
-    desktop::file_chooser::OpenFileRequest,
-    WindowIdentifier,
-};
+use ashpd::{desktop::file_chooser::OpenFileRequest, WindowIdentifier};
 
 use relm4::adw::prelude::*;
 use relm4::gtk;
-use relm4::*;
 use relm4::prelude::*;
+use relm4::*;
 
 use tracing::{error, info};
 
-use crate::fl;
-use crate::app::{Settings, SettingsState};
-use crate::app::FaceDetectionMode;
 use crate::app::AlbumSort;
+use crate::app::FaceDetectionMode;
+use crate::app::{Settings, SettingsState};
+use crate::fl;
 
 pub struct PreferencesDialog {
     parent: adw::ApplicationWindow,
@@ -36,7 +33,8 @@ impl PreferencesDialog {
     }
 
     pub fn picture_base_dir_name(&self) -> String {
-        self.settings.pictures_base_dir
+        self.settings
+            .pictures_base_dir
             .file_name()
             .map(|s| String::from(s.to_string_lossy()))
             .unwrap_or(String::from(""))
@@ -67,7 +65,7 @@ impl SimpleAsyncComponent for PreferencesDialog {
     type Input = PreferencesInput;
     type Output = ();
 
-    view!{
+    view! {
         adw::PreferencesDialog {
             set_title: &fl!("prefs-title"),
             add = &adw::PreferencesPage {
@@ -82,9 +80,9 @@ impl SimpleAsyncComponent for PreferencesDialog {
                         #[watch]
                         set_active: model.settings.show_selfies,
 
-		                connect_active_notify[sender] => move |switch| {
-		                    let _ = sender.input_sender().send(PreferencesInput::UpdateShowSelfies(switch.is_active()));
-		                },
+                        connect_active_notify[sender] => move |switch| {
+                            let _ = sender.input_sender().send(PreferencesInput::UpdateShowSelfies(switch.is_active()));
+                        },
                     },
 
                     #[local_ref]
@@ -149,8 +147,9 @@ impl SimpleAsyncComponent for PreferencesDialog {
         dialog: Self::Root,
         sender: AsyncComponentSender<Self>,
     ) -> AsyncComponentParts<Self> {
-
-        settings_state.subscribe(sender.input_sender(), |settings| PreferencesInput::SettingsChanged(settings.clone()));
+        settings_state.subscribe(sender.input_sender(), |settings| {
+            PreferencesInput::SettingsChanged(settings.clone())
+        });
 
         let face_detection_mode_row = adw::SwitchRow::builder()
             .active(settings_state.read().face_detection_mode == FaceDetectionMode::On)
@@ -183,7 +182,7 @@ impl SimpleAsyncComponent for PreferencesDialog {
             PreferencesInput::Present => {
                 self.settings = self.settings_state.read().clone();
                 self.dialog.present(Some(&self.parent));
-            },
+            }
             PreferencesInput::SettingsChanged(settings) => {
                 info!("Received update from settings shared state");
                 self.settings = settings;
@@ -194,22 +193,22 @@ impl SimpleAsyncComponent for PreferencesDialog {
                 };
 
                 self.album_sort.set_selected(index);
-            },
+            }
             PreferencesInput::UpdateShowSelfies(show_selfies) => {
                 info!("Update show selfies: {}", show_selfies);
                 self.settings.show_selfies = show_selfies;
                 *self.settings_state.write() = self.settings.clone();
-            },
+            }
             PreferencesInput::UpdateFaceDetectionMode(mode) => {
                 info!("Update face detection mode: {:?}", mode);
                 self.settings.face_detection_mode = mode;
                 *self.settings_state.write() = self.settings.clone();
-            },
+            }
             PreferencesInput::Sort(mode) => {
                 info!("Update album sort: {:?}", mode);
                 self.settings.album_sort = mode;
                 *self.settings_state.write() = self.settings.clone();
-            },
+            }
             PreferencesInput::ChoosePicturesDir => {
                 info!("Presenting select pictures directory file chooser");
                 if let Some(root) = gtk::Widget::root(self.parent.widget_ref()) {
@@ -225,10 +224,18 @@ impl SimpleAsyncComponent for PreferencesDialog {
                             info!("Open: {:?}", files);
                             if let Some(first) = files.uris().first() {
                                 info!("User has chosen picture library at: {:?}", first.path());
-                                if let Some(pictures_base_dir) = files.uris().first().and_then(|uri| uri.to_file_path().ok()) {
-                                    info!("User has chosen picture library at: {:?}", pictures_base_dir);
+                                if let Some(pictures_base_dir) =
+                                    files.uris().first().and_then(|uri| uri.to_file_path().ok())
+                                {
+                                    info!(
+                                        "User has chosen picture library at: {:?}",
+                                        pictures_base_dir
+                                    );
                                     if self.settings.pictures_base_dir != pictures_base_dir {
-                                        info!("New pictures base director is: {:?}", pictures_base_dir);
+                                        info!(
+                                            "New pictures base director is: {:?}",
+                                            pictures_base_dir
+                                        );
                                         self.settings.pictures_base_dir = pictures_base_dir;
                                         *self.settings_state.write() = self.settings.clone();
                                     }
@@ -239,8 +246,8 @@ impl SimpleAsyncComponent for PreferencesDialog {
                             error!("Failed to open a file: {err}");
                         }
                     }
-                 }
-            },
+                }
+            }
         }
     }
 }

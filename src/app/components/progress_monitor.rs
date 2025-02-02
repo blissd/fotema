@@ -63,7 +63,11 @@ impl Reducible for ProgressMonitor {
     type Input = ProgressMonitorInput;
 
     fn init() -> Self {
-        Self {task_name: TaskName::Idle, current_count: 0, end_count: 0}
+        Self {
+            task_name: TaskName::Idle,
+            current_count: 0,
+            end_count: 0,
+        }
     }
 
     fn reduce(&mut self, input: Self::Input) -> bool {
@@ -73,12 +77,12 @@ impl Reducible for ProgressMonitor {
                 self.end_count = end_count;
                 self.current_count = 0;
             }
-            ProgressMonitorInput::Advance =>  {
+            ProgressMonitorInput::Advance => {
                 if self.current_count < self.end_count {
                     self.current_count += 1;
                 }
             }
-            ProgressMonitorInput::Complete =>  {
+            ProgressMonitorInput::Complete => {
                 self.current_count = self.end_count;
             }
         }

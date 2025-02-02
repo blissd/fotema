@@ -2,26 +2,22 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use relm4::prelude::*;
-use relm4::Worker;
-use relm4::Reducer;
 use anyhow::*;
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
+use rayon::prelude::*;
+use relm4::prelude::*;
+use relm4::Reducer;
+use relm4::Worker;
 use std::panic;
 use std::result::Result::Ok;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use tracing::{error, info};
-use rayon::prelude::*;
 
-use fotema_core::video::{Video, Thumbnailer, Repository};
+use fotema_core::video::{Repository, Thumbnailer, Video};
 
 use crate::app::components::progress_monitor::{
-    ProgressMonitor,
-    ProgressMonitorInput,
-    TaskName,
-    MediaType
+    MediaType, ProgressMonitor, ProgressMonitorInput, TaskName,
 };
-
 
 #[derive(Debug)]
 pub enum VideoThumbnailInput {
@@ -35,7 +31,6 @@ pub enum VideoThumbnailOutput {
 
     // Thumbnail generation has completed
     Completed(usize),
-
 }
 
 pub struct VideoThumbnail {
@@ -51,14 +46,13 @@ pub struct VideoThumbnail {
 }
 
 impl VideoThumbnail {
-
     fn enrich(
         stop: Arc<AtomicBool>,
         repo: Repository,
         thumbnailer: Thumbnailer,
         progress_monitor: Arc<Reducer<ProgressMonitor>>,
-        sender: ComponentSender<VideoThumbnail>) -> Result<()>
-     {
+        sender: ComponentSender<VideoThumbnail>,
+    ) -> Result<()> {
         let start = std::time::Instant::now();
 
         let mut unprocessed: Vec<Video> = repo
@@ -72,7 +66,7 @@ impl VideoThumbnail {
         unprocessed.reverse();
 
         let count = unprocessed.len();
-         info!("Found {} videos to generate thumbnails for", count);
+        info!("Found {} videos to generate thumbnails for", count);
 
         // Short-circuit before sending progress messages to stop
         // banner from appearing and disappearing.
@@ -83,7 +77,10 @@ impl VideoThumbnail {
 
         let _ = sender.output(VideoThumbnailOutput::Started);
 
-        progress_monitor.emit(ProgressMonitorInput::Start(TaskName::Thumbnail(MediaType::Video), count));
+        progress_monitor.emit(ProgressMonitorInput::Start(
+            TaskName::Thumbnail(MediaType::Video),
+            count,
+        ));
 
         unprocessed
             .par_iter()
@@ -92,24 +89,37 @@ impl VideoThumbnail {
                 // Careful! panic::catch_unwind returns Ok(Err) if the evaluated expression returns
                 // an error but doesn't panic.
                 let result = panic::catch_unwind(|| {
-                    thumbnailer.thumbnail(&vid.video_id, &vid.path)
-                        .and_then(|thumbnail_path| repo.clone().add_thumbnail(&vid.video_id, &thumbnail_path))
+                    thumbnailer
+                        .thumbnail(&vid.video_id, &vid.path)
+                        .and_then(|thumbnail_path| {
+                            repo.clone().add_thumbnail(&vid.video_id, &thumbnail_path)
+                        })
                 });
 
                 // If we got an err, then there was a panic.
                 // If we got Ok(Err(e)) there wasn't a panic, but we still failed.
                 if let Ok(Err(e)) = result {
-                    error!("Failed generate or add thumbnail: {:?}: Video path: {:?}", e, vid.path);
+                    error!(
+                        "Failed generate or add thumbnail: {:?}: Video path: {:?}",
+                        e, vid.path
+                    );
                     let _ = repo.clone().mark_broken(&vid.video_id);
                 } else if result.is_err() {
-                    error!("Panicked generate or add thumbnail: Video path: {:?}", vid.path);
+                    error!(
+                        "Panicked generate or add thumbnail: Video path: {:?}",
+                        vid.path
+                    );
                     let _ = repo.clone().mark_broken(&vid.video_id);
                 }
 
                 progress_monitor.emit(ProgressMonitorInput::Advance);
             });
 
-        info!("Generated {} video thumbnails in {} seconds.", count, start.elapsed().as_secs());
+        info!(
+            "Generated {} video thumbnails in {} seconds.",
+            count,
+            start.elapsed().as_secs()
+        );
 
         progress_monitor.emit(ProgressMonitorInput::Complete);
 
@@ -120,11 +130,19 @@ impl VideoThumbnail {
 }
 
 impl Worker for VideoThumbnail {
-    type Init = (Arc<AtomicBool>, Thumbnailer, Repository, Arc<Reducer<ProgressMonitor>>);
+    type Init = (
+        Arc<AtomicBool>,
+        Thumbnailer,
+        Repository,
+        Arc<Reducer<ProgressMonitor>>,
+    );
     type Input = VideoThumbnailInput;
     type Output = VideoThumbnailOutput;
 
-    fn init((stop, thumbnailer, repo, progress_monitor): Self::Init, _sender: ComponentSender<Self>) -> Self  {
+    fn init(
+        (stop, thumbnailer, repo, progress_monitor): Self::Init,
+        _sender: ComponentSender<Self>,
+    ) -> Self {
         Self {
             stop,
             thumbnailer,
@@ -132,7 +150,6 @@ impl Worker for VideoThumbnail {
             progress_monitor,
         }
     }
-
 
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
@@ -145,7 +162,9 @@ impl Worker for VideoThumbnail {
 
                 // Avoid runtime panic from calling block_on
                 rayon::spawn(move || {
-                    if let Err(e) = VideoThumbnail::enrich(stop, repo, thumbnailer, progress_monitor, sender) {
+                    if let Err(e) =
+                        VideoThumbnail::enrich(stop, repo, thumbnailer, progress_monitor, sender)
+                    {
                         error!("Failed to update video thumbnails: {}", e);
                     }
                 });

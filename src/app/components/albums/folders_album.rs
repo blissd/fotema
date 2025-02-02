@@ -9,23 +9,23 @@ use strum::IntoEnumIterator;
 
 use itertools::Itertools;
 
+use relm4::binding::*;
 use relm4::gtk;
 use relm4::gtk::gdk;
 use relm4::gtk::gdk_pixbuf;
 use relm4::gtk::prelude::WidgetExt;
 use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
 use relm4::*;
-use relm4::binding::*;
 
 use std::path;
 use std::sync::Arc;
 
 use crate::adaptive;
-use crate::app::SharedState;
 use crate::app::ActiveView;
+use crate::app::SharedState;
 use crate::app::ViewName;
 
-use tracing::{event, Level, info};
+use tracing::{event, info, Level};
 
 const NARROW_EDGE_LENGTH: i32 = 170;
 const WIDE_EDGE_LENGTH: i32 = 200;
@@ -110,21 +110,27 @@ impl RelmGridItem for PhotoGridItem {
     }
 
     fn bind(&mut self, widgets: &mut Self::Widgets, _root: &mut Self::Root) {
-        widgets
-            .label
-            .set_text(&self.folder_name.to_string());
+        widgets.label.set_text(&self.folder_name.to_string());
 
         // If we repeatedly bind, then Fotema will die with the following error:
         // (fotema:2): GLib-GObject-CRITICAL **: 13:26:14.297: Too many GWeakRef registered
         // GLib-GObject:ERROR:../gobject/gbinding.c:805:g_binding_constructed: assertion failed: (source != NULL)
         // Bail out! GLib-GObject:ERROR:../gobject/gbinding.c:805:g_binding_constructed: assertion failed: (source != NULL)
         if !widgets.is_bound {
-            widgets.picture.add_write_only_binding(&self.edge_length, "width-request");
-            widgets.picture.add_write_only_binding(&self.edge_length, "height-request");
+            widgets
+                .picture
+                .add_write_only_binding(&self.edge_length, "width-request");
+            widgets
+                .picture
+                .add_write_only_binding(&self.edge_length, "height-request");
             widgets.is_bound = true;
         }
 
-        if self.picture.thumbnail_path.as_ref().is_some_and(|x| x.exists())
+        if self
+            .picture
+            .thumbnail_path
+            .as_ref()
+            .is_some_and(|x| x.exists())
         {
             widgets
                 .picture
@@ -132,8 +138,11 @@ impl RelmGridItem for PhotoGridItem {
         } else {
             let pb = gdk_pixbuf::Pixbuf::from_resource_at_scale(
                 "/app/fotema/Fotema/icons/scalable/actions/image-missing-symbolic.svg",
-                200, 200, true
-            ).unwrap();
+                200,
+                200,
+                true,
+            )
+            .unwrap();
             let img = gdk::Texture::for_pixbuf(&pb);
             widgets.picture.set_paintable(Some(&img));
         }
@@ -202,13 +211,13 @@ impl SimpleComponent for FoldersAlbum {
         match msg {
             FoldersAlbumInput::Noop => {
                 info!("No-op received... so doing nothing. As expected :-/");
-            },
+            }
             FoldersAlbumInput::Activate => {
                 *self.active_view.write() = ViewName::Folders;
                 if self.photo_grid.is_empty() {
                     self.refresh();
                 }
-            },
+            }
             FoldersAlbumInput::Refresh => {
                 if *self.active_view.read() == ViewName::Folders {
                     info!("Folders view is active so refreshing");
@@ -220,23 +229,24 @@ impl SimpleComponent for FoldersAlbum {
                     info!("Folders view is inactive so clearing");
                     self.photo_grid.clear();
                 }
-            },
+            }
             FoldersAlbumInput::FolderSelected(index) => {
                 event!(Level::DEBUG, "Folder selected index: {}", index);
                 if let Some(item) = self.photo_grid.get_visible(index) {
                     let item = item.borrow();
                     event!(Level::DEBUG, "Folder selected item: {}", item.folder_name);
 
-                    let _ = sender
-                        .output(FoldersAlbumOutput::FolderSelected(item.picture.parent_path.clone()));
+                    let _ = sender.output(FoldersAlbumOutput::FolderSelected(
+                        item.picture.parent_path.clone(),
+                    ));
                 }
-            },
+            }
             FoldersAlbumInput::Adapt(adaptive::Layout::Narrow) => {
                 self.edge_length.set_value(NARROW_EDGE_LENGTH);
-            },
+            }
             FoldersAlbumInput::Adapt(adaptive::Layout::Wide) => {
                 self.edge_length.set_value(WIDE_EDGE_LENGTH);
-            },
+            }
         }
     }
 }

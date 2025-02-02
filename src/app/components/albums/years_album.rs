@@ -2,15 +2,16 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use gtk::prelude::OrientableExt;
 use fotema_core;
+use gtk::prelude::OrientableExt;
 
 use fotema_core::visual::model::PictureOrientation;
 use strum::IntoEnumIterator;
 
-use itertools::Itertools;
 use fotema_core::Year;
+use itertools::Itertools;
 
+use relm4::binding::*;
 use relm4::gtk;
 use relm4::gtk::gdk;
 use relm4::gtk::gdk_pixbuf;
@@ -18,7 +19,6 @@ use relm4::gtk::prelude::FrameExt;
 use relm4::gtk::prelude::WidgetExt;
 use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
 use relm4::*;
-use relm4::binding::*;
 
 use std::path;
 use std::sync::Arc;
@@ -26,10 +26,10 @@ use std::sync::Arc;
 use tracing::info;
 
 use crate::adaptive;
-use crate::app::SharedState;
 use crate::app::ActiveView;
-use crate::app::ViewName;
 use crate::app::AlbumSort;
+use crate::app::SharedState;
+use crate::app::ViewName;
 
 const NARROW_EDGE_LENGTH: i32 = 170;
 const WIDE_EDGE_LENGTH: i32 = 200;
@@ -67,7 +67,7 @@ struct Widgets {
     label: gtk::Label,
 
     // If the gtk::Picture has been bound to edge_length.
-     is_bound: bool,
+    is_bound: bool,
 }
 
 impl RelmGridItem for PhotoGridItem {
@@ -124,20 +124,32 @@ impl RelmGridItem for PhotoGridItem {
         // GLib-GObject:ERROR:../gobject/gbinding.c:805:g_binding_constructed: assertion failed: (source != NULL)
         // Bail out! GLib-GObject:ERROR:../gobject/gbinding.c:805:g_binding_constructed: assertion failed: (source != NULL)
         if !widgets.is_bound {
-            widgets.picture.add_write_only_binding(&self.edge_length, "width-request");
-            widgets.picture.add_write_only_binding(&self.edge_length, "height-request");
+            widgets
+                .picture
+                .add_write_only_binding(&self.edge_length, "width-request");
+            widgets
+                .picture
+                .add_write_only_binding(&self.edge_length, "height-request");
             widgets.is_bound = true;
         }
 
-        if self.picture.thumbnail_path.as_ref().is_some_and(|x| x.exists()) {
+        if self
+            .picture
+            .thumbnail_path
+            .as_ref()
+            .is_some_and(|x| x.exists())
+        {
             widgets
                 .picture
                 .set_filename(self.picture.thumbnail_path.clone());
         } else {
             let pb = gdk_pixbuf::Pixbuf::from_resource_at_scale(
                 "/app/fotema/Fotema/icons/scalable/actions/image-missing-symbolic.svg",
-                200, 200, true
-            ).unwrap();
+                200,
+                200,
+                true,
+            )
+            .unwrap();
             let img = gdk::Texture::for_pixbuf(&pb);
             widgets.picture.set_paintable(Some(&img));
         }
@@ -228,13 +240,13 @@ impl SimpleComponent for YearsAlbum {
                     let date = item.borrow().picture.year_month();
                     let _ = sender.output(YearsAlbumOutput::YearSelected(date.year));
                 }
-            },
+            }
             YearsAlbumInput::Adapt(adaptive::Layout::Narrow) => {
                 self.edge_length.set_value(NARROW_EDGE_LENGTH);
-            },
+            }
             YearsAlbumInput::Adapt(adaptive::Layout::Wide) => {
                 self.edge_length.set_value(WIDE_EDGE_LENGTH);
-            },
+            }
             YearsAlbumInput::Sort(sort) => {
                 if self.sort != sort {
                     info!("Sort order is now {:?}", sort);
@@ -250,8 +262,7 @@ impl YearsAlbum {
     fn refresh(&mut self) {
         let mut all_pictures = {
             let data = self.state.read();
-            data
-                .iter()
+            data.iter()
                 .dedup_by(|x, y| x.year() == y.year())
                 .map(|picture| PhotoGridItem {
                     picture: picture.clone(),

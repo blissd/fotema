@@ -45,8 +45,8 @@ impl Worker for PhotoScan {
 
 impl PhotoScan {
     fn scan_and_add(&mut self, sender: ComponentSender<Self>) -> std::result::Result<(), String> {
-
-        sender.output(PhotoScanOutput::Started)
+        sender
+            .output(PhotoScanOutput::Started)
             .map_err(|e| format!("{:?}", e))?;
 
         info!("Scanning file system for pictures...");
@@ -56,8 +56,8 @@ impl PhotoScan {
 
         self.repo.add_all(&result).map_err(|e| e.to_string())?;
 
-        sender.output(PhotoScanOutput::Completed)
+        sender
+            .output(PhotoScanOutput::Completed)
             .map_err(|e| format!("{:?}", e))
-
     }
 }

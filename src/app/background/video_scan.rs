@@ -2,9 +2,9 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+use fotema_core::video;
 use relm4::prelude::*;
 use relm4::Worker;
-use fotema_core::video;
 
 use tracing::{error, info};
 
@@ -47,8 +47,8 @@ impl Worker for VideoScan {
 
 impl VideoScan {
     fn scan_and_add(&mut self, sender: ComponentSender<Self>) -> std::result::Result<(), String> {
-
-        sender.output(VideoScanOutput::Started)
+        sender
+            .output(VideoScanOutput::Started)
             .map_err(|e| format!("{:?}", e))?;
 
         info!("Scanning file system for videos...");
@@ -58,8 +58,8 @@ impl VideoScan {
 
         self.repo.add_all(&result).map_err(|e| e.to_string())?;
 
-        sender.output(VideoScanOutput::Completed)
+        sender
+            .output(VideoScanOutput::Completed)
             .map_err(|e| format!("{:?}", e))
-
     }
 }

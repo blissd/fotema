@@ -2,13 +2,13 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+use anyhow::Result;
+use rayon::prelude::*;
 use relm4::prelude::*;
 use relm4::Worker;
-use rayon::prelude::*;
-use anyhow::Result;
 
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
 use tracing::{debug, error, info};
 
@@ -24,7 +24,6 @@ pub enum VideoCleanOutput {
 
     // Thumbnail generation has completed
     Completed(usize),
-
 }
 
 pub struct VideoClean {
@@ -36,9 +35,7 @@ pub struct VideoClean {
 }
 
 impl VideoClean {
-
     fn cleanup(&mut self, sender: &ComponentSender<Self>) -> Result<()> {
-
         let start = std::time::Instant::now();
 
         // Scrub vids from database if they no longer exist on the file system.
@@ -55,7 +52,7 @@ impl VideoClean {
             return Ok(());
         }
 
-        if let Err(e) = sender.output(VideoCleanOutput::Started){
+        if let Err(e) = sender.output(VideoCleanOutput::Started) {
             error!("Failed sending cleanup started: {:?}", e);
         }
 
@@ -82,7 +79,11 @@ impl VideoClean {
                 }
             });
 
-        info!("Cleaned {} videos in {} seconds.", count, start.elapsed().as_secs());
+        info!(
+            "Cleaned {} videos in {} seconds.",
+            count,
+            start.elapsed().as_secs()
+        );
 
         if let Err(e) = sender.output(VideoCleanOutput::Completed(count)) {
             error!("Failed sending VideoCleanOutput::Completed: {:?}", e);

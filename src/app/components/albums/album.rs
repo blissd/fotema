@@ -2,28 +2,28 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use gtk::prelude::OrientableExt;
+use fotema_core::visual::model::PictureOrientation;
 use fotema_core::VisualId;
 use fotema_core::YearMonth;
-use fotema_core::visual::model::PictureOrientation;
-use strum::IntoEnumIterator;
+use gtk::prelude::OrientableExt;
+use relm4::binding::*;
 use relm4::gtk;
 use relm4::gtk::gdk;
-use relm4::gtk::prelude::*;
-use relm4::gtk::prelude::AdjustmentExt;
 use relm4::gtk::gdk_pixbuf;
+use relm4::gtk::prelude::AdjustmentExt;
+use relm4::gtk::prelude::*;
 use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
 use relm4::*;
-use relm4::binding::*;
 use std::path::Path;
 use std::sync::Arc;
+use strum::IntoEnumIterator;
 
-use crate::app::adaptive;
-use crate::app::SharedState;
-use crate::app::ActiveView;
-use crate::app::ViewName;
 use super::album_filter::AlbumFilter;
 use super::album_sort::AlbumSort;
+use crate::app::adaptive;
+use crate::app::ActiveView;
+use crate::app::SharedState;
+use crate::app::ViewName;
 
 use tracing::{debug, info};
 
@@ -32,7 +32,6 @@ const WIDE_EDGE_LENGTH: i32 = 200;
 
 #[derive(Debug)]
 pub enum AlbumInput {
-
     /// Album is visible
     Activate,
 
@@ -61,7 +60,7 @@ pub enum AlbumInput {
     ScrollOffset(f64),
 
     // Scroll to top of photo grid, regardless of sort order
-    ScrollToTop
+    ScrollToTop,
 }
 
 #[derive(Debug)]
@@ -165,19 +164,33 @@ impl RelmGridItem for PhotoGridItem {
         // Bail out! GLib-GObject:ERROR:../gobject/gbinding.c:805:g_binding_constructed: assertion failed: (source != NULL)
 
         if !widgets.is_bound {
-            widgets.picture.add_write_only_binding(&self.edge_length, "width-request");
-            widgets.picture.add_write_only_binding(&self.edge_length, "height-request");
+            widgets
+                .picture
+                .add_write_only_binding(&self.edge_length, "width-request");
+            widgets
+                .picture
+                .add_write_only_binding(&self.edge_length, "height-request");
             widgets.is_bound = true;
         }
 
-        if self.visual.thumbnail_path.as_ref().is_some_and(|x| x.exists()) {
-            widgets.picture.set_filename(self.visual.thumbnail_path.clone());
+        if self
+            .visual
+            .thumbnail_path
+            .as_ref()
+            .is_some_and(|x| x.exists())
+        {
+            widgets
+                .picture
+                .set_filename(self.visual.thumbnail_path.clone());
         } else {
             let pb = gdk_pixbuf::Pixbuf::from_resource_at_scale(
                 "/app/fotema/Fotema/icons/scalable/actions/image-missing-symbolic.svg",
-                200, 200, true
-            ).unwrap();
-           let img = gdk::Texture::for_pixbuf(&pb);
+                200,
+                200,
+                true,
+            )
+            .unwrap();
+            let img = gdk::Texture::for_pixbuf(&pb);
             widgets.picture.set_paintable(Some(&img));
         }
 
@@ -190,7 +203,8 @@ impl RelmGridItem for PhotoGridItem {
             widgets.status_overlay.set_visible(false);
             widgets.duration_overlay.set_visible(true);
 
-            let hhmmss = self.visual
+            let hhmmss = self
+                .visual
                 .video_duration
                 .map(|ref x| fotema_core::time::format_hhmmss(x))
                 .unwrap_or(String::from("—"));
@@ -199,8 +213,11 @@ impl RelmGridItem for PhotoGridItem {
         } else if self.visual.is_video_only() {
             widgets.status_overlay.set_visible(true);
             widgets.duration_overlay.set_visible(false);
-            widgets.motion_type_icon.set_icon_name(Some("play-symbolic"));
-        } else { // is_photo_only()
+            widgets
+                .motion_type_icon
+                .set_icon_name(Some("play-symbolic"));
+        } else {
+            // is_photo_only()
             widgets.status_overlay.set_visible(false);
             widgets.motion_type_icon.set_icon_name(None);
             widgets.duration_overlay.set_visible(false);
@@ -334,37 +351,33 @@ impl SimpleComponent for Album {
                     debug!("Scrolling to {}", index);
                     self.photo_grid.view.scroll_to(index, flags, None);
                 }
-            },
+            }
             AlbumInput::ScrollToTop => {
                 // Hmm... not sure I like this...
                 if !self.photo_grid.is_empty() {
-                    self.photo_grid.view.scroll_to(
-                        0,
-                        gtk::ListScrollFlags::SELECT,
-                        None,
-                    );
+                    self.photo_grid
+                        .view
+                        .scroll_to(0, gtk::ListScrollFlags::SELECT, None);
                 }
-            },
+            }
             AlbumInput::Adapt(adaptive::Layout::Narrow) => {
                 self.edge_length.set_value(NARROW_EDGE_LENGTH);
-            },
+            }
             AlbumInput::Adapt(adaptive::Layout::Wide) => {
                 self.edge_length.set_value(WIDE_EDGE_LENGTH);
-            },
+            }
             AlbumInput::ScrollOffset(offset) => {
                 let _ = sender.output(AlbumOutput::ScrollOffset(offset));
-            },
+            }
         }
     }
 }
 
 impl Album {
-
     fn refresh(&mut self) {
         let mut all = {
             let data = self.state.read();
-            data
-                .iter()
+            data.iter()
                 .map(|visual| PhotoGridItem {
                     visual: visual.clone(),
                     edge_length: self.edge_length.clone(),
@@ -390,6 +403,7 @@ impl Album {
     fn update_filter(&mut self) {
         self.photo_grid.clear_filters();
         let filter = self.filter.clone();
-        self.photo_grid.add_filter(move |item| filter.clone().filter(&item.visual));
+        self.photo_grid
+            .add_filter(move |item| filter.clone().filter(&item.visual));
     }
 }

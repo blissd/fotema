@@ -2,14 +2,14 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use relm4::prelude::*;
-use relm4::Worker;
-use rayon::prelude::*;
 use anyhow::*;
 use fotema_core::photo::metadata;
+use rayon::prelude::*;
+use relm4::prelude::*;
+use relm4::Worker;
 
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
 use tracing::{error, info};
 
@@ -36,14 +36,17 @@ pub struct PhotoEnrich {
 }
 
 impl PhotoEnrich {
-
-    fn enrich(stop: Arc<AtomicBool>, mut repo: fotema_core::photo::Repository, sender: &ComponentSender<PhotoEnrich>) -> Result<()> {
+    fn enrich(
+        stop: Arc<AtomicBool>,
+        mut repo: fotema_core::photo::Repository,
+        sender: &ComponentSender<PhotoEnrich>,
+    ) -> Result<()> {
         let start = std::time::Instant::now();
 
         let unprocessed = repo.find_need_metadata_update()?;
 
         let count = unprocessed.len();
-         info!("Found {} photos as candidates for enriching", count);
+        info!("Found {} photos as candidates for enriching", count);
 
         // Short-circuit before sending progress messages to stop
         // banner from appearing and disappearing.
@@ -65,7 +68,11 @@ impl PhotoEnrich {
 
         repo.add_metadatas(metadatas)?;
 
-        info!("Extracted {} photo metadatas in {} seconds.", count, start.elapsed().as_secs());
+        info!(
+            "Extracted {} photo metadatas in {} seconds.",
+            count,
+            start.elapsed().as_secs()
+        );
 
         if let Err(e) = sender.output(PhotoEnrichOutput::Completed(count)) {
             error!("Failed sending PhotoEnrichOutput::Completed: {:?}", e);
@@ -80,13 +87,9 @@ impl Worker for PhotoEnrich {
     type Input = PhotoEnrichInput;
     type Output = PhotoEnrichOutput;
 
-    fn init((stop, repo): Self::Init, _sender: ComponentSender<Self>) -> Self  {
-        PhotoEnrich {
-            stop,
-            repo,
-        }
+    fn init((stop, repo): Self::Init, _sender: ComponentSender<Self>) -> Self {
+        PhotoEnrich { stop, repo }
     }
-
 
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {

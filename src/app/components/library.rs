@@ -4,16 +4,16 @@
 
 use fotema_core::{VisualId, YearMonth};
 
-use relm4::*;
 use relm4::adw;
+use relm4::*;
 use std::str::FromStr;
 use std::sync::Arc;
 use strum::EnumString;
 use strum::IntoStaticStr;
 
 use crate::app::adaptive;
-use crate::app::SharedState;
 use crate::app::ActiveView;
+use crate::app::SharedState;
 use crate::app::ViewName;
 use crate::fl;
 
@@ -51,7 +51,6 @@ pub enum LibraryInput {
 pub enum LibraryOutput {
     View(VisualId),
 }
-
 
 pub struct Library {
     stack: adw::ViewStack,
@@ -91,9 +90,13 @@ impl SimpleComponent for Library {
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-
         let all_album = Album::builder()
-            .launch((state.clone(), active_view.clone(), ViewName::All, AlbumFilter::All))
+            .launch((
+                state.clone(),
+                active_view.clone(),
+                ViewName::All,
+                AlbumFilter::All,
+            ))
             .forward(sender.input_sender(), |msg| match msg {
                 AlbumOutput::Selected(id, _) => LibraryInput::View(id),
                 AlbumOutput::ScrollOffset(_) => LibraryInput::Ignore,
@@ -106,21 +109,23 @@ impl SimpleComponent for Library {
             .launch((state.clone(), active_view.clone()))
             .forward(sender.input_sender(), |msg| match msg {
                 MonthsAlbumOutput::MonthSelected(ym) => LibraryInput::GoToMonth(ym),
-            },
-        );
+            });
 
         state.subscribe(months_album.sender(), |_| MonthsAlbumInput::Refresh);
-        layout_state.subscribe(months_album.sender(), |layout| MonthsAlbumInput::Adapt(*layout));
+        layout_state.subscribe(months_album.sender(), |layout| {
+            MonthsAlbumInput::Adapt(*layout)
+        });
 
         let years_album = YearsAlbum::builder()
             .launch((state.clone(), active_view.clone()))
-            .forward(sender.input_sender(),|msg| match msg {
+            .forward(sender.input_sender(), |msg| match msg {
                 YearsAlbumOutput::YearSelected(year) => LibraryInput::GoToYear(year),
-            },
-        );
+            });
 
         state.subscribe(years_album.sender(), |_| YearsAlbumInput::Refresh);
-        layout_state.subscribe(years_album.sender(), |layout| YearsAlbumInput::Adapt(*layout));
+        layout_state.subscribe(years_album.sender(), |layout| {
+            YearsAlbumInput::Adapt(*layout)
+        });
 
         let widgets = view_output!();
 
@@ -138,9 +143,11 @@ impl SimpleComponent for Library {
         match msg {
             LibraryInput::Ignore => {
                 // info!("Intentionally ignoring a message");
-            },
+            }
             LibraryInput::Activate => {
-                let child_name = self.stack.visible_child_name()
+                let child_name = self
+                    .stack
+                    .visible_child_name()
                     .and_then(|x| LibraryViewName::from_str(x.as_str()).ok())
                     .unwrap_or(LibraryViewName::Nothing);
 
@@ -150,27 +157,29 @@ impl SimpleComponent for Library {
                     LibraryViewName::Year => self.years_album.emit(YearsAlbumInput::Activate),
                     LibraryViewName::Nothing => error!("Nothing activated for library view :-/"),
                 }
-            },
+            }
             LibraryInput::GoToMonth(ym) => {
                 // Display all photos view.
-                self.stack.set_visible_child_name(LibraryViewName::All.into());
+                self.stack
+                    .set_visible_child_name(LibraryViewName::All.into());
                 self.all_album.emit(AlbumInput::Activate);
                 self.all_album.emit(AlbumInput::GoToMonth(ym));
-            },
+            }
             LibraryInput::GoToYear(year) => {
                 // Display month photos view.
-                self.stack.set_visible_child_name(LibraryViewName::Month.into());
+                self.stack
+                    .set_visible_child_name(LibraryViewName::Month.into());
                 self.months_album.emit(MonthsAlbumInput::Activate);
                 self.months_album.emit(MonthsAlbumInput::GoToYear(year));
-            },
+            }
             LibraryInput::View(id) => {
                 let _ = sender.output(LibraryOutput::View(id));
-            },
+            }
             LibraryInput::Sort(sort) => {
                 self.all_album.emit(AlbumInput::Sort(sort));
                 self.months_album.emit(MonthsAlbumInput::Sort(sort));
                 self.years_album.emit(YearsAlbumInput::Sort(sort));
-            },
+            }
         }
     }
 }

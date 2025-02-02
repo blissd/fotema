@@ -6,19 +6,19 @@ use fotema_core;
 
 use itertools::Itertools;
 
+use relm4::binding::*;
 use relm4::gtk;
+use relm4::gtk::gdk;
+use relm4::gtk::gdk_pixbuf;
 use relm4::gtk::prelude::FrameExt;
 use relm4::gtk::prelude::WidgetExt;
-use relm4::gtk::gdk_pixbuf;
-use relm4::gtk::gdk;
 use relm4::*;
-use relm4::binding::*;
 
-use tracing::{debug,error,info};
+use tracing::{debug, error, info};
 
 use crate::adaptive;
-use crate::app::SharedState;
 use crate::app::ActiveView;
+use crate::app::SharedState;
 use crate::app::ViewName;
 use fotema_core::{Visual, VisualId};
 
@@ -29,8 +29,8 @@ use shumate;
 use shumate::prelude::*;
 use shumate::MAP_SOURCE_OSM_MAPNIK;
 
-use std::sync::Arc;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 const NARROW_EDGE_LENGTH: i32 = 60;
 const WIDE_EDGE_LENGTH: i32 = 100;
@@ -122,10 +122,9 @@ impl SimpleComponent for PlacesAlbum {
         _root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-
         //let map = Map::new();
         let map_widget = shumate::SimpleMap::builder()
-           // .connect_scale_notify(|_| println!("scale"))
+            // .connect_scale_notify(|_| println!("scale"))
             .build();
 
         if let Some(scale) = map_widget.scale() {
@@ -211,26 +210,25 @@ impl SimpleComponent for PlacesAlbum {
             }
             PlacesAlbumInput::Adapt(adaptive::Layout::Narrow) => {
                 self.edge_length.set_value(NARROW_EDGE_LENGTH);
-            },
+            }
             PlacesAlbumInput::Adapt(adaptive::Layout::Wide) => {
                 self.edge_length.set_value(WIDE_EDGE_LENGTH);
-            },
+            }
             PlacesAlbumInput::Zoom => {
                 let zoom_level = self.viewport.zoom_level();
                 debug!("zoom level = {}", zoom_level);
                 self.update_on_zoom(&PlacesAlbum::zoom_to_resolution(zoom_level));
                 // a zoom is also a move
                 self.update_on_move(&sender);
-            },
+            }
             PlacesAlbumInput::Move => {
                 self.update_on_move(&sender);
-            },
+            }
         }
     }
 }
 
 impl PlacesAlbum {
-
     /// Maps a Shumate zoom level to a H3O resolution
     /// FIXME this is pretty coarse. Would be good map by scale or by fractional zoom levels.
     fn zoom_to_resolution(zoom_level: f64) -> h3o::Resolution {
@@ -250,12 +248,11 @@ impl PlacesAlbum {
             15 => h3o::Resolution::Eight,
             16 => h3o::Resolution::Nine,
             a if a >= MAX_ZOOM_LEVEL => h3o::Resolution::Nine,
-            _ =>  h3o::Resolution::Three,
+            _ => h3o::Resolution::Three,
         }
     }
 
     fn update_on_zoom(&mut self, resolution: &h3o::Resolution) {
-
         if self.resolution == *resolution {
             return;
         }
@@ -263,7 +260,10 @@ impl PlacesAlbum {
         // When the resolution changes the set of cells on the map changes
         // and the thumbnails and counts change.
 
-        debug!("Resolution zoomed from {} to {}", self.resolution, resolution);
+        debug!(
+            "Resolution zoomed from {} to {}",
+            self.resolution, resolution
+        );
 
         self.resolution = *resolution;
 
@@ -297,12 +297,17 @@ impl PlacesAlbum {
     }
 
     fn update_on_move(&mut self, sender: &ComponentSender<Self>) {
-
         // Note that zoom computes the cells on the map so should come before move
         // if a zoom and move has occurred.
 
-        let Ok(centre_point) = h3o::LatLng::new(self.viewport.latitude(), self.viewport.longitude()) else {
-            error!("Invalid viewport centre point: lat={}, lng={}", self.viewport.latitude(), self.viewport.longitude());
+        let Ok(centre_point) =
+            h3o::LatLng::new(self.viewport.latitude(), self.viewport.longitude())
+        else {
+            error!(
+                "Invalid viewport centre point: lat={}, lng={}",
+                self.viewport.latitude(),
+                self.viewport.longitude()
+            );
             return;
         };
 
@@ -314,7 +319,10 @@ impl PlacesAlbum {
 
         // When the centre cell changes then the set of visible cells changes.
         // Some new cells will become visible, and other cells will no longer be visible.
-        debug!("Centre cell moved from {} to {}", self.centre_cell, centre_cell);
+        debug!(
+            "Centre cell moved from {} to {}",
+            self.centre_cell, centre_cell
+        );
 
         self.centre_cell = centre_cell;
 
@@ -334,10 +342,12 @@ impl PlacesAlbum {
         let map = self.map.map().expect("Must have map");
         map.remove_layer(&self.marker_layer);
 
-        self.marker_layer = shumate::MarkerLayer::new_full(&self.viewport, gtk::SelectionMode::Single);
+        self.marker_layer =
+            shumate::MarkerLayer::new_full(&self.viewport, gtk::SelectionMode::Single);
         map.add_layer(&self.marker_layer);
 
-        nearby.into_iter()
+        nearby
+            .into_iter()
             // Select nearby cell items and drop any Nones
             .filter_map(|cell_index| self.cells.get(&cell_index))
             // We must sort items before adding to layer so they are added in a consistent order.
@@ -347,9 +357,7 @@ impl PlacesAlbum {
             .for_each(|item| {
                 let widget = self.to_pin_thumbnail(&item.visual, Some(item.count), sender);
 
-                let marker = shumate::Marker::builder()
-                    .child(&widget)
-                    .build();
+                let marker = shumate::Marker::builder().child(&widget).build();
 
                 // Hmmm... using the cell_index lat/lng can put thumbnails kinda far from where
                 // they occurred
@@ -361,11 +369,14 @@ impl PlacesAlbum {
 
                 marker.set_location(location.lat(), location.lng());
 
-               self.marker_layer.add_marker(&marker);
+                self.marker_layer.add_marker(&marker);
             });
 
         info!("{} cells on map", self.cells.len());
-        info!("{} thumbnails added to the map", self.marker_layer.markers().len());
+        info!(
+            "{} thumbnails added to the map",
+            self.marker_layer.markers().len()
+        );
     }
 
     fn refresh(&mut self, sender: &ComponentSender<Self>) {
@@ -374,7 +385,7 @@ impl PlacesAlbum {
 
         info!("{} items with location data", data.len());
 
-        if let Some(most_recent) = data.iter().max_by(|x,y|x.ordering_ts.cmp(&y.ordering_ts)) {
+        if let Some(most_recent) = data.iter().max_by(|x, y| x.ordering_ts.cmp(&y.ordering_ts)) {
             let location = most_recent.location.expect("must have location");
             info!("Centreing on most recent location at {}", location);
             let map = self.map.map().expect("must have map");
@@ -388,16 +399,24 @@ impl PlacesAlbum {
     }
 
     /// Make thumbnail to put onto map
-    fn to_pin_thumbnail(&self, visual: &Visual, count: Option<usize>, sender: &ComponentSender<PlacesAlbum>) -> gtk::Frame {
+    fn to_pin_thumbnail(
+        &self,
+        visual: &Visual,
+        count: Option<usize>,
+        sender: &ComponentSender<PlacesAlbum>,
+    ) -> gtk::Frame {
         let picture = if visual.thumbnail_path.as_ref().is_some_and(|x| x.exists()) {
             gtk::Image::from_file(visual.thumbnail_path.as_ref().expect("Must have path"))
         } else {
             let pb = gdk_pixbuf::Pixbuf::from_resource_at_scale(
                 "/app/fotema/Fotema/icons/scalable/actions/image-missing-symbolic.svg",
-                200, 200, true
-            ).unwrap();
-           let img = gdk::Texture::for_pixbuf(&pb);
-           gtk::Image::from_paintable(Some(&img))
+                200,
+                200,
+                true,
+            )
+            .unwrap();
+            let img = gdk::Texture::for_pixbuf(&pb);
+            gtk::Image::from_paintable(Some(&img))
         };
 
         picture.add_write_only_binding(&self.edge_length, "width-request");
@@ -407,11 +426,9 @@ impl PlacesAlbum {
 
         let count = count.unwrap_or(1);
 
-         if count > 1 {
+        if count > 1 {
             // if there is a count then overlay the number in the bottom right corner.
-            let overlay = gtk::Overlay::builder()
-                .child(&picture)
-                .build();
+            let overlay = gtk::Overlay::builder().child(&picture).build();
 
             let label = gtk::Label::builder()
                 .label(format!("{}", count))
@@ -430,7 +447,7 @@ impl PlacesAlbum {
             overlay.add_overlay(&label_frame);
 
             frame.set_child(Some(&overlay));
-           // frame
+            // frame
         } else {
             frame.set_child(Some(&picture));
         }
@@ -442,7 +459,7 @@ impl PlacesAlbum {
             let visual = visual.clone();
             let sender = sender.clone();
             let resolution = self.resolution;
-            click.connect_released(move |_click,_,_,_| {
+            click.connect_released(move |_click, _, _, _| {
                 if count > 1 {
                     info!("Viewing album containing: {}", visual.visual_id);
                     if let Some(cell_index) = visual.location.map(|loc| loc.to_cell(resolution)) {

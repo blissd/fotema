@@ -22,14 +22,11 @@ repos:
     rev: v5.0.2
     hooks:
       - id: reuse
-  - repo: local
+  - repo: https://github.com/doublify/pre-commit-rust
+    rev: master
     hooks:
-      - id: rustfmt
-        name: rustfmt
-        description: Check if all files follow the rustfmt style
-        entry: cargo fmt --all -- --check --color always
-        language: system
-        pass_filenames: false
+    - id: fmt
+    - id: cargo-check
   - repo: local
     hooks:
       - id: flatpak-builder-lint

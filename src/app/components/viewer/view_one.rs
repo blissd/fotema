@@ -2,27 +2,27 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use fotema_core::VisualId;
-use fotema_core::Visual;
+use chrono::TimeDelta;
 use fotema_core::visual::model::PictureOrientation;
-use strum::IntoEnumIterator;
-use relm4::gtk;
+use fotema_core::Visual;
+use fotema_core::VisualId;
+use glycin;
 use relm4::adw::gdk;
+use relm4::gtk;
 use relm4::gtk::gio;
 use relm4::gtk::prelude::*;
-use relm4::*;
 use relm4::prelude::*;
-use glycin;
-use chrono::TimeDelta;
+use relm4::*;
+use strum::IntoEnumIterator;
 
 use crate::app::components::progress_monitor::ProgressMonitor;
 use crate::app::components::progress_panel::ProgressPanel;
 use crate::fl;
 
-use std::sync::Arc;
 use std::path::PathBuf;
+use std::sync::Arc;
 
-use tracing::{debug, info, event, Level};
+use tracing::{debug, event, info, Level};
 
 const TEN_SECS_IN_MICROS: i64 = 10_000_000;
 const FIFTEEN_SECS_IN_MICROS: i64 = 15_000_000;
@@ -115,7 +115,6 @@ pub enum ViewOneOutput {
 
     /// Showing transcode status.
     TranscodeShown(VisualId),
-
     // TODO is a NothingShown value needed?
 }
 
@@ -324,8 +323,7 @@ impl SimpleAsyncComponent for ViewOne {
         transcode_progress_monitor: Self::Init,
         root: Self::Root,
         _sender: AsyncComponentSender<Self>,
-    ) -> AsyncComponentParts<Self>  {
-
+    ) -> AsyncComponentParts<Self> {
         let picture = gtk::Picture::new();
 
         let transcode_progress = ProgressPanel::builder()
@@ -357,7 +355,9 @@ impl SimpleAsyncComponent for ViewOne {
             ViewOneInput::Load(visual) => {
                 info!("Load visual {}", visual.visual_id);
 
-                let visual_path = visual.picture_path.as_ref()
+                let visual_path = visual
+                    .picture_path
+                    .as_ref()
                     .or_else(|| visual.video_path.as_ref());
 
                 self.viewing = Viewing::None;
@@ -396,7 +396,8 @@ impl SimpleAsyncComponent for ViewOne {
                     // Apply a CSS transformation to respect the EXIF orientation
                     // NOTE: don't use Glycin to apply the transformation here because it is
                     // too slow.
-                    let orientation = visual.picture_orientation
+                    let orientation = visual
+                        .picture_orientation
                         .unwrap_or(PictureOrientation::North);
                     self.picture.add_css_class(orientation.as_ref());
 
@@ -426,9 +427,14 @@ impl SimpleAsyncComponent for ViewOne {
 
                     let texture = frame.texture();
                     self.picture.set_paintable(Some(&texture));
-                } else { // video or motion photo
-                    let is_transcoded = visual.video_transcoded_path.as_ref().is_some_and(|x| x.exists());
-                    let is_transcode_required = visual.is_transcode_required.is_some_and(|x| x) && !is_transcoded;
+                } else {
+                    // video or motion photo
+                    let is_transcoded = visual
+                        .video_transcoded_path
+                        .as_ref()
+                        .is_some_and(|x| x.exists());
+                    let is_transcode_required =
+                        visual.is_transcode_required.is_some_and(|x| x) && !is_transcoded;
 
                     if is_transcode_required {
                         self.viewing = Viewing::Transcode;
@@ -437,12 +443,15 @@ impl SimpleAsyncComponent for ViewOne {
                         // already have been applied.
                         if !is_transcoded {
                             // Apply a CSS transformation to respect the display matrix rotation
-                            let orientation = visual.video_orientation
+                            let orientation = visual
+                                .video_orientation
                                 .unwrap_or(PictureOrientation::North);
                             self.picture.add_css_class(orientation.as_ref());
                         }
 
-                        let video_path = visual.video_transcoded_path.as_ref()
+                        let video_path = visual
+                            .video_transcoded_path
+                            .as_ref()
                             .filter(|x| x.exists())
                             .or_else(|| visual.video_path.as_ref())
                             .filter(|x| x.exists())
@@ -474,16 +483,22 @@ impl SimpleAsyncComponent for ViewOne {
                             let sender1 = sender.clone();
                             let sender2 = sender.clone();
                             let sender3 = sender.clone();
-                            video.connect_ended_notify(move |_| sender1.input(ViewOneInput::VideoEnded));
-                            video.connect_timestamp_notify(move |_| sender2.input(ViewOneInput::VideoTimestamp));
-                            video.connect_prepared_notify(move |_| sender3.input(ViewOneInput::VideoPrepared));
+                            video.connect_ended_notify(move |_| {
+                                sender1.input(ViewOneInput::VideoEnded)
+                            });
+                            video.connect_timestamp_notify(move |_| {
+                                sender2.input(ViewOneInput::VideoTimestamp)
+                            });
+                            video.connect_prepared_notify(move |_| {
+                                sender3.input(ViewOneInput::VideoPrepared)
+                            });
                         }
 
                         self.video = Some(video);
                         self.picture.set_paintable(self.video.as_ref());
                     }
                 }
-            },
+            }
             ViewOneInput::View => {
                 info!("View");
 
@@ -496,8 +511,9 @@ impl SimpleAsyncComponent for ViewOne {
                         let Some(info) = self.image_info.as_ref() else {
                             return;
                         };
-                        let _ = sender.output(ViewOneOutput::PhotoShown(visual_id.clone(), info.clone()));
-                    },
+                        let _ = sender
+                            .output(ViewOneOutput::PhotoShown(visual_id.clone(), info.clone()));
+                    }
                     Viewing::MotionPhoto | Viewing::Video => {
                         if let Some(video) = self.video.as_ref() {
                             debug!("Playing video");
@@ -505,16 +521,16 @@ impl SimpleAsyncComponent for ViewOne {
                             video.play();
                         }
                         let _ = sender.output(ViewOneOutput::VideoShown(visual_id.clone()));
-                    },
+                    }
                     Viewing::Transcode => {
                         let _ = sender.output(ViewOneOutput::TranscodeShown(visual_id.clone()));
-                    },
+                    }
                     Viewing::Error => {
                         let _ = sender.output(ViewOneOutput::ErrorShown(visual_id.clone()));
-                    },
-                    Viewing::None => {},
+                    }
+                    Viewing::None => {}
                 };
-            },
+            }
             ViewOneInput::Hidden => {
                 info!("Hide");
                 if let Some(video) = self.video.as_ref() {
@@ -537,7 +553,7 @@ impl SimpleAsyncComponent for ViewOne {
                         video.pause();
                     }
                 }
-            },
+            }
             ViewOneInput::VideoPrepared => {
                 // Video details, like duration, aren't available until the video
                 // has been prepared.
@@ -546,7 +562,7 @@ impl SimpleAsyncComponent for ViewOne {
                     // skipping in chunks of 10 seconds to make some sense.
                     self.is_skipping_allowed = video.duration() >= FIFTEEN_SECS_IN_MICROS;
                 }
-            },
+            }
             ViewOneInput::MuteToggle => {
                 if let Some(ref video) = self.video {
                     if video.is_muted() {
@@ -557,7 +573,7 @@ impl SimpleAsyncComponent for ViewOne {
                         video.set_muted(true);
                     }
                 }
-            },
+            }
             ViewOneInput::PlayToggle => {
                 if let Some(ref video) = self.video {
                     if video.is_ended() {
@@ -576,12 +592,13 @@ impl SimpleAsyncComponent for ViewOne {
                     } else if video.is_playing() {
                         self.playback = Playback::Paused;
                         video.pause();
-                    } else { // is paused
+                    } else {
+                        // is paused
                         self.playback = Playback::Playing;
                         video.play();
                     }
                 }
-            },
+            }
             ViewOneInput::SkipBackwards => {
                 if let Some(ref video) = self.video {
                     let ts = video.timestamp();
@@ -597,7 +614,7 @@ impl SimpleAsyncComponent for ViewOne {
                         video.seek(ts - TEN_SECS_IN_MICROS);
                     }
                 }
-            },
+            }
             ViewOneInput::SkipForward => {
                 if let Some(ref video) = self.video {
                     let mut ts = video.timestamp();
@@ -609,21 +626,25 @@ impl SimpleAsyncComponent for ViewOne {
                     }
                     video.seek(ts);
                 }
-            },
+            }
             ViewOneInput::VideoEnded => {
                 self.playback = Playback::Ended;
-            },
+            }
             ViewOneInput::VideoTimestamp => {
                 if let Some(ref video) = self.video {
-                    let current_ts = fotema_core::time::format_hhmmss(&TimeDelta::microseconds(video.timestamp()));
-                    let total_ts = fotema_core::time::format_hhmmss(&TimeDelta::microseconds(video.duration()));
+                    let current_ts = fotema_core::time::format_hhmmss(&TimeDelta::microseconds(
+                        video.timestamp(),
+                    ));
+                    let total_ts = fotema_core::time::format_hhmmss(&TimeDelta::microseconds(
+                        video.duration(),
+                    ));
                     self.video_timestamp = format!("{}/{}", current_ts, total_ts).into();
                 }
-            },
+            }
             ViewOneInput::TranscodeAll => {
                 event!(Level::INFO, "Transcode all");
                 let _ = sender.output(ViewOneOutput::TranscodeAll);
-            },
+            }
         }
     }
 }
@@ -658,8 +679,10 @@ impl ViewOne {
     fn broken_status_description(&self) -> Option<String> {
         match self.broken {
             Broken::MissingPath => Some(fl!("viewer-error-missing-path")),
-            Broken::MissingInFileSystem(ref visual_path) => Some(fl!("viewer-error-missing-file",
-                        file_name = visual_path.to_string_lossy())),
+            Broken::MissingInFileSystem(ref visual_path) => Some(fl!(
+                "viewer-error-missing-file",
+                file_name = visual_path.to_string_lossy()
+            )),
             Broken::Failed => Some(fl!("viewer-error-failed-to-load")),
             Broken::None => None::<String>,
         }

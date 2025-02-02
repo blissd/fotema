@@ -2,16 +2,12 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-
-use ashpd::{
-    desktop::file_chooser::OpenFileRequest,
-    WindowIdentifier,
-};
+use ashpd::{desktop::file_chooser::OpenFileRequest, WindowIdentifier};
 
 use relm4::gtk;
 use relm4::gtk::prelude::*;
-use relm4::*;
 use relm4::prelude::*;
+use relm4::*;
 
 use crate::fl;
 
@@ -78,10 +74,9 @@ impl SimpleAsyncComponent for Onboard {
         root: Self::Root,
         _sender: AsyncComponentSender<Self>,
     ) -> AsyncComponentParts<Self> {
-
         let widgets = view_output!();
 
-        let model = Onboard {root};
+        let model = Onboard { root };
 
         AsyncComponentParts { model, widgets }
     }
@@ -101,16 +96,20 @@ impl SimpleAsyncComponent for Onboard {
                     match request.send().await.and_then(|r| r.response()) {
                         Ok(files) => {
                             info!("Open: {:?}", files);
-                            let Some(dir) = files.uris().first().and_then(|uri| uri.to_file_path().ok()) else {
+                            let Some(dir) =
+                                files.uris().first().and_then(|uri| uri.to_file_path().ok())
+                            else {
                                 error!("No directory!");
                                 return;
                             };
                             info!("User has chosen picture library at: {:?}", dir);
 
                             // Parse Document ID from file chooser path.
-                            let doc_id = dir.to_str()
+                            let doc_id = dir
+                                .to_str()
                                 .and_then(|s| {
-                                    let re = Regex::new(r"^/run/user/[0-9]+/doc/([0-9a-fA-F]+)/").unwrap();
+                                    let re = Regex::new(r"^/run/user/[0-9]+/doc/([0-9a-fA-F]+)/")
+                                        .unwrap();
                                     re.captures(s)
                                 })
                                 .and_then(|re_match| re_match.get(1))
@@ -130,8 +129,8 @@ impl SimpleAsyncComponent for Onboard {
                             error!("Failed to open a file: {err}");
                         }
                     }
-                 }
-            },
+                }
+            }
         }
     }
 }

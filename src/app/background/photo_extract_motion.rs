@@ -2,22 +2,17 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use relm4::prelude::*;
-use relm4::Worker;
-use relm4::Reducer;
-use rayon::prelude::*;
 use anyhow::*;
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
+use rayon::prelude::*;
+use relm4::prelude::*;
+use relm4::Reducer;
+use relm4::Worker;
 use std::result::Result::Ok;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use tracing::{error, info};
 
-use crate::app::components::progress_monitor::{
-    ProgressMonitor,
-    ProgressMonitorInput,
-    TaskName,
-};
-
+use crate::app::components::progress_monitor::{ProgressMonitor, ProgressMonitorInput, TaskName};
 
 #[derive(Debug)]
 pub enum PhotoExtractMotionInput {
@@ -31,7 +26,6 @@ pub enum PhotoExtractMotionOutput {
 
     // Motion photo extract has completed
     Completed(usize),
-
 }
 
 pub struct PhotoExtractMotion {
@@ -47,14 +41,13 @@ pub struct PhotoExtractMotion {
 }
 
 impl PhotoExtractMotion {
-
     fn extract(
         stop: Arc<AtomicBool>,
         repo: fotema_core::photo::Repository,
         extractor: fotema_core::photo::MotionPhotoExtractor,
         progress_monitor: Arc<Reducer<ProgressMonitor>>,
-        sender: ComponentSender<Self>) -> Result<()>
-     {
+        sender: ComponentSender<Self>,
+    ) -> Result<()> {
         let start = std::time::Instant::now();
 
         let unprocessed: Vec<fotema_core::photo::model::Picture> = repo
@@ -64,7 +57,10 @@ impl PhotoExtractMotion {
             .collect();
 
         let count = unprocessed.len();
-         info!("Found {} photos as candidates for extracting motion photo videos", count);
+        info!(
+            "Found {} photos as candidates for extracting motion photo videos",
+            count
+        );
 
         // Short-circuit before sending progress messages to stop
         // banner from appearing and disappearing.
@@ -87,23 +83,33 @@ impl PhotoExtractMotion {
                 let result = extractor.extract(&photo.picture_id, &photo.path);
 
                 let result = match result {
-                    Ok(opt_video) => {
-                        repo.clone().add_motion_photo_video(&photo.picture_id, opt_video)
-                    },
+                    Ok(opt_video) => repo
+                        .clone()
+                        .add_motion_photo_video(&photo.picture_id, opt_video),
                     Err(e) => {
-                    error!("Failed extracting motion photo: {:?}: Photo path: {:?}", e, photo.path);
+                        error!(
+                            "Failed extracting motion photo: {:?}: Photo path: {:?}",
+                            e, photo.path
+                        );
                         repo.clone().mark_broken(&photo.picture_id)
-                    },
+                    }
                 };
 
                 if let Err(e) = result {
-                    error!("Failed updating database: {:?}: Photo path: {:?}", e, photo.path);
+                    error!(
+                        "Failed updating database: {:?}: Photo path: {:?}",
+                        e, photo.path
+                    );
                 }
 
                 progress_monitor.emit(ProgressMonitorInput::Advance);
             });
 
-        info!("Extracted {} motion photos in {} seconds.", count, start.elapsed().as_secs());
+        info!(
+            "Extracted {} motion photos in {} seconds.",
+            count,
+            start.elapsed().as_secs()
+        );
 
         progress_monitor.emit(ProgressMonitorInput::Complete);
 
@@ -114,11 +120,19 @@ impl PhotoExtractMotion {
 }
 
 impl Worker for PhotoExtractMotion {
-    type Init = (Arc<AtomicBool>, fotema_core::photo::MotionPhotoExtractor, fotema_core::photo::Repository, Arc<Reducer<ProgressMonitor>>);
+    type Init = (
+        Arc<AtomicBool>,
+        fotema_core::photo::MotionPhotoExtractor,
+        fotema_core::photo::Repository,
+        Arc<Reducer<ProgressMonitor>>,
+    );
     type Input = PhotoExtractMotionInput;
     type Output = PhotoExtractMotionOutput;
 
-    fn init((stop, extractor, repo, progress_monitor): Self::Init, _sender: ComponentSender<Self>) -> Self  {
+    fn init(
+        (stop, extractor, repo, progress_monitor): Self::Init,
+        _sender: ComponentSender<Self>,
+    ) -> Self {
         PhotoExtractMotion {
             stop,
             extractor,
@@ -137,7 +151,9 @@ impl Worker for PhotoExtractMotion {
                 let progress_monitor = self.progress_monitor.clone();
 
                 rayon::spawn(move || {
-                    if let Err(e) = PhotoExtractMotion::extract(stop, repo, extractor, progress_monitor, sender) {
+                    if let Err(e) =
+                        PhotoExtractMotion::extract(stop, repo, extractor, progress_monitor, sender)
+                    {
                         error!("Failed to update previews: {}", e);
                     }
                 });

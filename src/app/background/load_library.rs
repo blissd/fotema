@@ -2,13 +2,13 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use relm4::prelude::*;
-use relm4::Worker;
 use crate::app::SharedState;
+use anyhow::*;
 use fotema_core::visual::Repository;
 use fotema_core::Visual;
+use relm4::prelude::*;
+use relm4::Worker;
 use std::sync::Arc;
-use anyhow::*;
 use tracing::{error, info};
 
 #[derive(Debug)]

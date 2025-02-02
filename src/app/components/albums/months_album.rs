@@ -2,13 +2,14 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use gtk::prelude::OrientableExt;
 use fotema_core;
+use gtk::prelude::OrientableExt;
 
 use fotema_core::visual::model::PictureOrientation;
 use strum::IntoEnumIterator;
 
 use itertools::Itertools;
+use relm4::binding::*;
 use relm4::gtk;
 use relm4::gtk::gdk;
 use relm4::gtk::gdk_pixbuf;
@@ -16,7 +17,6 @@ use relm4::gtk::prelude::FrameExt;
 use relm4::gtk::prelude::WidgetExt;
 use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
 use relm4::*;
-use relm4::binding::*;
 
 use fotema_core::Year;
 use fotema_core::YearMonth;
@@ -25,10 +25,10 @@ use std::sync::Arc;
 use tracing::info;
 
 use crate::adaptive;
-use crate::app::SharedState;
 use crate::app::ActiveView;
-use crate::app::ViewName;
 use crate::app::AlbumSort;
+use crate::app::SharedState;
+use crate::app::ViewName;
 use crate::fl;
 
 use tracing::{event, Level};
@@ -127,27 +127,40 @@ impl RelmGridItem for PhotoGridItem {
         // GLib-GObject:ERROR:../gobject/gbinding.c:805:g_binding_constructed: assertion failed: (source != NULL)
         // Bail out! GLib-GObject:ERROR:../gobject/gbinding.c:805:g_binding_constructed: assertion failed: (source != NULL)
         if !widgets.is_bound {
-            widgets.picture.add_write_only_binding(&self.edge_length, "width-request");
-            widgets.picture.add_write_only_binding(&self.edge_length, "height-request");
+            widgets
+                .picture
+                .add_write_only_binding(&self.edge_length, "width-request");
+            widgets
+                .picture
+                .add_write_only_binding(&self.edge_length, "height-request");
             widgets.is_bound = true;
         }
 
-        widgets
-            .label
-            .set_label(&fl!("month-thumbnail-label",
+        widgets.label.set_label(
+            &fl!(
+                "month-thumbnail-label",
                 month = ym.month.number_from_month(),
-                year = ym.year.to_string()) // Should we convert to string?
-            );
+                year = ym.year.to_string()
+            ), // Should we convert to string?
+        );
 
-        if self.picture.thumbnail_path.as_ref().is_some_and(|x| x.exists()) {
+        if self
+            .picture
+            .thumbnail_path
+            .as_ref()
+            .is_some_and(|x| x.exists())
+        {
             widgets
                 .picture
                 .set_filename(self.picture.thumbnail_path.clone());
         } else {
             let pb = gdk_pixbuf::Pixbuf::from_resource_at_scale(
                 "/app/fotema/Fotema/icons/scalable/actions/image-missing-symbolic.svg",
-                200, 200, true
-            ).unwrap();
+                200,
+                200,
+                true,
+            )
+            .unwrap();
             let img = gdk::Texture::for_pixbuf(&pb);
             widgets.picture.set_paintable(Some(&img));
         }
@@ -251,10 +264,10 @@ impl SimpleComponent for MonthsAlbum {
             }
             MonthsAlbumInput::Adapt(adaptive::Layout::Narrow) => {
                 self.edge_length.set_value(NARROW_EDGE_LENGTH);
-            },
+            }
             MonthsAlbumInput::Adapt(adaptive::Layout::Wide) => {
                 self.edge_length.set_value(WIDE_EDGE_LENGTH);
-            },
+            }
             MonthsAlbumInput::Sort(sort) => {
                 if self.sort != sort {
                     info!("Sort order is now {:?}", sort);
@@ -270,8 +283,7 @@ impl MonthsAlbum {
     fn refresh(&mut self) {
         let mut all_pictures = {
             let data = self.state.read();
-            data
-                .iter()
+            data.iter()
                 .dedup_by(|x, y| x.year_month() == y.year_month())
                 .map(|picture| PhotoGridItem {
                     picture: picture.clone(),

@@ -2,13 +2,13 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+use anyhow::Result;
+use rayon::prelude::*;
 use relm4::prelude::*;
 use relm4::Worker;
-use rayon::prelude::*;
-use anyhow::Result;
 
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
 use tracing::{debug, error, info};
 
@@ -24,7 +24,6 @@ pub enum PhotoCleanOutput {
 
     // Thumbnail generation has completed
     Completed(usize),
-
 }
 
 pub struct PhotoClean {
@@ -36,9 +35,7 @@ pub struct PhotoClean {
 }
 
 impl PhotoClean {
-
     fn cleanup(&mut self, sender: &ComponentSender<Self>) -> Result<()> {
-
         let start = std::time::Instant::now();
 
         // Scrub pics from database if they no longer exist on the file system.
@@ -55,7 +52,7 @@ impl PhotoClean {
             return Ok(());
         }
 
-        if let Err(e) = sender.output(PhotoCleanOutput::Started){
+        if let Err(e) = sender.output(PhotoCleanOutput::Started) {
             error!("Failed sending cleanup started: {:?}", e);
         }
 
@@ -82,7 +79,11 @@ impl PhotoClean {
                 }
             });
 
-        info!("Cleaned {} photos in {} seconds.", count, start.elapsed().as_secs());
+        info!(
+            "Cleaned {} photos in {} seconds.",
+            count,
+            start.elapsed().as_secs()
+        );
 
         if let Err(e) = sender.output(PhotoCleanOutput::Completed(count)) {
             error!("Failed sending PhotoCleanOutput::Completed: {:?}", e);

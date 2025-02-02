@@ -6,19 +6,19 @@ use gtk::prelude::OrientableExt;
 
 use fotema_core::people;
 
+use relm4::binding::*;
 use relm4::gtk;
-use relm4::gtk::prelude::*;
 use relm4::gtk::gdk;
 use relm4::gtk::prelude::WidgetExt;
+use relm4::gtk::prelude::*;
 use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
 use relm4::*;
-use relm4::binding::*;
 
 use crate::adaptive;
 use crate::app::ActiveView;
-use crate::app::ViewName;
-use crate::app::SettingsState;
 use crate::app::FaceDetectionMode;
+use crate::app::SettingsState;
+use crate::app::ViewName;
 use crate::fl;
 
 use tracing::{debug, info};
@@ -28,7 +28,6 @@ const WIDE_EDGE_LENGTH: i32 = 200;
 
 #[derive(Debug)]
 struct PhotoGridItem {
-
     /// Person for avatar
     person: people::Person,
 
@@ -102,16 +101,16 @@ impl RelmGridItem for PhotoGridItem {
     }
 
     fn bind(&mut self, widgets: &mut Self::Widgets, _root: &mut Self::Root) {
-        widgets
-            .label
-            .set_text(&self.person.name);
+        widgets.label.set_text(&self.person.name);
 
         // If we repeatedly bind, then Fotema will die with the following error:
         // (fotema:2): GLib-GObject-CRITICAL **: 13:26:14.297: Too many GWeakRef registered
         // GLib-GObject:ERROR:../gobject/gbinding.c:805:g_binding_constructed: assertion failed: (source != NULL)
         // Bail out! GLib-GObject:ERROR:../gobject/gbinding.c:805:g_binding_constructed: assertion failed: (source != NULL)
         if !widgets.is_bound {
-            widgets.avatar.add_write_only_binding(&self.edge_length, "size");
+            widgets
+                .avatar
+                .add_write_only_binding(&self.edge_length, "size");
             widgets.is_bound = true;
         }
 
@@ -198,7 +197,6 @@ impl SimpleComponent for PeopleAlbum {
         _root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-
         settings_state.subscribe(sender.input_sender(), |_| PeopleAlbumInput::SettingsChanged);
 
         let photo_grid = TypedGridView::new();
@@ -230,7 +228,7 @@ impl SimpleComponent for PeopleAlbum {
                 info!("Activating people view");
                 *self.active_view.write() = ViewName::People;
                 self.refresh();
-            },
+            }
             PeopleAlbumInput::Selected(index) => {
                 debug!("Person selected index: {}", index);
                 if let Some(item) = self.photo_grid.get_visible(index) {
@@ -240,38 +238,39 @@ impl SimpleComponent for PeopleAlbum {
 
                     let _ = sender.output(PeopleAlbumOutput::Selected(item.person.clone()));
                 }
-            },
+            }
             PeopleAlbumInput::Adapt(adaptive::Layout::Narrow) => {
                 self.edge_length.set_value(NARROW_EDGE_LENGTH);
-            },
+            }
             PeopleAlbumInput::Adapt(adaptive::Layout::Wide) => {
                 self.edge_length.set_value(WIDE_EDGE_LENGTH);
-            },
+            }
             PeopleAlbumInput::Refresh => {
                 self.refresh();
-            },
+            }
             PeopleAlbumInput::SettingsChanged => {
                 self.refresh();
-            },
+            }
             PeopleAlbumInput::EnableFaceDetection => {
                 let mut settings = self.settings_state.read().clone();
                 settings.face_detection_mode = FaceDetectionMode::On;
                 *self.settings_state.write() = settings;
                 self.refresh();
                 let _ = sender.output(PeopleAlbumOutput::EnableFaceDetection);
-            },
+            }
         }
     }
 }
 
 impl PeopleAlbum {
     fn refresh(&mut self) {
-
         if self.settings_state.read().face_detection_mode == FaceDetectionMode::Off {
             self.avatars.set_visible(false);
             self.status.set_visible(true);
-            self.status.set_title(&fl!("people-page-status-off", "title"));
-            self.status.set_description(Some(&fl!("people-page-status-off", "description")));
+            self.status
+                .set_title(&fl!("people-page-status-off", "title"));
+            self.status
+                .set_description(Some(&fl!("people-page-status-off", "description")));
 
             if let Some(child) = self.status.child() {
                 child.set_visible(true);
@@ -301,11 +300,12 @@ impl PeopleAlbum {
             if let Some(child) = self.status.child() {
                 child.set_visible(false);
             }
-            self.status.set_title(&fl!("people-page-status-no-people", "title"));
-            self.status.set_description(Some(&fl!("people-page-status-no-people", "description")));
+            self.status
+                .set_title(&fl!("people-page-status-no-people", "title"));
+            self.status
+                .set_description(Some(&fl!("people-page-status-no-people", "description")));
         }
 
         self.photo_grid.extend_from_iter(items);
-
     }
 }

@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use relm4::prelude::*;
-use relm4::Worker;
 use relm4::Reducer;
+use relm4::Worker;
 
 use anyhow::*;
 
@@ -13,14 +13,10 @@ use fotema_core::video::Transcoder;
 use fotema_core::Visual;
 use tracing::{error, info};
 
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
-use crate::app::components::progress_monitor::{
-    ProgressMonitor,
-    ProgressMonitorInput,
-    TaskName,
-};
+use crate::app::components::progress_monitor::{ProgressMonitor, ProgressMonitorInput, TaskName};
 
 use crate::app::SharedState;
 
@@ -37,7 +33,6 @@ pub enum VideoTranscodeOutput {
 
     // Video transcoding has completed
     Completed,
-
 }
 
 pub struct VideoTranscode {
@@ -54,9 +49,7 @@ pub struct VideoTranscode {
 }
 
 impl VideoTranscode {
-
     fn transcode_all(&mut self, sender: &ComponentSender<Self>) -> Result<()> {
-
         let unprocessed: Vec<Arc<Visual>> = {
             let data = self.state.read();
             data.iter()
@@ -68,11 +61,12 @@ impl VideoTranscode {
                 .collect()
         };
 
+        info!("Found {} videos to transcode", unprocessed.len());
 
-         info!("Found {} videos to transcode", unprocessed.len());
-
-        self.progress_monitor
-            .emit(ProgressMonitorInput::Start(TaskName::Transcode, unprocessed.len()));
+        self.progress_monitor.emit(ProgressMonitorInput::Start(
+            TaskName::Transcode,
+            unprocessed.len(),
+        ));
 
         let _ = sender.output(VideoTranscodeOutput::Started);
 
@@ -83,7 +77,9 @@ impl VideoTranscode {
                 let video_id = visual.video_id.expect("Must have video_id");
                 let video_path = visual.video_path.as_ref().expect("Must have video_path");
 
-                let result = self.transcoder.transcode(video_id, video_path)
+                let result = self
+                    .transcoder
+                    .transcode(video_id, video_path)
                     .with_context(|| format!("Video path: {:?}", video_path));
 
                 if let std::result::Result::Ok(ref transcode_path) = result {
@@ -95,7 +91,6 @@ impl VideoTranscode {
                 }
 
                 self.progress_monitor.emit(ProgressMonitorInput::Advance);
-
             });
 
         self.progress_monitor.emit(ProgressMonitorInput::Complete);
@@ -107,12 +102,27 @@ impl VideoTranscode {
 }
 
 impl Worker for VideoTranscode {
-    type Init = (Arc<AtomicBool>, SharedState, Repository, Transcoder, Arc<Reducer<ProgressMonitor>>);
+    type Init = (
+        Arc<AtomicBool>,
+        SharedState,
+        Repository,
+        Transcoder,
+        Arc<Reducer<ProgressMonitor>>,
+    );
     type Input = VideoTranscodeInput;
     type Output = VideoTranscodeOutput;
 
-    fn init((stop, state, repo, transcoder, progress_monitor): Self::Init, _sender: ComponentSender<Self>) -> Self {
-        Self { stop, state, repo, transcoder, progress_monitor }
+    fn init(
+        (stop, state, repo, transcoder, progress_monitor): Self::Init,
+        _sender: ComponentSender<Self>,
+    ) -> Self {
+        Self {
+            stop,
+            state,
+            repo,
+            transcoder,
+            progress_monitor,
+        }
     }
 
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
@@ -123,7 +133,7 @@ impl Worker for VideoTranscode {
                 if let Err(e) = self.transcode_all(&sender) {
                     error!("Failed to transcode photo: {}", e);
                 }
-            },
+            }
         };
     }
 }
