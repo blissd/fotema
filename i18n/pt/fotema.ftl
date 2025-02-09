@@ -147,6 +147,6 @@ month-thumbnail-label =
        *[other] { $year }
     }
 about-opensource = Projetos de Código Aberto
-about-translator-credits = David Bliss &lt;hello@fotema.app
+about-translator-credits = David Bliss <hello@fotema.app>
 viewer-next =
     .tooltip = Próximo
