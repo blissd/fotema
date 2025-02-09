@@ -6,13 +6,11 @@
 default:
     just --list --justfile {{ justfile() }}
 
+# Cargo format
 fmt:
   cargo fmt --verbose --all -- --check
 
-# Install Git hooks
-git-hooks:
-    cp hooks/pre-commit.hook .git/hooks/pre-commit
-
+# Cargo clippy
 clippy:
   cargo clippy --all-targets --all-features -- -D warnings
 
@@ -20,9 +18,6 @@ clippy:
 lint:
     reuse lint
     flatpak run --command=flatpak-builder-lint org.flatpak.Builder manifest build-aux/app.fotema.Fotema.Devel.json
-    flatpak run --command=flatpak-builder-lint org.flatpak.Builder manifest build-aux/app.fotema.Fotema.json
-    #flatpak run --command=flatpak-builder-lint org.flatpak.Builder appstream _flatpak_app/files/share/metainfo/app.fotema.Fotema.Devel.metainfo.xml
-    #flatpak run --command=flatpak-builder-lint org.flatpak.Builder repo fotema-origin
 
 # Add licence information to all supported files
 license:
