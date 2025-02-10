@@ -7,7 +7,6 @@ use ashpd::{desktop::file_chooser::OpenFileRequest, WindowIdentifier};
 use relm4::gtk;
 use relm4::gtk::prelude::*;
 use relm4::prelude::*;
-use relm4::*;
 
 use crate::fl;
 

@@ -17,7 +17,6 @@ use relm4::adw::prelude::*;
 use relm4::gtk;
 use relm4::gtk::gio;
 use relm4::prelude::*;
-use relm4::*;
 use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;

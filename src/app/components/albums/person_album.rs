@@ -10,7 +10,6 @@ use relm4::adw::prelude::*;
 use relm4::binding::*;
 use relm4::gtk;
 use relm4::gtk::gdk;
-use relm4::gtk::prelude::*;
 use relm4::*;
 
 use crate::app::adaptive;
