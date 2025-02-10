@@ -117,6 +117,13 @@
   </screenshots>
 
   <releases>
+    <release version="1.19.2" date="2025-02-10">
+      <description>
+        <ul>
+          <li>Bump dependencies.</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.19.1" date="2025-01-28">
       <description>
         <ul>
