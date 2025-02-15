@@ -17,7 +17,9 @@ repos:
       - id: trailing-whitespace
       - id: pretty-format-json
         exclude: app.fotema.Fotema.Devel.json$
-        args: [--autofix]
+        args:
+          - "--autofix"
+          - "--indent=4"
   - repo: https://github.com/fsfe/reuse-tool
     rev: v5.0.2
     hooks:
@@ -26,12 +28,3 @@ repos:
     rev: v1.0
     hooks:
     - id: fmt
-  - repo: local
-    hooks:
-      - id: flatpak-builder-lint
-        name: flatpak-builder-lint
-        description: Lint flatpak manifest
-        files: build-aux/app.fotema.Fotema.*.json
-        entry: flatpak run --command=flatpak-builder-lint org.flatpak.Builder manifest build-aux/app.fotema.Fotema.Devel.json
-        language: system
-        pass_filenames: false

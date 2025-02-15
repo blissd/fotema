@@ -1,55 +1,55 @@
 {
-  "cleanup": [
-    "/include",
-    "/lib/pkgconfig",
-    "/share/ffmpeg/examples"
-  ],
-  "config-opts": [
-    "--disable-ffplay",
-    "--disable-ffprobe",
-    "--disable-doc",
-    "--enable-pic",
-    "--enable-shared",
-    "--disable-doc",
-    "--disable-static",
-    "--enable-gpl",
-    "--enable-version3",
-    "--enable-optimizations",
-    "--enable-vaapi",
-    "--enable-libx264"
-  ],
-  "modules": [
-    {
-      "config-opts": [
+    "cleanup": [
+        "/include",
+        "/lib/pkgconfig",
+        "/share/ffmpeg/examples"
+    ],
+    "config-opts": [
+        "--disable-ffplay",
+        "--disable-ffprobe",
+        "--disable-doc",
         "--enable-pic",
         "--enable-shared",
-        "--disable-cli"
-      ],
-      "name": "x264",
-      "sources": [
+        "--disable-doc",
+        "--disable-static",
+        "--enable-gpl",
+        "--enable-version3",
+        "--enable-optimizations",
+        "--enable-vaapi",
+        "--enable-libx264"
+    ],
+    "modules": [
         {
-          "commit": "4613ac3c15fd75cebc4b9f65b7fb95e70a3acce1",
-          "type": "git",
-          "url": "https://code.videolan.org/videolan/x264.git"
+            "config-opts": [
+                "--enable-pic",
+                "--enable-shared",
+                "--disable-cli"
+            ],
+            "name": "x264",
+            "sources": [
+                {
+                    "commit": "4613ac3c15fd75cebc4b9f65b7fb95e70a3acce1",
+                    "type": "git",
+                    "url": "https://code.videolan.org/videolan/x264.git"
+                }
+            ]
         }
-      ]
-    }
-  ],
-  "name": "ffmpeg",
-  "sources": [
-    {
-      "sha256": "40973d44970dbc83ef302b0609f2e74982be2d85916dd2ee7472d30678a7abe6",
-      "type": "archive",
-      "url": "https://ffmpeg.org/releases/ffmpeg-7.1.tar.xz",
-      "x-checker-data": {
-        "project-id": 5405,
-        "type": "anitya",
-        "url-template": "https://ffmpeg.org/releases/ffmpeg-$version.tar.xz",
-        "versions": {
-          "<": "8",
-          ">=": "7"
+    ],
+    "name": "ffmpeg",
+    "sources": [
+        {
+            "sha256": "40973d44970dbc83ef302b0609f2e74982be2d85916dd2ee7472d30678a7abe6",
+            "type": "archive",
+            "url": "https://ffmpeg.org/releases/ffmpeg-7.1.tar.xz",
+            "x-checker-data": {
+                "project-id": 5405,
+                "type": "anitya",
+                "url-template": "https://ffmpeg.org/releases/ffmpeg-$version.tar.xz",
+                "versions": {
+                    "<": "8",
+                    ">=": "7"
+                }
+            }
         }
-      }
-    }
-  ]
+    ]
 }

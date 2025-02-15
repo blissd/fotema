@@ -1,38 +1,38 @@
 {
-  "buildsystem": "meson",
-  "config-opts": [
-    "-Ddemos=false",
-    "-Dgtk_doc=false",
-    "-Dvapi=false"
-  ],
-  "modules": [
-    {
-      "buildsystem": "autotools",
-      "config-opts": [
-        "--disable-protoc"
-      ],
-      "name": "protobuf-c",
-      "sources": [
+    "buildsystem": "meson",
+    "config-opts": [
+        "-Ddemos=false",
+        "-Dgtk_doc=false",
+        "-Dvapi=false"
+    ],
+    "modules": [
         {
-          "sha256": "20d1dc257da96f8ddff8be4dd9779215bbd0a6069ed53bbe9de38fa7629be06b",
-          "type": "archive",
-          "url": "https://github.com/protobuf-c/protobuf-c/releases/download/v1.5.1/protobuf-c-1.5.1.tar.gz",
-          "x-checker-data": {
-            "type": "json",
-            "url": "https://api.github.com/repos/protobuf-c/protobuf-c/releases/latest",
-            "url-query": ".assets[] | select(.name==\"protobuf-c-\" + $version + \".tar.gz\") | .browser_download_url",
-            "version-query": ".tag_name | sub(\"^v\"; \"\")"
-          }
+            "buildsystem": "autotools",
+            "config-opts": [
+                "--disable-protoc"
+            ],
+            "name": "protobuf-c",
+            "sources": [
+                {
+                    "sha256": "20d1dc257da96f8ddff8be4dd9779215bbd0a6069ed53bbe9de38fa7629be06b",
+                    "type": "archive",
+                    "url": "https://github.com/protobuf-c/protobuf-c/releases/download/v1.5.1/protobuf-c-1.5.1.tar.gz",
+                    "x-checker-data": {
+                        "type": "json",
+                        "url": "https://api.github.com/repos/protobuf-c/protobuf-c/releases/latest",
+                        "url-query": ".assets[] | select(.name==\"protobuf-c-\" + $version + \".tar.gz\") | .browser_download_url",
+                        "version-query": ".tag_name | sub(\"^v\"; \"\")"
+                    }
+                }
+            ]
         }
-      ]
-    }
-  ],
-  "name": "libshumate",
-  "sources": [
-    {
-      "sha256": "bd0ce2c1412de3fe6359dbfa8333f0f3dafe43260283e8f81c90c85b48788eac",
-      "type": "archive",
-      "url": "https://gitlab.gnome.org/GNOME/libshumate/-/archive/1.3.0/libshumate-1.3.0.tar.gz"
-    }
-  ]
+    ],
+    "name": "libshumate",
+    "sources": [
+        {
+            "sha256": "bd0ce2c1412de3fe6359dbfa8333f0f3dafe43260283e8f81c90c85b48788eac",
+            "type": "archive",
+            "url": "https://gitlab.gnome.org/GNOME/libshumate/-/archive/1.3.0/libshumate-1.3.0.tar.gz"
+        }
+    ]
 }
