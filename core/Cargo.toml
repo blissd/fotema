@@ -16,7 +16,7 @@ chrono = "0.4.37"
 fast_image_resize = { version = "5.1.1", features = ["image"] }
 ffmpeg-next = "7.1.0"
 gdk4 = "0.9.5"
-gio = "0.20.7"
+gio = "0.20.9"
 glycin = { version = "2.0.3", features = ["gdk4"] }
 h3o = "0.7.1"
 image = "0.25.5"
