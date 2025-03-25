@@ -130,8 +130,8 @@ prefs-ui-chronological-album-sort = Ordinea de sortare
     .subtitle = Ordine de sortare cronologic pentru albume.
     .ascending = Crescător
     .descending = Descrescător
-prefs-machine-learning-face-detection = Detectare Facială
-    .subtitle = Activați detectare facială cand Fotema pornește. Acest proces va dura o vreme.
+prefs-machine-learning-face-detection = Detectare facială
+    .subtitle = Activați detectarea facială când { -app-name } pornește. Acesta este un proces care necesită timp.
 prefs-ui-section = UI
     .description = Modificați interfața.
 prefs-machine-learning-section = Învățare Automată
@@ -141,3 +141,18 @@ banner-button-stop =
     .tooltip = Opriți toate sarcinile din fundal.
 banner-stopping = Se opresc sarcinile...
 banner-convert-videos = Se convertesc videoclipurile.
+prefs-library-section-pictures-dir =
+    .title = Folder de imagini
+    .tooltip = Alegeți folderul de imagini.
+onboard-select-pictures =
+    .title = Bun venit la { -app-name }.
+    .description =
+        Vă rugăm să selectați folderul în care vă păstrați imaginile. 
+
+        Dacă ați utilizat o versiune anterioară a { -app-name } în care imaginile a fost descoperite automat, vă rugăm să selectați același folder aici pentru a evita procesarea duplicată a imaginilor..
+    .button = Selectați folderul
+prefs-library-section =
+    .title = Librărie
+    .description =
+        Configurați folderul bibliotecii.
+        Atenție: schimbarea folderului imaginilor poate cauza { -app-name } să proceseze din nou toate imaginile.
