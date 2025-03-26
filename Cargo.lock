@@ -948,7 +948,7 @@ dependencies = [
  "bytemuck",
  "cfg-if",
  "document-features",
- "image 0.25.5",
+ "image 0.25.6",
  "num-traits",
  "thiserror",
 ]
@@ -1202,7 +1202,7 @@ dependencies = [
  "gio",
  "glycin",
  "h3o",
- "image 0.25.5",
+ "image 0.25.6",
  "itertools 0.14.0",
  "kamadak-exif",
  "opencv",
@@ -2331,9 +2331,9 @@ dependencies = [
 
 [[package]]
 name = "image"
-version = "0.25.5"
+version = "0.25.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cd6f44aed642f18953a158afeb30206f4d50da59fbc66ecb53c66488de73563b"
+checksum = "db35664ce6b9810857a38a906215e75a9c879f0696556a39f59c62829710251a"
 dependencies = [
  "bytemuck",
  "byteorder-lite",
@@ -2371,7 +2371,7 @@ dependencies = [
  "ab_glyph",
  "approx",
  "getrandom 0.2.15",
- "image 0.25.5",
+ "image 0.25.6",
  "itertools 0.12.1",
  "nalgebra 0.32.6",
  "num",
@@ -3999,7 +3999,7 @@ version = "1.0.0"
 source = "git+https://github.com/blissd/fotema-rust-faces.git?tag=v1.0.0#43c0d5acd6f3f4d90c6487708f2e511a73bf7c9e"
 dependencies = [
  "directories",
- "image 0.25.5",
+ "image 0.25.6",
  "imageproc",
  "indicatif",
  "itertools 0.11.0",
