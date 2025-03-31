@@ -35,7 +35,7 @@ unic-langid = "0.9.5"
 lazy_static = "1.4.0"
 libshumate-sys = "0.6.0"
 h3o = "0.7.1"
-ashpd = { version = "0.11.0", features = ["gtk4"] }
+ashpd = { version = "0.11.0", default-features = false, features = ["gtk4", "async-std"] }
 regex = "1.11.1"
 
 [dependencies.shumate]
