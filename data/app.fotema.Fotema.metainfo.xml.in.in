@@ -117,6 +117,15 @@
   </screenshots>
 
   <releases>
+    <release version="1.20.0" date="2025-04-01">
+      <description>
+        <ul>
+          <li>GNOME 48 runtime.</li>
+          <li>Translation updates.</li>
+          <li>Bump dependencies.</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.19.2" date="2025-02-10">
       <description>
         <ul>
