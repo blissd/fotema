@@ -2,8 +2,8 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use relm4::prelude::*;
 use relm4::Worker;
+use relm4::prelude::*;
 use tracing::{error, info};
 
 #[derive(Debug)]

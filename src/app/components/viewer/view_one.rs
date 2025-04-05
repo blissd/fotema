@@ -3,9 +3,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use chrono::TimeDelta;
-use fotema_core::visual::model::PictureOrientation;
 use fotema_core::Visual;
 use fotema_core::VisualId;
+use fotema_core::visual::model::PictureOrientation;
 use glycin;
 use relm4::adw::gdk;
 use relm4::gtk;
@@ -22,7 +22,7 @@ use crate::fl;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use tracing::{debug, event, info, Level};
+use tracing::{Level, debug, event, info};
 
 const TEN_SECS_IN_MICROS: i64 = 10_000_000;
 const FIFTEEN_SECS_IN_MICROS: i64 = 15_000_000;

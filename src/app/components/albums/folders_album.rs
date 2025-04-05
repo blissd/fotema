@@ -25,7 +25,7 @@ use crate::app::ActiveView;
 use crate::app::SharedState;
 use crate::app::ViewName;
 
-use tracing::{event, info, Level};
+use tracing::{Level, event, info};
 
 const NARROW_EDGE_LENGTH: i32 = 170;
 const WIDE_EDGE_LENGTH: i32 = 200;

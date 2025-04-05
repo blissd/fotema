@@ -17,14 +17,14 @@ use crate::app::components::albums::album_filter::AlbumFilter;
 use crate::app::components::albums::album_sort::AlbumSort;
 
 use crate::adaptive;
-use crate::app::components::progress_monitor::ProgressMonitor;
 use crate::app::SharedState;
+use crate::app::components::progress_monitor::ProgressMonitor;
 use crate::fl;
 
-use fotema_core::people;
 use fotema_core::PictureId;
 use fotema_core::Visual;
 use fotema_core::VisualId;
+use fotema_core::people;
 use std::sync::Arc;
 
 use tracing::{debug, error, info};
@@ -536,8 +536,13 @@ impl SimpleAsyncComponent for ViewNav {
 
                     debug!("Page index after = {}", self.carousel_last_page_index);
 
-                    self.events_to_suppress_count = (carousel_position_before - self.carousel_last_page_index as i32).abs() as u32;
-                    debug!("Events to suppress count = {}", self.events_to_suppress_count);
+                    self.events_to_suppress_count = (carousel_position_before
+                        - self.carousel_last_page_index as i32)
+                        .abs() as u32;
+                    debug!(
+                        "Events to suppress count = {}",
+                        self.events_to_suppress_count
+                    );
 
                     self.carousel_pages[self.carousel_last_page_index as usize]
                         .emit(ViewOneInput::View);
@@ -546,9 +551,12 @@ impl SimpleAsyncComponent for ViewNav {
             ViewNavInput::SwipeTo(page_index) => {
                 debug!("Swiped to {}", page_index);
 
-               if self.events_to_suppress_count > 0 {
+                if self.events_to_suppress_count > 0 {
                     self.events_to_suppress_count -= 1;
-                    debug!("Suppressed an event. {} events remaining to suppress.", self.events_to_suppress_count);
+                    debug!(
+                        "Suppressed an event. {} events remaining to suppress.",
+                        self.events_to_suppress_count
+                    );
                     return;
                 }
 

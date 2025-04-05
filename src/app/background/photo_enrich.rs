@@ -5,11 +5,11 @@
 use anyhow::*;
 use fotema_core::photo::metadata;
 use rayon::prelude::*;
-use relm4::prelude::*;
 use relm4::Worker;
+use relm4::prelude::*;
 
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use tracing::{error, info};
 

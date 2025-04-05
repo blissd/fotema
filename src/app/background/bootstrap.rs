@@ -2,17 +2,17 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 use relm4::{
-    gtk::glib, shared_state::Reducer, Component, ComponentSender, Sender, Worker, WorkerController,
+    Component, ComponentSender, Sender, Worker, WorkerController, gtk::glib, shared_state::Reducer,
 };
 
 use crate::app::Settings;
 use crate::config::APP_ID;
+use fotema_core::PictureId;
 use fotema_core::database;
 use fotema_core::people;
 use fotema_core::photo;
 use fotema_core::video;
 use fotema_core::visual;
-use fotema_core::PictureId;
 
 use std::result::Result::Ok;
 use std::sync::atomic::{AtomicBool, Ordering};

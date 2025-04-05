@@ -2,9 +2,9 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use fotema_core::visual::model::PictureOrientation;
 use fotema_core::VisualId;
 use fotema_core::YearMonth;
+use fotema_core::visual::model::PictureOrientation;
 use gtk::prelude::OrientableExt;
 use relm4::binding::*;
 use relm4::gtk;
@@ -20,10 +20,10 @@ use strum::IntoEnumIterator;
 
 use super::album_filter::AlbumFilter;
 use super::album_sort::AlbumSort;
-use crate::app::adaptive;
 use crate::app::ActiveView;
 use crate::app::SharedState;
 use crate::app::ViewName;
+use crate::app::adaptive;
 
 use tracing::{debug, info};
 

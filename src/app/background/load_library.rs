@@ -4,10 +4,10 @@
 
 use crate::app::SharedState;
 use anyhow::*;
-use fotema_core::visual::Repository;
 use fotema_core::Visual;
-use relm4::prelude::*;
+use fotema_core::visual::Repository;
 use relm4::Worker;
+use relm4::prelude::*;
 use std::sync::Arc;
 use tracing::{error, info};
 

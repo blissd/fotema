@@ -11,10 +11,10 @@ use std::sync::Arc;
 use strum::EnumString;
 use strum::IntoStaticStr;
 
-use crate::app::adaptive;
 use crate::app::ActiveView;
 use crate::app::SharedState;
 use crate::app::ViewName;
+use crate::app::adaptive;
 use crate::fl;
 
 use super::albums::album::{Album, AlbumInput, AlbumOutput};

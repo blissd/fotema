@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use fotema_core::video;
-use relm4::prelude::*;
 use relm4::Worker;
+use relm4::prelude::*;
 
 use tracing::{error, info};
 

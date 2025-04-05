@@ -26,8 +26,8 @@ use h3o;
 use h3o::CellIndex;
 
 use shumate;
-use shumate::prelude::*;
 use shumate::MAP_SOURCE_OSM_MAPNIK;
+use shumate::prelude::*;
 
 use std::collections::HashMap;
 use std::sync::Arc;

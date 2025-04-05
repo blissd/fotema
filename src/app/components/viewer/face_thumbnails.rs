@@ -9,10 +9,10 @@ use relm4::prelude::*;
 use relm4::*;
 
 use crate::fl;
-use fotema_core::people;
 use fotema_core::FaceId;
 use fotema_core::PersonId;
 use fotema_core::PictureId;
+use fotema_core::people;
 
 use super::person_select::{PersonSelect, PersonSelectInput, PersonSelectOutput};
 

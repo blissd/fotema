@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use relm4::adw::prelude::AdwDialogExt;
-use relm4::{adw, gtk, ComponentParts, ComponentSender, SimpleComponent};
+use relm4::{ComponentParts, ComponentSender, SimpleComponent, adw, gtk};
 
 use crate::config::{APP_ID, VERSION};
 use crate::fl;

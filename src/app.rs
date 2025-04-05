@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use relm4::{
+    Component, ComponentController, ComponentParts, ComponentSender, Controller, SimpleComponent,
+    WorkerController,
     actions::{RelmAction, RelmActionGroup},
     adw,
     adw::prelude::{AdwApplicationWindowExt, NavigationPageExt},
@@ -15,19 +17,17 @@ use relm4::{
     main_application,
     prelude::AsyncController,
     shared_state::Reducer,
-    Component, ComponentController, ComponentParts, ComponentSender, Controller, SimpleComponent,
-    WorkerController,
 };
 
 use crate::adaptive;
 use crate::config::{APP_ID, PROFILE};
 use crate::fl;
 
+use fotema_core::PictureId;
+use fotema_core::VisualId;
 use fotema_core::database;
 use fotema_core::path_encoding;
 use fotema_core::people;
-use fotema_core::PictureId;
-use fotema_core::VisualId;
 
 use h3o::CellIndex;
 

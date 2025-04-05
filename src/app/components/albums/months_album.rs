@@ -31,7 +31,7 @@ use crate::app::SharedState;
 use crate::app::ViewName;
 use crate::fl;
 
-use tracing::{event, Level};
+use tracing::{Level, event};
 
 const NARROW_EDGE_LENGTH: i32 = 170;
 const WIDE_EDGE_LENGTH: i32 = 200;

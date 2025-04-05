@@ -4,12 +4,12 @@
 
 use anyhow::*;
 use rayon::prelude::*;
-use relm4::prelude::*;
 use relm4::Reducer;
 use relm4::Worker;
+use relm4::prelude::*;
 use std::result::Result::Ok;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use tracing::{error, info};
 
 use crate::app::components::progress_monitor::{ProgressMonitor, ProgressMonitorInput, TaskName};

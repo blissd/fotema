@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use ashpd::{desktop::file_chooser::OpenFileRequest, WindowIdentifier};
+use ashpd::{WindowIdentifier, desktop::file_chooser::OpenFileRequest};
 
 use relm4::adw::prelude::*;
 use relm4::gtk;

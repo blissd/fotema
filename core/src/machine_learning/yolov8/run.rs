@@ -6,7 +6,7 @@ use super::model::{Multiples, YoloV8};
 
 use candle_core::{DType, Device, IndexOp, Result, Tensor};
 use candle_nn::{Module, VarBuilder};
-use candle_transformers::object_detection::{non_maximum_suppression, Bbox, KeyPoint};
+use candle_transformers::object_detection::{Bbox, KeyPoint, non_maximum_suppression};
 
 use image::DynamicImage;
 

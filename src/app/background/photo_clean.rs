@@ -4,11 +4,11 @@
 
 use anyhow::Result;
 use rayon::prelude::*;
-use relm4::prelude::*;
 use relm4::Worker;
+use relm4::prelude::*;
 
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use tracing::{debug, error, info};
 

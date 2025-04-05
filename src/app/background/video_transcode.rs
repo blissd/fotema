@@ -2,19 +2,19 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use relm4::prelude::*;
 use relm4::Reducer;
 use relm4::Worker;
+use relm4::prelude::*;
 
 use anyhow::*;
 
+use fotema_core::Visual;
 use fotema_core::video::Repository;
 use fotema_core::video::Transcoder;
-use fotema_core::Visual;
 use tracing::{error, info};
 
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use crate::app::components::progress_monitor::{ProgressMonitor, ProgressMonitorInput, TaskName};
 

@@ -3,16 +3,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use super::face_thumbnails::{FaceThumbnails, FaceThumbnailsInput};
-use fotema_core::people;
 /// Properties view for a photo.
 ///Inspired by how Loupe displays its property view.
 use fotema_core::VisualId;
+use fotema_core::people;
 
 use gtk::prelude::OrientableExt;
 
 use chrono::{DateTime, Utc};
 use glycin::ImageInfo;
-use humansize::{format_size, DECIMAL};
+use humansize::{DECIMAL, format_size};
 use relm4::adw::prelude::*;
 use relm4::gtk;
 use relm4::gtk::gio;
@@ -24,7 +24,7 @@ use std::sync::Arc;
 use crate::app::SharedState;
 use crate::fl;
 
-use tracing::{event, Level};
+use tracing::{Level, event};
 
 #[derive(Debug)]
 pub enum ViewInfoInput {

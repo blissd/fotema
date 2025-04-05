@@ -147,7 +147,7 @@ prefs-library-section-pictures-dir =
 onboard-select-pictures =
     .title = Bun venit la { -app-name }.
     .description =
-        Vă rugăm să selectați folderul în care vă păstrați imaginile. 
+        Vă rugăm să selectați folderul în care vă păstrați imaginile.
 
         Dacă ați utilizat o versiune anterioară a { -app-name } în care imaginile a fost descoperite automat, vă rugăm să selectați același folder aici pentru a evita procesarea duplicată a imaginilor..
     .button = Selectați folderul

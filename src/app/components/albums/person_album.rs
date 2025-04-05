@@ -12,19 +12,19 @@ use relm4::gtk;
 use relm4::gtk::gdk;
 use relm4::*;
 
+use crate::app::ActiveView;
+use crate::app::SharedState;
+use crate::app::ViewName;
 use crate::app::adaptive;
 use crate::app::components::albums::{
     album::{Album, AlbumInput, AlbumOutput},
     album_filter::AlbumFilter,
     album_sort::AlbumSort,
 };
-use crate::app::ActiveView;
-use crate::app::SharedState;
-use crate::app::ViewName;
 
 use crate::fl;
-use fotema_core::people;
 use fotema_core::PictureId;
+use fotema_core::people;
 
 use tracing::{error, info};
 
