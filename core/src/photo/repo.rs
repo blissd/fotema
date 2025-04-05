@@ -4,15 +4,15 @@
 
 use crate::photo::model::{Picture, PictureId, ScannedFile};
 
+use super::Metadata;
 use super::metadata;
 use super::model::MotionPhotoVideo;
 use super::motion_photo;
-use super::Metadata;
 use crate::path_encoding;
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use rusqlite;
-use rusqlite::params;
 use rusqlite::Row;
+use rusqlite::params;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 

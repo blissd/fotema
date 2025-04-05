@@ -5,11 +5,11 @@
 use crate::photo::model::PictureId;
 use anyhow::*;
 
-use image::codecs::png::PngEncoder;
 use image::DynamicImage;
 use image::ExtendedColorType;
 use image::ImageEncoder;
 use image::ImageReader;
+use image::codecs::png::PngEncoder;
 
 use fast_image_resize as fr;
 use fr::images::Image;

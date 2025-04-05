@@ -121,6 +121,13 @@ pub struct ViewNav {
     /// Page index of previous action.
     carousel_last_page_index: u32,
 
+    /// Count of events to ignore.
+    /// When user clicks to view a picture the carousel is moved with a scroll_to(index) call,
+    /// which triggers various swipe events and sometimes causes the carousel to view the
+    /// wrong picture.
+    /// Note that this sucks and Fotema really needs a bespoke carousel like Loupe and Tuba.
+    events_to_suppress_count: u32,
+
     // Info for photo
     view_info: Controller<ViewInfo>,
 
@@ -390,6 +397,7 @@ impl SimpleAsyncComponent for ViewNav {
             left_button_sensitive,
             right_button_sensitive,
             bottom_margin,
+            events_to_suppress_count: 0,
         };
 
         let restore_action = {
@@ -476,6 +484,8 @@ impl SimpleAsyncComponent for ViewNav {
                     return;
                 };
 
+                let carousel_position_before = self.carousel.position() as i32;
+
                 // Carousel will be either one, two, or three pages depending
                 // on how many items are in the album being viewed.
                 if self.album.len() == 1 {
@@ -524,12 +534,23 @@ impl SimpleAsyncComponent for ViewNav {
                         self.carousel_last_page_index = 1;
                     }
 
+                    debug!("Page index after = {}", self.carousel_last_page_index);
+
+                    self.events_to_suppress_count = (carousel_position_before - self.carousel_last_page_index as i32).abs() as u32;
+                    debug!("Events to suppress count = {}", self.events_to_suppress_count);
+
                     self.carousel_pages[self.carousel_last_page_index as usize]
                         .emit(ViewOneInput::View);
                 }
             }
             ViewNavInput::SwipeTo(page_index) => {
                 debug!("Swiped to {}", page_index);
+
+               if self.events_to_suppress_count > 0 {
+                    self.events_to_suppress_count -= 1;
+                    debug!("Suppressed an event. {} events remaining to suppress.", self.events_to_suppress_count);
+                    return;
+                }
 
                 let Some(mut index) = self.album_index else {
                     error!("Page swiped, but no current index");

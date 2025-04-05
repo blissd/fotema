@@ -2,15 +2,15 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use super::metadata;
 use super::Metadata;
+use super::metadata;
 use crate::path_encoding;
 use crate::video::model::{ScannedFile, Video, VideoId};
 use anyhow::*;
 use chrono::*;
 use rusqlite;
-use rusqlite::params;
 use rusqlite::Row;
+use rusqlite::params;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 

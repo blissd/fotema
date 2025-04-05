@@ -2,9 +2,9 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+use super::Metadata;
 use super::gps::GPSLocation;
 use super::model::Orientation;
-use super::Metadata;
 use anyhow::*;
 use chrono::prelude::*;
 use chrono::{DateTime, FixedOffset};
