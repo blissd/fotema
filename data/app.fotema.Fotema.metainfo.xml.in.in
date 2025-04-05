@@ -117,6 +117,15 @@
   </screenshots>
 
   <releases>
+    <release version="1.20.1" date="2025-04-05">
+      <description>
+        <ul>
+          <li>BUGFIX (maybe): Incorrect picture shown when clicking thumbnail.</li>
+          <li>Translation updates.</li>
+          <li>Bump dependencies.</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.20.0" date="2025-04-01">
       <description>
         <ul>
