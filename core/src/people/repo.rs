@@ -5,17 +5,17 @@
 use crate::photo::model::PictureId;
 
 use crate::machine_learning::face_extractor;
+use crate::people::FaceId;
+use crate::people::PersonId;
 use crate::people::model;
 use crate::people::model::PersonForRecognition;
 use crate::people::model::Rect;
-use crate::people::FaceId;
-use crate::people::PersonId;
 use crate::photo::model::Orientation;
 
 use anyhow::*;
 use rusqlite;
-use rusqlite::params;
 use rusqlite::Row;
+use rusqlite::params;
 use std::path::{Path, PathBuf};
 use std::result::Result::Ok;
 use std::sync::{Arc, Mutex};

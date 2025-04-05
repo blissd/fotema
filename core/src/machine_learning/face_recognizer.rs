@@ -7,14 +7,14 @@ use std::io::BufWriter;
 use std::path::Path;
 use std::path::PathBuf;
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 
 use opencv::core::Mat;
 use opencv::imgcodecs;
 use opencv::objdetect::{FaceRecognizerSF, FaceRecognizerSF_DisType};
 use opencv::prelude::*;
 
-use reqwest::header::{HeaderMap, HeaderValue, ACCEPT};
+use reqwest::header::{ACCEPT, HeaderMap, HeaderValue};
 
 use tracing::info;
 
@@ -32,8 +32,7 @@ impl FaceRecognizer {
     //const COSINE_SIMILAR_THRESH: f64 = 0.363;
     const L2NORM_SIMILAR_THRESH: f64 = 1.128;
 
-    const MODEL_URL: &'static str =
-        "https://github.com/blissd/fotema-opencv_zoo/raw/fotema-1.0/models/face_recognition_sface/face_recognition_sface_2021dec.onnx";
+    const MODEL_URL: &'static str = "https://github.com/blissd/fotema-opencv_zoo/raw/fotema-1.0/models/face_recognition_sface/face_recognition_sface_2021dec.onnx";
 
     pub fn build(cache_dir: &Path, people: Vec<PersonForRecognition>) -> Result<Self> {
         let model_path = {
@@ -162,9 +161,10 @@ mod tests {
     #[test]
     fn test_recognize() {
         let person_face = DetectedFace {
-
             face_id: FaceId::new(1),
-            face_path: PathBuf::from("/var/home/david/.var/app/app.fotema.Fotema.Devel/cache/app.fotema.Fotema.Devel/photo_faces/0003/3027/0_blaze_face_640_original.png"),
+            face_path: PathBuf::from(
+                "/var/home/david/.var/app/app.fotema.Fotema.Devel/cache/app.fotema.Fotema.Devel/photo_faces/0003/3027/0_blaze_face_640_original.png",
+            ),
             bounds: Rect {
                 x: 0.,
                 y: 0.,

@@ -8,7 +8,7 @@ use std::process::Command;
 
 use crate::video::VideoId;
 
-use tracing::{event, Level};
+use tracing::{Level, event};
 
 #[derive(Debug, Clone)]
 pub struct Transcoder {
