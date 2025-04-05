@@ -5,7 +5,7 @@
 project(
   'fotema',
   'rust',
-  version: '1.20.0',
+  version: '1.20.1',
   meson_version: '>= 0.59',
   # license: 'MIT',
 )
