@@ -576,7 +576,7 @@ impl SimpleAsyncComponent for ViewNav {
                 // This will play/stop videos as appropriate.
                 for i in 0..self.carousel_pages.len() {
                     if i == page_index as usize {
-                        debug!("Viewing page at index {}",git p i);
+                        debug!("Viewing page at index {}", i);
                         self.carousel_pages[i].emit(ViewOneInput::View);
                     } else {
                         debug!("Hiding page at index {}", i);
@@ -814,3 +814,4 @@ impl ViewNav {
                 .is_some_and(|index| index != self.album.len() - 1)
     }
 }
+
