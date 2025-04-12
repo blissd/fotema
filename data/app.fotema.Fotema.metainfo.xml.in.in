@@ -117,6 +117,14 @@
   </screenshots>
 
   <releases>
+    <release version="1.21.0" date="2025-04-12">
+      <description>
+        <ul>
+          <li>Display full directory path of photo library in preferences dialog.</li>
+          <li>"Open Containing Folder" now opens real folder, instead of sandbox file-system folder.</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.20.1" date="2025-04-05">
       <description>
         <ul>
