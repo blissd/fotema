@@ -394,6 +394,7 @@ impl Bootstrap {
     fn build_controllers(
         &mut self,
         pic_base_dir: PathBuf,
+        pic_base_host_path: Option<PathBuf>,
         sender: &ComponentSender<Self>,
     ) -> anyhow::Result<Controllers> {
         let data_dir = glib::user_data_dir().join(APP_ID);
@@ -692,7 +693,7 @@ impl Worker for Bootstrap {
                     "Configuring with pictures base directory: {:?}",
                     pictures_base_dir
                 );
-                match self.build_controllers(pictures_base_dir.clone(), &sender) {
+                match self.build_controllers(pictures_base_dir.clone(), None, &sender) {
                     Ok(controllers) => {
                         self.pictures_base_dir = Some(pictures_base_dir);
                         self.controllers = Some(controllers);

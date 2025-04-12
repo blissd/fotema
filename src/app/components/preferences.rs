@@ -14,6 +14,7 @@ use crate::app::AlbumSort;
 use crate::app::FaceDetectionMode;
 use crate::app::{Settings, SettingsState};
 use crate::fl;
+use crate::host_path;
 
 pub struct PreferencesDialog {
     parent: adw::ApplicationWindow,
@@ -31,12 +32,11 @@ impl PreferencesDialog {
         self.settings.face_detection_mode == FaceDetectionMode::On
     }
 
-    pub fn picture_base_dir_name(&self) -> String {
+    pub fn picture_base_dir_host_path(&self) -> String {
         self.settings
-            .pictures_base_dir
-            .file_name()
-            .map(|s| String::from(s.to_string_lossy()))
-            .unwrap_or(String::from(""))
+            .pictures_base_dir_host_path
+            .to_string_lossy()
+            .to_string()
     }
 }
 
@@ -127,7 +127,7 @@ impl SimpleAsyncComponent for PreferencesDialog {
                         set_title: &fl!("prefs-library-section-pictures-dir", "title"),
 
                         #[watch]
-                        set_subtitle: &model.picture_base_dir_name(),
+                        set_subtitle: &model.picture_base_dir_host_path(),
 
                         add_suffix = &gtk::Button {
                             set_valign: gtk::Align::Center,
@@ -235,7 +235,9 @@ impl SimpleAsyncComponent for PreferencesDialog {
                                             "New pictures base director is: {:?}",
                                             pictures_base_dir
                                         );
-                                        self.settings.pictures_base_dir = pictures_base_dir;
+                                        self.settings.pictures_base_dir = pictures_base_dir.clone();
+                                        self.settings.pictures_base_dir_host_path = host_path::host_path(&pictures_base_dir)
+                                            .await.unwrap_or(pictures_base_dir);
                                         *self.settings_state.write() = self.settings.clone();
                                     }
                                 }
@@ -250,3 +252,4 @@ impl SimpleAsyncComponent for PreferencesDialog {
         }
     }
 }
+
