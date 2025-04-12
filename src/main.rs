@@ -6,6 +6,7 @@
 mod app;
 mod adaptive;
 mod config;
+mod host_path;
 mod languages;
 
 use app::App;
@@ -88,5 +89,5 @@ fn main() {
         )
         .unwrap();
     relm4::set_global_css(&glib::GString::from_utf8_checked(data.to_vec()).unwrap());
-    app.visible_on_activate(false).run::<App>(());
+    app.visible_on_activate(false).run_async::<App>(());
 }

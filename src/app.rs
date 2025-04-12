@@ -2,14 +2,17 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+use relm4::adw::prelude::*;
+use relm4::gtk;
+use relm4::prelude::*;
+
 use relm4::{
     Component, ComponentController, ComponentParts, ComponentSender, Controller, SimpleComponent,
     WorkerController,
     actions::{RelmAction, RelmActionGroup},
     adw,
-    adw::prelude::{AdwApplicationWindowExt, NavigationPageExt},
+    adw::prelude::*,
     component::{AsyncComponent, AsyncComponentController},
-    gtk,
     gtk::{
         gio, glib,
         prelude::{ApplicationExt, ButtonExt, GtkWindowExt, OrientableExt, SettingsExt, WidgetExt},
@@ -18,6 +21,8 @@ use relm4::{
     prelude::AsyncController,
     shared_state::Reducer,
 };
+
+use ashpd::documents::Documents;
 
 use crate::adaptive;
 use crate::config::{APP_ID, PROFILE};
@@ -31,7 +36,9 @@ use fotema_core::people;
 
 use h3o::CellIndex;
 
-use std::path::PathBuf;
+use regex::Regex;
+
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 
@@ -39,9 +46,11 @@ use anyhow::*;
 
 use strum::{AsRefStr, EnumString, FromRepr, IntoStaticStr};
 
-use tracing::{error, info, warn};
+use tracing::{debug, error, info, warn};
 
 mod components;
+
+use crate::host_path;
 
 use self::components::{
     about::AboutDialog,
@@ -117,8 +126,13 @@ pub struct Settings {
     /// the picture library root directory?
     pub is_onboarding_complete: bool,
 
-    /// Base path of pictures directory.
+    /// Base path of pictures directory inside Flatpak sandbox.
+    /// Will be under `/run/users/<uid>/docs/<doc-id>/...`
     pub pictures_base_dir: PathBuf,
+
+    /// Real base path outside of Flatpak sandbox.
+    /// For example, `/var/home/<user>/Pictures`.
+    pub pictures_base_dir_host_path: PathBuf,
 }
 
 /// Active settings
@@ -256,8 +270,8 @@ relm4::new_action_group!(pub(super) WindowActionGroup, "win");
 relm4::new_stateless_action!(PreferencesAction, WindowActionGroup, "preferences");
 relm4::new_stateless_action!(AboutAction, WindowActionGroup, "about");
 
-#[relm4::component(pub)]
-impl SimpleComponent for App {
+#[relm4::component(pub async)]
+impl SimpleAsyncComponent for App {
     type Init = ();
     type Input = AppMsg;
     type Output = ();
@@ -513,11 +527,11 @@ impl SimpleComponent for App {
         }
     }
 
-    fn init(
+    async fn init(
         _init: Self::Init,
         root: Self::Root,
-        sender: ComponentSender<Self>,
-    ) -> ComponentParts<Self> {
+        sender: AsyncComponentSender<Self>,
+    ) -> AsyncComponentParts<Self> {
         let data_dir = glib::user_data_dir().join(APP_ID);
         let _ = std::fs::create_dir_all(&data_dir);
 
@@ -536,7 +550,7 @@ impl SimpleComponent for App {
         let adaptive_layout = Arc::new(adaptive::LayoutState::new());
 
         let settings_state = SettingsState::new(relm4::SharedState::new());
-        match App::load_settings() {
+        match App::load_settings().await {
             std::result::Result::Ok(settings) => {
                 info!("Loaded settings: {:?}", settings);
                 *settings_state.write() = settings;
@@ -827,18 +841,16 @@ impl SimpleComponent for App {
         if is_onboarding_complete {
             model.picture_navigation_view.set_visible(true);
             model.onboard_view.set_visible(false);
-            model.bootstrap.emit(BootstrapInput::Configure(
-                settings.pictures_base_dir.clone(),
-            ));
+            sender.input(AppMsg::OnboardDone(settings.pictures_base_dir.clone()));
         } else {
             model.picture_navigation_view.set_visible(false);
             model.onboard_view.set_visible(true);
         }
 
-        ComponentParts { model, widgets }
+        AsyncComponentParts { model, widgets }
     }
 
-    fn update(&mut self, message: Self::Input, sender: ComponentSender<Self>) {
+    async fn update(&mut self, message: Self::Input, sender: AsyncComponentSender<Self>) {
         match message {
             AppMsg::Activate(width) => {
                 if width >= 500 {
@@ -1044,9 +1056,10 @@ impl SimpleComponent for App {
                 let mut settings = self.settings_state.read().clone();
                 settings.is_onboarding_complete = true;
                 settings.pictures_base_dir = pic_base_dir.clone();
-                *self.settings_state.write() = settings;
+                settings.pictures_base_dir_host_path = host_path::host_path(&pic_base_dir).await.unwrap_or(pic_base_dir.clone());
+                *self.settings_state.write() = settings.clone();
 
-                self.bootstrap.emit(BootstrapInput::Configure(pic_base_dir));
+                self.bootstrap.emit(BootstrapInput::Configure(pic_base_dir, settings.pictures_base_dir_host_path.clone()));
                 self.picture_navigation_view.set_visible(true);
                 self.onboard_view.set_visible(false);
             }
@@ -1059,9 +1072,16 @@ impl SimpleComponent for App {
 }
 
 impl App {
-    pub fn load_settings() -> Result<Settings> {
+    pub async fn load_settings() -> Result<Settings> {
         info!("Loading settings");
+
         let gio_settings = gio::Settings::new(APP_ID);
+
+        let pic_base_dir: PathBuf =  path_encoding::from_base64(
+                &gio_settings.string("pictures-base-dir-b64").into())?;
+
+        let pic_base_dir_host_path = host_path::host_path(&pic_base_dir).await.unwrap_or(pic_base_dir.clone());
+
         Ok(Settings {
             show_selfies: gio_settings.boolean("show-selfies"),
             face_detection_mode: FaceDetectionMode::from_str(
@@ -1071,9 +1091,8 @@ impl App {
             album_sort: AlbumSort::from_str(&gio_settings.string("album-sort"))
                 .unwrap_or(AlbumSort::Ascending),
             is_onboarding_complete: gio_settings.boolean("onboarding-complete"),
-            pictures_base_dir: path_encoding::from_base64(
-                &gio_settings.string("pictures-base-dir-b64").into(),
-            )?,
+            pictures_base_dir: pic_base_dir,
+            pictures_base_dir_host_path: pic_base_dir_host_path,
         })
     }
 
@@ -1089,6 +1108,28 @@ impl App {
             &path_encoding::to_base64(settings.pictures_base_dir.as_ref()),
         )?;
         Ok(())
+    }
+
+    pub async fn host_path(pic_base_dir: &Path) -> Option<PathBuf> {
+        // Parse Document ID from file chooser path.
+        let doc_id = pic_base_dir
+            .to_str()
+            .and_then(|s| {
+                let re = Regex::new(r"^/run/user/[0-9]+/doc/([0-9a-fA-F]+)/")
+                    .unwrap();
+                re.captures(s)
+            })
+            .and_then(|re_match| re_match.get(1))
+            .map(|doc_id_match| doc_id_match.as_str());
+
+        if let Some(doc_id) = doc_id {
+            debug!("Document ID={:?}", doc_id);
+            let proxy = Documents::new().await.unwrap();
+            let hp = proxy.host_paths(&[doc_id.into()]).await.unwrap();
+            info!("Host path={:?}", hp);
+        }
+
+        None
     }
 }
 

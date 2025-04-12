@@ -51,6 +51,8 @@ pub struct Visual {
 
     pub video_path: Option<PathBuf>,
 
+    pub video_host_path: Option<PathBuf>,
+
     // Transcoded version of video_path of video_codec is not supported.
     pub video_transcoded_path: Option<PathBuf>,
 
@@ -63,6 +65,8 @@ pub struct Visual {
     pub picture_id: Option<PictureId>,
 
     pub picture_path: Option<PathBuf>,
+
+    pub picture_host_path: Option<PathBuf>,
 
     pub picture_orientation: Option<Orientation>,
 
@@ -86,7 +90,11 @@ pub struct Visual {
 
 impl Visual {
     pub fn path(&self) -> Option<&PathBuf> {
-        self.picture_path.as_ref().or(self.video_path.as_ref())
+        self.picture_host_path
+            .as_ref()
+            .or(self.video_host_path.as_ref())
+            .or(self.picture_path.as_ref())
+            .or(self.video_path.as_ref())
     }
 
     pub fn is_selfie(&self) -> bool {
