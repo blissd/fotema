@@ -841,9 +841,7 @@ impl SimpleAsyncComponent for App {
         if is_onboarding_complete {
             model.picture_navigation_view.set_visible(true);
             model.onboard_view.set_visible(false);
-            model.bootstrap.emit(BootstrapInput::Configure(
-                settings.pictures_base_dir.clone(),
-            ));
+            sender.input(AppMsg::OnboardDone(settings.pictures_base_dir.clone()));
         } else {
             model.picture_navigation_view.set_visible(false);
             model.onboard_view.set_visible(true);
@@ -1058,9 +1056,10 @@ impl SimpleAsyncComponent for App {
                 let mut settings = self.settings_state.read().clone();
                 settings.is_onboarding_complete = true;
                 settings.pictures_base_dir = pic_base_dir.clone();
-                *self.settings_state.write() = settings;
+                settings.pictures_base_dir_host_path = host_path::host_path(&pic_base_dir).await.unwrap_or(pic_base_dir.clone());
+                *self.settings_state.write() = settings.clone();
 
-                self.bootstrap.emit(BootstrapInput::Configure(pic_base_dir));
+                self.bootstrap.emit(BootstrapInput::Configure(pic_base_dir, settings.pictures_base_dir_host_path.clone()));
                 self.picture_navigation_view.set_visible(true);
                 self.onboard_view.set_visible(false);
             }
@@ -1107,10 +1106,6 @@ impl App {
         gio_settings.set_string(
             "pictures-base-dir-b64",
             &path_encoding::to_base64(settings.pictures_base_dir.as_ref()),
-        )?;
-        gio_settings.set_string(
-            "pictures-base-dir-host-path-b64",
-            &path_encoding::to_base64(settings.pictures_base_dir_host_path.as_ref()),
         )?;
         Ok(())
     }

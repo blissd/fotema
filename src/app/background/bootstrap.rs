@@ -14,6 +14,7 @@ use fotema_core::photo;
 use fotema_core::video;
 use fotema_core::visual;
 
+
 use std::result::Result::Ok;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -74,8 +75,8 @@ pub enum TaskName {
 
 #[derive(Debug)]
 pub enum BootstrapInput {
-    /// Configure the pictures library root
-    Configure(PathBuf),
+    /// Configure the pictures library root and host path
+    Configure(PathBuf, PathBuf),
 
     /// Settings updated
     SettingsUpdated(Settings),
@@ -126,8 +127,6 @@ pub struct Controllers {
     shared_state: SharedState,
 
     settings_state: SettingsState,
-
-    //pic_base_dir: Option<PathBuf>,
 
     // Stop background tasks.
     stop: Arc<AtomicBool>,
@@ -394,7 +393,7 @@ impl Bootstrap {
     fn build_controllers(
         &mut self,
         pic_base_dir: PathBuf,
-        pic_base_host_path: Option<PathBuf>,
+        pic_base_dir_host_path: PathBuf,
         sender: &ComponentSender<Self>,
     ) -> anyhow::Result<Controllers> {
         let data_dir = glib::user_data_dir().join(APP_ID);
@@ -419,7 +418,11 @@ impl Bootstrap {
 
         let motion_photo_extractor = photo::MotionPhotoExtractor::build(&cache_dir)?;
 
-        let visual_repo = visual::Repository::open(&pic_base_dir, &cache_dir, self.con.clone())?;
+        let visual_repo = visual::Repository::open(
+            &pic_base_dir,
+            &pic_base_dir_host_path,
+            &cache_dir, self.con.clone(),
+        )?;
 
         let people_repo = people::Repository::open(&data_dir, self.con.clone())?;
 
@@ -688,12 +691,13 @@ impl Worker for Bootstrap {
         // This match block coordinates the background tasks launched immediately after
         // the app starts up.
         match msg {
-            BootstrapInput::Configure(pictures_base_dir) => {
+            BootstrapInput::Configure(pictures_base_dir, pictures_base_dir_host_path) => {
                 info!(
                     "Configuring with pictures base directory: {:?}",
                     pictures_base_dir
                 );
-                match self.build_controllers(pictures_base_dir.clone(), None, &sender) {
+
+                match self.build_controllers(pictures_base_dir.clone(), pictures_base_dir_host_path, &sender) {
                     Ok(controllers) => {
                         self.pictures_base_dir = Some(pictures_base_dir);
                         self.controllers = Some(controllers);
@@ -723,7 +727,7 @@ impl Worker for Bootstrap {
                         sender.input(BootstrapInput::Stop);
                     } else {
                         self.controllers = None;
-                        sender.input(BootstrapInput::Configure(settings.pictures_base_dir));
+                        sender.input(BootstrapInput::Configure(settings.pictures_base_dir, settings.pictures_base_dir_host_path));
                     }
                 }
             }
@@ -732,8 +736,10 @@ impl Worker for Bootstrap {
                 // shutdown in response to the user changing the pictures base directory.
                 // Now that tasks are shutdown, it is safe to reconfigure with
                 // the new directory.
+                let settings = self.settings_state.read();
                 sender.input(BootstrapInput::Configure(
-                    self.settings_state.read().pictures_base_dir.clone(),
+                    settings.pictures_base_dir.clone(),
+                    settings.pictures_base_dir_host_path.clone(),
                 ));
             }
             BootstrapInput::TaskCompleted(TaskName::LoadLibrary, _)

@@ -34,9 +34,5 @@
       <default>'L3Zhci9lbXB0eQ=='</default>
       <summary>Sandbox view of user selected pictures directory. Base64 encoded because paths aren't strings. Default is /var/empty</summary>
     </key>
-    <key name="pictures-base-dir-host-path-b64" type="s">
-      <default>'L3Zhci9lbXB0eQ=='</default>
-      <summary>Host-path (outside sandbox) path to pictures directory. Base64 encoded because paths aren't strings. Default is /var/empty</summary>
-    </key>
   </schema>
 </schemalist>
