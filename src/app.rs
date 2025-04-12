@@ -1109,28 +1109,6 @@ impl App {
         )?;
         Ok(())
     }
-
-    pub async fn host_path(pic_base_dir: &Path) -> Option<PathBuf> {
-        // Parse Document ID from file chooser path.
-        let doc_id = pic_base_dir
-            .to_str()
-            .and_then(|s| {
-                let re = Regex::new(r"^/run/user/[0-9]+/doc/([0-9a-fA-F]+)/")
-                    .unwrap();
-                re.captures(s)
-            })
-            .and_then(|re_match| re_match.get(1))
-            .map(|doc_id_match| doc_id_match.as_str());
-
-        if let Some(doc_id) = doc_id {
-            debug!("Document ID={:?}", doc_id);
-            let proxy = Documents::new().await.unwrap();
-            let hp = proxy.host_paths(&[doc_id.into()]).await.unwrap();
-            info!("Host path={:?}", hp);
-        }
-
-        None
-    }
 }
 
 impl AppWidgets {
