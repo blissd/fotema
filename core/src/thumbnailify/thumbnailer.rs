@@ -29,6 +29,7 @@ use fast_image_resize as fr;
 use fr::images::Image;
 use fr::{ResizeOptions, Resizer};
 
+use png::Encoder as ExtendedPngEncoder;
 use std::io::BufWriter;
 use std::io::Write;
 
@@ -213,18 +214,33 @@ pub fn generate_thumbnail(
     resizer.resize(&src_image, &mut dst_image, &ResizeOptions::new())?;
 
     let file = std::fs::File::create(&temp_path)?;
-    let mut file = BufWriter::new(file);
+    let file = BufWriter::new(file);
 
-    PngEncoder::new(&mut file).write_image(
-        dst_image.buffer(),
-        dst_width,
-        dst_height,
-        ExtendedColorType::Rgba8,
-    )?;
+    let mut encoder = ExtendedPngEncoder::new(file, dst_width, dst_height);
+    encoder.set_color(png::ColorType::Rgba);
+    encoder.set_depth(png::BitDepth::Eight);
 
-    file.flush()?;
+    encoder.add_text_chunk("Software".to_string(), "app.fotema.Fotema".to_string())?;
 
-    drop(file);
+    let uri = get_file_uri(&host_path)?;
+    encoder.add_text_chunk("Thumb::URI".to_string(), uri)?;
+
+    let metadata = std::fs::metadata(&sandbox_path)?;
+
+    let size = metadata.len();
+    encoder.add_text_chunk("Thumb::Size".to_string(), size.to_string())?;
+
+    let modified_time = metadata.modified()?;
+    let mtime_unix = modified_time
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    encoder.add_text_chunk("Thumb::MTime".to_string(), mtime_unix.to_string())?;
+
+    // Write out the PNG header
+    let mut writer = encoder.write_header()?;
+    writer.write_image_data(&dst_image.buffer())?;
+    drop(writer); // flush
 
     named_temp.persist(&thumb_path)?;
 
