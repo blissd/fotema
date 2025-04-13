@@ -24,7 +24,7 @@ use std::sync::Arc;
 use crate::app::SharedState;
 use crate::fl;
 
-use tracing::{Level, event};
+use tracing::{debug, info, warn};
 
 #[derive(Debug)]
 pub enum ViewInfoInput {
@@ -47,6 +47,7 @@ pub struct ViewInfo {
     state: SharedState,
 
     path: Option<PathBuf>,
+    host_path: Option<PathBuf>,
     folder: adw::ActionRow,
     file_name: adw::ActionRow,
 
@@ -323,6 +324,7 @@ impl SimpleComponent for ViewInfo {
             folder: folder.clone(),
             file_name: file_name.clone(),
             path: None,
+            host_path: None,
 
             date_time_details: date_time_details.clone(),
             created_at: created_at.clone(),
@@ -357,9 +359,14 @@ impl SimpleComponent for ViewInfo {
     fn update(&mut self, msg: Self::Input, _sender: ComponentSender<Self>) {
         match msg {
             ViewInfoInput::OpenFolder => {
+                // FIXME using self.host_path works when run in GNOME Builder, but
+                // doesn't work in the Flatpak sandbox.
                 let Some(ref path) = self.path else {
                     return;
                 };
+
+                debug!("Trying to open folder for {}", path.to_string_lossy());
+
                 let file = gtk::gio::File::for_path(path);
                 let launcher = gtk::FileLauncher::new(Some(&file));
                 launcher.open_containing_folder(
@@ -375,7 +382,7 @@ impl SimpleComponent for ViewInfo {
                 };
 
                 let Some(ref vis) = result else {
-                    event!(Level::WARN, "No visual item");
+                    warn!("No visual item");
                     return;
                 };
 
@@ -392,7 +399,7 @@ impl SimpleComponent for ViewInfo {
                 };
 
                 let Some(ref vis) = result else {
-                    event!(Level::WARN, "No visual item");
+                    warn!("No visual item");
                     return;
                 };
 
@@ -417,7 +424,7 @@ impl SimpleComponent for ViewInfo {
                 };
 
                 let Some(ref vis) = result else {
-                    event!(Level::WARN, "No visual item");
+                    warn!("No visual item");
                     return;
                 };
 
@@ -452,6 +459,7 @@ impl ViewInfo {
             path.file_name().map(|x| x.to_string_lossy().to_string()),
         );
         self.path = Some(path.to_path_buf());
+        self.host_path = vis.host_path().cloned();
 
         // FIXME duplicated from Scanner
         let file = fs::File::open(path).map_err(|e| e.to_string())?;
