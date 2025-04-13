@@ -63,20 +63,17 @@ impl Thumbnailer {
 
     /// Generate a thumbnail from a file that has already been processed in a Glycin sandbox.
     fn trusted_thumbnail(path: &Path, thumbnail_path: &Path) -> Result<()> {
-        let src_image = ImageReader::open(path)?.decode()?.into_rgb8();
+        let src_image = ImageReader::open(path)?.decode()?.into_rgba8();
 
         // WARNING src_image, dst_image, and the PngEncoder must all
         // use the _same_ pixel type or the PngEncoder will throw errors
         // about having an unexpected number of bytes.
         // PixelType::U8x3 == RGB8
         // PixelType::U8x4 == RGBA8
-        //
-        // For now I'm using RGB, not RGBA, because I don't think an alpha channel
-        // makes sense for thumbnails.
 
-        let src_image = DynamicImage::ImageRgb8(src_image);
+        let src_image = DynamicImage::ImageRgba8(src_image);
 
-        let mut dst_image = Image::new(EDGE, EDGE, fr::PixelType::U8x3);
+        let mut dst_image = Image::new(EDGE, EDGE, fr::PixelType::U8x4);
 
         let mut resizer = Resizer::new();
 
@@ -99,7 +96,7 @@ impl Thumbnailer {
             dst_image.buffer(),
             EDGE,
             EDGE,
-            ExtendedColorType::Rgb8,
+            ExtendedColorType::Rgba8,
         )?;
 
         file.flush()?;
