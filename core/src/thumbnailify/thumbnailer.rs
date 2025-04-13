@@ -21,9 +21,6 @@ use crate::thumbnailify::{
 use png::Decoder;
 
 use image::DynamicImage;
-use image::ExtendedColorType;
-use image::ImageEncoder;
-use image::codecs::png::PngEncoder;
 
 use fast_image_resize as fr;
 use fr::images::Image;
@@ -31,7 +28,6 @@ use fr::{ResizeOptions, Resizer};
 
 use png::Encoder as ExtendedPngEncoder;
 use std::io::BufWriter;
-use std::io::Write;
 
 use tempfile;
 
@@ -220,6 +216,7 @@ pub fn generate_thumbnail(
     encoder.set_color(png::ColorType::Rgba);
     encoder.set_depth(png::BitDepth::Eight);
 
+    // FIXME hard-coded app-id
     encoder.add_text_chunk("Software".to_string(), "app.fotema.Fotema".to_string())?;
 
     let uri = get_file_uri(&host_path)?;
@@ -236,6 +233,9 @@ pub fn generate_thumbnail(
         .unwrap_or_default()
         .as_secs();
     encoder.add_text_chunk("Thumb::MTime".to_string(), mtime_unix.to_string())?;
+
+    // TODO image width/height, video duration.
+    // See https://specifications.freedesktop.org/thumbnail-spec/latest/creation.html
 
     // Write out the PNG header
     let mut writer = encoder.write_header()?;

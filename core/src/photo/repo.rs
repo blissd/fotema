@@ -2,13 +2,14 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+use crate::path_encoding;
 use crate::photo::model::{Picture, PictureId, ScannedFile};
+use crate::thumbnailify;
 
 use super::Metadata;
 use super::metadata;
 use super::model::MotionPhotoVideo;
 use super::motion_photo;
-use crate::path_encoding;
 use anyhow::{Result, bail};
 use rusqlite;
 use rusqlite::Row;
@@ -420,10 +421,11 @@ impl Repository {
         let picture_path = self.library_base_path.join(&relative_path);
         let host_path = self.library_base_dir_host_path.join(&relative_path);
 
-        let thumbnail_path = row
-            .get("thumbnail_path")
-            .map(|p: String| self.thumbnails_dir_base_path.join(p))
-            .ok();
+        let thumbnail_path = thumbnailify::get_thumbnail_path(
+            &self.thumbnails_dir_base_path,
+            &self.library_base_dir_host_path.join(relative_path),
+            thumbnailify::ThumbnailSize::XLarge,
+        );
 
         let ordering_ts = row.get("ordering_ts").expect("must have ordering_ts");
         let is_selfie = row.get("is_selfie").ok();
@@ -432,7 +434,7 @@ impl Repository {
             picture_id,
             path: picture_path,
             host_path,
-            thumbnail_path,
+            thumbnail_path: Some(thumbnail_path),
             ordering_ts,
             is_selfie,
         })

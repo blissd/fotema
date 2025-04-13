@@ -5,7 +5,9 @@
 use super::Metadata;
 use super::metadata;
 use crate::path_encoding;
+use crate::thumbnailify;
 use crate::video::model::{ScannedFile, Video, VideoId};
+
 use anyhow::*;
 use chrono::*;
 use rusqlite;
@@ -295,12 +297,13 @@ impl Repository {
         let relative_path = path_encoding::from_base64(&relative_path)
             .map_err(|_| rusqlite::Error::InvalidQuery)?;
         let video_path = self.library_base_path.join(&relative_path);
-        let host_path = self.library_base_dir_host_path.join(relative_path);
+        let host_path = self.library_base_dir_host_path.join(&relative_path);
 
-        let thumbnail_path = row
-            .get("thumbnail_path")
-            .map(|p: String| self.thumbnails_dir_base_path.join(p))
-            .ok();
+        let thumbnail_path = thumbnailify::get_thumbnail_path(
+            &self.thumbnails_dir_base_path,
+            &self.library_base_dir_host_path.join(relative_path),
+            thumbnailify::ThumbnailSize::XLarge,
+        );
 
         let ordering_ts = row.get("ordering_ts").expect("must have ordering_ts");
 
@@ -320,7 +323,7 @@ impl Repository {
             video_id,
             path: video_path,
             host_path,
-            thumbnail_path,
+            thumbnail_path: Some(thumbnail_path),
             ordering_ts,
             stream_duration,
             video_codec,

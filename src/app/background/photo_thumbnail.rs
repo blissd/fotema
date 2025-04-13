@@ -93,9 +93,6 @@ impl PhotoThumbnail {
                 // an error but doesn't panic.
                 let result = panic::catch_unwind(|| {
                     block_on(async { thumbnailer.thumbnail(&pic.host_path, &pic.path).await })
-                        .and_then(|thumbnail_path| {
-                            repo.clone().add_thumbnail(&pic.picture_id, &thumbnail_path)
-                        })
                 });
 
                 // If we got an err, then there was a panic.
