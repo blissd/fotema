@@ -22,6 +22,7 @@ use std::io::BufWriter;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
+use crate::thumbnailify;
 use tempfile;
 use tracing::debug;
 
@@ -34,11 +35,16 @@ pub struct Thumbnailer {
 }
 
 impl Thumbnailer {
-    pub fn build(base_path: &Path) -> Result<Thumbnailer> {
-        let base_path = PathBuf::from(base_path).join("photo_thumbnails");
-        std::fs::create_dir_all(&base_path)?;
+    pub fn build(thumbnails_base_path: &Path) -> Result<Thumbnailer> {
+        std::fs::create_dir_all(&thumbnails_base_path.join("xx-large"))?;
+        std::fs::create_dir_all(&thumbnails_base_path.join("x-large"))?;
+        std::fs::create_dir_all(&thumbnails_base_path.join("large"))?;
+        std::fs::create_dir_all(&thumbnails_base_path.join("normal"))?;
+        std::fs::create_dir_all(&thumbnails_base_path.join("small"))?;
 
-        Ok(Thumbnailer { base_path })
+        Ok(Thumbnailer {
+            base_path: thumbnails_base_path.into(),
+        })
     }
 
     /// Computes a preview square for an image that has been inserted
