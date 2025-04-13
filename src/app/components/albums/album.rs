@@ -92,51 +92,49 @@ struct PhotoGridItemWidgets {
 }
 
 impl RelmGridItem for PhotoGridItem {
-    type Root = gtk::AspectFrame;
+    type Root = gtk::Frame;
     type Widgets = PhotoGridItemWidgets;
 
     fn setup(_item: &gtk::ListItem) -> (Self::Root, Self::Widgets) {
         relm4::view! {
-            root = gtk::AspectFrame {
-                gtk::Frame {
-                    gtk::Overlay {
-                        #[name(status_overlay)]
-                        add_overlay =  &gtk::Frame {
-                            set_halign: gtk::Align::End,
-                            set_valign: gtk::Align::End,
-                            set_margin_all: 8,
-                            add_css_class: "photo-grid-photo-status-frame",
-
-                            #[wrap(Some)]
-                            #[name(motion_type_icon)]
-                            set_child = &gtk::Image {
-                                set_width_request: 16,
-                                set_height_request: 16,
-                                add_css_class: "photo-grid-photo-status-label",
-                            },
-                        },
-
-                        #[name(duration_overlay)]
-                        add_overlay =  &gtk::Frame {
-                            set_halign: gtk::Align::End,
-                            set_valign: gtk::Align::End,
-                            set_margin_all: 8,
-                            add_css_class: "photo-grid-photo-status-frame",
-
-                            #[wrap(Some)]
-                            #[name(duration_label)]
-                            set_child = &gtk::Label{
-                                add_css_class: "photo-grid-photo-status-label",
-                            },
-                        },
+            root = gtk::Frame {
+                gtk::Overlay {
+                    #[name(status_overlay)]
+                    add_overlay =  &gtk::Frame {
+                        set_halign: gtk::Align::End,
+                        set_valign: gtk::Align::End,
+                        set_margin_all: 8,
+                        add_css_class: "photo-grid-photo-status-frame",
 
                         #[wrap(Some)]
-                        #[name(picture)]
-                        set_child = &gtk::Picture {
-                            set_content_fit: gtk::ContentFit::Cover,
-                            set_width_request: NARROW_EDGE_LENGTH,
-                            set_height_request: NARROW_EDGE_LENGTH,
-                        }
+                        #[name(motion_type_icon)]
+                        set_child = &gtk::Image {
+                            set_width_request: 16,
+                            set_height_request: 16,
+                            add_css_class: "photo-grid-photo-status-label",
+                        },
+                    },
+
+                    #[name(duration_overlay)]
+                    add_overlay =  &gtk::Frame {
+                        set_halign: gtk::Align::End,
+                        set_valign: gtk::Align::End,
+                        set_margin_all: 8,
+                        add_css_class: "photo-grid-photo-status-frame",
+
+                        #[wrap(Some)]
+                        #[name(duration_label)]
+                        set_child = &gtk::Label{
+                            add_css_class: "photo-grid-photo-status-label",
+                        },
+                    },
+
+                    #[wrap(Some)]
+                    #[name(picture)]
+                    set_child = &gtk::Picture {
+                        set_content_fit: gtk::ContentFit::Cover,
+                        set_width_request: NARROW_EDGE_LENGTH,
+                        set_height_request: NARROW_EDGE_LENGTH,
                     }
                 }
             }
@@ -172,9 +170,6 @@ impl RelmGridItem for PhotoGridItem {
                 .add_write_only_binding(&self.edge_length, "height-request");
             widgets.is_bound = true;
         }
-
-        info!("Picture host path: {:?}", self.visual.picture_host_path);
-        info!("Thumbnail path: {:?}", self.visual.thumbnail_path);
 
         if self
             .visual

@@ -76,35 +76,33 @@ pub enum MonthsAlbumOutput {
 }
 
 impl RelmGridItem for PhotoGridItem {
-    type Root = gtk::AspectFrame;
+    type Root = gtk::Frame;
     type Widgets = Widgets;
 
     fn setup(_item: &gtk::ListItem) -> (Self::Root, Self::Widgets) {
         relm4::view! {
-           root = gtk::AspectFrame {
-                gtk::Frame {
-                    gtk::Overlay {
-                        add_overlay =  &gtk::Frame {
-                            set_halign: gtk::Align::Start,
-                            set_valign: gtk::Align::Start,
-                            set_margin_start: 8,
-                            set_margin_top: 8,
-                            add_css_class: "photo-grid-month-frame",
-
-                            #[wrap(Some)]
-                            #[name(label)]
-                            set_child = &gtk::Label {
-                                add_css_class: "photo-grid-month-label",
-                            },
-                        },
+           root = gtk::Frame {
+                gtk::Overlay {
+                    add_overlay =  &gtk::Frame {
+                        set_halign: gtk::Align::Start,
+                        set_valign: gtk::Align::Start,
+                        set_margin_start: 8,
+                        set_margin_top: 8,
+                        add_css_class: "photo-grid-month-frame",
 
                         #[wrap(Some)]
-                        #[name(picture)]
-                        set_child = &gtk::Picture {
-                            set_content_fit: gtk::ContentFit::Cover,
-                            set_width_request: NARROW_EDGE_LENGTH,
-                            set_height_request: NARROW_EDGE_LENGTH,
-                        }
+                        #[name(label)]
+                        set_child = &gtk::Label {
+                            add_css_class: "photo-grid-month-label",
+                        },
+                    },
+
+                    #[wrap(Some)]
+                    #[name(picture)]
+                    set_child = &gtk::Picture {
+                        set_content_fit: gtk::ContentFit::Cover,
+                        set_width_request: NARROW_EDGE_LENGTH,
+                        set_height_request: NARROW_EDGE_LENGTH,
                     }
                 }
             }

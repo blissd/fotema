@@ -80,14 +80,12 @@ impl RelmGridItem for PhotoGridItem {
         relm4::view! {
            my_box = gtk::Box {
                 set_orientation: gtk::Orientation::Vertical,
-                gtk::AspectFrame {
-                    gtk::Frame {
-                        #[name(picture)]
-                        gtk::Picture {
-                            set_content_fit: gtk::ContentFit::Cover,
-                            set_width_request: NARROW_EDGE_LENGTH,
-                            set_height_request: NARROW_EDGE_LENGTH,
-                        }
+                gtk::Frame {
+                    #[name(picture)]
+                    gtk::Picture {
+                        set_content_fit: gtk::ContentFit::Cover,
+                        set_width_request: NARROW_EDGE_LENGTH,
+                        set_height_request: NARROW_EDGE_LENGTH,
                     }
                 },
 
