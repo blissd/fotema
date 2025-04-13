@@ -402,26 +402,30 @@ impl Bootstrap {
         let cache_dir = glib::user_cache_dir().join(APP_ID);
         let _ = std::fs::create_dir_all(&cache_dir);
 
+        let thumbnail_dir = glib::user_cache_dir().join(APP_ID).join("thumbnails");
+
         let photo_scanner = photo::Scanner::build(&pic_base_dir)?;
 
         let photo_repo =
-            photo::Repository::open(&pic_base_dir, &cache_dir, &data_dir, self.con.clone())?;
+            photo::Repository::open(&pic_base_dir, &cache_dir, &thumbnail_dir, &data_dir, self.con.clone())?;
 
-        let photo_thumbnailer = photo::Thumbnailer::build(&cache_dir)?;
+        let photo_thumbnailer = photo::Thumbnailer::build(&thumbnail_dir)?;
 
         let video_scanner = video::Scanner::build(&pic_base_dir)?;
 
         let video_repo =
-            video::Repository::open(&pic_base_dir, &cache_dir, &data_dir, self.con.clone())?;
+            video::Repository::open(&pic_base_dir, &cache_dir, &thumbnail_dir, &data_dir, self.con.clone())?;
 
-        let video_thumbnailer = video::Thumbnailer::build(&cache_dir)?;
+        let video_thumbnailer = video::Thumbnailer::build(&thumbnail_dir)?;
 
         let motion_photo_extractor = photo::MotionPhotoExtractor::build(&cache_dir)?;
 
         let visual_repo = visual::Repository::open(
             &pic_base_dir,
             &pic_base_dir_host_path,
-            &cache_dir, self.con.clone(),
+            &cache_dir,
+            &thumbnail_dir,
+            self.con.clone(),
         )?;
 
         let people_repo = people::Repository::open(&data_dir, self.con.clone())?;

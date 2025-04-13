@@ -29,8 +29,11 @@ pub struct Repository {
     /// This is the path outside of the Flatpak sandbox.
     library_base_dir_host_path: path::PathBuf,
 
-    /// Base path for thumbnails and transcoded videos
+    /// Base path for transcoded videos
     cache_dir_base_path: path::PathBuf,
+
+    /// Base path for thumbnails
+    thumbnails_dir_base_path: path::PathBuf,
 
     /// Connection to backing Sqlite database.
     con: Arc<Mutex<rusqlite::Connection>>,
@@ -42,12 +45,14 @@ impl Repository {
         library_base_path: &path::Path,
         library_base_dir_host_path: &path::Path,
         cache_dir_base_path: &path::Path,
+        thumbnails_dir_base_path: &path::Path,
         con: Arc<Mutex<rusqlite::Connection>>,
     ) -> Result<Repository> {
         let repo = Repository {
             library_base_path: path::PathBuf::from(library_base_path),
             library_base_dir_host_path: path::PathBuf::from(library_base_dir_host_path),
             cache_dir_base_path: path::PathBuf::from(cache_dir_base_path),
+            thumbnails_dir_base_path: path::PathBuf::from(thumbnails_dir_base_path),
             con,
         };
         Ok(repo)
@@ -119,7 +124,7 @@ impl Repository {
         let picture_thumbnail: Option<PathBuf> = row
             .get("picture_thumbnail")
             .map(|x: String| PathBuf::from(x))
-            .map(|x| self.cache_dir_base_path.join(x))
+            .map(|x| self.thumbnails_dir_base_path.join(x))
             .ok();
 
         let picture_orientation: Option<PictureOrientation> = row
@@ -145,7 +150,7 @@ impl Repository {
         let video_thumbnail: Option<PathBuf> = row
             .get("video_thumbnail")
             .map(|x: String| PathBuf::from(x))
-            .map(|x| self.cache_dir_base_path.join(x))
+            .map(|x| self.thumbnails_dir_base_path.join(x))
             .ok();
 
         let video_orientation: Option<PictureOrientation> = row

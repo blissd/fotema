@@ -23,10 +23,13 @@ pub struct Repository {
     /// Base path to picture library on file system
     library_base_path: PathBuf,
 
-    /// Base path cache directory for photo thumbnails and motion photo videos
+    /// Base path cache directory for motion photo videos
     cache_dir_base_path: PathBuf,
 
-    /// Base path for data directory
+    /// Base path directory for photo thumbnails
+    thumbnails_dir_base_path: PathBuf,
+
+    /// Base path cache directory for motion photo videos
     data_dir_base_path: PathBuf,
 
     /// Connection to backing Sqlite database.
@@ -38,6 +41,7 @@ impl Repository {
     pub fn open(
         library_base_path: &Path,
         cache_dir_base_path: &Path,
+        thumbnails_dir_base_path: &Path,
         data_dir_base_path: &Path,
         con: Arc<Mutex<rusqlite::Connection>>,
     ) -> Result<Repository> {
@@ -47,11 +51,13 @@ impl Repository {
 
         let library_base_path = PathBuf::from(library_base_path);
         let cache_dir_base_path = PathBuf::from(cache_dir_base_path);
+        let thumbnails_dir_base_path = PathBuf::from(thumbnails_dir_base_path);
         let data_dir_base_path = PathBuf::from(data_dir_base_path);
 
         let repo = Repository {
             library_base_path,
             cache_dir_base_path,
+            thumbnails_dir_base_path,
             data_dir_base_path,
             con,
         };
@@ -131,7 +137,9 @@ impl Repository {
             )?;
 
             // convert to relative path before saving to database
-            let thumbnail_path = thumbnail_path.strip_prefix(&self.cache_dir_base_path).ok();
+            let thumbnail_path = thumbnail_path
+                .strip_prefix(&self.thumbnails_dir_base_path)
+                .ok();
 
             stmt.execute(params![
                 picture_id.id(),
@@ -405,7 +413,7 @@ impl Repository {
 
         let thumbnail_path = row
             .get("thumbnail_path")
-            .map(|p: String| self.cache_dir_base_path.join(p))
+            .map(|p: String| self.thumbnails_dir_base_path.join(p))
             .ok();
 
         let ordering_ts = row.get("ordering_ts").expect("must have ordering_ts");
@@ -425,6 +433,7 @@ impl Repository {
 
         row.get("path")
             .and_then(|p: String| match root_name.as_str() {
+                // FIXME what about thumbnail path?
                 "cache" => std::result::Result::Ok(self.cache_dir_base_path.join(p)),
                 "data" => std::result::Result::Ok(self.data_dir_base_path.join(p)),
                 _ => Err(rusqlite::Error::InvalidPath(p.into())),
