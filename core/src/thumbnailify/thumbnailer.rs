@@ -24,6 +24,18 @@ use crate::thumbnailify::{
 use png::Decoder;
 
 use image::DynamicImage;
+use image::ExtendedColorType;
+use image::ImageEncoder;
+use image::ImageReader;
+use image::codecs::png::PngEncoder;
+
+use fast_image_resize as fr;
+use fr::images::Image;
+use fr::{ResizeOptions, Resizer};
+
+use std::io::BufWriter;
+use std::io::Write;
+
 use tempfile;
 
 /// Checks whether the thumbnail file at `thumb_path` is up to date with respect
@@ -114,12 +126,19 @@ pub fn is_thumbnail_up_to_date(thumb_path: &Path, source_path: &Path) -> bool {
     true
 }
 
+/// Generate a thumbnail for a file that exists outside of the Flatpak sandbox.
+/// NOTE: the sandbox_path/host_path could point to a picture or a video.
+/// `thumbnails_base_dir` - thumbnail base directory
+/// `host_path` - path _outside_ sandbox to file we are generating thumbnail for.
+/// `sandbox_path` - path _inside_ sandbox to file we are generating thumbnail for.
+/// `size` - standard XDG thumbnail size.
+/// `src_image` - image data for thumbnail. Image data will have been loaded in a safe way using Glycin.
 pub fn generate_thumbnail(
     thumbnails_base_dir: &Path,
     host_path: &Path,
     sandbox_path: &Path,
     size: ThumbnailSize,
-    img: DynamicImage,
+    src_image: DynamicImage,
 ) -> Result<PathBuf, ThumbnailError> {
     let abs_path = host_path.canonicalize()?;
 
@@ -172,7 +191,44 @@ pub fn generate_thumbnail(
 
     let temp_path = named_temp.path().to_owned();
 
-    let dimension = size.to_dimension();
+    let dimension = size.to_dimension() as f32;
 
-    return Ok(host_path.into());
+    let src_width: f32 = src_image.width() as f32;
+    let src_height: f32 = src_image.height() as f32;
+    let src_longest_edge = if src_width > src_height {
+        src_width
+    } else {
+        src_height
+    };
+
+    let scale: f32 = if src_longest_edge <= dimension {
+        1.0
+    } else {
+        dimension / (src_longest_edge as f32)
+    };
+
+    let dst_width = (src_width * scale) as u32;
+    let dst_height = (src_height * scale) as u32;
+    let mut dst_image = Image::new(dst_width, dst_height, fr::PixelType::U8x4);
+
+    let mut resizer = Resizer::new();
+    resizer.resize(&src_image, &mut dst_image, &ResizeOptions::new())?;
+
+    let file = std::fs::File::create(&temp_path)?;
+    let mut file = BufWriter::new(file);
+
+    PngEncoder::new(&mut file).write_image(
+        dst_image.buffer(),
+        dst_width,
+        dst_height,
+        ExtendedColorType::Rgba8,
+    )?;
+
+    file.flush()?;
+
+    drop(file);
+
+    named_temp.persist(&thumb_path)?;
+
+    return Ok(thumb_path.into());
 }
