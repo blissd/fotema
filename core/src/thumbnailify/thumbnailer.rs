@@ -193,6 +193,8 @@ pub fn generate_thumbnail(
 
     let dimension = size.to_dimension() as f32;
 
+    let src_image = DynamicImage::ImageRgba8(src_image.into());
+
     let src_width: f32 = src_image.width() as f32;
     let src_height: f32 = src_image.height() as f32;
     let src_longest_edge = if src_width > src_height {

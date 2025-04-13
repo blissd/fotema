@@ -23,10 +23,9 @@ pub struct Thumbnailer {
 
 impl Thumbnailer {
     pub fn build(base_path: &Path) -> Result<Thumbnailer> {
-        let base_path = PathBuf::from(base_path).join("video_thumbnails");
-        std::fs::create_dir_all(&base_path)?;
-
-        Ok(Thumbnailer { base_path })
+        Ok(Thumbnailer {
+            base_path: base_path.into(),
+        })
     }
 
     /// Computes a preview for a video

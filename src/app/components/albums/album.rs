@@ -173,6 +173,9 @@ impl RelmGridItem for PhotoGridItem {
             widgets.is_bound = true;
         }
 
+        info!("Picture host path: {:?}", self.visual.picture_host_path);
+        info!("Thumbnail path: {:?}", self.visual.thumbnail_path);
+
         if self
             .visual
             .thumbnail_path

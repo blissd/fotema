@@ -90,7 +90,7 @@ impl VideoThumbnail {
                 // an error but doesn't panic.
                 let result = panic::catch_unwind(|| {
                     thumbnailer
-                        .thumbnail(&vid.path, &vid.host_path)
+                        .thumbnail(&vid.host_path, &vid.path)
                         .and_then(|thumbnail_path| {
                             repo.clone().add_thumbnail(&vid.video_id, &thumbnail_path)
                         })

@@ -15,7 +15,18 @@ use image::{DynamicImage, Rgba, RgbaImage};
 use png::{Decoder, Encoder};
 use url::Url;
 
+use crate::thumbnailify::hash;
 use crate::thumbnailify::{error::ThumbnailError, sizes::ThumbnailSize};
+
+pub fn get_thumbnail_path(
+    thumbnails_base_dir: &Path,
+    host_path: &Path,
+    size: ThumbnailSize,
+) -> PathBuf {
+    let file_uri = get_file_uri(&host_path).unwrap();
+    let file_uri_hash = hash::compute_hash(&file_uri);
+    get_thumbnail_hash_output(thumbnails_base_dir, &file_uri_hash, size)
+}
 
 /// Gets the thumbnail output path using hash and size.
 /// Format: `{cache_dir}/thumbnails/{size}/{md5_hash}.png`
