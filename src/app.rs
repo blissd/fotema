@@ -7,11 +7,10 @@ use relm4::gtk;
 use relm4::prelude::*;
 
 use relm4::{
-    Component, ComponentController, ComponentParts, ComponentSender, Controller, SimpleComponent,
+    Component, ComponentController, Controller,
     WorkerController,
     actions::{RelmAction, RelmActionGroup},
     adw,
-    adw::prelude::*,
     component::{AsyncComponent, AsyncComponentController},
     gtk::{
         gio, glib,
@@ -21,8 +20,6 @@ use relm4::{
     prelude::AsyncController,
     shared_state::Reducer,
 };
-
-use ashpd::documents::Documents;
 
 use crate::adaptive;
 use crate::config::{APP_ID, PROFILE};
@@ -36,9 +33,7 @@ use fotema_core::people;
 
 use h3o::CellIndex;
 
-use regex::Regex;
-
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 
@@ -46,7 +41,7 @@ use anyhow::*;
 
 use strum::{AsRefStr, EnumString, FromRepr, IntoStaticStr};
 
-use tracing::{debug, error, info, warn};
+use tracing::{error, info, warn};
 
 mod components;
 

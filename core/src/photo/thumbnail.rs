@@ -2,32 +2,16 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use crate::photo::model::PictureId;
 use anyhow::*;
 
-use image::DynamicImage;
-use image::ExtendedColorType;
-use image::ImageEncoder;
 use image::ImageReader;
-use image::codecs::png::PngEncoder;
-
-use fast_image_resize as fr;
-use fr::images::Image;
-use fr::{ResizeOptions, Resizer};
-use futures::executor::block_on;
 
 use gdk4::prelude::TextureExt;
 use glycin;
-use std::io::BufWriter;
 use std::io::Cursor;
-use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use crate::thumbnailify;
-use tempfile;
-use tracing::debug;
-
-const EDGE: f32 = 512.0;
 
 /// Thumbnail operations for photos.
 #[derive(Debug, Clone)]

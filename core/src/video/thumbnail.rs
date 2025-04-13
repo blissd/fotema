@@ -2,18 +2,13 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use crate::photo::thumbnail::Thumbnailer as PhotoThumbnailer;
 use crate::thumbnailify;
-use crate::video::model::VideoId;
 use anyhow::*;
 use image::ImageReader;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::result::Result::Ok;
 use tempfile;
-use tracing::{debug, error};
-
-const EDGE: u32 = 200;
 
 /// Thumbnail operations for videos.
 #[derive(Debug, Clone)]

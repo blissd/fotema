@@ -4,20 +4,17 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use std::{
-    env, fs,
+    fs,
     fs::File,
     io,
     path::{Path, PathBuf},
     time::UNIX_EPOCH,
 };
-use tracing::{debug, info, warn};
+use tracing::{debug, info};
 
 use crate::thumbnailify::{
     error::ThumbnailError,
-    file::{
-        add_thumbnail_metadata, get_failed_thumbnail_output, get_file_uri,
-        get_thumbnail_hash_output, write_failed_thumbnail,
-    },
+    file::{get_failed_thumbnail_output, get_file_uri, get_thumbnail_hash_output},
     hash::compute_hash,
     sizes::ThumbnailSize,
 };
@@ -26,7 +23,6 @@ use png::Decoder;
 use image::DynamicImage;
 use image::ExtendedColorType;
 use image::ImageEncoder;
-use image::ImageReader;
 use image::codecs::png::PngEncoder;
 
 use fast_image_resize as fr;
@@ -142,7 +138,7 @@ pub fn generate_thumbnail(
 ) -> Result<PathBuf, ThumbnailError> {
     let abs_path = host_path.canonicalize()?;
 
-    let file_str = abs_path
+    let _ = abs_path
         .to_str()
         .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::InvalidData, "Invalid file path"))?;
 
