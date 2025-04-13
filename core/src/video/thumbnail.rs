@@ -3,8 +3,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use crate::photo::thumbnail::Thumbnailer as PhotoThumbnailer;
+use crate::thumbnailify;
 use crate::video::model::VideoId;
 use anyhow::*;
+use image::ImageReader;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::result::Result::Ok;
@@ -27,31 +29,9 @@ impl Thumbnailer {
         Ok(Thumbnailer { base_path })
     }
 
-    /// Computes a preview square for an image that has been inserted
-    /// into the Repository. Preview image will be written to file system.
-    pub fn thumbnail(&self, video_id: &VideoId, video_path: &Path) -> Result<PathBuf> {
-        let thumbnail_path = {
-            // Create a directory per 1000 thumbnails
-            let partition = (video_id.id() / 1000) as i32;
-            let partition = format!("{:0>4}", partition);
-            let file_name = format!("{}_{}x{}.png", video_id, EDGE, EDGE);
-            self.base_path.join(partition).join(file_name)
-        };
-
-        if thumbnail_path.exists() {
-            return Ok(thumbnail_path);
-        } else if let Some(p) = thumbnail_path.parent() {
-            let _ = std::fs::create_dir_all(p);
-        }
-
-        debug!("Video thumbnail: {:?}", video_path);
-
-        self.compute_thumbnail(video_path, &thumbnail_path)
-            .map(|_| thumbnail_path)
-            .inspect_err(|e| error!("Video thumbnail error: {:?}", e))
-    }
-
-    fn compute_thumbnail(&self, video_path: &Path, thumbnail_path: &Path) -> Result<()> {
+    /// Computes a preview for a video
+    pub fn thumbnail(&self, host_path: &Path, sandbox_path: &Path) -> Result<PathBuf> {
+        // Extract first frame of video for thumbnail
         let temporary_png_file = tempfile::Builder::new().suffix(".png").tempfile()?;
 
         // ffmpeg command will extract the first frame and save it as a PNG file.
@@ -60,7 +40,7 @@ impl Thumbnailer {
             .arg("error")
             .arg("-y") // temp file will already exist, so allow overwriting
             .arg("-i")
-            .arg(video_path.as_os_str())
+            .arg(sandbox_path.as_os_str())
             .arg("-update")
             .arg("true")
             .arg("-vf")
@@ -68,6 +48,16 @@ impl Thumbnailer {
             .arg(temporary_png_file.path())
             .status()?;
 
-        PhotoThumbnailer::sandboxed_thumbnail(temporary_png_file.path(), thumbnail_path)
+        let src_image = ImageReader::open(&temporary_png_file)?.decode()?;
+
+        let thumb_path = thumbnailify::generate_thumbnail(
+            &self.base_path,
+            host_path,
+            sandbox_path,
+            thumbnailify::ThumbnailSize::XLarge,
+            src_image,
+        )?;
+
+        Ok(thumb_path)
     }
 }

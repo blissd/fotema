@@ -92,7 +92,7 @@ impl PhotoThumbnail {
                 // Careful! panic::catch_unwind returns Ok(Err) if the evaluated expression returns
                 // an error but doesn't panic.
                 let result = panic::catch_unwind(|| {
-                    block_on(async { thumbnailer.thumbnail(&pic.picture_id, &pic.path).await })
+                    block_on(async { thumbnailer.thumbnail(&pic.path, &pic.host_path).await })
                         .and_then(|thumbnail_path| {
                             repo.clone().add_thumbnail(&pic.picture_id, &thumbnail_path)
                         })

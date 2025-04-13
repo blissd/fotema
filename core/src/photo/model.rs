@@ -33,7 +33,11 @@ impl Display for PictureId {
 #[derive(Debug, Clone)]
 pub struct Picture {
     /// Full path from picture library root.
+    /// This path is inside the sandbox.
     pub path: PathBuf,
+
+    /// Full path on host system (outside of Flatpak sandbox).
+    pub host_path: PathBuf,
 
     /// Database primary key for picture
     pub picture_id: PictureId,

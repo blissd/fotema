@@ -23,6 +23,10 @@ pub struct Repository {
     /// Base path to picture library on file system
     library_base_path: PathBuf,
 
+    /// Base path to picture library on file system.
+    /// This is the path outside of the Flatpak sandbox.
+    library_base_dir_host_path: PathBuf,
+
     /// Base path cache directory for motion photo videos
     cache_dir_base_path: PathBuf,
 
@@ -40,6 +44,7 @@ impl Repository {
     /// Builds a Repository and creates operational tables.
     pub fn open(
         library_base_path: &Path,
+        library_base_dir_host_path: &Path,
         cache_dir_base_path: &Path,
         thumbnails_dir_base_path: &Path,
         data_dir_base_path: &Path,
@@ -50,12 +55,14 @@ impl Repository {
         }
 
         let library_base_path = PathBuf::from(library_base_path);
+        let library_base_dir_host_path = PathBuf::from(library_base_dir_host_path);
         let cache_dir_base_path = PathBuf::from(cache_dir_base_path);
         let thumbnails_dir_base_path = PathBuf::from(thumbnails_dir_base_path);
         let data_dir_base_path = PathBuf::from(data_dir_base_path);
 
         let repo = Repository {
             library_base_path,
+            library_base_dir_host_path,
             cache_dir_base_path,
             thumbnails_dir_base_path,
             data_dir_base_path,
@@ -406,10 +413,12 @@ impl Repository {
     fn to_picture(&self, row: &Row<'_>) -> rusqlite::Result<Picture> {
         let picture_id = row.get("picture_id").map(PictureId::new)?;
 
-        let picture_path: String = row.get("picture_path_b64")?;
-        let picture_path =
-            path_encoding::from_base64(&picture_path).map_err(|_| rusqlite::Error::InvalidQuery)?;
-        let picture_path = self.library_base_path.join(picture_path);
+        let relative_path: String = row.get("picture_path_b64")?;
+        let relative_path = path_encoding::from_base64(&relative_path)
+            .map_err(|_| rusqlite::Error::InvalidQuery)?;
+
+        let picture_path = self.library_base_path.join(&relative_path);
+        let host_path = self.library_base_dir_host_path.join(&relative_path);
 
         let thumbnail_path = row
             .get("thumbnail_path")
@@ -422,6 +431,7 @@ impl Repository {
         std::result::Result::Ok(Picture {
             picture_id,
             path: picture_path,
+            host_path,
             thumbnail_path,
             ordering_ts,
             is_selfie,

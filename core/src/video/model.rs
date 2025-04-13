@@ -30,8 +30,11 @@ impl Display for VideoId {
 /// Video in database
 #[derive(Debug, Clone)]
 pub struct Video {
-    /// Full path from library root.
+    /// Full path from library root. Inside sandbox.
     pub path: PathBuf,
+
+    /// Full path from host system library root. Outside sandbox.
+    pub host_path: PathBuf,
 
     /// Database primary key for video
     pub video_id: VideoId,

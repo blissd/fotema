@@ -21,6 +21,10 @@ pub struct Repository {
     /// Base path to picture library on file system
     library_base_path: PathBuf,
 
+    /// Base path to picture library on file system.
+    /// This is the path outside of the Flatpak sandbox.
+    library_base_dir_host_path: PathBuf,
+
     /// Base path for transcoded videos
     cache_dir_base_path: PathBuf,
 
@@ -38,6 +42,7 @@ impl Repository {
     /// Builds a Repository and creates operational tables.
     pub fn open(
         library_base_path: &Path,
+        library_base_dir_host_path: &Path,
         cache_dir_base_path: &Path,
         thumbnails_dir_base_path: &Path,
         data_dir_base_path: &Path,
@@ -46,7 +51,8 @@ impl Repository {
         std::fs::create_dir_all(cache_dir_base_path)?;
 
         let repo = Repository {
-            library_base_path: PathBuf::from(library_base_path),
+            library_base_path: library_base_path.into(),
+            library_base_dir_host_path: library_base_dir_host_path.into(),
             cache_dir_base_path: cache_dir_base_path.into(),
             thumbnails_dir_base_path: thumbnails_dir_base_path.into(),
             data_dir_base_path: data_dir_base_path.into(),
@@ -285,10 +291,11 @@ impl Repository {
     fn to_video(&self, row: &Row<'_>) -> rusqlite::Result<Video> {
         let video_id = row.get("video_id").map(VideoId::new)?;
 
-        let video_path: String = row.get("video_path_b64")?;
-        let video_path =
-            path_encoding::from_base64(&video_path).map_err(|_| rusqlite::Error::InvalidQuery)?;
-        let video_path = self.library_base_path.join(video_path);
+        let relative_path: String = row.get("video_path_b64")?;
+        let relative_path = path_encoding::from_base64(&relative_path)
+            .map_err(|_| rusqlite::Error::InvalidQuery)?;
+        let video_path = self.library_base_path.join(&relative_path);
+        let host_path = self.library_base_dir_host_path.join(relative_path);
 
         let thumbnail_path = row
             .get("thumbnail_path")
@@ -312,6 +319,7 @@ impl Repository {
         std::result::Result::Ok(Video {
             video_id,
             path: video_path,
+            host_path,
             thumbnail_path,
             ordering_ts,
             stream_duration,
