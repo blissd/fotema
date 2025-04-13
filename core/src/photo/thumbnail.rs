@@ -25,7 +25,7 @@ use std::path::{Path, PathBuf};
 use tempfile;
 use tracing::debug;
 
-const EDGE: u32 = 200;
+const EDGE: f32 = 512.0;
 
 /// Thumbnail operations for photos.
 #[derive(Debug, Clone)]
@@ -48,7 +48,7 @@ impl Thumbnailer {
             // Create a directory per 1000 thumbnails
             let partition = (picture_id.id() / 1000) as i32;
             let partition = format!("{:0>4}", partition);
-            let file_name = format!("{}_{}x{}.png", picture_id, EDGE, EDGE);
+            let file_name = format!("{}_{}x{}.png", picture_id, 200, 200);
             self.base_path.join(partition).join(file_name)
         };
 
@@ -73,15 +73,28 @@ impl Thumbnailer {
 
         let src_image = DynamicImage::ImageRgba8(src_image);
 
-        let mut dst_image = Image::new(EDGE, EDGE, fr::PixelType::U8x4);
+        let src_width: f32 = src_image.width() as f32;
+        let src_height: f32 = src_image.height() as f32;
+        let src_longest_edge = if src_width > src_height {
+            src_width
+        } else {
+            src_height
+        };
+
+        let scale: f32 = if src_longest_edge <= EDGE {
+            1.0
+        } else {
+            EDGE / (src_longest_edge as f32)
+        };
+
+        let dst_width = (src_width * scale) as u32;
+        let dst_height = (src_height * scale) as u32;
+
+        let mut dst_image = Image::new(dst_width, dst_height, fr::PixelType::U8x4);
 
         let mut resizer = Resizer::new();
 
-        resizer.resize(
-            &src_image,
-            &mut dst_image,
-            &ResizeOptions::new().fit_into_destination(Some((0.5, 0.5))),
-        )?;
+        resizer.resize(&src_image, &mut dst_image, &ResizeOptions::new())?;
 
         // Write destination image as PNG-file
         // Write to temporary file first and then move so that an interrupted write
@@ -94,8 +107,8 @@ impl Thumbnailer {
 
         PngEncoder::new(&mut file).write_image(
             dst_image.buffer(),
-            EDGE,
-            EDGE,
+            dst_width,
+            dst_height,
             ExtendedColorType::Rgba8,
         )?;
 

@@ -84,7 +84,7 @@ impl RelmGridItem for PhotoGridItem {
                     gtk::Frame {
                         #[name(picture)]
                         gtk::Picture {
-                            set_can_shrink: true,
+                            set_content_fit: gtk::ContentFit::Cover,
                             set_width_request: NARROW_EDGE_LENGTH,
                             set_height_request: NARROW_EDGE_LENGTH,
                         }
