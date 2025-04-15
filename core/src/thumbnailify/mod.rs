@@ -10,5 +10,6 @@ pub mod thumbnailer;
 
 pub use error::ThumbnailError;
 pub use file::get_thumbnail_path;
+pub use file::write_failed_thumbnail;
 pub use sizes::ThumbnailSize;
 pub use thumbnailer::generate_thumbnail;

@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use std::{
+    fs,
     fs::File,
     io::{BufReader, BufWriter},
     path::{Path, PathBuf},
@@ -62,15 +63,59 @@ pub fn get_failed_thumbnail_output(thumbnails_base_dir: &Path, hash: &str) -> Pa
 }
 
 /// Writes a failed thumbnail using an empty (1x1 transparent) DynamicImage.
-pub fn write_failed_thumbnail(fail_path: &Path, source_path: &Path) -> Result<(), ThumbnailError> {
+pub fn write_failed_thumbnail(
+    thumbnails_base_dir: &Path,
+    host_path: &Path,
+    sandbox_path: &Path,
+) -> Result<(), ThumbnailError> {
+    let file_uri = get_file_uri(&host_path).unwrap();
+    let file_uri_hash = hash::compute_hash(&file_uri);
+    let fail_path = get_failed_thumbnail_output(thumbnails_base_dir, &file_uri_hash);
+
     info!(
         "Writing failed thumbnail marker at {:?} for source {:?}",
-        fail_path, source_path
+        fail_path, host_path
     );
+
+    fail_path.parent().as_ref().map(|p| fs::create_dir_all(p));
+
     let failed_img: DynamicImage =
         DynamicImage::ImageRgba8(RgbaImage::from_pixel(1, 1, Rgba([0, 0, 0, 0])));
 
-    write_out_thumbnail(fail_path, failed_img, source_path)
+    let failed_img: RgbaImage = failed_img.to_rgba8();
+
+    // FIXME write to temporary file first and then move to final path.
+    let file = File::create(&fail_path)?;
+    let mut encoder = Encoder::new(BufWriter::new(file), 1, 1);
+    encoder.set_color(png::ColorType::Rgba);
+    encoder.set_depth(png::BitDepth::Eight);
+
+    // FIXME metadata is copy-and-pasted from thumbnailer.rs
+
+    // FIXME hard-coded app-id
+    encoder.add_text_chunk("Software".to_string(), "app.fotema.Fotema".to_string())?;
+
+    let uri = get_file_uri(&host_path)?;
+    encoder.add_text_chunk("Thumb::URI".to_string(), uri)?;
+
+    let metadata = std::fs::metadata(&sandbox_path)?;
+
+    let size = metadata.len();
+    encoder.add_text_chunk("Thumb::Size".to_string(), size.to_string())?;
+
+    let modified_time = metadata.modified()?;
+    let mtime_unix = modified_time
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    encoder.add_text_chunk("Thumb::MTime".to_string(), mtime_unix.to_string())?;
+
+    // Write out the PNG header
+    let mut writer = encoder.write_header()?;
+    writer.write_image_data(&failed_img.into_raw())?;
+
+    debug!("Successfully wrote failure marker file to {:?}", fail_path);
+    return Ok(());
 }
 
 /// Attempts to convert the file path into a file URI.

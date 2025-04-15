@@ -31,11 +31,25 @@ impl Thumbnailer {
     pub async fn thumbnail(&self, host_path: &Path, sandbox_path: &Path) -> Result<PathBuf> {
         let file = gio::File::for_path(sandbox_path);
         let loader = glycin::Loader::new(file);
-        let image = loader.load().await?;
-        let frame = image.next_frame().await?;
+        let image = loader.load().await.map_err(|err| {
+            let _ = thumbnailify::write_failed_thumbnail(&self.base_path, host_path, sandbox_path);
+            err
+        })?;
+
+        let frame = image.next_frame().await.map_err(|err| {
+            let _ = thumbnailify::write_failed_thumbnail(&self.base_path, host_path, sandbox_path);
+            err
+        })?;
+
         let bytes = frame.texture().save_to_png_bytes();
-        let src_image =
-            ImageReader::with_format(Cursor::new(bytes), image::ImageFormat::Png).decode()?;
+
+        let src_image = ImageReader::with_format(Cursor::new(bytes), image::ImageFormat::Png)
+            .decode()
+            .map_err(|err| {
+                let _ =
+                    thumbnailify::write_failed_thumbnail(&self.base_path, host_path, sandbox_path);
+                err
+            })?;
 
         let thumb_path = thumbnailify::generate_thumbnail(
             &self.base_path,
