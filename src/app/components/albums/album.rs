@@ -343,7 +343,6 @@ impl SimpleComponent for Album {
             AlbumInput::GoToMonth(ym) => {
                 info!("Showing for month: {}", ym);
                 let index_opt = self.photo_grid.find(|p| p.visual.year_month() == ym);
-                debug!("Found: {:?}", index_opt);
                 if let Some(index) = index_opt {
                     let flags = gtk::ListScrollFlags::SELECT;
                     debug!("Scrolling to {}", index);

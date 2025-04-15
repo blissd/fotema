@@ -122,13 +122,6 @@ impl Repository {
 
         let picture_path = picture_path.map(|x| self.library_base_path.join(x));
 
-        /*
-        let picture_thumbnail: Option<PathBuf> = row
-            .get("picture_thumbnail")
-            .map(|x: String| PathBuf::from(x))
-            .map(|x| self.thumbnails_dir_base_path.join(x))
-            .ok();
-        */
         let picture_thumbnail = picture_host_path.as_ref().map(|p| {
             thumbnailify::get_thumbnail_path(
                 &self.thumbnails_dir_base_path,

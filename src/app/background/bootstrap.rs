@@ -402,7 +402,8 @@ impl Bootstrap {
         let cache_dir = glib::user_cache_dir().join(APP_ID);
         let _ = std::fs::create_dir_all(&cache_dir);
 
-        let thumbnail_dir = glib::user_cache_dir().join(APP_ID).join("thumbnails");
+        let thumbnail_dir = glib::home_dir().join(".cache").join("thumbnails");
+        info!("Thumbnail directory is {:?}", thumbnail_dir);
 
         let photo_scanner = photo::Scanner::build(&pic_base_dir)?;
 
