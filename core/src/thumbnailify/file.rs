@@ -47,8 +47,6 @@ pub fn get_thumbnail_hash_output(
     path
 }
 
-/// Returns the output path for a failed thumbnail marker.
-/// This uses the fails folder under the thumbnails cache.
 pub fn get_failed_thumbnail_output(thumbnails_base_dir: &Path, hash: &str) -> PathBuf {
     // FIXME don't hardcode app-id.
     let fail_dir = thumbnails_base_dir.join("fail").join("app.fotema.Fotema");
@@ -60,6 +58,15 @@ pub fn get_failed_thumbnail_output(thumbnails_base_dir: &Path, hash: &str) -> Pa
         hash, path
     );
     path
+}
+
+/// Returns the output path for a failed thumbnail marker.
+/// This uses the fails folder under the thumbnails cache.
+pub fn is_failed(thumbnails_base_dir: &Path, host_path: &Path) -> bool {
+    let file_uri = get_file_uri(&host_path).unwrap();
+    let file_uri_hash = hash::compute_hash(&file_uri);
+    let failed_path = get_failed_thumbnail_output(thumbnails_base_dir, &file_uri_hash);
+    failed_path.exists()
 }
 
 /// Writes a failed thumbnail using an empty (1x1 transparent) DynamicImage.

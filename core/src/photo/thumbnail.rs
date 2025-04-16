@@ -29,6 +29,10 @@ impl Thumbnailer {
     /// Computes a preview square for an image that has been inserted
     /// into the Repository. Preview image will be written to file system and path returned.
     pub async fn thumbnail(&self, host_path: &Path, sandbox_path: &Path) -> Result<PathBuf> {
+        if thumbnailify::is_failed(&self.base_path, host_path) {
+            return Err(anyhow!("failed thumbnail marker exists"));
+        }
+
         let file = gio::File::for_path(sandbox_path);
         let loader = glycin::Loader::new(file);
         let image = loader.load().await.map_err(|err| {
