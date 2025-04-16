@@ -68,7 +68,7 @@ impl Thumbnailer {
         let _ = self.thumbnailer.generate_thumbnail(
             host_path,
             sandbox_path,
-            thumbnailify::ThumbnailSize::XLarge,
+            thumbnailify::ThumbnailSize::Large,
             src_image,
         )?;
 

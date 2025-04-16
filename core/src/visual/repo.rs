@@ -126,7 +126,7 @@ impl Repository {
             thumbnailify::get_thumbnail_path(
                 &self.thumbnails_dir_base_path,
                 &p,
-                thumbnailify::ThumbnailSize::XLarge,
+                thumbnailify::ThumbnailSize::Large,
             )
         });
 
@@ -161,7 +161,7 @@ impl Repository {
             thumbnailify::get_thumbnail_path(
                 &self.thumbnails_dir_base_path,
                 &p,
-                thumbnailify::ThumbnailSize::XLarge,
+                thumbnailify::ThumbnailSize::Large,
             )
         });
 

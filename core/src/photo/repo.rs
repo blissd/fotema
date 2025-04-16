@@ -424,7 +424,7 @@ impl Repository {
         let thumbnail_path = thumbnailify::get_thumbnail_path(
             &self.thumbnails_dir_base_path,
             &self.library_base_dir_host_path.join(relative_path),
-            thumbnailify::ThumbnailSize::XLarge,
+            thumbnailify::ThumbnailSize::Large,
         );
 
         let ordering_ts = row.get("ordering_ts").expect("must have ordering_ts");
