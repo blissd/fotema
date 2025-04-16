@@ -13,6 +13,7 @@ use fotema_core::people;
 use fotema_core::photo;
 use fotema_core::video;
 use fotema_core::visual;
+use fotema_core::thumbnailify::Thumbnailer;
 
 
 use std::result::Result::Ok;
@@ -405,19 +406,21 @@ impl Bootstrap {
         let thumbnail_dir = glib::home_dir().join(".cache").join("thumbnails");
         info!("Thumbnail directory is {:?}", thumbnail_dir);
 
+        let thumbnailer = Thumbnailer::build(&thumbnail_dir);
+
         let photo_scanner = photo::Scanner::build(&pic_base_dir)?;
 
         let photo_repo =
             photo::Repository::open(&pic_base_dir, &pic_base_dir_host_path, &cache_dir, &thumbnail_dir, &data_dir, self.con.clone())?;
 
-        let photo_thumbnailer = photo::Thumbnailer::build(&thumbnail_dir)?;
+        let photo_thumbnailer = photo::Thumbnailer::build(thumbnailer.clone())?;
 
         let video_scanner = video::Scanner::build(&pic_base_dir)?;
 
         let video_repo =
             video::Repository::open(&pic_base_dir, &pic_base_dir_host_path, &cache_dir, &thumbnail_dir, &data_dir, self.con.clone())?;
 
-        let video_thumbnailer = video::Thumbnailer::build(&thumbnail_dir)?;
+        let video_thumbnailer = video::Thumbnailer::build(thumbnailer)?;
 
         let motion_photo_extractor = photo::MotionPhotoExtractor::build(&cache_dir)?;
 

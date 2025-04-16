@@ -5,26 +5,35 @@
 use crate::thumbnailify;
 use anyhow::*;
 use image::ImageReader;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::Command;
 use std::result::Result::Ok;
 use tempfile;
+use tracing::info;
 
 /// Thumbnail operations for videos.
 #[derive(Debug, Clone)]
 pub struct Thumbnailer {
-    base_path: PathBuf,
+    thumbnailer: thumbnailify::Thumbnailer,
 }
 
 impl Thumbnailer {
-    pub fn build(base_path: &Path) -> Result<Thumbnailer> {
+    pub fn build(thumbnailer: thumbnailify::Thumbnailer) -> Result<Thumbnailer> {
         Ok(Thumbnailer {
-            base_path: base_path.into(),
+            thumbnailer: thumbnailer,
         })
     }
 
     /// Computes a preview for a video
-    pub fn thumbnail(&self, host_path: &Path, sandbox_path: &Path) -> Result<PathBuf> {
+    pub fn thumbnail(&self, host_path: &Path, sandbox_path: &Path) -> Result<()> {
+        if self.thumbnailer.is_failed(host_path) {
+            info!(
+                "Failed thumbnail marker exists for {:?}",
+                host_path.to_string_lossy()
+            );
+            return Ok(());
+        }
+
         // Extract first frame of video for thumbnail
         let temporary_png_file = tempfile::Builder::new().suffix(".png").tempfile()?;
 
@@ -40,18 +49,30 @@ impl Thumbnailer {
             .arg("-vf")
             .arg(r"select=eq(n\,0)") // select frame zero
             .arg(temporary_png_file.path())
-            .status()?;
+            .status()
+            .map_err(|err| {
+                let _ = self
+                    .thumbnailer
+                    .write_failed_thumbnail(&host_path, sandbox_path);
+                err
+            })?;
 
-        let src_image = ImageReader::open(&temporary_png_file)?.decode()?;
+        let src_image = ImageReader::open(&temporary_png_file)?
+            .decode()
+            .map_err(|err| {
+                let _ = self
+                    .thumbnailer
+                    .write_failed_thumbnail(&host_path, sandbox_path);
+                err
+            })?;
 
-        let thumb_path = thumbnailify::generate_thumbnail(
-            &self.base_path,
+        let _ = self.thumbnailer.generate_thumbnail(
             host_path,
             sandbox_path,
             thumbnailify::ThumbnailSize::XLarge,
             src_image,
         )?;
 
-        Ok(thumb_path)
+        Ok(())
     }
 }
