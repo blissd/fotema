@@ -98,7 +98,7 @@ impl VideoThumbnail {
                 if let Ok(Err(e)) = result {
                     error!(
                         "Failed generate or add thumbnail: {:?}: Video path: {:?}",
-                        e, vid.path
+                        e.root_cause(), vid.path
                     );
                     let _ = repo.clone().mark_broken(&vid.video_id);
                 } else if result.is_err() {

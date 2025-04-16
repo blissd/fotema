@@ -27,11 +27,10 @@ impl Thumbnailer {
     /// Computes a preview for a video
     pub fn thumbnail(&self, host_path: &Path, sandbox_path: &Path) -> Result<()> {
         if self.thumbnailer.is_failed(host_path) {
-            info!(
+            anyhow::bail!(
                 "Failed thumbnail marker exists for {:?}",
                 host_path.to_string_lossy()
             );
-            return Ok(());
         }
 
         // Extract first frame of video for thumbnail

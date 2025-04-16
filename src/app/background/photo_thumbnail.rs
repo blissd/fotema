@@ -100,7 +100,7 @@ impl PhotoThumbnail {
                 if let Ok(Err(e)) = result {
                     error!(
                         "Failed generate or add thumbnail: {:?}: Photo path: {:?}",
-                        e, pic.path
+                        e.root_cause(), pic.path
                     );
                     let _ = repo.clone().mark_broken(&pic.picture_id);
                 } else if result.is_err() {
