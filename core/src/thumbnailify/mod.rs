@@ -12,11 +12,17 @@ pub mod sizes;
 pub mod thumbnailer;
 
 pub use error::ThumbnailError;
+pub use file::get_thumbnail_hash_output;
 pub use file::get_thumbnail_path;
 pub use file::is_failed;
 pub use file::write_failed_thumbnail;
 pub use sizes::ThumbnailSize;
 pub use thumbnailer::generate_thumbnail;
+
+pub fn compute_hash_for_path(host_path: &Path) -> String {
+    let file_uri = file::get_file_uri(host_path).unwrap();
+    hash::compute_hash(&file_uri)
+}
 
 #[derive(Clone, Debug)]
 pub struct Thumbnailer {

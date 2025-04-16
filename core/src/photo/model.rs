@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use super::gps::GPSLocation;
+use crate::thumbnailify;
 use chrono::{DateTime, FixedOffset, TimeDelta, Utc};
 use std::fmt::Display;
 use std::path::PathBuf;
@@ -42,14 +43,17 @@ pub struct Picture {
     /// Database primary key for picture
     pub picture_id: PictureId,
 
-    /// Full path to square preview image
-    pub thumbnail_path: Option<PathBuf>,
-
     /// Ordering timestamp
     pub ordering_ts: DateTime<Utc>,
 
     /// Was picture taken with front camera?
     pub is_selfie: Option<bool>,
+}
+
+impl Picture {
+    pub fn thumbnail_hash(&self) -> String {
+        thumbnailify::compute_hash_for_path(&self.host_path)
+    }
 }
 
 // scanner

@@ -511,6 +511,7 @@ impl Bootstrap {
         let photo_thumbnail = PhotoThumbnail::builder()
             .detach_worker((
                 stop.clone(),
+                thumbnail_dir.clone(),
                 photo_thumbnailer.clone(),
                 photo_repo.clone(),
                 self.progress_monitor.clone(),

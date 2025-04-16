@@ -421,12 +421,6 @@ impl Repository {
         let picture_path = self.library_base_path.join(&relative_path);
         let host_path = self.library_base_dir_host_path.join(&relative_path);
 
-        let thumbnail_path = thumbnailify::get_thumbnail_path(
-            &self.thumbnails_dir_base_path,
-            &self.library_base_dir_host_path.join(relative_path),
-            thumbnailify::ThumbnailSize::Large,
-        );
-
         let ordering_ts = row.get("ordering_ts").expect("must have ordering_ts");
         let is_selfie = row.get("is_selfie").ok();
 
@@ -434,7 +428,6 @@ impl Repository {
             picture_id,
             path: picture_path,
             host_path,
-            thumbnail_path: Some(thumbnail_path),
             ordering_ts,
             is_selfie,
         })
