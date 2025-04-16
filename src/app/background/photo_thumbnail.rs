@@ -42,7 +42,6 @@ pub struct PhotoThumbnail {
     stop: Arc<AtomicBool>,
 
     thumbnails_path: PathBuf,
-
     thumbnailer: fotema_core::photo::Thumbnailer,
 
     // Danger! Don't hold the repo mutex for too long as it blocks viewing images.

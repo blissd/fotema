@@ -529,6 +529,7 @@ impl Bootstrap {
         let video_thumbnail = VideoThumbnail::builder()
             .detach_worker((
                 stop.clone(),
+                thumbnail_dir.clone(),
                 video_thumbnailer.clone(),
                 video_repo.clone(),
                 self.progress_monitor.clone(),

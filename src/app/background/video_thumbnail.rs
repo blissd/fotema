@@ -11,9 +11,13 @@ use std::panic;
 use std::result::Result::Ok;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::path::{Path, PathBuf};
 use tracing::{error, info};
 
 use fotema_core::video::{Repository, Thumbnailer, Video};
+use fotema_core::thumbnailify;
+use fotema_core::thumbnailify::ThumbnailSize;
+
 
 use crate::app::components::progress_monitor::{
     MediaType, ProgressMonitor, ProgressMonitorInput, TaskName,
@@ -37,6 +41,7 @@ pub struct VideoThumbnail {
     // Stop flag
     stop: Arc<AtomicBool>,
 
+    thumbnails_path: PathBuf,
     thumbnailer: Thumbnailer,
 
     // Danger! Don't hold the repo mutex for too long as it blocks viewing images.
@@ -49,6 +54,7 @@ impl VideoThumbnail {
     fn enrich(
         stop: Arc<AtomicBool>,
         repo: Repository,
+        thumbnails_path: &Path,
         thumbnailer: Thumbnailer,
         progress_monitor: Arc<Reducer<ProgressMonitor>>,
         sender: ComponentSender<VideoThumbnail>,
@@ -59,7 +65,12 @@ impl VideoThumbnail {
             .all()?
             .into_iter()
             .filter(|vid| vid.path.exists())
-            .filter(|vid| !vid.thumbnail_path.as_ref().is_some_and(|p| p.exists()))
+            .filter(|vid| {
+                let thumb_hash = vid.thumbnail_hash();
+                let large_path = thumbnailify::get_thumbnail_hash_output(
+                    thumbnails_path, &thumb_hash, ThumbnailSize::Large);
+                !large_path.exists()
+            })
             .collect();
 
         // should be ascending time order from database, so reverse to process newest items first
@@ -129,6 +140,7 @@ impl VideoThumbnail {
 impl Worker for VideoThumbnail {
     type Init = (
         Arc<AtomicBool>,
+        PathBuf,
         Thumbnailer,
         Repository,
         Arc<Reducer<ProgressMonitor>>,
@@ -137,11 +149,12 @@ impl Worker for VideoThumbnail {
     type Output = VideoThumbnailOutput;
 
     fn init(
-        (stop, thumbnailer, repo, progress_monitor): Self::Init,
+        (stop, thumbnails_path, thumbnailer, repo, progress_monitor): Self::Init,
         _sender: ComponentSender<Self>,
     ) -> Self {
         Self {
             stop,
+            thumbnails_path: thumbnails_path.into(),
             thumbnailer,
             repo,
             progress_monitor,
@@ -154,13 +167,14 @@ impl Worker for VideoThumbnail {
                 info!("Generating video thumbnails...");
                 let stop = self.stop.clone();
                 let repo = self.repo.clone();
+                let thumbnails_path = self.thumbnails_path.clone();
                 let thumbnailer = self.thumbnailer.clone();
                 let progress_monitor = self.progress_monitor.clone();
 
                 // Avoid runtime panic from calling block_on
                 rayon::spawn(move || {
                     if let Err(e) =
-                        VideoThumbnail::enrich(stop, repo, thumbnailer, progress_monitor, sender)
+                        VideoThumbnail::enrich(stop, repo, &thumbnails_path, thumbnailer, progress_monitor, sender)
                     {
                         error!("Failed to update video thumbnails: {}", e);
                     }

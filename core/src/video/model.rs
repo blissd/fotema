@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+use crate::thumbnailify;
 use chrono::{DateTime, TimeDelta, Utc};
 use std::fmt::Display;
 use std::path::PathBuf;
@@ -39,9 +40,6 @@ pub struct Video {
     /// Database primary key for video
     pub video_id: VideoId,
 
-    /// Full path to square preview image
-    pub thumbnail_path: Option<PathBuf>,
-
     /// Time ordering
     pub ordering_ts: DateTime<Utc>,
 
@@ -53,6 +51,12 @@ pub struct Video {
 
     /// Video codec
     pub video_codec: Option<String>,
+}
+
+impl Video {
+    pub fn thumbnail_hash(&self) -> String {
+        thumbnailify::compute_hash_for_path(&self.host_path)
+    }
 }
 
 /// A video on the local file system that has been scanned.
