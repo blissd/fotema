@@ -726,7 +726,7 @@ impl SimpleAsyncComponent for App {
         });
 
         let folders_album = FoldersAlbum::builder()
-            .launch((state.clone(), active_view.clone()))
+            .launch((state.clone(), active_view.clone(), thumbnailer.clone()))
             .forward(sender.input_sender(), |msg| match msg {
                 FoldersAlbumOutput::FolderSelected(path) => AppMsg::ViewFolder(path),
             });
