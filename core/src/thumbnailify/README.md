@@ -5,7 +5,7 @@ SPDX-License-Identifier: GFDL-1.3-or-later
 -->
 # Thumbnailify
 
-This files in this directory are from Thumbnailify, which is on
+The files in this directory are from Thumbnailify, which is on
 [GitHub](https://github.com/luigi311/thumbnailify/tree/main).
 
 Thumbnailify uses a GPL3 licence.

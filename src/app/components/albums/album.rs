@@ -5,6 +5,8 @@
 use fotema_core::VisualId;
 use fotema_core::YearMonth;
 use fotema_core::visual::model::PictureOrientation;
+use fotema_core::thumbnailify::{Thumbnailer, ThumbnailSize};
+
 use gtk::prelude::OrientableExt;
 use relm4::binding::*;
 use relm4::gtk;
@@ -16,6 +18,7 @@ use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
 use relm4::*;
 use std::path::Path;
 use std::sync::Arc;
+use std::rc::Rc;
 use strum::IntoEnumIterator;
 
 use super::album_filter::AlbumFilter;
@@ -78,6 +81,8 @@ struct PhotoGridItem {
 
     // Length of thumbnail edge to allow for resizing when layout changes.
     edge_length: I32Binding,
+
+    thumbnailer: Rc<Thumbnailer>,
 }
 
 struct PhotoGridItemWidgets {
@@ -171,15 +176,13 @@ impl RelmGridItem for PhotoGridItem {
             widgets.is_bound = true;
         }
 
-        if self
-            .visual
-            .thumbnail_path
-            .as_ref()
-            .is_some_and(|x| x.exists())
-        {
+        let thumbnail_path = self.thumbnailer
+            .nearest_thumbnail(&self.visual.thumbnail_hash(), ThumbnailSize::Normal);
+
+        if thumbnail_path.is_some() {
             widgets
                 .picture
-                .set_filename(self.visual.thumbnail_path.clone());
+                .set_filename(thumbnail_path);
         } else {
             let pb = gdk_pixbuf::Pixbuf::from_resource_at_scale(
                 "/app/fotema/Fotema/icons/scalable/actions/image-missing-symbolic.svg",
@@ -245,11 +248,12 @@ pub struct Album {
     filter: AlbumFilter,
     sort: AlbumSort,
     edge_length: I32Binding,
+    thumbnailer: Rc<Thumbnailer>,
 }
 
 #[relm4::component(pub)]
 impl SimpleComponent for Album {
-    type Init = (SharedState, ActiveView, ViewName, AlbumFilter);
+    type Init = (SharedState, ActiveView, ViewName, AlbumFilter, Thumbnailer);
     type Input = AlbumInput;
     type Output = AlbumOutput;
 
@@ -279,7 +283,7 @@ impl SimpleComponent for Album {
     }
 
     fn init(
-        (state, active_view, view_name, filter): Self::Init,
+        (state, active_view, view_name, filter, thumbnailer): Self::Init,
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
@@ -294,6 +298,7 @@ impl SimpleComponent for Album {
             filter,
             sort: AlbumSort::default(),
             edge_length: I32Binding::new(NARROW_EDGE_LENGTH),
+            thumbnailer: Rc::new(thumbnailer),
         };
 
         model.update_filter();
@@ -378,6 +383,7 @@ impl Album {
                 .map(|visual| PhotoGridItem {
                     visual: visual.clone(),
                     edge_length: self.edge_length.clone(),
+                    thumbnailer: self.thumbnailer.clone(),
                 })
                 .collect::<Vec<PhotoGridItem>>()
         };

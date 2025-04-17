@@ -6,6 +6,7 @@ use std::fmt::Display;
 use std::path::PathBuf;
 
 use crate::photo::model::Orientation;
+use crate::thumbnailify;
 use crate::{PictureId, VideoId, YearMonth};
 
 use chrono::*;
@@ -93,10 +94,15 @@ impl Visual {
         self.picture_path.as_ref().or(self.video_path.as_ref())
     }
 
+    // FIXME not an option! One must always be present.
     pub fn host_path(&self) -> Option<&PathBuf> {
         self.picture_host_path
             .as_ref()
             .or(self.video_host_path.as_ref())
+    }
+
+    pub fn thumbnail_hash(&self) -> String {
+        thumbnailify::compute_hash_for_path(&self.host_path().expect("Must have host path!"))
     }
 
     pub fn is_selfie(&self) -> bool {

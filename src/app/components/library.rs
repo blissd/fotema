@@ -23,6 +23,8 @@ use super::albums::album_sort::AlbumSort;
 use super::albums::months_album::{MonthsAlbum, MonthsAlbumInput, MonthsAlbumOutput};
 use super::albums::years_album::{YearsAlbum, YearsAlbumInput, YearsAlbumOutput};
 
+use fotema_core::thumbnailify::Thumbnailer;
+
 use tracing::error;
 
 #[derive(Debug)]
@@ -72,7 +74,7 @@ enum LibraryViewName {
 
 #[relm4::component(pub)]
 impl SimpleComponent for Library {
-    type Init = (SharedState, ActiveView, Arc<adaptive::LayoutState>);
+    type Init = (SharedState, ActiveView, Arc<adaptive::LayoutState>, Thumbnailer);
     type Input = LibraryInput;
     type Output = LibraryOutput;
 
@@ -86,7 +88,7 @@ impl SimpleComponent for Library {
     }
 
     fn init(
-        (state, active_view, layout_state): Self::Init,
+        (state, active_view, layout_state, thumbnailer): Self::Init,
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
@@ -96,6 +98,7 @@ impl SimpleComponent for Library {
                 active_view.clone(),
                 ViewName::All,
                 AlbumFilter::All,
+                thumbnailer,
             ))
             .forward(sender.input_sender(), |msg| match msg {
                 AlbumOutput::Selected(id, _) => LibraryInput::View(id),

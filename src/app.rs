@@ -30,6 +30,7 @@ use fotema_core::VisualId;
 use fotema_core::database;
 use fotema_core::path_encoding;
 use fotema_core::people;
+use fotema_core::thumbnailify::Thumbnailer;
 
 use h3o::CellIndex;
 
@@ -533,6 +534,11 @@ impl SimpleAsyncComponent for App {
         let cache_dir = glib::user_cache_dir().join(APP_ID);
         let _ = std::fs::create_dir_all(&cache_dir);
 
+        // WARN duplicated in bootstrap.rs
+        let thumbnail_dir = glib::home_dir().join(".cache").join("thumbnails");
+        info!("Thumbnail directory is {:?}", thumbnail_dir);
+        let thumbnailer = Thumbnailer::build(&thumbnail_dir);
+
         let db_path = data_dir.join("pictures.sqlite");
 
         let con = database::setup(&db_path).expect("Must be able to open database");
@@ -587,7 +593,7 @@ impl SimpleAsyncComponent for App {
         let onboard_view = adw::ToolbarView::new();
 
         let library = Library::builder()
-            .launch((state.clone(), active_view.clone(), adaptive_layout.clone()))
+            .launch((state.clone(), active_view.clone(), adaptive_layout.clone(), thumbnailer.clone()))
             .forward(sender.input_sender(), |msg| match msg {
                 LibraryOutput::View(id) => AppMsg::View(id, AlbumFilter::All),
             });
@@ -618,6 +624,7 @@ impl SimpleAsyncComponent for App {
                 active_view.clone(),
                 ViewName::Selfies,
                 AlbumFilter::Selfies,
+                thumbnailer.clone(),
             ))
             .forward(sender.input_sender(), |msg| match msg {
                 AlbumOutput::Selected(id, filter) => AppMsg::View(id, filter),
@@ -638,6 +645,7 @@ impl SimpleAsyncComponent for App {
                 active_view.clone(),
                 ViewName::Animated,
                 AlbumFilter::Motion,
+                thumbnailer.clone(),
             ))
             .forward(sender.input_sender(), |msg| match msg {
                 AlbumOutput::Selected(id, filter) => AppMsg::View(id, filter),
@@ -656,6 +664,7 @@ impl SimpleAsyncComponent for App {
                 active_view.clone(),
                 ViewName::Videos,
                 AlbumFilter::Videos,
+                thumbnailer.clone(),
             ))
             .forward(sender.input_sender(), |msg| match msg {
                 AlbumOutput::Selected(id, filter) => AppMsg::View(id, filter),
@@ -684,7 +693,7 @@ impl SimpleAsyncComponent for App {
         });
 
         let person_album = PersonAlbum::builder()
-            .launch((state.clone(), people_repo.clone(), active_view.clone()))
+            .launch((state.clone(), people_repo.clone(), active_view.clone(), thumbnailer.clone()))
             .forward(sender.input_sender(), |msg| match msg {
                 PersonAlbumOutput::Selected(id, filter) => AppMsg::View(id, filter),
                 PersonAlbumOutput::Deleted => AppMsg::PersonDeleted,
@@ -732,6 +741,7 @@ impl SimpleAsyncComponent for App {
                 active_view.clone(),
                 ViewName::Folder,
                 AlbumFilter::None,
+                thumbnailer.clone(),
             ))
             .forward(sender.input_sender(), |msg| match msg {
                 AlbumOutput::Selected(id, filter) => AppMsg::View(id, filter),
