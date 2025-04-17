@@ -20,12 +20,12 @@ use fotema_core::people::model::{DetectedFace, PersonForRecognition};
 use crate::app::components::progress_monitor::{ProgressMonitor, ProgressMonitorInput, TaskName};
 
 #[derive(Debug)]
-pub enum PhotoRecognizeFacesInput {
+pub enum PhotoRecognizeFacesTaskInput {
     Start,
 }
 
 #[derive(Debug)]
-pub enum PhotoRecognizeFacesOutput {
+pub enum PhotoRecognizeFacesTaskOutput {
     // Face recognition has started.
     Started,
 
@@ -34,7 +34,7 @@ pub enum PhotoRecognizeFacesOutput {
 }
 
 #[derive(Clone)]
-pub struct PhotoRecognizeFaces {
+pub struct PhotoRecognizeFacesTask {
     // Stop flag
     stop: Arc<AtomicBool>,
 
@@ -46,7 +46,7 @@ pub struct PhotoRecognizeFaces {
     cache_dir: PathBuf,
 }
 
-impl PhotoRecognizeFaces {
+impl PhotoRecognizeFacesTask {
     fn recognize(&self, sender: ComponentSender<Self>) -> Result<()> {
         let start = std::time::Instant::now();
 
@@ -64,7 +64,7 @@ impl PhotoRecognizeFaces {
         // Short-circuit before sending progress messages to stop
         // banner from appearing and disappearing.
         if people.is_empty() {
-            let _ = sender.output(PhotoRecognizeFacesOutput::Completed);
+            let _ = sender.output(PhotoRecognizeFacesTaskOutput::Completed);
             return Ok(());
         }
 
@@ -78,11 +78,11 @@ impl PhotoRecognizeFaces {
             .collect();
 
         if unprocessed.is_empty() {
-            let _ = sender.output(PhotoRecognizeFacesOutput::Completed);
+            let _ = sender.output(PhotoRecognizeFacesTaskOutput::Completed);
             return Ok(());
         }
 
-        let _ = sender.output(PhotoRecognizeFacesOutput::Started);
+        let _ = sender.output(PhotoRecognizeFacesTaskOutput::Started);
         self.progress_monitor.emit(ProgressMonitorInput::Start(
             TaskName::RecognizeFaces,
             unprocessed.len(),
@@ -131,27 +131,27 @@ impl PhotoRecognizeFaces {
 
         self.progress_monitor.emit(ProgressMonitorInput::Complete);
 
-        let _ = sender.output(PhotoRecognizeFacesOutput::Completed);
+        let _ = sender.output(PhotoRecognizeFacesTaskOutput::Completed);
 
         Ok(())
     }
 }
 
-impl Worker for PhotoRecognizeFaces {
+impl Worker for PhotoRecognizeFacesTask {
     type Init = (
         Arc<AtomicBool>,
         PathBuf,
         people::Repository,
         Arc<Reducer<ProgressMonitor>>,
     );
-    type Input = PhotoRecognizeFacesInput;
-    type Output = PhotoRecognizeFacesOutput;
+    type Input = PhotoRecognizeFacesTaskInput;
+    type Output = PhotoRecognizeFacesTaskOutput;
 
     fn init(
         (stop, cache_dir, repo, progress_monitor): Self::Init,
         _sender: ComponentSender<Self>,
     ) -> Self {
-        PhotoRecognizeFaces {
+        PhotoRecognizeFacesTask {
             stop,
             cache_dir,
             repo,
@@ -161,7 +161,7 @@ impl Worker for PhotoRecognizeFaces {
 
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
-            PhotoRecognizeFacesInput::Start => {
+            PhotoRecognizeFacesTaskInput::Start => {
                 info!("Recognizing photo faces...");
                 let this = self.clone();
 

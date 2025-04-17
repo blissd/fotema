@@ -11,10 +11,9 @@ use fotema_core::PictureId;
 use fotema_core::database;
 use fotema_core::people;
 use fotema_core::photo;
+use fotema_core::thumbnailify::Thumbnailer;
 use fotema_core::video;
 use fotema_core::visual;
-use fotema_core::thumbnailify::Thumbnailer;
-
 
 use std::result::Result::Ok;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -29,21 +28,25 @@ use tracing::{error, info, warn};
 use anyhow;
 
 use super::{
-    load_library::{LoadLibrary, LoadLibraryInput, LoadLibraryOutput},
-    photo_clean::{PhotoClean, PhotoCleanInput, PhotoCleanOutput},
-    photo_detect_faces::{PhotoDetectFaces, PhotoDetectFacesInput, PhotoDetectFacesOutput},
-    photo_enrich::{PhotoEnrich, PhotoEnrichInput, PhotoEnrichOutput},
-    photo_extract_motion::{PhotoExtractMotion, PhotoExtractMotionInput, PhotoExtractMotionOutput},
-    photo_recognize_faces::{
-        PhotoRecognizeFaces, PhotoRecognizeFacesInput, PhotoRecognizeFacesOutput,
+    load_library_task::{LoadLibraryTask, LoadLibraryTaskInput, LoadLibraryTaskOutput},
+    photo_clean_task::{PhotoCleanTask, PhotoCleanTaskInput, PhotoCleanTaskOutput},
+    photo_detect_faces_task::{
+        PhotoDetectFacesTask, PhotoDetectFacesTaskInput, PhotoDetectFacesTaskOutput,
     },
-    photo_scan::{PhotoScan, PhotoScanInput, PhotoScanOutput},
-    photo_thumbnail::{PhotoThumbnail, PhotoThumbnailInput, PhotoThumbnailOutput},
-    video_clean::{VideoClean, VideoCleanInput, VideoCleanOutput},
-    video_enrich::{VideoEnrich, VideoEnrichInput, VideoEnrichOutput},
-    video_scan::{VideoScan, VideoScanInput, VideoScanOutput},
-    video_thumbnail::{VideoThumbnail, VideoThumbnailInput, VideoThumbnailOutput},
-    video_transcode::{VideoTranscode, VideoTranscodeInput, VideoTranscodeOutput},
+    photo_enrich_task::{PhotoEnrichTask, PhotoEnrichTaskInput, PhotoEnrichTaskOutput},
+    photo_extract_motion_task::{
+        PhotoExtractMotionTask, PhotoExtractMotionTaskInput, PhotoExtractMotionTaskOutput,
+    },
+    photo_recognize_faces_task::{
+        PhotoRecognizeFacesTask, PhotoRecognizeFacesTaskInput, PhotoRecognizeFacesTaskOutput,
+    },
+    photo_scan_task::{PhotoScanTask, PhotoScanTaskInput, PhotoScanTaskOutput},
+    photo_thumbnail_task::{PhotoThumbnailTask, PhotoThumbnailTaskInput, PhotoThumbnailTaskOutput},
+    video_clean_task::{VideoCleanTask, VideoCleanTaskInput, VideoCleanTaskOutput},
+    video_enrich_task::{VideoEnrichTask, VideoEnrichTaskInput, VideoEnrichTaskOutput},
+    video_scan_task::{VideoScanTask, VideoScanTaskInput, VideoScanTaskOutput},
+    video_thumbnail_task::{VideoThumbnailTask, VideoThumbnailTaskInput, VideoThumbnailTaskOutput},
+    video_transcode_task::{VideoTranscodeTask, VideoTranscodeTaskInput, VideoTranscodeTaskOutput},
 };
 
 use crate::app::FaceDetectionMode;
@@ -135,26 +138,26 @@ pub struct Controllers {
     /// Whether a background task has updated some library state and the library should be reloaded.
     library_stale: Arc<AtomicBool>,
 
-    load_library: Arc<WorkerController<LoadLibrary>>,
+    load_library_task: Arc<WorkerController<LoadLibraryTask>>,
 
-    photo_scan: Arc<WorkerController<PhotoScan>>,
-    video_scan: Arc<WorkerController<VideoScan>>,
+    photo_scan_task: Arc<WorkerController<PhotoScanTask>>,
+    video_scan_task: Arc<WorkerController<VideoScanTask>>,
 
-    photo_enrich: Arc<WorkerController<PhotoEnrich>>,
-    video_enrich: Arc<WorkerController<VideoEnrich>>,
+    photo_enrich_task: Arc<WorkerController<PhotoEnrichTask>>,
+    video_enrich_task: Arc<WorkerController<VideoEnrichTask>>,
 
-    photo_clean: Arc<WorkerController<PhotoClean>>,
-    video_clean: Arc<WorkerController<VideoClean>>,
+    photo_clean_task: Arc<WorkerController<PhotoCleanTask>>,
+    video_clean_task: Arc<WorkerController<VideoCleanTask>>,
 
-    photo_thumbnail: Arc<WorkerController<PhotoThumbnail>>,
-    video_thumbnail: Arc<WorkerController<VideoThumbnail>>,
+    photo_thumbnail_task: Arc<WorkerController<PhotoThumbnailTask>>,
+    video_thumbnail_task: Arc<WorkerController<VideoThumbnailTask>>,
 
-    photo_extract_motion: Arc<WorkerController<PhotoExtractMotion>>,
+    photo_extract_motion_task: Arc<WorkerController<PhotoExtractMotionTask>>,
 
-    photo_detect_faces: Arc<WorkerController<PhotoDetectFaces>>,
-    photo_recognize_faces: Arc<WorkerController<PhotoRecognizeFaces>>,
+    photo_detect_faces_task: Arc<WorkerController<PhotoDetectFacesTask>>,
+    photo_recognize_faces_task: Arc<WorkerController<PhotoRecognizeFacesTask>>,
 
-    video_transcode: Arc<WorkerController<VideoTranscode>>,
+    video_transcode_task: Arc<WorkerController<VideoTranscodeTask>>,
 
     /// Pending ordered tasks to process
     /// Wow... figuring out a type signature that would compile was a nightmare.
@@ -249,104 +252,108 @@ impl Controllers {
     }
 
     fn add_task_photo_scan(&mut self) {
-        let sender = self.photo_scan.sender().clone();
-        self.enqueue(Box::new(move || sender.emit(PhotoScanInput::Start)));
+        let sender = self.photo_scan_task.sender().clone();
+        self.enqueue(Box::new(move || sender.emit(PhotoScanTaskInput::Start)));
     }
 
     fn add_task_video_scan(&mut self) {
-        let sender = self.video_scan.sender().clone();
-        self.enqueue(Box::new(move || sender.emit(VideoScanInput::Start)));
+        let sender = self.video_scan_task.sender().clone();
+        self.enqueue(Box::new(move || sender.emit(VideoScanTaskInput::Start)));
     }
 
     fn add_task_photo_enrich(&mut self) {
-        let sender = self.photo_enrich.sender().clone();
-        self.enqueue(Box::new(move || sender.emit(PhotoEnrichInput::Start)));
+        let sender = self.photo_enrich_task.sender().clone();
+        self.enqueue(Box::new(move || sender.emit(PhotoEnrichTaskInput::Start)));
     }
 
     fn add_task_video_enrich(&mut self) {
-        let sender = self.video_enrich.sender().clone();
-        self.enqueue(Box::new(move || sender.emit(VideoEnrichInput::Start)));
+        let sender = self.video_enrich_task.sender().clone();
+        self.enqueue(Box::new(move || sender.emit(VideoEnrichTaskInput::Start)));
     }
 
     fn add_task_photo_thumbnail(&mut self) {
-        let sender = self.photo_thumbnail.sender().clone();
-        self.enqueue(Box::new(move || sender.emit(PhotoThumbnailInput::Start)));
+        let sender = self.photo_thumbnail_task.sender().clone();
+        self.enqueue(Box::new(move || {
+            sender.emit(PhotoThumbnailTaskInput::Start)
+        }));
     }
 
     fn add_task_video_thumbnail(&mut self) {
-        let sender = self.video_thumbnail.sender().clone();
-        self.enqueue(Box::new(move || sender.emit(VideoThumbnailInput::Start)));
+        let sender = self.video_thumbnail_task.sender().clone();
+        self.enqueue(Box::new(move || {
+            sender.emit(VideoThumbnailTaskInput::Start)
+        }));
     }
 
     fn add_task_photo_clean(&mut self) {
-        let sender = self.photo_clean.sender().clone();
-        self.enqueue(Box::new(move || sender.emit(PhotoCleanInput::Start)));
+        let sender = self.photo_clean_task.sender().clone();
+        self.enqueue(Box::new(move || sender.emit(PhotoCleanTaskInput::Start)));
     }
 
     fn add_task_video_clean(&mut self) {
-        let sender = self.video_clean.sender().clone();
-        self.enqueue(Box::new(move || sender.emit(VideoCleanInput::Start)));
+        let sender = self.video_clean_task.sender().clone();
+        self.enqueue(Box::new(move || sender.emit(VideoCleanTaskInput::Start)));
     }
 
     fn add_task_photo_extract_motion(&mut self) {
-        let sender = self.photo_extract_motion.sender().clone();
+        let sender = self.photo_extract_motion_task.sender().clone();
         self.enqueue(Box::new(move || {
-            sender.emit(PhotoExtractMotionInput::Start)
+            sender.emit(PhotoExtractMotionTaskInput::Start)
         }));
     }
 
     fn add_task_photo_detect_faces(&mut self) {
-        let sender = self.photo_detect_faces.sender().clone();
+        let sender = self.photo_detect_faces_task.sender().clone();
         let mode = self.settings_state.read().face_detection_mode;
         match mode {
             FaceDetectionMode::Off => {}
             FaceDetectionMode::On => {
                 self.enqueue(Box::new(move || {
-                    sender.emit(PhotoDetectFacesInput::DetectForAllPictures)
+                    sender.emit(PhotoDetectFacesTaskInput::DetectForAllPictures)
                 }));
             }
         };
     }
 
     fn add_task_photo_detect_faces_for_one(&mut self, picture_id: PictureId) {
-        let sender = self.photo_detect_faces.sender().clone();
+        let sender = self.photo_detect_faces_task.sender().clone();
         let mode = self.settings_state.read().face_detection_mode;
         match mode {
             FaceDetectionMode::Off => {}
             FaceDetectionMode::On => {
                 self.enqueue(Box::new(move || {
-                    sender.emit(PhotoDetectFacesInput::DetectForOnePicture(picture_id))
+                    sender.emit(PhotoDetectFacesTaskInput::DetectForOnePicture(picture_id))
                 }));
             }
         };
     }
 
     fn add_task_photo_recognize_faces(&mut self) {
-        let sender = self.photo_recognize_faces.sender().clone();
+        let sender = self.photo_recognize_faces_task.sender().clone();
         let mode = self.settings_state.read().face_detection_mode;
         match mode {
             FaceDetectionMode::Off => {}
             FaceDetectionMode::On => {
                 self.enqueue(Box::new(move || {
-                    sender.emit(PhotoRecognizeFacesInput::Start)
+                    sender.emit(PhotoRecognizeFacesTaskInput::Start)
                 }));
             }
         };
     }
 
     fn add_task_video_transcode(&mut self) {
-        let sender = self.video_transcode.sender().clone();
-        self.enqueue(Box::new(move || sender.emit(VideoTranscodeInput::Start)));
+        let sender = self.video_transcode_task.sender().clone();
+        self.enqueue(Box::new(move || sender.emit(VideoTranscodeTaskInput::Start)));
     }
 
     fn add_task_load_library(&mut self, bootstrap_sender: Sender<BootstrapInput>) {
-        let sender = self.load_library.sender().clone();
+        let sender = self.load_library_task.sender().clone();
         let stale = self.library_stale.clone();
         let library_state = self.shared_state.clone();
         self.enqueue(Box::new(move || {
             if stale.load(Ordering::Relaxed) || library_state.read().is_empty() {
                 info!("Library stale or empty so refreshing.");
-                sender.emit(LoadLibraryInput::Refresh);
+                sender.emit(LoadLibraryTaskInput::Refresh);
             } else {
                 bootstrap_sender.emit(BootstrapInput::TaskCompleted(TaskName::LoadLibrary, None));
             }
@@ -410,15 +417,27 @@ impl Bootstrap {
 
         let photo_scanner = photo::Scanner::build(&pic_base_dir)?;
 
-        let photo_repo =
-            photo::Repository::open(&pic_base_dir, &pic_base_dir_host_path, &cache_dir, &thumbnail_dir, &data_dir, self.con.clone())?;
+        let photo_repo = photo::Repository::open(
+            &pic_base_dir,
+            &pic_base_dir_host_path,
+            &cache_dir,
+            &thumbnail_dir,
+            &data_dir,
+            self.con.clone(),
+        )?;
 
         let photo_thumbnailer = photo::Thumbnailer::build(thumbnailer.clone())?;
 
         let video_scanner = video::Scanner::build(&pic_base_dir)?;
 
-        let video_repo =
-            video::Repository::open(&pic_base_dir, &pic_base_dir_host_path, &cache_dir, &thumbnail_dir, &data_dir, self.con.clone())?;
+        let video_repo = video::Repository::open(
+            &pic_base_dir,
+            &pic_base_dir_host_path,
+            &cache_dir,
+            &thumbnail_dir,
+            &data_dir,
+            self.con.clone(),
+        )?;
 
         let video_thumbnailer = video::Thumbnailer::build(thumbnailer)?;
 
@@ -436,63 +455,63 @@ impl Bootstrap {
 
         let stop = Arc::new(AtomicBool::new(false));
 
-        let load_library = LoadLibrary::builder()
+        let load_library_task = LoadLibraryTask::builder()
             .detach_worker((visual_repo.clone(), self.shared_state.clone()))
             .forward(sender.input_sender(), |msg| match msg {
-                LoadLibraryOutput::Done => {
+                LoadLibraryTaskOutput::Done => {
                     BootstrapInput::TaskCompleted(TaskName::LoadLibrary, None)
                 }
             });
 
-        let photo_scan = PhotoScan::builder()
+        let photo_scan_task = PhotoScanTask::builder()
             .detach_worker((photo_scanner.clone(), photo_repo.clone()))
             .forward(sender.input_sender(), |msg| match msg {
-                PhotoScanOutput::Started => {
+                PhotoScanTaskOutput::Started => {
                     BootstrapInput::TaskStarted(TaskName::Scan(MediaType::Photo))
                 }
-                PhotoScanOutput::Completed => {
+                PhotoScanTaskOutput::Completed => {
                     BootstrapInput::TaskCompleted(TaskName::Scan(MediaType::Photo), None)
                 }
             });
 
-        let video_scan = VideoScan::builder()
+        let video_scan_task = VideoScanTask::builder()
             .detach_worker((video_scanner.clone(), video_repo.clone()))
             .forward(sender.input_sender(), |msg| match msg {
-                VideoScanOutput::Started => {
+                VideoScanTaskOutput::Started => {
                     BootstrapInput::TaskStarted(TaskName::Scan(MediaType::Video))
                 }
-                VideoScanOutput::Completed => {
+                VideoScanTaskOutput::Completed => {
                     BootstrapInput::TaskCompleted(TaskName::Scan(MediaType::Video), None)
                 }
             });
 
-        let photo_enrich = PhotoEnrich::builder()
+        let photo_enrich_task = PhotoEnrichTask::builder()
             .detach_worker((stop.clone(), photo_repo.clone()))
             .forward(sender.input_sender(), |msg| match msg {
-                PhotoEnrichOutput::Started => {
+                PhotoEnrichTaskOutput::Started => {
                     BootstrapInput::TaskStarted(TaskName::Enrich(MediaType::Photo))
                 }
-                PhotoEnrichOutput::Completed(count) => {
+                PhotoEnrichTaskOutput::Completed(count) => {
                     BootstrapInput::TaskCompleted(TaskName::Enrich(MediaType::Photo), Some(count))
                 }
             });
 
-        let video_enrich = VideoEnrich::builder()
+        let video_enrich_task = VideoEnrichTask::builder()
             .detach_worker((
                 stop.clone(),
                 video_repo.clone(),
                 self.progress_monitor.clone(),
             ))
             .forward(sender.input_sender(), |msg| match msg {
-                VideoEnrichOutput::Started => {
+                VideoEnrichTaskOutput::Started => {
                     BootstrapInput::TaskStarted(TaskName::Enrich(MediaType::Video))
                 }
-                VideoEnrichOutput::Completed(count) => {
+                VideoEnrichTaskOutput::Completed(count) => {
                     BootstrapInput::TaskCompleted(TaskName::Enrich(MediaType::Video), Some(count))
                 }
             });
 
-        let photo_extract_motion = PhotoExtractMotion::builder()
+        let photo_extract_motion_task = PhotoExtractMotionTask::builder()
             .detach_worker((
                 stop.clone(),
                 motion_photo_extractor,
@@ -500,15 +519,15 @@ impl Bootstrap {
                 self.progress_monitor.clone(),
             ))
             .forward(sender.input_sender(), |msg| match msg {
-                PhotoExtractMotionOutput::Started => {
+                PhotoExtractMotionTaskOutput::Started => {
                     BootstrapInput::TaskStarted(TaskName::MotionPhoto)
                 }
-                PhotoExtractMotionOutput::Completed(count) => {
+                PhotoExtractMotionTaskOutput::Completed(count) => {
                     BootstrapInput::TaskCompleted(TaskName::MotionPhoto, Some(count))
                 }
             });
 
-        let photo_thumbnail = PhotoThumbnail::builder()
+        let photo_thumbnail_task = PhotoThumbnailTask::builder()
             .detach_worker((
                 stop.clone(),
                 thumbnail_dir.clone(),
@@ -517,16 +536,16 @@ impl Bootstrap {
                 self.progress_monitor.clone(),
             ))
             .forward(sender.input_sender(), |msg| match msg {
-                PhotoThumbnailOutput::Started => {
+                PhotoThumbnailTaskOutput::Started => {
                     BootstrapInput::TaskStarted(TaskName::Thumbnail(MediaType::Photo))
                 }
-                PhotoThumbnailOutput::Completed(count) => BootstrapInput::TaskCompleted(
+                PhotoThumbnailTaskOutput::Completed(count) => BootstrapInput::TaskCompleted(
                     TaskName::Thumbnail(MediaType::Photo),
                     Some(count),
                 ),
             });
 
-        let video_thumbnail = VideoThumbnail::builder()
+        let video_thumbnail_task = VideoThumbnailTask::builder()
             .detach_worker((
                 stop.clone(),
                 thumbnail_dir.clone(),
@@ -535,10 +554,10 @@ impl Bootstrap {
                 self.progress_monitor.clone(),
             ))
             .forward(sender.input_sender(), |msg| match msg {
-                VideoThumbnailOutput::Started => {
+                VideoThumbnailTaskOutput::Started => {
                     BootstrapInput::TaskStarted(TaskName::Thumbnail(MediaType::Video))
                 }
-                VideoThumbnailOutput::Completed(count) => BootstrapInput::TaskCompleted(
+                VideoThumbnailTaskOutput::Completed(count) => BootstrapInput::TaskCompleted(
                     TaskName::Thumbnail(MediaType::Video),
                     Some(count),
                 ),
@@ -546,7 +565,7 @@ impl Bootstrap {
 
         let transcoder = video::Transcoder::new(&cache_dir);
 
-        let video_transcode = VideoTranscode::builder()
+        let video_transcode_task = VideoTranscodeTask::builder()
             .detach_worker((
                 stop.clone(),
                 self.shared_state.clone(),
@@ -555,35 +574,35 @@ impl Bootstrap {
                 self.progress_monitor.clone(),
             ))
             .forward(sender.input_sender(), |msg| match msg {
-                VideoTranscodeOutput::Started => BootstrapInput::TaskStarted(TaskName::Transcode),
-                VideoTranscodeOutput::Completed => {
+                VideoTranscodeTaskOutput::Started => BootstrapInput::TaskStarted(TaskName::Transcode),
+                VideoTranscodeTaskOutput::Completed => {
                     BootstrapInput::TaskCompleted(TaskName::Transcode, None)
                 }
             });
 
-        let photo_clean = PhotoClean::builder()
+        let photo_clean_task = PhotoCleanTask::builder()
             .detach_worker((stop.clone(), photo_repo.clone()))
             .forward(sender.input_sender(), |msg| match msg {
-                PhotoCleanOutput::Started => {
+                PhotoCleanTaskOutput::Started => {
                     BootstrapInput::TaskStarted(TaskName::Clean(MediaType::Photo))
                 }
-                PhotoCleanOutput::Completed(count) => {
+                PhotoCleanTaskOutput::Completed(count) => {
                     BootstrapInput::TaskCompleted(TaskName::Clean(MediaType::Photo), Some(count))
                 }
             });
 
-        let video_clean = VideoClean::builder()
+        let video_clean_task = VideoCleanTask::builder()
             .detach_worker((stop.clone(), video_repo.clone()))
             .forward(sender.input_sender(), |msg| match msg {
-                VideoCleanOutput::Started => {
+                VideoCleanTaskOutput::Started => {
                     BootstrapInput::TaskStarted(TaskName::Clean(MediaType::Video))
                 }
-                VideoCleanOutput::Completed(count) => {
+                VideoCleanTaskOutput::Completed(count) => {
                     BootstrapInput::TaskCompleted(TaskName::Clean(MediaType::Video), Some(count))
                 }
             });
 
-        let photo_detect_faces = PhotoDetectFaces::builder()
+        let photo_detect_faces_task = PhotoDetectFacesTask::builder()
             .detach_worker((
                 stop.clone(),
                 data_dir,
@@ -592,15 +611,15 @@ impl Bootstrap {
                 self.progress_monitor.clone(),
             ))
             .forward(sender.input_sender(), |msg| match msg {
-                PhotoDetectFacesOutput::Started => {
+                PhotoDetectFacesTaskOutput::Started => {
                     BootstrapInput::TaskStarted(TaskName::DetectFaces)
                 }
-                PhotoDetectFacesOutput::Completed => {
+                PhotoDetectFacesTaskOutput::Completed => {
                     BootstrapInput::TaskCompleted(TaskName::DetectFaces, None)
                 }
             });
 
-        let photo_recognize_faces = PhotoRecognizeFaces::builder()
+        let photo_recognize_faces_task = PhotoRecognizeFacesTask::builder()
             .detach_worker((
                 stop.clone(),
                 cache_dir.clone(),
@@ -608,10 +627,10 @@ impl Bootstrap {
                 self.progress_monitor.clone(),
             ))
             .forward(sender.input_sender(), |msg| match msg {
-                PhotoRecognizeFacesOutput::Started => {
+                PhotoRecognizeFacesTaskOutput::Started => {
                     BootstrapInput::TaskStarted(TaskName::RecognizeFaces)
                 }
-                PhotoRecognizeFacesOutput::Completed => {
+                PhotoRecognizeFacesTaskOutput::Completed => {
                     BootstrapInput::TaskCompleted(TaskName::RecognizeFaces, None)
                 }
             });
@@ -621,19 +640,19 @@ impl Bootstrap {
             started_at: None,
             shared_state: self.shared_state.clone(),
             settings_state: self.settings_state.clone(),
-            load_library: Arc::new(load_library),
-            photo_scan: Arc::new(photo_scan),
-            video_scan: Arc::new(video_scan),
-            photo_enrich: Arc::new(photo_enrich),
-            video_enrich: Arc::new(video_enrich),
-            photo_extract_motion: Arc::new(photo_extract_motion),
-            photo_clean: Arc::new(photo_clean),
-            video_clean: Arc::new(video_clean),
-            photo_thumbnail: Arc::new(photo_thumbnail),
-            video_thumbnail: Arc::new(video_thumbnail),
-            photo_detect_faces: Arc::new(photo_detect_faces),
-            photo_recognize_faces: Arc::new(photo_recognize_faces),
-            video_transcode: Arc::new(video_transcode),
+            load_library_task: Arc::new(load_library_task),
+            photo_scan_task: Arc::new(photo_scan_task),
+            video_scan_task: Arc::new(video_scan_task),
+            photo_enrich_task: Arc::new(photo_enrich_task),
+            video_enrich_task: Arc::new(video_enrich_task),
+            photo_extract_motion_task: Arc::new(photo_extract_motion_task),
+            photo_clean_task: Arc::new(photo_clean_task),
+            video_clean_task: Arc::new(video_clean_task),
+            photo_thumbnail_task: Arc::new(photo_thumbnail_task),
+            video_thumbnail_task: Arc::new(video_thumbnail_task),
+            photo_detect_faces_task: Arc::new(photo_detect_faces_task),
+            photo_recognize_faces_task: Arc::new(photo_recognize_faces_task),
+            video_transcode_task: Arc::new(video_transcode_task),
             pending_tasks: Arc::new(Mutex::new(VecDeque::new())),
             is_running: false,
             library_stale: Arc::new(AtomicBool::new(true)),
@@ -707,7 +726,11 @@ impl Worker for Bootstrap {
                     pictures_base_dir
                 );
 
-                match self.build_controllers(pictures_base_dir.clone(), pictures_base_dir_host_path, &sender) {
+                match self.build_controllers(
+                    pictures_base_dir.clone(),
+                    pictures_base_dir_host_path,
+                    &sender,
+                ) {
                     Ok(controllers) => {
                         self.pictures_base_dir = Some(pictures_base_dir);
                         self.controllers = Some(controllers);
@@ -737,7 +760,10 @@ impl Worker for Bootstrap {
                         sender.input(BootstrapInput::Stop);
                     } else {
                         self.controllers = None;
-                        sender.input(BootstrapInput::Configure(settings.pictures_base_dir, settings.pictures_base_dir_host_path));
+                        sender.input(BootstrapInput::Configure(
+                            settings.pictures_base_dir,
+                            settings.pictures_base_dir_host_path,
+                        ));
                     }
                 }
             }

@@ -13,12 +13,12 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use tracing::{debug, error, info};
 
 #[derive(Debug)]
-pub enum VideoCleanInput {
+pub enum VideoCleanTaskInput {
     Start,
 }
 
 #[derive(Debug)]
-pub enum VideoCleanOutput {
+pub enum VideoCleanTaskOutput {
     // Thumbnail generation has started for a given number of images.
     Started,
 
@@ -26,7 +26,7 @@ pub enum VideoCleanOutput {
     Completed(usize),
 }
 
-pub struct VideoClean {
+pub struct VideoCleanTask {
     // Stop flag
     stop: Arc<AtomicBool>,
 
@@ -34,7 +34,7 @@ pub struct VideoClean {
     repo: fotema_core::video::Repository,
 }
 
-impl VideoClean {
+impl VideoCleanTask {
     fn cleanup(&mut self, sender: &ComponentSender<Self>) -> Result<()> {
         let start = std::time::Instant::now();
 
@@ -48,11 +48,11 @@ impl VideoClean {
         // Short-circuit before sending progress messages to stop
         // banner from appearing and disappearing.
         if count == 0 {
-            let _ = sender.output(VideoCleanOutput::Completed(count));
+            let _ = sender.output(VideoCleanTaskOutput::Completed(count));
             return Ok(());
         }
 
-        if let Err(e) = sender.output(VideoCleanOutput::Started) {
+        if let Err(e) = sender.output(VideoCleanTaskOutput::Started) {
             error!("Failed sending cleanup started: {:?}", e);
         }
 
@@ -85,18 +85,18 @@ impl VideoClean {
             start.elapsed().as_secs()
         );
 
-        if let Err(e) = sender.output(VideoCleanOutput::Completed(count)) {
-            error!("Failed sending VideoCleanOutput::Completed: {:?}", e);
+        if let Err(e) = sender.output(VideoCleanTaskOutput::Completed(count)) {
+            error!("Failed sending VideoCleanTaskOutput::Completed: {:?}", e);
         }
 
         Ok(())
     }
 }
 
-impl Worker for VideoClean {
+impl Worker for VideoCleanTask {
     type Init = (Arc<AtomicBool>, fotema_core::video::Repository);
-    type Input = VideoCleanInput;
-    type Output = VideoCleanOutput;
+    type Input = VideoCleanTaskInput;
+    type Output = VideoCleanTaskOutput;
 
     fn init((stop, repo): Self::Init, _sender: ComponentSender<Self>) -> Self {
         Self { stop, repo }
@@ -104,7 +104,7 @@ impl Worker for VideoClean {
 
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
-            VideoCleanInput::Start => {
+            VideoCleanTaskInput::Start => {
                 info!("Cleaning videos...");
 
                 if let Err(e) = self.cleanup(&sender) {

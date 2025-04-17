@@ -13,12 +13,12 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use tracing::{debug, error, info};
 
 #[derive(Debug)]
-pub enum PhotoCleanInput {
+pub enum PhotoCleanTaskInput {
     Start,
 }
 
 #[derive(Debug)]
-pub enum PhotoCleanOutput {
+pub enum PhotoCleanTaskOutput {
     // Thumbnail generation has started for a given number of images.
     Started,
 
@@ -26,7 +26,7 @@ pub enum PhotoCleanOutput {
     Completed(usize),
 }
 
-pub struct PhotoClean {
+pub struct PhotoCleanTask {
     // Stop flag
     stop: Arc<AtomicBool>,
 
@@ -34,7 +34,7 @@ pub struct PhotoClean {
     repo: fotema_core::photo::Repository,
 }
 
-impl PhotoClean {
+impl PhotoCleanTask {
     fn cleanup(&mut self, sender: &ComponentSender<Self>) -> Result<()> {
         let start = std::time::Instant::now();
 
@@ -48,11 +48,11 @@ impl PhotoClean {
         // Short-circuit before sending progress messages to stop
         // banner from appearing and disappearing.
         if count == 0 {
-            let _ = sender.output(PhotoCleanOutput::Completed(count));
+            let _ = sender.output(PhotoCleanTaskOutput::Completed(count));
             return Ok(());
         }
 
-        if let Err(e) = sender.output(PhotoCleanOutput::Started) {
+        if let Err(e) = sender.output(PhotoCleanTaskOutput::Started) {
             error!("Failed sending cleanup started: {:?}", e);
         }
 
@@ -85,18 +85,18 @@ impl PhotoClean {
             start.elapsed().as_secs()
         );
 
-        if let Err(e) = sender.output(PhotoCleanOutput::Completed(count)) {
-            error!("Failed sending PhotoCleanOutput::Completed: {:?}", e);
+        if let Err(e) = sender.output(PhotoCleanTaskOutput::Completed(count)) {
+            error!("Failed sending PhotoCleanTaskOutput::Completed: {:?}", e);
         }
 
         Ok(())
     }
 }
 
-impl Worker for PhotoClean {
+impl Worker for PhotoCleanTask {
     type Init = (Arc<AtomicBool>, fotema_core::photo::Repository);
-    type Input = PhotoCleanInput;
-    type Output = PhotoCleanOutput;
+    type Input = PhotoCleanTaskInput;
+    type Output = PhotoCleanTaskOutput;
 
     fn init((stop, repo): Self::Init, _sender: ComponentSender<Self>) -> Self {
         Self { stop, repo }
@@ -104,7 +104,7 @@ impl Worker for PhotoClean {
 
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
-            PhotoCleanInput::Start => {
+            PhotoCleanTaskInput::Start => {
                 info!("Cleaning photos...");
 
                 if let Err(e) = self.cleanup(&sender) {

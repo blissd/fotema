@@ -3,18 +3,18 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 pub mod bootstrap;
-pub mod load_library;
+pub mod load_library_task;
 
-pub mod photo_clean;
-pub mod photo_detect_faces;
-pub mod photo_enrich;
-pub mod photo_extract_motion;
-pub mod photo_recognize_faces;
-pub mod photo_scan;
-pub mod photo_thumbnail;
+pub mod photo_clean_task;
+pub mod photo_detect_faces_task;
+pub mod photo_enrich_task;
+pub mod photo_extract_motion_task;
+pub mod photo_recognize_faces_task;
+pub mod photo_scan_task;
+pub mod photo_thumbnail_task;
 
-pub mod video_clean;
-pub mod video_enrich;
-pub mod video_scan;
-pub mod video_thumbnail;
-pub mod video_transcode;
+pub mod video_clean_task;
+pub mod video_enrich_task;
+pub mod video_scan_task;
+pub mod video_thumbnail_task;
+pub mod video_transcode_task;
