@@ -20,7 +20,9 @@ use crate::adaptive;
 use crate::app::ActiveView;
 use crate::app::SharedState;
 use crate::app::ViewName;
+
 use fotema_core::{Visual, VisualId};
+use fotema_core::thumbnailify::{Thumbnailer, ThumbnailSize};
 
 use h3o;
 use h3o::CellIndex;
@@ -31,6 +33,7 @@ use shumate::prelude::*;
 
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::rc::Rc;
 
 const NARROW_EDGE_LENGTH: i32 = 60;
 const WIDE_EDGE_LENGTH: i32 = 100;
@@ -99,11 +102,12 @@ pub struct PlacesAlbum {
     centre_cell: h3o::CellIndex,
 
     need_refresh: bool,
+    thumbnailer: Rc<Thumbnailer>,
 }
 
 #[relm4::component(pub)]
 impl SimpleComponent for PlacesAlbum {
-    type Init = (SharedState, ActiveView);
+    type Init = (SharedState, ActiveView, Rc<Thumbnailer>);
     type Input = PlacesAlbumInput;
     type Output = PlacesAlbumOutput;
 
@@ -118,7 +122,7 @@ impl SimpleComponent for PlacesAlbum {
     }
 
     fn init(
-        (state, active_view): Self::Init,
+        (state, active_view, thumbnailer): Self::Init,
         _root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
@@ -184,6 +188,8 @@ impl SimpleComponent for PlacesAlbum {
             centre_cell: h3o::LatLng::new(0.0, 0.0)
                 .expect("0/0 is a valid lat/lng")
                 .to_cell(h3o::Resolution::Zero),
+
+            thumbnailer,
         };
 
         let widgets = view_output!();
@@ -405,8 +411,11 @@ impl PlacesAlbum {
         count: Option<usize>,
         sender: &ComponentSender<PlacesAlbum>,
     ) -> gtk::Frame {
-        let picture = if visual.thumbnail_path.as_ref().is_some_and(|x| x.exists()) {
-            gtk::Image::from_file(visual.thumbnail_path.as_ref().expect("Must have path"))
+        let thumbnail_path = self.thumbnailer
+            .nearest_thumbnail(&visual.thumbnail_hash(), ThumbnailSize::Normal);
+
+        let picture = if let Some(thumbnail_path) = thumbnail_path {
+            gtk::Image::from_file(thumbnail_path)
         } else {
             let pb = gdk_pixbuf::Pixbuf::from_resource_at_scale(
                 "/app/fotema/Fotema/icons/scalable/actions/image-missing-symbolic.svg",

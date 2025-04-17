@@ -710,7 +710,7 @@ impl SimpleAsyncComponent for App {
         });
 
         let places_page = PlacesAlbum::builder()
-            .launch((state.clone(), active_view.clone()))
+            .launch((state.clone(), active_view.clone(), thumbnailer.clone()))
             .forward(sender.input_sender(), |msg| match msg {
                 PlacesAlbumOutput::View(visual_id) => {
                     AppMsg::View(visual_id.clone(), AlbumFilter::One(visual_id))
