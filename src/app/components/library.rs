@@ -121,7 +121,7 @@ impl SimpleComponent for Library {
         });
 
         let years_album = YearsAlbum::builder()
-            .launch((state.clone(), active_view.clone()))
+            .launch((state.clone(), active_view.clone(), thumbnailer))
             .forward(sender.input_sender(), |msg| match msg {
                 YearsAlbumOutput::YearSelected(year) => LibraryInput::GoToYear(year),
             });

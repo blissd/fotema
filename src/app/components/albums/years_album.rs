@@ -3,12 +3,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use fotema_core;
+use fotema_core::thumbnailify::{Thumbnailer, ThumbnailSize};
+use fotema_core::visual::model::PictureOrientation;
+use fotema_core::Year;
+
 use gtk::prelude::OrientableExt;
 
-use fotema_core::visual::model::PictureOrientation;
 use strum::IntoEnumIterator;
 
-use fotema_core::Year;
 use itertools::Itertools;
 
 use relm4::binding::*;
@@ -22,6 +24,7 @@ use relm4::*;
 
 use std::path;
 use std::sync::Arc;
+use std::rc::Rc;
 
 use tracing::info;
 
@@ -36,10 +39,11 @@ const WIDE_EDGE_LENGTH: i32 = 200;
 
 #[derive(Debug)]
 struct PhotoGridItem {
-    picture: Arc<fotema_core::visual::Visual>,
+    visual: Arc<fotema_core::visual::Visual>,
 
     // Length of thumbnail edge to allow for resizing when layout changes.
     edge_length: I32Binding,
+    thumbnailer: Rc<Thumbnailer>,
 }
 #[derive(Debug)]
 pub enum YearsAlbumInput {
@@ -115,7 +119,7 @@ impl RelmGridItem for PhotoGridItem {
     fn bind(&mut self, widgets: &mut Self::Widgets, _root: &mut Self::Root) {
         widgets
             .label
-            .set_text(format!("{}", self.picture.year()).as_str());
+            .set_text(format!("{}", self.visual.year()).as_str());
 
         // If we repeatedly bind, then Fotema will die with the following error:
         // (fotema:2): GLib-GObject-CRITICAL **: 13:26:14.297: Too many GWeakRef registered
@@ -131,15 +135,13 @@ impl RelmGridItem for PhotoGridItem {
             widgets.is_bound = true;
         }
 
-        if self
-            .picture
-            .thumbnail_path
-            .as_ref()
-            .is_some_and(|x| x.exists())
-        {
+        let thumbnail_path = self.thumbnailer
+            .nearest_thumbnail(&self.visual.thumbnail_hash(), ThumbnailSize::Normal);
+
+        if thumbnail_path.is_some() {
             widgets
                 .picture
-                .set_filename(self.picture.thumbnail_path.clone());
+                .set_filename(thumbnail_path);
         } else {
             let pb = gdk_pixbuf::Pixbuf::from_resource_at_scale(
                 "/app/fotema/Fotema/icons/scalable/actions/image-missing-symbolic.svg",
@@ -168,11 +170,12 @@ pub struct YearsAlbum {
     photo_grid: TypedGridView<PhotoGridItem, gtk::SingleSelection>,
     edge_length: I32Binding,
     sort: AlbumSort,
+    thumbnailer: Rc<Thumbnailer>,
 }
 
 #[relm4::component(pub)]
 impl SimpleComponent for YearsAlbum {
-    type Init = (SharedState, ActiveView);
+    type Init = (SharedState, ActiveView, Rc<Thumbnailer>);
     type Input = YearsAlbumInput;
     type Output = YearsAlbumOutput;
 
@@ -196,7 +199,7 @@ impl SimpleComponent for YearsAlbum {
     }
 
     fn init(
-        (state, active_view): Self::Init,
+        (state, active_view, thumbnailer): Self::Init,
         _root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
@@ -208,6 +211,7 @@ impl SimpleComponent for YearsAlbum {
             photo_grid,
             edge_length: I32Binding::new(NARROW_EDGE_LENGTH),
             sort: AlbumSort::default(),
+            thumbnailer,
         };
 
         let photo_grid_view = &model.photo_grid.view;
@@ -235,7 +239,7 @@ impl SimpleComponent for YearsAlbum {
             }
             YearsAlbumInput::YearSelected(index) => {
                 if let Some(item) = self.photo_grid.get(index) {
-                    let date = item.borrow().picture.year_month();
+                    let date = item.borrow().visual.year_month();
                     let _ = sender.output(YearsAlbumOutput::YearSelected(date.year));
                 }
             }
@@ -262,9 +266,10 @@ impl YearsAlbum {
             let data = self.state.read();
             data.iter()
                 .dedup_by(|x, y| x.year() == y.year())
-                .map(|picture| PhotoGridItem {
-                    picture: picture.clone(),
+                .map(|visual| PhotoGridItem {
+                    visual: visual.clone(),
                     edge_length: self.edge_length.clone(),
+                    thumbnailer: self.thumbnailer.clone(),
                 })
                 .collect::<Vec<PhotoGridItem>>()
         };
