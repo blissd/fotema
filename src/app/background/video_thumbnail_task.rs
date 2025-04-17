@@ -16,7 +16,7 @@ use tracing::{error, info};
 
 use fotema_core::thumbnailify;
 use fotema_core::thumbnailify::ThumbnailSize;
-use fotema_core::video::{Repository, Thumbnailer, Video};
+use fotema_core::video::{Repository, VideoThumbnailer, Video};
 
 use crate::app::components::progress_monitor::{
     MediaType, ProgressMonitor, ProgressMonitorInput, TaskName,
@@ -41,7 +41,7 @@ pub struct VideoThumbnailTask {
     stop: Arc<AtomicBool>,
 
     thumbnails_path: PathBuf,
-    thumbnailer: Thumbnailer,
+    thumbnailer: VideoThumbnailer,
 
     // Danger! Don't hold the repo mutex for too long as it blocks viewing images.
     repo: Repository,
@@ -54,7 +54,7 @@ impl VideoThumbnailTask {
         stop: Arc<AtomicBool>,
         repo: Repository,
         thumbnails_path: &Path,
-        thumbnailer: Thumbnailer,
+        thumbnailer: VideoThumbnailer,
         progress_monitor: Arc<Reducer<ProgressMonitor>>,
         sender: ComponentSender<VideoThumbnailTask>,
     ) -> Result<()> {
@@ -142,7 +142,7 @@ impl Worker for VideoThumbnailTask {
     type Init = (
         Arc<AtomicBool>,
         PathBuf,
-        Thumbnailer,
+        VideoThumbnailer,
         Repository,
         Arc<Reducer<ProgressMonitor>>,
     );

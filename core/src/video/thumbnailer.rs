@@ -13,13 +13,13 @@ use tracing::info;
 
 /// Thumbnail operations for videos.
 #[derive(Debug, Clone)]
-pub struct Thumbnailer {
+pub struct VideoThumbnailer {
     thumbnailer: thumbnailify::Thumbnailer,
 }
 
-impl Thumbnailer {
-    pub fn build(thumbnailer: thumbnailify::Thumbnailer) -> Result<Thumbnailer> {
-        Ok(Thumbnailer {
+impl VideoThumbnailer {
+    pub fn build(thumbnailer: thumbnailify::Thumbnailer) -> Result<VideoThumbnailer> {
+        Ok(VideoThumbnailer {
             thumbnailer: thumbnailer,
         })
     }

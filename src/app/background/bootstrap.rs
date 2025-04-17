@@ -439,7 +439,7 @@ impl Bootstrap {
             self.con.clone(),
         )?;
 
-        let video_thumbnailer = video::Thumbnailer::build(thumbnailer)?;
+        let video_thumbnailer = video::VideoThumbnailer::build(thumbnailer)?;
 
         let motion_photo_extractor = photo::MotionPhotoExtractor::build(&cache_dir)?;
 
