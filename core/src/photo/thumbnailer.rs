@@ -16,13 +16,13 @@ use crate::thumbnailify;
 
 /// Thumbnail operations for photos.
 #[derive(Debug, Clone)]
-pub struct Thumbnailer {
+pub struct PhotoThumbnailer {
     thumbnailer: thumbnailify::Thumbnailer,
 }
 
-impl Thumbnailer {
-    pub fn build(thumbnailer: thumbnailify::Thumbnailer) -> Result<Thumbnailer> {
-        Ok(Thumbnailer {
+impl PhotoThumbnailer {
+    pub fn build(thumbnailer: thumbnailify::Thumbnailer) -> Result<PhotoThumbnailer> {
+        Ok(PhotoThumbnailer {
             thumbnailer: thumbnailer,
         })
     }

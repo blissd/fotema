@@ -18,6 +18,7 @@ use std::panic;
 
 use fotema_core::thumbnailify;
 use fotema_core::thumbnailify::ThumbnailSize;
+use fotema_core::photo::thumbnailer::PhotoThumbnailer;
 
 use crate::app::components::progress_monitor::{
     MediaType, ProgressMonitor, ProgressMonitorInput, TaskName,
@@ -42,7 +43,7 @@ pub struct PhotoThumbnailTask {
     stop: Arc<AtomicBool>,
 
     thumbnails_path: PathBuf,
-    thumbnailer: fotema_core::photo::Thumbnailer,
+    thumbnailer: fotema_core::photo::PhotoThumbnailer,
 
     // Danger! Don't hold the repo mutex for too long as it blocks viewing images.
     repo: fotema_core::photo::Repository,
@@ -55,7 +56,7 @@ impl PhotoThumbnailTask {
         stop: Arc<AtomicBool>,
         repo: fotema_core::photo::Repository,
         thumbnails_path: &Path,
-        thumbnailer: fotema_core::photo::Thumbnailer,
+        thumbnailer: PhotoThumbnailer,
         progress_monitor: Arc<Reducer<ProgressMonitor>>,
         sender: ComponentSender<Self>,
     ) -> Result<()> {
@@ -147,7 +148,7 @@ impl Worker for PhotoThumbnailTask {
     type Init = (
         Arc<AtomicBool>,
         PathBuf,
-        fotema_core::photo::Thumbnailer,
+        PhotoThumbnailer,
         fotema_core::photo::Repository,
         Arc<Reducer<ProgressMonitor>>,
     );

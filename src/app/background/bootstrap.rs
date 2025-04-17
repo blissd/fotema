@@ -426,7 +426,7 @@ impl Bootstrap {
             self.con.clone(),
         )?;
 
-        let photo_thumbnailer = photo::Thumbnailer::build(thumbnailer.clone())?;
+        let photo_thumbnailer = photo::PhotoThumbnailer::build(thumbnailer.clone())?;
 
         let video_scanner = video::Scanner::build(&pic_base_dir)?;
 
