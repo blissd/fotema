@@ -253,7 +253,7 @@ pub struct Album {
 
 #[relm4::component(pub)]
 impl SimpleComponent for Album {
-    type Init = (SharedState, ActiveView, ViewName, AlbumFilter, Thumbnailer);
+    type Init = (SharedState, ActiveView, ViewName, AlbumFilter, Rc<Thumbnailer>);
     type Input = AlbumInput;
     type Output = AlbumOutput;
 
@@ -298,7 +298,7 @@ impl SimpleComponent for Album {
             filter,
             sort: AlbumSort::default(),
             edge_length: I32Binding::new(NARROW_EDGE_LENGTH),
-            thumbnailer: Rc::new(thumbnailer),
+            thumbnailer,
         };
 
         model.update_filter();

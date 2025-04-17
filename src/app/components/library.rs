@@ -8,6 +8,7 @@ use relm4::adw;
 use relm4::*;
 use std::str::FromStr;
 use std::sync::Arc;
+use std::rc::Rc;
 use strum::EnumString;
 use strum::IntoStaticStr;
 
@@ -74,7 +75,7 @@ enum LibraryViewName {
 
 #[relm4::component(pub)]
 impl SimpleComponent for Library {
-    type Init = (SharedState, ActiveView, Arc<adaptive::LayoutState>, Thumbnailer);
+    type Init = (SharedState, ActiveView, Arc<adaptive::LayoutState>, Rc<Thumbnailer>);
     type Input = LibraryInput;
     type Output = LibraryOutput;
 
@@ -98,7 +99,7 @@ impl SimpleComponent for Library {
                 active_view.clone(),
                 ViewName::All,
                 AlbumFilter::All,
-                thumbnailer,
+                thumbnailer.clone(),
             ))
             .forward(sender.input_sender(), |msg| match msg {
                 AlbumOutput::Selected(id, _) => LibraryInput::View(id),
@@ -109,7 +110,7 @@ impl SimpleComponent for Library {
         layout_state.subscribe(all_album.sender(), |layout| AlbumInput::Adapt(*layout));
 
         let months_album = MonthsAlbum::builder()
-            .launch((state.clone(), active_view.clone()))
+            .launch((state.clone(), active_view.clone(), thumbnailer.clone()))
             .forward(sender.input_sender(), |msg| match msg {
                 MonthsAlbumOutput::MonthSelected(ym) => LibraryInput::GoToMonth(ym),
             });

@@ -31,6 +31,8 @@ use fotema_core::thumbnailify::Thumbnailer;
 
 use tracing::{error, info};
 
+use std::rc::Rc;
+
 const NARROW_EDGE_LENGTH: i32 = 50;
 const WIDE_EDGE_LENGTH: i32 = 200;
 
@@ -102,7 +104,7 @@ pub struct PersonAlbum {
 
 #[relm4::component(pub)]
 impl SimpleComponent for PersonAlbum {
-    type Init = (SharedState, people::Repository, ActiveView, Thumbnailer);
+    type Init = (SharedState, people::Repository, ActiveView, Rc<Thumbnailer>);
     type Input = PersonAlbumInput;
     type Output = PersonAlbumOutput;
 

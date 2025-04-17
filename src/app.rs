@@ -37,6 +37,7 @@ use h3o::CellIndex;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
+use std::rc::Rc;
 
 use anyhow::*;
 
@@ -537,7 +538,7 @@ impl SimpleAsyncComponent for App {
         // WARN duplicated in bootstrap.rs
         let thumbnail_dir = glib::home_dir().join(".cache").join("thumbnails");
         info!("Thumbnail directory is {:?}", thumbnail_dir);
-        let thumbnailer = Thumbnailer::build(&thumbnail_dir);
+        let thumbnailer = Rc::new(Thumbnailer::build(&thumbnail_dir));
 
         let db_path = data_dir.join("pictures.sqlite");
 
