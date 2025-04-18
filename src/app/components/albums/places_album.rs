@@ -35,7 +35,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::rc::Rc;
 
-const NARROW_EDGE_LENGTH: i32 = 60;
+const NARROW_EDGE_LENGTH: i32 = 80;
 const WIDE_EDGE_LENGTH: i32 = 100;
 
 const MIN_ZOOM_LEVEL: u32 = 3;
@@ -433,13 +433,13 @@ impl PlacesAlbum {
         };
 
        let hclamp = adw::Clamp::builder()
-            .maximum_size(100)
+            .maximum_size(WIDE_EDGE_LENGTH)
             .child(&picture)
             .orientation(gtk::Orientation::Horizontal)
             .build();
 
         let vclamp = adw::Clamp::builder()
-            .maximum_size(100)
+            .maximum_size(WIDE_EDGE_LENGTH)
             .child(&hclamp)
             .orientation(gtk::Orientation::Vertical)
             .build();
