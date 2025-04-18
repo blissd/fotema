@@ -16,6 +16,7 @@ use crate::app::ActiveView;
 use crate::app::SharedState;
 use crate::app::ViewName;
 use crate::app::adaptive;
+use crate::app::Settings;
 use crate::fl;
 
 use super::albums::album::{Album, AlbumInput, AlbumOutput};
@@ -48,6 +49,7 @@ pub enum LibraryInput {
     View(VisualId),
 
     Sort(AlbumSort),
+    UpdateSettings(Settings),
 }
 
 #[derive(Debug)]
@@ -183,6 +185,11 @@ impl SimpleComponent for Library {
                 self.all_album.emit(AlbumInput::Sort(sort));
                 self.months_album.emit(MonthsAlbumInput::Sort(sort));
                 self.years_album.emit(YearsAlbumInput::Sort(sort));
+            }
+            LibraryInput::UpdateSettings(settings) => {
+                self.all_album.emit(AlbumInput::UpdateSettings(settings.clone()));
+                self.months_album.emit(MonthsAlbumInput::Sort(settings.album_sort));
+                self.years_album.emit(YearsAlbumInput::Sort(settings.album_sort));
             }
         }
     }

@@ -105,6 +105,29 @@ pub enum FaceDetectionMode {
     On,
 }
 
+/// How thumbnails are fit inside their containing widget in albums with a grid view.
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, EnumString, AsRefStr, FromRepr)]
+#[repr(u32)]
+pub enum ThumbnailContentFit {
+    /// Scale thumbnail to fit containing widget, cropping off parts that don't fit.
+    /// Thumbnails will look mostly square.
+    #[default]
+    Cover,
+
+    /// Show entire thumbnail scaled down to fit in containing widget.
+    /// Original aspect ration is preserved.
+    Contain,
+}
+
+impl ThumbnailContentFit {
+    pub fn content_fit(&self) -> gtk::ContentFit {
+        match self {
+            ThumbnailContentFit::Cover => gtk::ContentFit::Cover,
+            ThumbnailContentFit::Contain => gtk::ContentFit::Contain,
+        }
+    }
+}
+
 /// Settings the user can change in the preferences dialog.
 /// Should not include any non-preference dialog settings like window size or maximization state.
 #[derive(Clone, Debug, Default)]
@@ -122,6 +145,9 @@ pub struct Settings {
     /// Has the user completed the onboarding processes to select
     /// the picture library root directory?
     pub is_onboarding_complete: bool,
+
+    /// How to display thumbnails in albums.
+    pub thumbnail_content_fit: ThumbnailContentFit,
 
     /// Base path of pictures directory inside Flatpak sandbox.
     /// Will be under `/run/users/<uid>/docs/<doc-id>/...`
@@ -602,7 +628,7 @@ impl SimpleAsyncComponent for App {
             });
 
         settings_state.subscribe(library.sender(), |settings| {
-            LibraryInput::Sort(settings.album_sort)
+            LibraryInput::UpdateSettings(settings.clone())
         });
 
         let view_nav = ViewNav::builder()
@@ -1104,6 +1130,7 @@ impl App {
             is_onboarding_complete: gio_settings.boolean("onboarding-complete"),
             pictures_base_dir: pic_base_dir,
             pictures_base_dir_host_path: pic_base_dir_host_path,
+            thumbnail_content_fit: ThumbnailContentFit::Cover,
         })
     }
 

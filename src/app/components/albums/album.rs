@@ -25,6 +25,8 @@ use crate::app::ActiveView;
 use crate::app::SharedState;
 use crate::app::ViewName;
 use crate::app::adaptive;
+use crate::app::ThumbnailContentFit;
+use crate::app::Settings;
 
 use tracing::{debug, info};
 
@@ -54,6 +56,9 @@ pub enum AlbumInput {
     // Sort
     Sort(AlbumSort),
 
+    //
+    UpdateSettings(Settings),
+
     // Adapt to layout
     Adapt(adaptive::Layout),
 
@@ -81,6 +86,8 @@ struct PhotoGridItem {
     edge_length: I32Binding,
 
     thumbnailer: Rc<Thumbnailer>,
+
+    thumbnail_content_fit: ThumbnailContentFit,
 }
 
 struct PhotoGridItemWidgets {
@@ -135,7 +142,6 @@ impl RelmGridItem for PhotoGridItem {
                     #[wrap(Some)]
                     #[name(picture)]
                     set_child = &gtk::Picture {
-                        set_content_fit: gtk::ContentFit::Cover,
                         set_width_request: NARROW_EDGE_LENGTH,
                         set_height_request: NARROW_EDGE_LENGTH,
                     }
@@ -225,6 +231,8 @@ impl RelmGridItem for PhotoGridItem {
             widgets.duration_overlay.set_visible(false);
             widgets.duration_label.set_label("");
         }
+
+        widgets.picture.set_content_fit(self.thumbnail_content_fit.content_fit());
     }
 
     fn unbind(&mut self, widgets: &mut Self::Widgets, _root: &mut Self::Root) {
@@ -245,6 +253,7 @@ pub struct Album {
     sort: AlbumSort,
     edge_length: I32Binding,
     thumbnailer: Rc<Thumbnailer>,
+    thumbnail_content_fit: ThumbnailContentFit,
 }
 
 #[relm4::component(pub)]
@@ -295,6 +304,7 @@ impl SimpleComponent for Album {
             sort: AlbumSort::default(),
             edge_length: I32Binding::new(NARROW_EDGE_LENGTH),
             thumbnailer,
+            thumbnail_content_fit: ThumbnailContentFit::default(),
         };
 
         model.update_filter();
@@ -324,6 +334,24 @@ impl SimpleComponent for Album {
                 self.filter = filter;
                 self.update_filter();
                 //self.scroll();
+            }
+            AlbumInput::UpdateSettings(settings) => {
+                let mut need_refresh = false;
+                if self.sort != settings.album_sort {
+                    info!("Sort order is now {:?}", settings.album_sort);
+                    self.sort = settings.album_sort;
+                    need_refresh = true;
+                }
+
+                if self.thumbnail_content_fit != settings.thumbnail_content_fit {
+                    info!("Thumbnail content fit is now{:?}", settings.thumbnail_content_fit);
+                    self.thumbnail_content_fit = settings.thumbnail_content_fit;
+                    need_refresh = true;
+                }
+
+                if need_refresh {
+                    sender.input(AlbumInput::Refresh);
+                }
             }
             AlbumInput::Sort(sort) => {
                 if self.sort != sort {
@@ -380,6 +408,7 @@ impl Album {
                     visual: visual.clone(),
                     edge_length: self.edge_length.clone(),
                     thumbnailer: self.thumbnailer.clone(),
+                    thumbnail_content_fit: self.thumbnail_content_fit.clone(),
                 })
                 .collect::<Vec<PhotoGridItem>>()
         };
