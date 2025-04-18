@@ -410,26 +410,42 @@ impl PlacesAlbum {
         visual: &Visual,
         count: Option<usize>,
         sender: &ComponentSender<PlacesAlbum>,
-    ) -> gtk::Frame {
+    ) -> gtk::AspectFrame {
         let thumbnail_path = self.thumbnailer
             .nearest_thumbnail(&visual.thumbnail_hash(), ThumbnailSize::Normal);
 
         let picture = if let Some(thumbnail_path) = thumbnail_path {
-            gtk::Image::from_file(thumbnail_path)
+            let picture = gtk::Picture::for_filename(thumbnail_path);
+            picture.set_content_fit(gtk::ContentFit::Cover);
+            picture
         } else {
             let pb = gdk_pixbuf::Pixbuf::from_resource_at_scale(
                 "/app/fotema/Fotema/icons/scalable/actions/image-missing-symbolic.svg",
-                200,
-                200,
+                WIDE_EDGE_LENGTH,
+                WIDE_EDGE_LENGTH,
                 true,
             )
             .unwrap();
-            let img = gdk::Texture::for_pixbuf(&pb);
-            gtk::Image::from_paintable(Some(&img))
+            let texture = gdk::Texture::for_pixbuf(&pb);
+            let picture = gtk::Picture::for_paintable(&texture);
+            picture.set_content_fit(gtk::ContentFit::Fill);
+            picture
         };
 
-        picture.add_write_only_binding(&self.edge_length, "width-request");
-        picture.add_write_only_binding(&self.edge_length, "height-request");
+       let hclamp = adw::Clamp::builder()
+            .maximum_size(100)
+            .child(&picture)
+            .orientation(gtk::Orientation::Horizontal)
+            .build();
+
+        let vclamp = adw::Clamp::builder()
+            .maximum_size(100)
+            .child(&hclamp)
+            .orientation(gtk::Orientation::Vertical)
+            .build();
+
+        hclamp.add_write_only_binding(&self.edge_length, "maximum-size");
+        vclamp.add_write_only_binding(&self.edge_length, "maximum-size");
 
         let frame = gtk::Frame::new(None);
 
@@ -437,8 +453,6 @@ impl PlacesAlbum {
 
         if count > 1 {
             // if there is a count then overlay the number in the bottom right corner.
-            let overlay = gtk::Overlay::builder().child(&picture).build();
-
             let label = gtk::Label::builder()
                 .label(format!("{}", count))
                 .css_classes(["map-thumbnail-label-text"])
@@ -453,12 +467,15 @@ impl PlacesAlbum {
 
             label_frame.set_margin_all(4);
 
+            let overlay = gtk::Overlay::builder()
+                .child(&vclamp)
+                .build();
+
             overlay.add_overlay(&label_frame);
 
             frame.set_child(Some(&overlay));
-            // frame
         } else {
-            frame.set_child(Some(&picture));
+            frame.set_child(Some(&vclamp));
         }
 
         frame.add_css_class("map-thumbnail-border");
@@ -488,6 +505,12 @@ impl PlacesAlbum {
 
         frame.add_controller(click);
 
-        frame
+        let aframe = gtk::AspectFrame::builder()
+            .obey_child(false)
+            .ratio(1.0)
+            .child(&frame)
+            .build();
+
+        aframe
     }
 }

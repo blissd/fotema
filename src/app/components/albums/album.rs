@@ -177,7 +177,7 @@ impl RelmGridItem for PhotoGridItem {
         }
 
         let thumbnail_path = self.thumbnailer
-            .nearest_thumbnail(&self.visual.thumbnail_hash(), ThumbnailSize::Normal);
+            .nearest_thumbnail(&self.visual.thumbnail_hash(), ThumbnailSize::Large);
 
         if thumbnail_path.is_some() {
             widgets
