@@ -537,7 +537,7 @@ impl SimpleAsyncComponent for App {
 
         // WARN duplicate thumbnail path calculation in bootstrap.rs
         let thumbnail_dir = glib::user_cache_dir()
-            .join(APP_ID) // non-standard thumbnail path
+            .join(APP_ID) // Remove to use standard XDG thumbnail path
             .join("thumbnails");
 
         let thumbnailer = Rc::new(Thumbnailer::build(&thumbnail_dir));

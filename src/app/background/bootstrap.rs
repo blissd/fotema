@@ -412,7 +412,7 @@ impl Bootstrap {
 
         // WARN duplicate thumbnail path calculation in app.rs
         let thumbnail_dir = glib::user_cache_dir()
-            .join(APP_ID) // non-standard thumbnail path
+            .join(APP_ID) // Remove to use standard XDG thumbnail path
             .join("thumbnails");
 
         info!("Thumbnail directory is {:?}", thumbnail_dir);
