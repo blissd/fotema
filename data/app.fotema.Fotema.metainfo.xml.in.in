@@ -126,6 +126,7 @@
           <li>BREAKING CHANGE: Fotema requires version 1.20.0+ of the xdg-desktop-portal.</li>
           <li>No unsightly large gaps between album columns.</li>
           <li>Display full directory path of photo library in preferences dialog.</li>
+          <li>No longer need to transcode HEVC videos.</li>
         </ul>
       </description>
     </release>
