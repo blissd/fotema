@@ -535,9 +535,11 @@ impl SimpleAsyncComponent for App {
         let cache_dir = glib::user_cache_dir().join(APP_ID);
         let _ = std::fs::create_dir_all(&cache_dir);
 
-        // WARN duplicated in bootstrap.rs
-        let thumbnail_dir = glib::home_dir().join(".cache").join("thumbnails");
-        info!("Thumbnail directory is {:?}", thumbnail_dir);
+        // WARN duplicate thumbnail path calculation in bootstrap.rs
+        let thumbnail_dir = glib::user_cache_dir()
+            .join(APP_ID) // non-standard thumbnail path
+            .join("thumbnails");
+
         let thumbnailer = Rc::new(Thumbnailer::build(&thumbnail_dir));
 
         let db_path = data_dir.join("pictures.sqlite");

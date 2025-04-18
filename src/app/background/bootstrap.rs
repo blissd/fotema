@@ -410,8 +410,11 @@ impl Bootstrap {
         let cache_dir = glib::user_cache_dir().join(APP_ID);
         let _ = std::fs::create_dir_all(&cache_dir);
 
-        // WARN duplicated in app.rs
-        let thumbnail_dir = glib::home_dir().join(".cache").join("thumbnails");
+        // WARN duplicate thumbnail path calculation in app.rs
+        let thumbnail_dir = glib::user_cache_dir()
+            .join(APP_ID) // non-standard thumbnail path
+            .join("thumbnails");
+
         info!("Thumbnail directory is {:?}", thumbnail_dir);
 
         let thumbnailer = Thumbnailer::build(&thumbnail_dir);
