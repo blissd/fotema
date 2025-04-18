@@ -19,12 +19,12 @@ use crate::app::components::progress_monitor::{
 };
 
 #[derive(Debug)]
-pub enum VideoEnrichInput {
+pub enum VideoEnrichTaskInput {
     Start,
 }
 
 #[derive(Debug)]
-pub enum VideoEnrichOutput {
+pub enum VideoEnrichTaskOutput {
     // Thumbnail generation has started.
     Started,
 
@@ -32,19 +32,19 @@ pub enum VideoEnrichOutput {
     Completed(usize),
 }
 
-pub struct VideoEnrich {
+pub struct VideoEnrichTask {
     // Stop flag
     stop: Arc<AtomicBool>,
     repo: fotema_core::video::Repository,
     progress_monitor: Arc<Reducer<ProgressMonitor>>,
 }
 
-impl VideoEnrich {
+impl VideoEnrichTask {
     fn enrich(
         stop: Arc<AtomicBool>,
         mut repo: fotema_core::video::Repository,
         progress_monitor: Arc<Reducer<ProgressMonitor>>,
-        sender: &ComponentSender<VideoEnrich>,
+        sender: &ComponentSender<VideoEnrichTask>,
     ) -> Result<()> {
         let start = std::time::Instant::now();
 
@@ -56,11 +56,11 @@ impl VideoEnrich {
         // Short-circuit before sending progress messages to stop
         // banner from appearing and disappearing.
         if count == 0 {
-            let _ = sender.output(VideoEnrichOutput::Completed(count));
+            let _ = sender.output(VideoEnrichTaskOutput::Completed(count));
             return Ok(());
         }
 
-        let _ = sender.output(VideoEnrichOutput::Started);
+        let _ = sender.output(VideoEnrichTaskOutput::Started);
 
         progress_monitor.emit(ProgressMonitorInput::Start(
             TaskName::Enrich(MediaType::Video),
@@ -87,25 +87,25 @@ impl VideoEnrich {
             start.elapsed().as_secs()
         );
 
-        if let Err(e) = sender.output(VideoEnrichOutput::Completed(count)) {
-            error!("Failed sending VideoEnrichOutput::Completed: {:?}", e);
+        if let Err(e) = sender.output(VideoEnrichTaskOutput::Completed(count)) {
+            error!("Failed sending VideoEnrichTaskOutput::Completed: {:?}", e);
         }
 
         Ok(())
     }
 }
 
-impl Worker for VideoEnrich {
+impl Worker for VideoEnrichTask {
     type Init = (
         Arc<AtomicBool>,
         fotema_core::video::Repository,
         Arc<Reducer<ProgressMonitor>>,
     );
-    type Input = VideoEnrichInput;
-    type Output = VideoEnrichOutput;
+    type Input = VideoEnrichTaskInput;
+    type Output = VideoEnrichTaskOutput;
 
     fn init((stop, repo, progress_monitor): Self::Init, _sender: ComponentSender<Self>) -> Self {
-        VideoEnrich {
+        VideoEnrichTask {
             stop,
             repo,
             progress_monitor,
@@ -114,7 +114,7 @@ impl Worker for VideoEnrich {
 
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
-            VideoEnrichInput::Start => {
+            VideoEnrichTaskInput::Start => {
                 info!("Enriching videos...");
                 let stop = self.stop.clone();
                 let repo = self.repo.clone();
@@ -122,7 +122,7 @@ impl Worker for VideoEnrich {
 
                 // Avoid runtime panic from calling block_on
                 rayon::spawn(move || {
-                    if let Err(e) = VideoEnrich::enrich(stop, repo, progress_monitor, &sender) {
+                    if let Err(e) = VideoEnrichTask::enrich(stop, repo, progress_monitor, &sender) {
                         error!("Failed to enrich videos: {}", e);
                     }
                 });

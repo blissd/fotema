@@ -15,12 +15,12 @@ use tracing::{error, info};
 use crate::app::components::progress_monitor::{ProgressMonitor, ProgressMonitorInput, TaskName};
 
 #[derive(Debug)]
-pub enum PhotoExtractMotionInput {
+pub enum PhotoExtractMotionTaskInput {
     Start,
 }
 
 #[derive(Debug)]
-pub enum PhotoExtractMotionOutput {
+pub enum PhotoExtractMotionTaskOutput {
     // Motion photo extraction has started.
     Started,
 
@@ -28,7 +28,7 @@ pub enum PhotoExtractMotionOutput {
     Completed(usize),
 }
 
-pub struct PhotoExtractMotion {
+pub struct PhotoExtractMotionTask {
     // Stop flag
     stop: Arc<AtomicBool>,
 
@@ -40,7 +40,7 @@ pub struct PhotoExtractMotion {
     progress_monitor: Arc<Reducer<ProgressMonitor>>,
 }
 
-impl PhotoExtractMotion {
+impl PhotoExtractMotionTask {
     fn extract(
         stop: Arc<AtomicBool>,
         repo: fotema_core::photo::Repository,
@@ -65,11 +65,11 @@ impl PhotoExtractMotion {
         // Short-circuit before sending progress messages to stop
         // banner from appearing and disappearing.
         if count == 0 {
-            let _ = sender.output(PhotoExtractMotionOutput::Completed(count));
+            let _ = sender.output(PhotoExtractMotionTaskOutput::Completed(count));
             return Ok(());
         }
 
-        let _ = sender.output(PhotoExtractMotionOutput::Started);
+        let _ = sender.output(PhotoExtractMotionTaskOutput::Started);
 
         progress_monitor.emit(ProgressMonitorInput::Start(TaskName::MotionPhoto, count));
 
@@ -113,27 +113,27 @@ impl PhotoExtractMotion {
 
         progress_monitor.emit(ProgressMonitorInput::Complete);
 
-        let _ = sender.output(PhotoExtractMotionOutput::Completed(count));
+        let _ = sender.output(PhotoExtractMotionTaskOutput::Completed(count));
 
         Ok(())
     }
 }
 
-impl Worker for PhotoExtractMotion {
+impl Worker for PhotoExtractMotionTask {
     type Init = (
         Arc<AtomicBool>,
         fotema_core::photo::MotionPhotoExtractor,
         fotema_core::photo::Repository,
         Arc<Reducer<ProgressMonitor>>,
     );
-    type Input = PhotoExtractMotionInput;
-    type Output = PhotoExtractMotionOutput;
+    type Input = PhotoExtractMotionTaskInput;
+    type Output = PhotoExtractMotionTaskOutput;
 
     fn init(
         (stop, extractor, repo, progress_monitor): Self::Init,
         _sender: ComponentSender<Self>,
     ) -> Self {
-        PhotoExtractMotion {
+        PhotoExtractMotionTask {
             stop,
             extractor,
             repo,
@@ -143,7 +143,7 @@ impl Worker for PhotoExtractMotion {
 
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
-            PhotoExtractMotionInput::Start => {
+            PhotoExtractMotionTaskInput::Start => {
                 info!("Extracting motion photos...");
                 let stop = self.stop.clone();
                 let repo = self.repo.clone();
@@ -151,9 +151,13 @@ impl Worker for PhotoExtractMotion {
                 let progress_monitor = self.progress_monitor.clone();
 
                 rayon::spawn(move || {
-                    if let Err(e) =
-                        PhotoExtractMotion::extract(stop, repo, extractor, progress_monitor, sender)
-                    {
+                    if let Err(e) = PhotoExtractMotionTask::extract(
+                        stop,
+                        repo,
+                        extractor,
+                        progress_monitor,
+                        sender,
+                    ) {
                         error!("Failed to update previews: {}", e);
                     }
                 });

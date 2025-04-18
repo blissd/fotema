@@ -21,13 +21,13 @@ use crate::app::components::progress_monitor::{ProgressMonitor, ProgressMonitorI
 use crate::app::SharedState;
 
 #[derive(Debug)]
-pub enum VideoTranscodeInput {
+pub enum VideoTranscodeTaskInput {
     /// Transcode all videos
     Start,
 }
 
 #[derive(Debug)]
-pub enum VideoTranscodeOutput {
+pub enum VideoTranscodeTaskOutput {
     // Video transcoding has started
     Started,
 
@@ -35,7 +35,7 @@ pub enum VideoTranscodeOutput {
     Completed,
 }
 
-pub struct VideoTranscode {
+pub struct VideoTranscodeTask {
     // Stop flag
     stop: Arc<AtomicBool>,
 
@@ -48,7 +48,7 @@ pub struct VideoTranscode {
     progress_monitor: Arc<Reducer<ProgressMonitor>>,
 }
 
-impl VideoTranscode {
+impl VideoTranscodeTask {
     fn transcode_all(&mut self, sender: &ComponentSender<Self>) -> Result<()> {
         let unprocessed: Vec<Arc<Visual>> = {
             let data = self.state.read();
@@ -68,7 +68,7 @@ impl VideoTranscode {
             unprocessed.len(),
         ));
 
-        let _ = sender.output(VideoTranscodeOutput::Started);
+        let _ = sender.output(VideoTranscodeTaskOutput::Started);
 
         unprocessed
             .iter()
@@ -95,13 +95,13 @@ impl VideoTranscode {
 
         self.progress_monitor.emit(ProgressMonitorInput::Complete);
 
-        let _ = sender.output(VideoTranscodeOutput::Completed);
+        let _ = sender.output(VideoTranscodeTaskOutput::Completed);
 
         Ok(())
     }
 }
 
-impl Worker for VideoTranscode {
+impl Worker for VideoTranscodeTask {
     type Init = (
         Arc<AtomicBool>,
         SharedState,
@@ -109,8 +109,8 @@ impl Worker for VideoTranscode {
         Transcoder,
         Arc<Reducer<ProgressMonitor>>,
     );
-    type Input = VideoTranscodeInput;
-    type Output = VideoTranscodeOutput;
+    type Input = VideoTranscodeTaskInput;
+    type Output = VideoTranscodeTaskOutput;
 
     fn init(
         (stop, state, repo, transcoder, progress_monitor): Self::Init,
@@ -127,7 +127,7 @@ impl Worker for VideoTranscode {
 
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
-            VideoTranscodeInput::Start => {
+            VideoTranscodeTaskInput::Start => {
                 info!("Transcoding all incompatible videos");
 
                 if let Err(e) = self.transcode_all(&sender) {

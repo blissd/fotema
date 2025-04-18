@@ -8,6 +8,7 @@ use relm4::adw;
 use relm4::*;
 use std::str::FromStr;
 use std::sync::Arc;
+use std::rc::Rc;
 use strum::EnumString;
 use strum::IntoStaticStr;
 
@@ -22,6 +23,8 @@ use super::albums::album_filter::AlbumFilter;
 use super::albums::album_sort::AlbumSort;
 use super::albums::months_album::{MonthsAlbum, MonthsAlbumInput, MonthsAlbumOutput};
 use super::albums::years_album::{YearsAlbum, YearsAlbumInput, YearsAlbumOutput};
+
+use fotema_core::thumbnailify::Thumbnailer;
 
 use tracing::error;
 
@@ -72,7 +75,7 @@ enum LibraryViewName {
 
 #[relm4::component(pub)]
 impl SimpleComponent for Library {
-    type Init = (SharedState, ActiveView, Arc<adaptive::LayoutState>);
+    type Init = (SharedState, ActiveView, Arc<adaptive::LayoutState>, Rc<Thumbnailer>);
     type Input = LibraryInput;
     type Output = LibraryOutput;
 
@@ -86,7 +89,7 @@ impl SimpleComponent for Library {
     }
 
     fn init(
-        (state, active_view, layout_state): Self::Init,
+        (state, active_view, layout_state, thumbnailer): Self::Init,
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
@@ -96,6 +99,7 @@ impl SimpleComponent for Library {
                 active_view.clone(),
                 ViewName::All,
                 AlbumFilter::All,
+                thumbnailer.clone(),
             ))
             .forward(sender.input_sender(), |msg| match msg {
                 AlbumOutput::Selected(id, _) => LibraryInput::View(id),
@@ -106,7 +110,7 @@ impl SimpleComponent for Library {
         layout_state.subscribe(all_album.sender(), |layout| AlbumInput::Adapt(*layout));
 
         let months_album = MonthsAlbum::builder()
-            .launch((state.clone(), active_view.clone()))
+            .launch((state.clone(), active_view.clone(), thumbnailer.clone()))
             .forward(sender.input_sender(), |msg| match msg {
                 MonthsAlbumOutput::MonthSelected(ym) => LibraryInput::GoToMonth(ym),
             });
@@ -117,7 +121,7 @@ impl SimpleComponent for Library {
         });
 
         let years_album = YearsAlbum::builder()
-            .launch((state.clone(), active_view.clone()))
+            .launch((state.clone(), active_view.clone(), thumbnailer))
             .forward(sender.input_sender(), |msg| match msg {
                 YearsAlbumOutput::YearSelected(year) => LibraryInput::GoToYear(year),
             });

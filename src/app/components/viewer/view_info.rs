@@ -24,7 +24,7 @@ use std::sync::Arc;
 use crate::app::SharedState;
 use crate::fl;
 
-use tracing::{debug, info, warn};
+use tracing::{debug, warn};
 
 #[derive(Debug)]
 pub enum ViewInfoInput {

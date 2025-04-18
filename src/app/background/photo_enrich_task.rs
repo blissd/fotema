@@ -14,12 +14,12 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use tracing::{error, info};
 
 #[derive(Debug)]
-pub enum PhotoEnrichInput {
+pub enum PhotoEnrichTaskInput {
     Start,
 }
 
 #[derive(Debug)]
-pub enum PhotoEnrichOutput {
+pub enum PhotoEnrichTaskOutput {
     // Metadata enrichment started.
     Started,
 
@@ -27,7 +27,7 @@ pub enum PhotoEnrichOutput {
     Completed(usize),
 }
 
-pub struct PhotoEnrich {
+pub struct PhotoEnrichTask {
     // Stop flag
     stop: Arc<AtomicBool>,
 
@@ -35,11 +35,11 @@ pub struct PhotoEnrich {
     repo: fotema_core::photo::Repository,
 }
 
-impl PhotoEnrich {
+impl PhotoEnrichTask {
     fn enrich(
         stop: Arc<AtomicBool>,
         mut repo: fotema_core::photo::Repository,
-        sender: &ComponentSender<PhotoEnrich>,
+        sender: &ComponentSender<PhotoEnrichTask>,
     ) -> Result<()> {
         let start = std::time::Instant::now();
 
@@ -51,11 +51,11 @@ impl PhotoEnrich {
         // Short-circuit before sending progress messages to stop
         // banner from appearing and disappearing.
         if count == 0 {
-            let _ = sender.output(PhotoEnrichOutput::Completed(count));
+            let _ = sender.output(PhotoEnrichTaskOutput::Completed(count));
             return Ok(());
         }
 
-        let _ = sender.output(PhotoEnrichOutput::Started);
+        let _ = sender.output(PhotoEnrichTaskOutput::Started);
 
         let metadatas = unprocessed
             .par_iter()
@@ -74,33 +74,33 @@ impl PhotoEnrich {
             start.elapsed().as_secs()
         );
 
-        if let Err(e) = sender.output(PhotoEnrichOutput::Completed(count)) {
-            error!("Failed sending PhotoEnrichOutput::Completed: {:?}", e);
+        if let Err(e) = sender.output(PhotoEnrichTaskOutput::Completed(count)) {
+            error!("Failed sending PhotoEnrichTaskOutput::Completed: {:?}", e);
         }
 
         Ok(())
     }
 }
 
-impl Worker for PhotoEnrich {
+impl Worker for PhotoEnrichTask {
     type Init = (Arc<AtomicBool>, fotema_core::photo::Repository);
-    type Input = PhotoEnrichInput;
-    type Output = PhotoEnrichOutput;
+    type Input = PhotoEnrichTaskInput;
+    type Output = PhotoEnrichTaskOutput;
 
     fn init((stop, repo): Self::Init, _sender: ComponentSender<Self>) -> Self {
-        PhotoEnrich { stop, repo }
+        PhotoEnrichTask { stop, repo }
     }
 
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
-            PhotoEnrichInput::Start => {
+            PhotoEnrichTaskInput::Start => {
                 info!("Enriching photos...");
                 let repo = self.repo.clone();
                 let stop = self.stop.clone();
 
                 // Avoid runtime panic from calling block_on
                 rayon::spawn(move || {
-                    if let Err(e) = PhotoEnrich::enrich(stop, repo, &sender) {
+                    if let Err(e) = PhotoEnrichTask::enrich(stop, repo, &sender) {
                         error!("Failed to update previews: {}", e);
                     }
                 });

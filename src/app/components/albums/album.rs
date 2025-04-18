@@ -4,7 +4,8 @@
 
 use fotema_core::VisualId;
 use fotema_core::YearMonth;
-use fotema_core::visual::model::PictureOrientation;
+use fotema_core::thumbnailify::{Thumbnailer, ThumbnailSize};
+
 use gtk::prelude::OrientableExt;
 use relm4::binding::*;
 use relm4::gtk;
@@ -16,7 +17,7 @@ use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
 use relm4::*;
 use std::path::Path;
 use std::sync::Arc;
-use strum::IntoEnumIterator;
+use std::rc::Rc;
 
 use super::album_filter::AlbumFilter;
 use super::album_sort::AlbumSort;
@@ -78,6 +79,8 @@ struct PhotoGridItem {
 
     // Length of thumbnail edge to allow for resizing when layout changes.
     edge_length: I32Binding,
+
+    thumbnailer: Rc<Thumbnailer>,
 }
 
 struct PhotoGridItemWidgets {
@@ -92,51 +95,49 @@ struct PhotoGridItemWidgets {
 }
 
 impl RelmGridItem for PhotoGridItem {
-    type Root = gtk::AspectFrame;
+    type Root = gtk::Frame;
     type Widgets = PhotoGridItemWidgets;
 
     fn setup(_item: &gtk::ListItem) -> (Self::Root, Self::Widgets) {
         relm4::view! {
-            root = gtk::AspectFrame {
-                gtk::Frame {
-                    gtk::Overlay {
-                        #[name(status_overlay)]
-                        add_overlay =  &gtk::Frame {
-                            set_halign: gtk::Align::End,
-                            set_valign: gtk::Align::End,
-                            set_margin_all: 8,
-                            add_css_class: "photo-grid-photo-status-frame",
-
-                            #[wrap(Some)]
-                            #[name(motion_type_icon)]
-                            set_child = &gtk::Image {
-                                set_width_request: 16,
-                                set_height_request: 16,
-                                add_css_class: "photo-grid-photo-status-label",
-                            },
-                        },
-
-                        #[name(duration_overlay)]
-                        add_overlay =  &gtk::Frame {
-                            set_halign: gtk::Align::End,
-                            set_valign: gtk::Align::End,
-                            set_margin_all: 8,
-                            add_css_class: "photo-grid-photo-status-frame",
-
-                            #[wrap(Some)]
-                            #[name(duration_label)]
-                            set_child = &gtk::Label{
-                                add_css_class: "photo-grid-photo-status-label",
-                            },
-                        },
+            root = gtk::Frame {
+                gtk::Overlay {
+                    #[name(status_overlay)]
+                    add_overlay =  &gtk::Frame {
+                        set_halign: gtk::Align::End,
+                        set_valign: gtk::Align::End,
+                        set_margin_all: 8,
+                        add_css_class: "photo-grid-photo-status-frame",
 
                         #[wrap(Some)]
-                        #[name(picture)]
-                        set_child = &gtk::Picture {
-                            set_can_shrink: true,
-                            set_width_request: NARROW_EDGE_LENGTH,
-                            set_height_request: NARROW_EDGE_LENGTH,
-                        }
+                        #[name(motion_type_icon)]
+                        set_child = &gtk::Image {
+                            set_width_request: 16,
+                            set_height_request: 16,
+                            add_css_class: "photo-grid-photo-status-label",
+                        },
+                    },
+
+                    #[name(duration_overlay)]
+                    add_overlay =  &gtk::Frame {
+                        set_halign: gtk::Align::End,
+                        set_valign: gtk::Align::End,
+                        set_margin_all: 8,
+                        add_css_class: "photo-grid-photo-status-frame",
+
+                        #[wrap(Some)]
+                        #[name(duration_label)]
+                        set_child = &gtk::Label{
+                            add_css_class: "photo-grid-photo-status-label",
+                        },
+                    },
+
+                    #[wrap(Some)]
+                    #[name(picture)]
+                    set_child = &gtk::Picture {
+                        set_content_fit: gtk::ContentFit::Cover,
+                        set_width_request: NARROW_EDGE_LENGTH,
+                        set_height_request: NARROW_EDGE_LENGTH,
                     }
                 }
             }
@@ -173,15 +174,13 @@ impl RelmGridItem for PhotoGridItem {
             widgets.is_bound = true;
         }
 
-        if self
-            .visual
-            .thumbnail_path
-            .as_ref()
-            .is_some_and(|x| x.exists())
-        {
+        let thumbnail_path = self.thumbnailer
+            .nearest_thumbnail(&self.visual.thumbnail_hash(), ThumbnailSize::Large);
+
+        if thumbnail_path.is_some() {
             widgets
                 .picture
-                .set_filename(self.visual.thumbnail_path.clone());
+                .set_filename(thumbnail_path);
         } else {
             let pb = gdk_pixbuf::Pixbuf::from_resource_at_scale(
                 "/app/fotema/Fotema/icons/scalable/actions/image-missing-symbolic.svg",
@@ -231,11 +230,6 @@ impl RelmGridItem for PhotoGridItem {
         widgets.status_overlay.set_visible(false);
         widgets.duration_overlay.set_visible(false);
         widgets.duration_label.set_label("");
-
-        // clear orientation transformation css classes
-        for orient in PictureOrientation::iter() {
-            widgets.picture.remove_css_class(orient.as_ref());
-        }
     }
 }
 
@@ -247,11 +241,12 @@ pub struct Album {
     filter: AlbumFilter,
     sort: AlbumSort,
     edge_length: I32Binding,
+    thumbnailer: Rc<Thumbnailer>,
 }
 
 #[relm4::component(pub)]
 impl SimpleComponent for Album {
-    type Init = (SharedState, ActiveView, ViewName, AlbumFilter);
+    type Init = (SharedState, ActiveView, ViewName, AlbumFilter, Rc<Thumbnailer>);
     type Input = AlbumInput;
     type Output = AlbumOutput;
 
@@ -281,7 +276,7 @@ impl SimpleComponent for Album {
     }
 
     fn init(
-        (state, active_view, view_name, filter): Self::Init,
+        (state, active_view, view_name, filter, thumbnailer): Self::Init,
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
@@ -296,6 +291,7 @@ impl SimpleComponent for Album {
             filter,
             sort: AlbumSort::default(),
             edge_length: I32Binding::new(NARROW_EDGE_LENGTH),
+            thumbnailer,
         };
 
         model.update_filter();
@@ -345,7 +341,6 @@ impl SimpleComponent for Album {
             AlbumInput::GoToMonth(ym) => {
                 info!("Showing for month: {}", ym);
                 let index_opt = self.photo_grid.find(|p| p.visual.year_month() == ym);
-                debug!("Found: {:?}", index_opt);
                 if let Some(index) = index_opt {
                     let flags = gtk::ListScrollFlags::SELECT;
                     debug!("Scrolling to {}", index);
@@ -381,6 +376,7 @@ impl Album {
                 .map(|visual| PhotoGridItem {
                     visual: visual.clone(),
                     edge_length: self.edge_length.clone(),
+                    thumbnailer: self.thumbnailer.clone(),
                 })
                 .collect::<Vec<PhotoGridItem>>()
         };

@@ -29,7 +29,7 @@ pub struct Repository {
     /// This is the path outside of the Flatpak sandbox.
     library_base_dir_host_path: path::PathBuf,
 
-    /// Base path for thumbnails and transcoded videos
+    /// Base path for transcoded videos
     cache_dir_base_path: path::PathBuf,
 
     /// Connection to backing Sqlite database.
@@ -63,13 +63,11 @@ impl Repository {
 
                     picture_id,
                     picture_path_b64,
-                    picture_thumbnail,
                     picture_orientation,
                     is_selfie,
 
                     video_id,
                     video_path_b64,
-                    video_thumbnail,
 
                     motion_photo_video_path,
 
@@ -116,12 +114,6 @@ impl Repository {
 
         let picture_path = picture_path.map(|x| self.library_base_path.join(x));
 
-        let picture_thumbnail: Option<PathBuf> = row
-            .get("picture_thumbnail")
-            .map(|x: String| PathBuf::from(x))
-            .map(|x| self.cache_dir_base_path.join(x))
-            .ok();
-
         let picture_orientation: Option<PictureOrientation> = row
             .get("picture_orientation")
             .map(|x: u32| PictureOrientation::from(x))
@@ -142,18 +134,10 @@ impl Repository {
 
         let video_path = video_path.map(|x| self.library_base_path.join(x));
 
-        let video_thumbnail: Option<PathBuf> = row
-            .get("video_thumbnail")
-            .map(|x: String| PathBuf::from(x))
-            .map(|x| self.cache_dir_base_path.join(x))
-            .ok();
-
         let video_orientation: Option<PictureOrientation> = row
             .get("video_rotation")
             .map(|x: i32| PictureOrientation::from_degrees(x))
             .ok();
-
-        let thumbnail_path: Option<PathBuf> = picture_thumbnail.or(video_thumbnail);
 
         let motion_photo_video_path: Option<PathBuf> = row
             .get("motion_photo_video_path")
@@ -192,7 +176,6 @@ impl Repository {
         let v = Visual {
             visual_id,
             parent_path: link_path.parent().map(PathBuf::from).expect("Parent path"),
-            thumbnail_path,
             picture_id,
             picture_path,
             picture_host_path,

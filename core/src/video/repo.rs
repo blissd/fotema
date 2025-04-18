@@ -6,6 +6,7 @@ use super::Metadata;
 use super::metadata;
 use crate::path_encoding;
 use crate::video::model::{ScannedFile, Video, VideoId};
+
 use anyhow::*;
 use chrono::*;
 use rusqlite;
@@ -21,7 +22,11 @@ pub struct Repository {
     /// Base path to picture library on file system
     library_base_path: PathBuf,
 
-    /// Base path for thumbnails and transcoded videos
+    /// Base path to picture library on file system.
+    /// This is the path outside of the Flatpak sandbox.
+    library_base_dir_host_path: PathBuf,
+
+    /// Base path for transcoded videos
     cache_dir_base_path: PathBuf,
 
     /// Base path for data directory
@@ -35,6 +40,7 @@ impl Repository {
     /// Builds a Repository and creates operational tables.
     pub fn open(
         library_base_path: &Path,
+        library_base_dir_host_path: &Path,
         cache_dir_base_path: &Path,
         data_dir_base_path: &Path,
         con: Arc<Mutex<rusqlite::Connection>>,
@@ -42,39 +48,14 @@ impl Repository {
         std::fs::create_dir_all(cache_dir_base_path)?;
 
         let repo = Repository {
-            library_base_path: PathBuf::from(library_base_path),
+            library_base_path: library_base_path.into(),
+            library_base_dir_host_path: library_base_dir_host_path.into(),
             cache_dir_base_path: cache_dir_base_path.into(),
             data_dir_base_path: data_dir_base_path.into(),
             con,
         };
 
         Ok(repo)
-    }
-
-    pub fn add_thumbnail(&mut self, video_id: &VideoId, thumbnail_path: &Path) -> Result<()> {
-        let mut con = self.con.lock().unwrap();
-        let tx = con.transaction()?;
-
-        {
-            let mut stmt = tx.prepare(
-                "UPDATE videos
-                SET
-                    thumbnail_path = ?2,
-                    is_broken = FALSE
-                WHERE video_id = ?1",
-            )?;
-
-            // convert to relative path before saving to database
-            let thumbnail_path = thumbnail_path.strip_prefix(&self.cache_dir_base_path).ok();
-
-            stmt.execute(params![
-                video_id.id(),
-                thumbnail_path.as_ref().map(|p| p.to_str()),
-            ])?;
-        }
-
-        tx.commit()?;
-        Ok(())
     }
 
     pub fn mark_broken(&mut self, video_id: &VideoId) -> Result<()> {
@@ -213,7 +194,6 @@ impl Repository {
             "SELECT
                     video_id,
                     video_path_b64,
-                    thumbnail_path,
                     COALESCE(
                         videos.stream_created_ts,
                         videos.fs_created_ts,
@@ -240,7 +220,6 @@ impl Repository {
             "SELECT
                     video_id,
                     video_path_b64,
-                    thumbnail_path,
                     COALESCE(
                         videos.stream_created_ts,
                         videos.fs_created_ts,
@@ -278,15 +257,11 @@ impl Repository {
     fn to_video(&self, row: &Row<'_>) -> rusqlite::Result<Video> {
         let video_id = row.get("video_id").map(VideoId::new)?;
 
-        let video_path: String = row.get("video_path_b64")?;
-        let video_path =
-            path_encoding::from_base64(&video_path).map_err(|_| rusqlite::Error::InvalidQuery)?;
-        let video_path = self.library_base_path.join(video_path);
-
-        let thumbnail_path = row
-            .get("thumbnail_path")
-            .map(|p: String| self.cache_dir_base_path.join(p))
-            .ok();
+        let relative_path: String = row.get("video_path_b64")?;
+        let relative_path = path_encoding::from_base64(&relative_path)
+            .map_err(|_| rusqlite::Error::InvalidQuery)?;
+        let video_path = self.library_base_path.join(&relative_path);
+        let host_path = self.library_base_dir_host_path.join(&relative_path);
 
         let ordering_ts = row.get("ordering_ts").expect("must have ordering_ts");
 
@@ -305,7 +280,7 @@ impl Repository {
         std::result::Result::Ok(Video {
             video_id,
             path: video_path,
-            thumbnail_path,
+            host_path,
             ordering_ts,
             stream_duration,
             video_codec,
@@ -318,6 +293,7 @@ impl Repository {
 
         row.get("path")
             .and_then(|p: String| match root_name.as_str() {
+                // FIXME don't forget the thumbnail path
                 "cache" => std::result::Result::Ok(self.cache_dir_base_path.join(p)),
                 "data" => std::result::Result::Ok(self.data_dir_base_path.join(p)),
                 _ => Err(rusqlite::Error::InvalidPath(p.into())),

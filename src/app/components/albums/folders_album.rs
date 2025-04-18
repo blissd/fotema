@@ -4,8 +4,7 @@
 
 use gtk::prelude::OrientableExt;
 
-use fotema_core::visual::model::PictureOrientation;
-use strum::IntoEnumIterator;
+use fotema_core::thumbnailify::{Thumbnailer, ThumbnailSize};
 
 use itertools::Itertools;
 
@@ -19,6 +18,7 @@ use relm4::*;
 
 use std::path;
 use std::sync::Arc;
+use std::rc::Rc;
 
 use crate::adaptive;
 use crate::app::ActiveView;
@@ -35,10 +35,12 @@ struct PhotoGridItem {
     folder_name: String,
 
     // Folder album cover
-    picture: Arc<fotema_core::visual::Visual>,
+    visual: Arc<fotema_core::visual::Visual>,
 
     // Length of thumbnail edge to allow for resizing when layout changes.
     edge_length: I32Binding,
+
+    thumbnailer: Rc<Thumbnailer>,
 }
 
 struct Widgets {
@@ -80,14 +82,12 @@ impl RelmGridItem for PhotoGridItem {
         relm4::view! {
            my_box = gtk::Box {
                 set_orientation: gtk::Orientation::Vertical,
-                gtk::AspectFrame {
-                    gtk::Frame {
-                        #[name(picture)]
-                        gtk::Picture {
-                            set_can_shrink: true,
-                            set_width_request: NARROW_EDGE_LENGTH,
-                            set_height_request: NARROW_EDGE_LENGTH,
-                        }
+                gtk::Frame {
+                    #[name(picture)]
+                    gtk::Picture {
+                        set_content_fit: gtk::ContentFit::Cover,
+                        set_width_request: NARROW_EDGE_LENGTH,
+                        set_height_request: NARROW_EDGE_LENGTH,
                     }
                 },
 
@@ -126,15 +126,13 @@ impl RelmGridItem for PhotoGridItem {
             widgets.is_bound = true;
         }
 
-        if self
-            .picture
-            .thumbnail_path
-            .as_ref()
-            .is_some_and(|x| x.exists())
-        {
+        let thumbnail_path = self.thumbnailer
+            .nearest_thumbnail(&self.visual.thumbnail_hash(), ThumbnailSize::Normal);
+
+        if thumbnail_path.is_some() {
             widgets
                 .picture
-                .set_filename(self.picture.thumbnail_path.clone());
+                .set_filename(thumbnail_path);
         } else {
             let pb = gdk_pixbuf::Pixbuf::from_resource_at_scale(
                 "/app/fotema/Fotema/icons/scalable/actions/image-missing-symbolic.svg",
@@ -150,10 +148,6 @@ impl RelmGridItem for PhotoGridItem {
 
     fn unbind(&mut self, widgets: &mut Self::Widgets, _root: &mut Self::Root) {
         widgets.picture.set_filename(None::<&path::Path>);
-        // clear orientation transformation css classes
-        for orient in PictureOrientation::iter() {
-            widgets.picture.remove_css_class(orient.as_ref());
-        }
     }
 }
 
@@ -162,11 +156,12 @@ pub struct FoldersAlbum {
     active_view: ActiveView,
     photo_grid: TypedGridView<PhotoGridItem, gtk::SingleSelection>,
     edge_length: I32Binding,
+    thumbnailer: Rc<Thumbnailer>,
 }
 
 #[relm4::component(pub)]
 impl SimpleComponent for FoldersAlbum {
-    type Init = (SharedState, ActiveView);
+    type Init = (SharedState, ActiveView, Rc<Thumbnailer>);
     type Input = FoldersAlbumInput;
     type Output = FoldersAlbumOutput;
 
@@ -187,7 +182,7 @@ impl SimpleComponent for FoldersAlbum {
     }
 
     fn init(
-        (state, active_view): Self::Init,
+        (state, active_view, thumbnailer): Self::Init,
         _root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
@@ -198,6 +193,7 @@ impl SimpleComponent for FoldersAlbum {
             active_view,
             photo_grid,
             edge_length: I32Binding::new(NARROW_EDGE_LENGTH),
+            thumbnailer,
         };
 
         let pictures_box = &model.photo_grid.view;
@@ -237,7 +233,7 @@ impl SimpleComponent for FoldersAlbum {
                     event!(Level::DEBUG, "Folder selected item: {}", item.folder_name);
 
                     let _ = sender.output(FoldersAlbumOutput::FolderSelected(
-                        item.picture.parent_path.clone(),
+                        item.visual.parent_path.clone(),
                     ));
                 }
             }
@@ -257,8 +253,8 @@ impl FoldersAlbum {
             let data = self.state.read();
             data.clone()
                 .into_iter()
-                .sorted_by_key(|pic| pic.parent_path.clone())
-                .chunk_by(|pic| pic.parent_path.clone())
+                .sorted_by_key(|visual| visual.parent_path.clone())
+                .chunk_by(|visual| visual.parent_path.clone())
         };
 
         let mut pictures = Vec::new();
@@ -267,8 +263,9 @@ impl FoldersAlbum {
             let first = group.nth(0).expect("Groups can't be empty");
             let album = PhotoGridItem {
                 folder_name: first.folder_name().unwrap_or("-".to_string()),
-                picture: first.clone(),
+                visual: first.clone(),
                 edge_length: self.edge_length.clone(),
+                thumbnailer: self.thumbnailer.clone(),
             };
             pictures.push(album);
         }

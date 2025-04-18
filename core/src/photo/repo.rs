@@ -2,13 +2,13 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+use crate::path_encoding;
 use crate::photo::model::{Picture, PictureId, ScannedFile};
 
 use super::Metadata;
 use super::metadata;
 use super::model::MotionPhotoVideo;
 use super::motion_photo;
-use crate::path_encoding;
 use anyhow::{Result, bail};
 use rusqlite;
 use rusqlite::Row;
@@ -23,10 +23,14 @@ pub struct Repository {
     /// Base path to picture library on file system
     library_base_path: PathBuf,
 
-    /// Base path cache directory for photo thumbnails and motion photo videos
+    /// Base path to picture library on file system.
+    /// This is the path outside of the Flatpak sandbox.
+    library_base_dir_host_path: PathBuf,
+
+    /// Base path cache directory for motion photo videos
     cache_dir_base_path: PathBuf,
 
-    /// Base path for data directory
+    /// Base path cache directory for motion photo videos
     data_dir_base_path: PathBuf,
 
     /// Connection to backing Sqlite database.
@@ -37,6 +41,7 @@ impl Repository {
     /// Builds a Repository and creates operational tables.
     pub fn open(
         library_base_path: &Path,
+        library_base_dir_host_path: &Path,
         cache_dir_base_path: &Path,
         data_dir_base_path: &Path,
         con: Arc<Mutex<rusqlite::Connection>>,
@@ -45,14 +50,11 @@ impl Repository {
             bail!("{:?} is not a directory", library_base_path);
         }
 
-        let library_base_path = PathBuf::from(library_base_path);
-        let cache_dir_base_path = PathBuf::from(cache_dir_base_path);
-        let data_dir_base_path = PathBuf::from(data_dir_base_path);
-
         let repo = Repository {
-            library_base_path,
-            cache_dir_base_path,
-            data_dir_base_path,
+            library_base_path: library_base_path.into(),
+            library_base_dir_host_path: library_base_dir_host_path.into(),
+            cache_dir_base_path: cache_dir_base_path.into(),
+            data_dir_base_path: data_dir_base_path.into(),
             con,
         };
 
@@ -111,32 +113,6 @@ impl Repository {
                     }
                 }
             }
-        }
-
-        tx.commit()?;
-        Ok(())
-    }
-
-    pub fn add_thumbnail(&mut self, picture_id: &PictureId, thumbnail_path: &Path) -> Result<()> {
-        let mut con = self.con.lock().unwrap();
-        let tx = con.transaction()?;
-
-        {
-            let mut stmt = tx.prepare_cached(
-                "UPDATE pictures
-                SET
-                    thumbnail_path = ?2,
-                    is_broken = FALSE
-                WHERE picture_id = ?1",
-            )?;
-
-            // convert to relative path before saving to database
-            let thumbnail_path = thumbnail_path.strip_prefix(&self.cache_dir_base_path).ok();
-
-            stmt.execute(params![
-                picture_id.id(),
-                thumbnail_path.as_ref().map(|p| p.to_str()),
-            ])?;
         }
 
         tx.commit()?;
@@ -221,7 +197,6 @@ impl Repository {
             "SELECT
                     pictures.picture_id,
                     pictures.picture_path_b64,
-                    pictures.thumbnail_path,
                     COALESCE(
                         pictures.exif_created_ts,
                         pictures.exif_modified_ts,
@@ -252,7 +227,6 @@ impl Repository {
             "SELECT
                     pictures.picture_id,
                     pictures.picture_path_b64,
-                    pictures.thumbnail_path,
                     COALESCE(
                         pictures.exif_created_ts,
                         pictures.exif_modified_ts,
@@ -282,7 +256,6 @@ impl Repository {
             "SELECT
                     pictures.picture_id,
                     pictures.picture_path_b64,
-                    pictures.thumbnail_path,
                     COALESCE(
                         pictures.exif_created_ts,
                         pictures.exif_modified_ts,
@@ -398,15 +371,12 @@ impl Repository {
     fn to_picture(&self, row: &Row<'_>) -> rusqlite::Result<Picture> {
         let picture_id = row.get("picture_id").map(PictureId::new)?;
 
-        let picture_path: String = row.get("picture_path_b64")?;
-        let picture_path =
-            path_encoding::from_base64(&picture_path).map_err(|_| rusqlite::Error::InvalidQuery)?;
-        let picture_path = self.library_base_path.join(picture_path);
+        let relative_path: String = row.get("picture_path_b64")?;
+        let relative_path = path_encoding::from_base64(&relative_path)
+            .map_err(|_| rusqlite::Error::InvalidQuery)?;
 
-        let thumbnail_path = row
-            .get("thumbnail_path")
-            .map(|p: String| self.cache_dir_base_path.join(p))
-            .ok();
+        let picture_path = self.library_base_path.join(&relative_path);
+        let host_path = self.library_base_dir_host_path.join(&relative_path);
 
         let ordering_ts = row.get("ordering_ts").expect("must have ordering_ts");
         let is_selfie = row.get("is_selfie").ok();
@@ -414,7 +384,7 @@ impl Repository {
         std::result::Result::Ok(Picture {
             picture_id,
             path: picture_path,
-            thumbnail_path,
+            host_path,
             ordering_ts,
             is_selfie,
         })
@@ -425,6 +395,7 @@ impl Repository {
 
         row.get("path")
             .and_then(|p: String| match root_name.as_str() {
+                // FIXME what about thumbnail path?
                 "cache" => std::result::Result::Ok(self.cache_dir_base_path.join(p)),
                 "data" => std::result::Result::Ok(self.data_dir_base_path.join(p)),
                 _ => Err(rusqlite::Error::InvalidPath(p.into())),

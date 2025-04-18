@@ -10,9 +10,7 @@ use relm4::prelude::*;
 
 use crate::fl;
 
-use regex::Regex;
-
-use tracing::{debug, error, info};
+use tracing::{error, info};
 
 use std::path::PathBuf;
 

@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use fotema_core::VisualId;
+
 use gtk::prelude::OrientableExt;
 use relm4::actions::{RelmAction, RelmActionGroup};
 use relm4::adw;
@@ -23,10 +23,15 @@ use crate::app::components::albums::{
 };
 
 use crate::fl;
+
+use fotema_core::VisualId;
 use fotema_core::PictureId;
 use fotema_core::people;
+use fotema_core::thumbnailify::Thumbnailer;
 
 use tracing::{error, info};
+
+use std::rc::Rc;
 
 const NARROW_EDGE_LENGTH: i32 = 50;
 const WIDE_EDGE_LENGTH: i32 = 200;
@@ -99,7 +104,7 @@ pub struct PersonAlbum {
 
 #[relm4::component(pub)]
 impl SimpleComponent for PersonAlbum {
-    type Init = (SharedState, people::Repository, ActiveView);
+    type Init = (SharedState, people::Repository, ActiveView, Rc<Thumbnailer>);
     type Input = PersonAlbumInput;
     type Output = PersonAlbumOutput;
 
@@ -143,7 +148,7 @@ impl SimpleComponent for PersonAlbum {
     }
 
     fn init(
-        (state, repo, active_view): Self::Init,
+        (state, repo, active_view, thumbnailer): Self::Init,
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
@@ -158,6 +163,7 @@ impl SimpleComponent for PersonAlbum {
                 active_view.clone(),
                 ViewName::Person,
                 AlbumFilter::None,
+                thumbnailer,
             ))
             .forward(sender.input_sender(), |msg| match msg {
                 AlbumOutput::Selected(id, _) => PersonAlbumInput::Selected(id),

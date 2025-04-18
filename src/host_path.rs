@@ -8,9 +8,15 @@ use std::path::{Path, PathBuf};
 use tracing::debug;
 
 /// Derive host path from sandbox document path.
-pub async fn host_path(pic_base_dir: &Path) -> Option<PathBuf> {
+pub async fn host_path(sandbox_path: &Path) -> Option<PathBuf> {
+    // If sandbox_path doesn't start with "/run/user/" then
+    // it is a host path.
+    if !sandbox_path.starts_with("/run/user/") {
+        return Some(sandbox_path.into());
+    }
+
     // Parse Document ID from file chooser path.
-    let doc_id: Option<DocumentID> = pic_base_dir
+    let doc_id: Option<DocumentID> = sandbox_path
         .to_str()
         .and_then(|s| {
             let re = Regex::new(r"^/run/user/[0-9]+/doc/([0-9a-fA-F]+)/").unwrap();

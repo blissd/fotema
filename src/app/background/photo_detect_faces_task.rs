@@ -24,13 +24,13 @@ use fotema_core::photo::PictureId;
 use crate::app::components::progress_monitor::{ProgressMonitor, ProgressMonitorInput, TaskName};
 
 #[derive(Debug)]
-pub enum PhotoDetectFacesInput {
+pub enum PhotoDetectFacesTaskInput {
     DetectForAllPictures,
     DetectForOnePicture(PictureId),
 }
 
 #[derive(Debug)]
-pub enum PhotoDetectFacesOutput {
+pub enum PhotoDetectFacesTaskOutput {
     // Face detection has started.
     Started,
 
@@ -39,7 +39,7 @@ pub enum PhotoDetectFacesOutput {
 }
 
 #[derive(Clone)]
-pub struct PhotoDetectFaces {
+pub struct PhotoDetectFacesTask {
     // Stop flag
     stop: Arc<AtomicBool>,
 
@@ -52,7 +52,7 @@ pub struct PhotoDetectFaces {
     progress_monitor: Arc<Reducer<ProgressMonitor>>,
 }
 
-impl PhotoDetectFaces {
+impl PhotoDetectFacesTask {
     fn detect_for_one(&self, sender: ComponentSender<Self>, picture_id: PictureId) -> Result<()> {
         self.people_repo.delete_faces(picture_id)?;
         let result = self.photo_repo.get_picture_path(picture_id)?;
@@ -88,11 +88,11 @@ impl PhotoDetectFaces {
         // Short-circuit before sending progress messages to stop
         // banner from appearing and disappearing.
         if count == 0 {
-            let _ = sender.output(PhotoDetectFacesOutput::Completed);
+            let _ = sender.output(PhotoDetectFacesTaskOutput::Completed);
             return Ok(());
         }
 
-        let _ = sender.output(PhotoDetectFacesOutput::Started);
+        let _ = sender.output(PhotoDetectFacesTaskOutput::Started);
 
         self.progress_monitor
             .emit(ProgressMonitorInput::Start(TaskName::DetectFaces, count));
@@ -135,13 +135,13 @@ impl PhotoDetectFaces {
 
         self.progress_monitor.emit(ProgressMonitorInput::Complete);
 
-        let _ = sender.output(PhotoDetectFacesOutput::Completed);
+        let _ = sender.output(PhotoDetectFacesTaskOutput::Completed);
 
         Ok(())
     }
 }
 
-impl Worker for PhotoDetectFaces {
+impl Worker for PhotoDetectFacesTask {
     type Init = (
         Arc<AtomicBool>,
         PathBuf,
@@ -149,14 +149,14 @@ impl Worker for PhotoDetectFaces {
         people::Repository,
         Arc<Reducer<ProgressMonitor>>,
     );
-    type Input = PhotoDetectFacesInput;
-    type Output = PhotoDetectFacesOutput;
+    type Input = PhotoDetectFacesTaskInput;
+    type Output = PhotoDetectFacesTaskOutput;
 
     fn init(
         (stop, faces_base_dir, photo_repo, people_repo, progress_monitor): Self::Init,
         _sender: ComponentSender<Self>,
     ) -> Self {
-        PhotoDetectFaces {
+        PhotoDetectFacesTask {
             stop,
             faces_base_dir,
             photo_repo,
@@ -167,7 +167,7 @@ impl Worker for PhotoDetectFaces {
 
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
-            PhotoDetectFacesInput::DetectForAllPictures => {
+            PhotoDetectFacesTaskInput::DetectForAllPictures => {
                 info!("Extracting faces for all pictures...");
                 let this = self.clone();
 
@@ -179,7 +179,7 @@ impl Worker for PhotoDetectFaces {
                 });
             }
 
-            PhotoDetectFacesInput::DetectForOnePicture(picture_id) => {
+            PhotoDetectFacesTaskInput::DetectForOnePicture(picture_id) => {
                 info!("Extracting faces for one picture...");
                 let this = self.clone();
 

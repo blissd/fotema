@@ -2,11 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use fotema_core;
 use gtk::prelude::OrientableExt;
-
-use fotema_core::visual::model::PictureOrientation;
-use strum::IntoEnumIterator;
 
 use itertools::Itertools;
 use relm4::binding::*;
@@ -18,10 +14,15 @@ use relm4::gtk::prelude::WidgetExt;
 use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
 use relm4::*;
 
+use fotema_core;
+use fotema_core::thumbnailify::{Thumbnailer, ThumbnailSize};
 use fotema_core::Year;
 use fotema_core::YearMonth;
+
 use std::path;
 use std::sync::Arc;
+use std::rc::Rc;
+
 use tracing::info;
 
 use crate::adaptive;
@@ -38,10 +39,11 @@ const WIDE_EDGE_LENGTH: i32 = 200;
 
 #[derive(Debug)]
 struct PhotoGridItem {
-    picture: Arc<fotema_core::visual::Visual>,
+    visual: Arc<fotema_core::visual::Visual>,
 
     // Length of thumbnail edge to allow for resizing when layout changes.
     edge_length: I32Binding,
+    thumbnailer: Rc<Thumbnailer>,
 }
 
 struct Widgets {
@@ -76,35 +78,33 @@ pub enum MonthsAlbumOutput {
 }
 
 impl RelmGridItem for PhotoGridItem {
-    type Root = gtk::AspectFrame;
+    type Root = gtk::Frame;
     type Widgets = Widgets;
 
     fn setup(_item: &gtk::ListItem) -> (Self::Root, Self::Widgets) {
         relm4::view! {
-           root = gtk::AspectFrame {
-                gtk::Frame {
-                    gtk::Overlay {
-                        add_overlay =  &gtk::Frame {
-                            set_halign: gtk::Align::Start,
-                            set_valign: gtk::Align::Start,
-                            set_margin_start: 8,
-                            set_margin_top: 8,
-                            add_css_class: "photo-grid-month-frame",
-
-                            #[wrap(Some)]
-                            #[name(label)]
-                            set_child = &gtk::Label {
-                                add_css_class: "photo-grid-month-label",
-                            },
-                        },
+           root = gtk::Frame {
+                gtk::Overlay {
+                    add_overlay =  &gtk::Frame {
+                        set_halign: gtk::Align::Start,
+                        set_valign: gtk::Align::Start,
+                        set_margin_start: 8,
+                        set_margin_top: 8,
+                        add_css_class: "photo-grid-month-frame",
 
                         #[wrap(Some)]
-                        #[name(picture)]
-                        set_child = &gtk::Picture {
-                            set_can_shrink: true,
-                            set_width_request: NARROW_EDGE_LENGTH,
-                            set_height_request: NARROW_EDGE_LENGTH,
-                        }
+                        #[name(label)]
+                        set_child = &gtk::Label {
+                            add_css_class: "photo-grid-month-label",
+                        },
+                    },
+
+                    #[wrap(Some)]
+                    #[name(picture)]
+                    set_child = &gtk::Picture {
+                        set_content_fit: gtk::ContentFit::Cover,
+                        set_width_request: NARROW_EDGE_LENGTH,
+                        set_height_request: NARROW_EDGE_LENGTH,
                     }
                 }
             }
@@ -120,7 +120,7 @@ impl RelmGridItem for PhotoGridItem {
     }
 
     fn bind(&mut self, widgets: &mut Self::Widgets, _root: &mut Self::Root) {
-        let ym = self.picture.year_month();
+        let ym = self.visual.year_month();
 
         // If we repeatedly bind, then Fotema will die with the following error:
         // (fotema:2): GLib-GObject-CRITICAL **: 13:26:14.297: Too many GWeakRef registered
@@ -144,15 +144,13 @@ impl RelmGridItem for PhotoGridItem {
             ), // Should we convert to string?
         );
 
-        if self
-            .picture
-            .thumbnail_path
-            .as_ref()
-            .is_some_and(|x| x.exists())
-        {
+        let thumbnail_path = self.thumbnailer
+            .nearest_thumbnail(&self.visual.thumbnail_hash(), ThumbnailSize::Large);
+
+        if thumbnail_path.is_some() {
             widgets
                 .picture
-                .set_filename(self.picture.thumbnail_path.clone());
+                .set_filename(thumbnail_path);
         } else {
             let pb = gdk_pixbuf::Pixbuf::from_resource_at_scale(
                 "/app/fotema/Fotema/icons/scalable/actions/image-missing-symbolic.svg",
@@ -168,10 +166,6 @@ impl RelmGridItem for PhotoGridItem {
 
     fn unbind(&mut self, widgets: &mut Self::Widgets, _root: &mut Self::Root) {
         widgets.picture.set_filename(None::<&path::Path>);
-        // clear orientation transformation css classes
-        for orient in PictureOrientation::iter() {
-            widgets.picture.remove_css_class(orient.as_ref());
-        }
     }
 }
 
@@ -181,11 +175,12 @@ pub struct MonthsAlbum {
     photo_grid: TypedGridView<PhotoGridItem, gtk::SingleSelection>,
     edge_length: I32Binding,
     sort: AlbumSort,
+    thumbnailer: Rc<Thumbnailer>,
 }
 
 #[relm4::component(pub)]
 impl SimpleComponent for MonthsAlbum {
-    type Init = (SharedState, ActiveView);
+    type Init = (SharedState, ActiveView, Rc<Thumbnailer>);
     type Input = MonthsAlbumInput;
     type Output = MonthsAlbumOutput;
 
@@ -206,7 +201,7 @@ impl SimpleComponent for MonthsAlbum {
     }
 
     fn init(
-        (state, active_view): Self::Init,
+        (state, active_view, thumbnailer): Self::Init,
         _root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
@@ -218,6 +213,7 @@ impl SimpleComponent for MonthsAlbum {
             photo_grid,
             edge_length: I32Binding::new(NARROW_EDGE_LENGTH),
             sort: AlbumSort::default(),
+            thumbnailer,
         };
 
         let photo_grid_view = &model.photo_grid.view;
@@ -245,7 +241,7 @@ impl SimpleComponent for MonthsAlbum {
             }
             MonthsAlbumInput::MonthSelected(index) => {
                 if let Some(item) = self.photo_grid.get(index) {
-                    let ym = item.borrow().picture.year_month();
+                    let ym = item.borrow().visual.year_month();
                     event!(Level::DEBUG, "index {} has year_month {}", index, ym);
                     let _ = sender.output(MonthsAlbumOutput::MonthSelected(ym));
                 }
@@ -254,7 +250,7 @@ impl SimpleComponent for MonthsAlbum {
                 event!(Level::INFO, "Showing for year: {}", year);
                 let index_opt = self
                     .photo_grid
-                    .find(|p| p.picture.year_month().year == year);
+                    .find(|p| p.visual.year_month().year == year);
                 event!(Level::DEBUG, "Found: {:?}", index_opt);
                 if let Some(index) = index_opt {
                     let flags = gtk::ListScrollFlags::SELECT;
@@ -285,9 +281,10 @@ impl MonthsAlbum {
             let data = self.state.read();
             data.iter()
                 .dedup_by(|x, y| x.year_month() == y.year_month())
-                .map(|picture| PhotoGridItem {
-                    picture: picture.clone(),
+                .map(|visual| PhotoGridItem {
+                    visual: visual.clone(),
                     edge_length: self.edge_length.clone(),
+                    thumbnailer: self.thumbnailer.clone()
                 })
                 .collect::<Vec<PhotoGridItem>>()
         };
