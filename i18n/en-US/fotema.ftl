@@ -223,9 +223,9 @@ people-not-this-person = Not { $name }
 # Title of preferences dialog
 prefs-title = Preferences
 
-# Title of section of preferences for views
-prefs-ui-section = UI
-  .description = Tweak the user interface.
+# Title of section of preferences for albums
+prefs-ui-section = Albums
+  .description = Configure albums
 
 # Selfies page enabled or disabled.
 # Attributes:
@@ -233,8 +233,14 @@ prefs-ui-section = UI
 prefs-ui-selfies = Selfies
   .subtitle = Shows a separate album for selfies taken on iOS devices. Restart {-app-name} to apply.
 
+# Preserve aspect ration enabled or disabled.
+# Attributes:
+#   .subtitle - Description of toggle button action action.
+prefs-ui-preserve-aspect-ratio = Preserve aspect ratio
+  .subtitle = Show picture and video thumbnails using the original aspect ratio.
+
 # Album sort drop-down menu
-prefs-ui-chronological-album-sort = Sort Order
+prefs-ui-chronological-album-sort = Sort order
   .subtitle = Chronological sort order for albums.
   .ascending = Ascending
   .descending = Descending
@@ -242,11 +248,11 @@ prefs-ui-chronological-album-sort = Sort Order
 # Preferences related to machine learning, such as face detection.
 # Machine learning is CPU intensive so capabilities can be turned on or off by
 # the user
-prefs-machine-learning-section = Machine Learning
+prefs-machine-learning-section = Machine learning
   .description = Configure machine learning features.
 
 # Enable or disable face detection
-prefs-machine-learning-face-detection = Face Detection
+prefs-machine-learning-face-detection = Face detection
   .subtitle = Enable face detection when { -app-name } launches. This is a time consuming process.
 
 prefs-library-section =
@@ -255,7 +261,7 @@ prefs-library-section =
   Warning: changing the pictures directory can cause { -app-name } to reprocess all your pictures.
 
 prefs-library-section-pictures-dir =
-  .title = Pictures Directory
+  .title = Pictures directory
   .tooltip = Choose pictures directory.
 
 ## Progress bar for background tasks

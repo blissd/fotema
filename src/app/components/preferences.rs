@@ -12,7 +12,7 @@ use tracing::{error, info};
 
 use crate::app::AlbumSort;
 use crate::app::FaceDetectionMode;
-use crate::app::{Settings, SettingsState};
+use crate::app::{Settings, SettingsState, ThumbnailContentFit};
 use crate::fl;
 use crate::host_path;
 
@@ -30,6 +30,10 @@ pub struct PreferencesDialog {
 impl PreferencesDialog {
     pub fn is_face_detection_active(&self) -> bool {
         self.settings.face_detection_mode == FaceDetectionMode::On
+    }
+
+    pub fn is_preserve_aspect_ratio(&self) -> bool {
+        self.settings.thumbnail_content_fit == ThumbnailContentFit::Contain
     }
 
     pub fn picture_base_dir_host_path(&self) -> String {
@@ -52,6 +56,8 @@ pub enum PreferencesInput {
     UpdateShowSelfies(bool),
 
     UpdateFaceDetectionMode(FaceDetectionMode),
+
+    UpdatePreserveAspectRatio(bool),
 
     Sort(AlbumSort),
 
@@ -81,6 +87,18 @@ impl SimpleAsyncComponent for PreferencesDialog {
 
                         connect_active_notify[sender] => move |switch| {
                             let _ = sender.input_sender().send(PreferencesInput::UpdateShowSelfies(switch.is_active()));
+                        },
+                    },
+
+                    adw::SwitchRow {
+                        set_title: &fl!("prefs-ui-preserve-aspect-ratio"),
+                        set_subtitle: &fl!("prefs-ui-preserve-aspect-ratio", "subtitle"),
+
+                        #[watch]
+                        set_active: model.is_preserve_aspect_ratio(),
+
+                        connect_active_notify[sender] => move |switch| {
+                            let _ = sender.input_sender().send(PreferencesInput::UpdatePreserveAspectRatio(switch.is_active()));
                         },
                     },
 
@@ -201,6 +219,15 @@ impl SimpleAsyncComponent for PreferencesDialog {
             PreferencesInput::UpdateFaceDetectionMode(mode) => {
                 info!("Update face detection mode: {:?}", mode);
                 self.settings.face_detection_mode = mode;
+                *self.settings_state.write() = self.settings.clone();
+            }
+            PreferencesInput::UpdatePreserveAspectRatio(preserve_aspect_ratio) => {
+                info!("Update preserve aspect ratio: {}", preserve_aspect_ratio);
+                self.settings.thumbnail_content_fit = if preserve_aspect_ratio {
+                    ThumbnailContentFit::Contain
+                } else {
+                    ThumbnailContentFit::Cover
+                };
                 *self.settings_state.write() = self.settings.clone();
             }
             PreferencesInput::Sort(mode) => {
