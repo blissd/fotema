@@ -44,10 +44,6 @@ pub struct Visual {
     // Path to parent directory
     pub parent_path: PathBuf,
 
-    /// Path to thumbnail. If both a picture and a video are present, then this will
-    /// be the picture thumbnail path.
-    pub thumbnail_path: Option<PathBuf>,
-
     pub video_id: Option<VideoId>,
 
     pub video_path: Option<PathBuf>,

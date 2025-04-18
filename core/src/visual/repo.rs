@@ -7,7 +7,6 @@ use crate::video::VideoId;
 use crate::visual::model::{PictureOrientation, Visual, VisualId};
 
 use crate::path_encoding;
-use crate::thumbnailify;
 use anyhow::*;
 use chrono::*;
 use h3o::LatLng;
@@ -33,9 +32,6 @@ pub struct Repository {
     /// Base path for transcoded videos
     cache_dir_base_path: path::PathBuf,
 
-    /// Base path for thumbnails
-    thumbnails_dir_base_path: path::PathBuf,
-
     /// Connection to backing Sqlite database.
     con: Arc<Mutex<rusqlite::Connection>>,
 }
@@ -46,14 +42,12 @@ impl Repository {
         library_base_path: &path::Path,
         library_base_dir_host_path: &path::Path,
         cache_dir_base_path: &path::Path,
-        thumbnails_dir_base_path: &path::Path,
         con: Arc<Mutex<rusqlite::Connection>>,
     ) -> Result<Repository> {
         let repo = Repository {
             library_base_path: path::PathBuf::from(library_base_path),
             library_base_dir_host_path: path::PathBuf::from(library_base_dir_host_path),
             cache_dir_base_path: path::PathBuf::from(cache_dir_base_path),
-            thumbnails_dir_base_path: path::PathBuf::from(thumbnails_dir_base_path),
             con,
         };
         Ok(repo)
@@ -69,13 +63,11 @@ impl Repository {
 
                     picture_id,
                     picture_path_b64,
-                    picture_thumbnail,
                     picture_orientation,
                     is_selfie,
 
                     video_id,
                     video_path_b64,
-                    video_thumbnail,
 
                     motion_photo_video_path,
 
@@ -122,14 +114,6 @@ impl Repository {
 
         let picture_path = picture_path.map(|x| self.library_base_path.join(x));
 
-        let picture_thumbnail = picture_host_path.as_ref().map(|p| {
-            thumbnailify::get_thumbnail_path(
-                &self.thumbnails_dir_base_path,
-                &p,
-                thumbnailify::ThumbnailSize::Large,
-            )
-        });
-
         let picture_orientation: Option<PictureOrientation> = row
             .get("picture_orientation")
             .map(|x: u32| PictureOrientation::from(x))
@@ -150,27 +134,10 @@ impl Repository {
 
         let video_path = video_path.map(|x| self.library_base_path.join(x));
 
-        /*
-        let video_thumbnail: Option<PathBuf> = row
-            .get("video_thumbnail")
-            .map(|x: String| PathBuf::from(x))
-            .map(|x| self.thumbnails_dir_base_path.join(x))
-            .ok();
-        */
-        let video_thumbnail = video_host_path.as_ref().map(|p| {
-            thumbnailify::get_thumbnail_path(
-                &self.thumbnails_dir_base_path,
-                &p,
-                thumbnailify::ThumbnailSize::Large,
-            )
-        });
-
         let video_orientation: Option<PictureOrientation> = row
             .get("video_rotation")
             .map(|x: i32| PictureOrientation::from_degrees(x))
             .ok();
-
-        let thumbnail_path: Option<PathBuf> = picture_thumbnail.or(video_thumbnail);
 
         let motion_photo_video_path: Option<PathBuf> = row
             .get("motion_photo_video_path")
@@ -209,7 +176,6 @@ impl Repository {
         let v = Visual {
             visual_id,
             parent_path: link_path.parent().map(PathBuf::from).expect("Parent path"),
-            thumbnail_path,
             picture_id,
             picture_path,
             picture_host_path,

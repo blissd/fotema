@@ -422,7 +422,6 @@ impl Bootstrap {
             &pic_base_dir,
             &pic_base_dir_host_path,
             &cache_dir,
-            &thumbnail_dir,
             &data_dir,
             self.con.clone(),
         )?;
@@ -435,7 +434,6 @@ impl Bootstrap {
             &pic_base_dir,
             &pic_base_dir_host_path,
             &cache_dir,
-            &thumbnail_dir,
             &data_dir,
             self.con.clone(),
         )?;
@@ -448,7 +446,6 @@ impl Bootstrap {
             &pic_base_dir,
             &pic_base_dir_host_path,
             &cache_dir,
-            &thumbnail_dir,
             self.con.clone(),
         )?;
 

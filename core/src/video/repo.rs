@@ -5,7 +5,6 @@
 use super::Metadata;
 use super::metadata;
 use crate::path_encoding;
-use crate::thumbnailify;
 use crate::video::model::{ScannedFile, Video, VideoId};
 
 use anyhow::*;
@@ -30,9 +29,6 @@ pub struct Repository {
     /// Base path for transcoded videos
     cache_dir_base_path: PathBuf,
 
-    /// Base path for thumbnails
-    thumbnails_dir_base_path: PathBuf,
-
     /// Base path for data directory
     data_dir_base_path: PathBuf,
 
@@ -46,7 +42,6 @@ impl Repository {
         library_base_path: &Path,
         library_base_dir_host_path: &Path,
         cache_dir_base_path: &Path,
-        thumbnails_dir_base_path: &Path,
         data_dir_base_path: &Path,
         con: Arc<Mutex<rusqlite::Connection>>,
     ) -> Result<Repository> {
@@ -56,40 +51,11 @@ impl Repository {
             library_base_path: library_base_path.into(),
             library_base_dir_host_path: library_base_dir_host_path.into(),
             cache_dir_base_path: cache_dir_base_path.into(),
-            thumbnails_dir_base_path: thumbnails_dir_base_path.into(),
             data_dir_base_path: data_dir_base_path.into(),
             con,
         };
 
         Ok(repo)
-    }
-
-    pub fn add_thumbnail(&mut self, video_id: &VideoId, thumbnail_path: &Path) -> Result<()> {
-        let mut con = self.con.lock().unwrap();
-        let tx = con.transaction()?;
-
-        {
-            let mut stmt = tx.prepare(
-                "UPDATE videos
-                SET
-                    thumbnail_path = ?2,
-                    is_broken = FALSE
-                WHERE video_id = ?1",
-            )?;
-
-            // convert to relative path before saving to database
-            let thumbnail_path = thumbnail_path
-                .strip_prefix(&self.thumbnails_dir_base_path)
-                .ok();
-
-            stmt.execute(params![
-                video_id.id(),
-                thumbnail_path.as_ref().map(|p| p.to_str()),
-            ])?;
-        }
-
-        tx.commit()?;
-        Ok(())
     }
 
     pub fn mark_broken(&mut self, video_id: &VideoId) -> Result<()> {
@@ -228,7 +194,6 @@ impl Repository {
             "SELECT
                     video_id,
                     video_path_b64,
-                    thumbnail_path,
                     COALESCE(
                         videos.stream_created_ts,
                         videos.fs_created_ts,
@@ -255,7 +220,6 @@ impl Repository {
             "SELECT
                     video_id,
                     video_path_b64,
-                    thumbnail_path,
                     COALESCE(
                         videos.stream_created_ts,
                         videos.fs_created_ts,

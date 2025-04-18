@@ -10,7 +10,6 @@ use gdk4::prelude::TextureExt;
 use glycin;
 use std::io::Cursor;
 use std::path::Path;
-use tracing::info;
 
 use crate::thumbnailify;
 

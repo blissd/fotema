@@ -4,7 +4,6 @@
 
 use crate::path_encoding;
 use crate::photo::model::{Picture, PictureId, ScannedFile};
-use crate::thumbnailify;
 
 use super::Metadata;
 use super::metadata;
@@ -31,9 +30,6 @@ pub struct Repository {
     /// Base path cache directory for motion photo videos
     cache_dir_base_path: PathBuf,
 
-    /// Base path directory for photo thumbnails
-    thumbnails_dir_base_path: PathBuf,
-
     /// Base path cache directory for motion photo videos
     data_dir_base_path: PathBuf,
 
@@ -47,7 +43,6 @@ impl Repository {
         library_base_path: &Path,
         library_base_dir_host_path: &Path,
         cache_dir_base_path: &Path,
-        thumbnails_dir_base_path: &Path,
         data_dir_base_path: &Path,
         con: Arc<Mutex<rusqlite::Connection>>,
     ) -> Result<Repository> {
@@ -55,18 +50,11 @@ impl Repository {
             bail!("{:?} is not a directory", library_base_path);
         }
 
-        let library_base_path = PathBuf::from(library_base_path);
-        let library_base_dir_host_path = PathBuf::from(library_base_dir_host_path);
-        let cache_dir_base_path = PathBuf::from(cache_dir_base_path);
-        let thumbnails_dir_base_path = PathBuf::from(thumbnails_dir_base_path);
-        let data_dir_base_path = PathBuf::from(data_dir_base_path);
-
         let repo = Repository {
-            library_base_path,
-            library_base_dir_host_path,
-            cache_dir_base_path,
-            thumbnails_dir_base_path,
-            data_dir_base_path,
+            library_base_path: library_base_path.into(),
+            library_base_dir_host_path: library_base_dir_host_path.into(),
+            cache_dir_base_path: cache_dir_base_path.into(),
+            data_dir_base_path: data_dir_base_path.into(),
             con,
         };
 
@@ -125,34 +113,6 @@ impl Repository {
                     }
                 }
             }
-        }
-
-        tx.commit()?;
-        Ok(())
-    }
-
-    pub fn add_thumbnail(&mut self, picture_id: &PictureId, thumbnail_path: &Path) -> Result<()> {
-        let mut con = self.con.lock().unwrap();
-        let tx = con.transaction()?;
-
-        {
-            let mut stmt = tx.prepare_cached(
-                "UPDATE pictures
-                SET
-                    thumbnail_path = ?2,
-                    is_broken = FALSE
-                WHERE picture_id = ?1",
-            )?;
-
-            // convert to relative path before saving to database
-            let thumbnail_path = thumbnail_path
-                .strip_prefix(&self.thumbnails_dir_base_path)
-                .ok();
-
-            stmt.execute(params![
-                picture_id.id(),
-                thumbnail_path.as_ref().map(|p| p.to_str()),
-            ])?;
         }
 
         tx.commit()?;
@@ -237,7 +197,6 @@ impl Repository {
             "SELECT
                     pictures.picture_id,
                     pictures.picture_path_b64,
-                    pictures.thumbnail_path,
                     COALESCE(
                         pictures.exif_created_ts,
                         pictures.exif_modified_ts,
@@ -268,7 +227,6 @@ impl Repository {
             "SELECT
                     pictures.picture_id,
                     pictures.picture_path_b64,
-                    pictures.thumbnail_path,
                     COALESCE(
                         pictures.exif_created_ts,
                         pictures.exif_modified_ts,
@@ -298,7 +256,6 @@ impl Repository {
             "SELECT
                     pictures.picture_id,
                     pictures.picture_path_b64,
-                    pictures.thumbnail_path,
                     COALESCE(
                         pictures.exif_created_ts,
                         pictures.exif_modified_ts,
