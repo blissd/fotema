@@ -4,7 +4,6 @@
 
 use fotema_core::VisualId;
 use fotema_core::YearMonth;
-use fotema_core::visual::model::PictureOrientation;
 use fotema_core::thumbnailify::{Thumbnailer, ThumbnailSize};
 
 use gtk::prelude::OrientableExt;
@@ -19,7 +18,6 @@ use relm4::*;
 use std::path::Path;
 use std::sync::Arc;
 use std::rc::Rc;
-use strum::IntoEnumIterator;
 
 use super::album_filter::AlbumFilter;
 use super::album_sort::AlbumSort;
@@ -232,11 +230,6 @@ impl RelmGridItem for PhotoGridItem {
         widgets.status_overlay.set_visible(false);
         widgets.duration_overlay.set_visible(false);
         widgets.duration_label.set_label("");
-
-        // clear orientation transformation css classes
-        for orient in PictureOrientation::iter() {
-            widgets.picture.remove_css_class(orient.as_ref());
-        }
     }
 }
 

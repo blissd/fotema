@@ -4,12 +4,9 @@
 
 use fotema_core;
 use fotema_core::thumbnailify::{Thumbnailer, ThumbnailSize};
-use fotema_core::visual::model::PictureOrientation;
 use fotema_core::Year;
 
 use gtk::prelude::OrientableExt;
-
-use strum::IntoEnumIterator;
 
 use itertools::Itertools;
 
@@ -157,10 +154,6 @@ impl RelmGridItem for PhotoGridItem {
 
     fn unbind(&mut self, widgets: &mut Self::Widgets, _root: &mut Self::Root) {
         widgets.picture.set_filename(None::<&path::Path>);
-        // clear orientation transformation css classes
-        for orient in PictureOrientation::iter() {
-            widgets.picture.remove_css_class(orient.as_ref());
-        }
     }
 }
 
