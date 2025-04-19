@@ -75,7 +75,7 @@ pub fn write_failed_thumbnail(
     host_path: &Path,
     sandbox_path: &Path,
 ) -> Result<(), ThumbnailError> {
-    let file_uri = get_file_uri(&host_path).unwrap();
+    let file_uri = get_file_uri(&host_path)?;
     let file_uri_hash = hash::compute_hash(&file_uri);
     let fail_path = get_failed_thumbnail_output(thumbnails_base_dir, &file_uri_hash);
 
