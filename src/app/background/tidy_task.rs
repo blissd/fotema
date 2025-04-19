@@ -37,22 +37,32 @@ impl TidyTask {
 
         // TODO remove me after 2026-01-01
         // Delete legacy thumbnail directory
-        let legacy_thumbnail_dir = glib::user_cache_dir()
+        let legacy_dir = glib::user_cache_dir()
             .join(APP_ID)
             .join("photo_thumbnails");
 
-        if legacy_thumbnail_dir.exists() {
-            std::fs::remove_dir_all(legacy_thumbnail_dir)?;
+        if legacy_dir.exists() {
+            std::fs::remove_dir_all(legacy_dir)?;
         }
 
         // TODO remove me after 2026-01-01
         // Delete legacy thumbnail directory
-        let legacy_thumbnail_dir = glib::user_cache_dir()
+        let legacy_dir = glib::user_cache_dir()
             .join(APP_ID)
             .join("video_thumbnails");
 
-        if legacy_thumbnail_dir.exists() {
-            std::fs::remove_dir_all(legacy_thumbnail_dir)?;
+        if legacy_dir.exists() {
+            std::fs::remove_dir_all(legacy_dir)?;
+        }
+
+        // TODO remove me after 2026-01-01
+        // Delete legacy video transcode directory
+        let legacy_dir = glib::user_cache_dir()
+            .join(APP_ID)
+            .join("video_transcodes");
+
+        if legacy_dir.exists() {
+            std::fs::remove_dir_all(legacy_dir)?;
         }
 
         let _= sender.output(TidyTaskOutput::Completed);
