@@ -55,9 +55,13 @@
             "add-ld-path": "lib",
             "bundle": true,
             "autodelete": true
+        },
+        "org.freedesktop.Platform.ffmpeg-full": {
+            "add-ld-path": ".",
+            "directory": "lib/ffmpeg",
+            "version": "23.08"
         }
     },
-
   "modules": [
     "modules/glycin-loaders.json",
     "modules/libshumate.json",
