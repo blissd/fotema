@@ -47,6 +47,8 @@ use super::{
     video_scan_task::{VideoScanTask, VideoScanTaskInput, VideoScanTaskOutput},
     video_thumbnail_task::{VideoThumbnailTask, VideoThumbnailTaskInput, VideoThumbnailTaskOutput},
     video_transcode_task::{VideoTranscodeTask, VideoTranscodeTaskInput, VideoTranscodeTaskOutput},
+
+    tidy_task::{TidyTask, TidyTaskInput, TidyTaskOutput},
 };
 
 use crate::app::FaceDetectionMode;
@@ -75,6 +77,7 @@ pub enum TaskName {
     DetectFaces,
     RecognizeFaces,
     Transcode,
+    Tidy,
 }
 
 #[derive(Debug)]
@@ -158,6 +161,8 @@ pub struct Controllers {
     photo_recognize_faces_task: Arc<WorkerController<PhotoRecognizeFacesTask>>,
 
     video_transcode_task: Arc<WorkerController<VideoTranscodeTask>>,
+
+    tidy_task: Arc<WorkerController<TidyTask>>,
 
     /// Pending ordered tasks to process
     /// Wow... figuring out a type signature that would compile was a nightmare.
@@ -358,6 +363,11 @@ impl Controllers {
                 bootstrap_sender.emit(BootstrapInput::TaskCompleted(TaskName::LoadLibrary, None));
             }
         }));
+    }
+
+    fn add_task_tidy(&mut self) {
+        let sender = self.tidy_task.sender().clone();
+        self.enqueue(Box::new(move || sender.emit(TidyTaskInput::Start)));
     }
 
     fn enqueue(&mut self, task: Box<dyn Fn() + Send + Sync>) {
@@ -636,6 +646,17 @@ impl Bootstrap {
                 }
             });
 
+        let tidy_task = TidyTask::builder()
+            .detach_worker(stop.clone())
+            .forward(sender.input_sender(), |msg| match msg {
+                TidyTaskOutput::Started => {
+                    BootstrapInput::TaskStarted(TaskName::Tidy)
+                }
+                TidyTaskOutput::Completed => {
+                    BootstrapInput::TaskCompleted(TaskName::Tidy, None)
+                }
+            });
+
         let mut controllers = Controllers {
             stop,
             started_at: None,
@@ -654,6 +675,7 @@ impl Bootstrap {
             photo_detect_faces_task: Arc::new(photo_detect_faces_task),
             photo_recognize_faces_task: Arc::new(photo_recognize_faces_task),
             video_transcode_task: Arc::new(video_transcode_task),
+            tidy_task: Arc::new(tidy_task),
             pending_tasks: Arc::new(Mutex::new(VecDeque::new())),
             is_running: false,
             library_stale: Arc::new(AtomicBool::new(true)),
@@ -680,6 +702,8 @@ impl Bootstrap {
         controllers.add_task_photo_extract_motion();
         controllers.add_task_photo_detect_faces();
         controllers.add_task_photo_recognize_faces();
+
+        controllers.add_task_tidy();
 
         // This is the last background task to complete. Refresh library if there
         // has been a visible change to the library state.

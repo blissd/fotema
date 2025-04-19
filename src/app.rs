@@ -1014,6 +1014,9 @@ impl SimpleAsyncComponent for App {
                     TaskName::Transcode => {
                         self.banner.set_title(&fl!("banner-convert-videos"));
                     }
+                    TaskName::Tidy => {
+                        // Show nothing
+                    }
                 };
             }
             AppMsg::BootstrapCompleted => {
