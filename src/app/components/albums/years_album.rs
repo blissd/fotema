@@ -139,6 +139,7 @@ impl RelmGridItem for PhotoGridItem {
             widgets
                 .picture
                 .set_filename(thumbnail_path);
+            widgets.picture.set_content_fit(gtk::ContentFit::Cover);
         } else {
             let pb = gdk_pixbuf::Pixbuf::from_resource_at_scale(
                 "/app/fotema/Fotema/icons/scalable/actions/image-missing-symbolic.svg",
@@ -149,6 +150,7 @@ impl RelmGridItem for PhotoGridItem {
             .unwrap();
             let img = gdk::Texture::for_pixbuf(&pb);
             widgets.picture.set_paintable(Some(&img));
+            widgets.picture.set_content_fit(gtk::ContentFit::Cover);
         }
     }
 
