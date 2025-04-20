@@ -167,8 +167,9 @@ impl Worker for PhotoRecognizeFacesTask {
 
                 // Avoid runtime panic from calling block_on
                 rayon::spawn(move || {
-                    if let Err(e) = this.recognize(sender) {
+                    if let Err(e) = this.recognize(sender.clone()) {
                         error!("Failed to recognize photo faces: {}", e);
+                        let _ = sender.output(PhotoRecognizeFacesTaskOutput::Completed);
                     }
                 });
             }

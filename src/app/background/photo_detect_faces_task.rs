@@ -185,8 +185,9 @@ impl Worker for PhotoDetectFacesTask {
 
                 // Avoid runtime panic from calling block_on
                 rayon::spawn(move || {
-                    if let Err(e) = this.detect_for_one(sender, picture_id) {
+                    if let Err(e) = this.detect_for_one(sender.clone(), picture_id) {
                         error!("Failed to extract photo faces: {}", e);
+                        let _ = sender.output(PhotoDetectFacesTaskOutput::Completed);
                     }
                 });
             }
