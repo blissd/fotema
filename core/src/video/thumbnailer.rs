@@ -9,7 +9,6 @@ use std::path::Path;
 use std::process::Command;
 use std::result::Result::Ok;
 use tempfile;
-use tracing::error;
 
 /// Thumbnail operations for videos.
 #[derive(Debug, Clone)]
