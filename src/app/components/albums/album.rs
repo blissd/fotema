@@ -161,7 +161,7 @@ impl RelmGridItem for PhotoGridItem {
         (root, widgets)
     }
 
-    fn bind(&mut self, widgets: &mut Self::Widgets, _root: &mut Self::Root) {
+    fn bind(&mut self, widgets: &mut Self::Widgets, root: &mut Self::Root) {
         // Bindings to allow dynamic update of thumbnail width and height
         // when layout changes between wide and narrow
 
@@ -233,14 +233,20 @@ impl RelmGridItem for PhotoGridItem {
         }
 
         widgets.picture.set_content_fit(self.thumbnail_content_fit.content_fit());
+        match self.thumbnail_content_fit {
+            ThumbnailContentFit::Cover => root.add_css_class("photo-grid-thumbnail-cover"),
+            ThumbnailContentFit::Contain => root.add_css_class("photo-grid-thumbnail-contain"),
+        }
     }
 
-    fn unbind(&mut self, widgets: &mut Self::Widgets, _root: &mut Self::Root) {
+    fn unbind(&mut self, widgets: &mut Self::Widgets, root: &mut Self::Root) {
         widgets.picture.set_filename(None::<&Path>);
         widgets.motion_type_icon.set_icon_name(None);
         widgets.status_overlay.set_visible(false);
         widgets.duration_overlay.set_visible(false);
         widgets.duration_label.set_label("");
+        root.remove_css_class("photo-grid-thumbnail-cover");
+        root.remove_css_class("photo-grid-thumbnail-contain");
     }
 }
 

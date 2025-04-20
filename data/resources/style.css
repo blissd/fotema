@@ -9,6 +9,14 @@
   font-weight: bold;
 }
 
+.photo-grid-thumbnail-contain {
+  border-style: none;
+}
+
+.photo-grid-thumbnail-cover {
+  border-style: solid;
+}
+
 /* Year photo grid frame around year labels */
 .photo-grid-year-frame{
   background-color: rgba(0, 0, 0, 0.4);
