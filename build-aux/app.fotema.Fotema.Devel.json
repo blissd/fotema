@@ -51,12 +51,6 @@
             "add-ld-path": "lib",
             "bundle": true,
             "autodelete": true
-        },
-        "org.freedesktop.Platform.ffmpeg-full": {
-            "directory": "lib/ffmpeg",
-            "version": "24.08",
-            "add-ld-path": ".",
-            "no-autodownload": false
         }
     },
     "modules": [
