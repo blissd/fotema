@@ -9,6 +9,7 @@ use std::path::Path;
 use std::process::Command;
 use std::result::Result::Ok;
 use tempfile;
+use tracing::error;
 
 /// Thumbnail operations for videos.
 #[derive(Debug, Clone)]
@@ -36,7 +37,7 @@ impl VideoThumbnailer {
         let temporary_png_file = tempfile::Builder::new().suffix(".png").tempfile()?;
 
         // ffmpeg command will extract the first frame and save it as a PNG file.
-        Command::new("ffmpeg")
+        let status = Command::new("ffmpeg")
             .arg("-loglevel")
             .arg("error")
             .arg("-y") // temp file will already exist, so allow overwriting
@@ -47,13 +48,15 @@ impl VideoThumbnailer {
             .arg("-vf")
             .arg(r"select=eq(n\,0)") // select frame zero
             .arg(temporary_png_file.path())
-            .status()
-            .map_err(|err| {
-                let _ = self
-                    .thumbnailer
-                    .write_failed_thumbnail(&host_path, sandbox_path);
-                err
-            })?;
+            .status()?;
+
+        if !status.success() {
+            let _ = self
+                .thumbnailer
+                .write_failed_thumbnail(&host_path, sandbox_path);
+
+            anyhow::bail!("FFMpeg exited with status {:?}", status.code());
+        }
 
         let src_image = ImageReader::open(&temporary_png_file)?
             .decode()
