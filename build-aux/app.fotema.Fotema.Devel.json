@@ -5,7 +5,7 @@
     "sdk": "org.gnome.Sdk",
     "sdk-extensions": [
         "org.freedesktop.Sdk.Extension.rust-stable",
-        "org.freedesktop.Sdk.Extension.llvm19"
+        "org.freedesktop.Sdk.Extension.llvm20"
     ],
     "command": "fotema",
     "finish-args": [
@@ -20,8 +20,8 @@
         "--env=RUST_LOG=fotema=debug,fotema_core::thumbnailify=error,relm4=warn,glycin=warn,i18n_embed=debug"
     ],
     "build-options": {
-        "append-path": "/usr/lib/sdk/rust-stable/bin:/usr/lib/sdk/llvm19/bin",
-        "prepend-ld-library-path": "/usr/lib/sdk/llvm19/lib",
+        "append-path": "/usr/lib/sdk/rust-stable/bin:/usr/lib/sdk/llvm20/bin",
+        "prepend-ld-library-path": "/usr/lib/sdk/llvm20/lib",
         "build-args": ["--share=network"],
         "env": {
             "CARGO_REGISTRIES_CRATES_IO_PROTOCOL": "sparse",
@@ -65,11 +65,11 @@
             "run-tests": true,
 
             "build-options": {
-                "append-path": "/usr/lib/sdk/rust-stable/bin:/usr/lib/sdk/llvm19/bin",
-                "prepend-ld-library-path": "/usr/lib/sdk/llvm19/lib",
+                "append-path": "/usr/lib/sdk/rust-stable/bin:/usr/lib/sdk/llvm20/bin",
+                "prepend-ld-library-path": "/usr/lib/sdk/llvm20/lib",
                 "env": {
                     "OPENCV_INCLUDE_PATHS": "/app/include/opencv4",
-                    "LIBCLANG_PATH": "/usr/lib/sdk/llvm19/lib",
+                    "LIBCLANG_PATH": "/usr/lib/sdk/llvm20/lib",
                     "ORT_STRATEGY": "system"
                 }
             },
