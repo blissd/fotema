@@ -1,42 +1,37 @@
 {
-  "id": "app.fotema.Fotema.Devel",
-  "runtime": "org.gnome.Platform",
-  "runtime-version": "48",
-  "sdk": "org.gnome.Sdk",
-  "sdk-extensions": [
-    "org.freedesktop.Sdk.Extension.rust-stable",
-    "org.freedesktop.Sdk.Extension.llvm19"
-  ],
-  "command": "fotema",
-  "finish-args": [
-    "--device=dri",
-    "--share=ipc",
-    "--share=network",
-    "--socket=wayland",
-    "--socket=fallback-x11",
-    "--socket=pulseaudio",
-    "--env=G_MESSAGES_DEBUG=none",
-    "--env=RUST_BACKTRACE=1",
-    "--env=RUST_LOG=fotema=debug,fotema_core::thumbnailify=warn,relm4=warn,glycin=warn,i18n_embed=debug"
-  ],
-  "build-options": {
-    "append-path": "/usr/lib/sdk/rust-stable/bin:/usr/lib/sdk/llvm19/bin",
-    "prepend-ld-library-path": "/usr/lib/sdk/llvm19/lib",
-    "build-args": [
-      "--share=network"
+    "id": "app.fotema.Fotema.Devel",
+    "runtime": "org.gnome.Platform",
+    "runtime-version": "48",
+    "sdk": "org.gnome.Sdk",
+    "sdk-extensions": [
+        "org.freedesktop.Sdk.Extension.rust-stable",
+        "org.freedesktop.Sdk.Extension.llvm19"
     ],
-    "env": {
-      "CARGO_REGISTRIES_CRATES_IO_PROTOCOL": "sparse",
-      "CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER": "clang",
-      "CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS": "-C link-arg=-fuse-ld=/usr/lib/sdk/rust-stable/bin/mold",
-      "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER": "clang",
-      "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_RUSTFLAGS": "-C link-arg=-fuse-ld=/usr/lib/sdk/rust-stable/bin/mold"
+    "command": "fotema",
+    "finish-args": [
+        "--device=dri",
+        "--share=ipc",
+        "--share=network",
+        "--socket=wayland",
+        "--socket=fallback-x11",
+        "--socket=pulseaudio",
+        "--env=G_MESSAGES_DEBUG=none",
+        "--env=RUST_BACKTRACE=1",
+        "--env=RUST_LOG=fotema=debug,fotema_core::thumbnailify=error,relm4=warn,glycin=warn,i18n_embed=debug"
+    ],
+    "build-options": {
+        "append-path": "/usr/lib/sdk/rust-stable/bin:/usr/lib/sdk/llvm19/bin",
+        "prepend-ld-library-path": "/usr/lib/sdk/llvm19/lib",
+        "build-args": ["--share=network"],
+        "env": {
+            "CARGO_REGISTRIES_CRATES_IO_PROTOCOL": "sparse",
+            "CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER": "clang",
+            "CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS": "-C link-arg=-fuse-ld=/usr/lib/sdk/rust-stable/bin/mold",
+            "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER": "clang",
+            "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_RUSTFLAGS": "-C link-arg=-fuse-ld=/usr/lib/sdk/rust-stable/bin/mold"
+        },
+        "test-args": ["--socket=x11", "--share=network"]
     },
-    "test-args": [
-      "--socket=x11",
-      "--share=network"
-    ]
-  },
 
     "cleanup": [
         "/include",
@@ -49,9 +44,7 @@
         "*.la",
         "*.a"
     ],
-    "cleanup-commands": [
-        "mkdir -p /app/lib/ffmpeg"
-    ],
+    "cleanup-commands": ["mkdir -p /app/lib/ffmpeg"],
     "add-extensions": {
         "app.fotema.Fotema.Devel.HEIC": {
             "directory": "lib/libheif-heic",
@@ -62,37 +55,37 @@
         "org.freedesktop.Platform.ffmpeg-full": {
             "directory": "lib/ffmpeg",
             "version": "24.08",
-            "add-ld-path": "."
+            "add-ld-path": ".",
+            "no-autodownload": false
         }
     },
-  "modules": [
-    "modules/glycin-loaders.json",
-    "modules/libshumate.json",
-    "modules/opencv.json",
-    "modules/libonnxruntime.json",
-    {
-      "name": "fotema",
-      "buildsystem": "meson",
-      "run-tests": true,
-
-      "build-options": {
-        "append-path": "/usr/lib/sdk/rust-stable/bin:/usr/lib/sdk/llvm19/bin",
-        "prepend-ld-library-path": "/usr/lib/sdk/llvm19/lib",
-        "env": {
-            "OPENCV_INCLUDE_PATHS": "/app/include/opencv4",
-            "LIBCLANG_PATH": "/usr/lib/sdk/llvm19/lib",
-            "ORT_STRATEGY": "system"
-        }
-      },
-      "config-opts": [
-        "-Dprofile=development"
-      ],
-      "sources": [
+    "modules": [
+        "modules/glycin-loaders.json",
+        "modules/ffmpeg.json",
+        "modules/libshumate.json",
+        "modules/opencv.json",
+        "modules/libonnxruntime.json",
         {
-          "type": "dir",
-          "path": "../"
+            "name": "fotema",
+            "buildsystem": "meson",
+            "run-tests": true,
+
+            "build-options": {
+                "append-path": "/usr/lib/sdk/rust-stable/bin:/usr/lib/sdk/llvm19/bin",
+                "prepend-ld-library-path": "/usr/lib/sdk/llvm19/lib",
+                "env": {
+                    "OPENCV_INCLUDE_PATHS": "/app/include/opencv4",
+                    "LIBCLANG_PATH": "/usr/lib/sdk/llvm19/lib",
+                    "ORT_STRATEGY": "system"
+                }
+            },
+            "config-opts": ["-Dprofile=development"],
+            "sources": [
+                {
+                    "type": "dir",
+                    "path": "../"
+                }
+            ]
         }
-      ]
-    }
-  ]
+    ]
 }
