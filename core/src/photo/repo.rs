@@ -475,6 +475,32 @@ impl Repository {
         Ok(result)
     }
 
+    /// Gets all pictures that haven't been scanned for faces.
+    /// This method is not on the people repo because I don't what that repo
+    /// to need a pic_base_dir.
+    pub fn get_face_detection_candidate(
+        &self,
+        picture_id: &PictureId,
+    ) -> Result<Option<FaceDetectionCandidate>> {
+        let con = self.con.lock().unwrap();
+        let mut stmt = con.prepare(
+            "SELECT
+                    pictures.picture_id,
+                    pictures.picture_path_b64,
+                FROM pictures
+                WHERE pictures.picture_id = ?1",
+        )?;
+
+        let result = stmt
+            .query_map([picture_id.id()], |row| {
+                self.to_face_detection_candidate(row)
+            })?
+            .flatten()
+            .nth(0);
+
+        Ok(result)
+    }
+
     fn to_face_detection_candidate(
         &self,
         row: &Row<'_>,

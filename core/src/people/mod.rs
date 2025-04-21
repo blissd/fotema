@@ -5,6 +5,7 @@
 pub mod model;
 pub mod repo;
 
+pub use model::FaceDetectionCandidate;
 pub use model::FaceId;
 pub use model::Person;
 pub use model::PersonId;

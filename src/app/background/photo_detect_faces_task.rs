@@ -18,6 +18,7 @@ use tracing::{error, info};
 
 use fotema_core::machine_learning::face_extractor::FaceExtractor;
 use fotema_core::people;
+use fotema_core::people::FaceDetectionCandidate;
 use fotema_core::photo;
 use fotema_core::photo::PictureId;
 
@@ -55,9 +56,9 @@ pub struct PhotoDetectFacesTask {
 impl PhotoDetectFacesTask {
     fn detect_for_one(&self, sender: ComponentSender<Self>, picture_id: PictureId) -> Result<()> {
         self.people_repo.delete_faces(picture_id)?;
-        let result = self.photo_repo.get_picture_path(picture_id)?;
-        if let Some(picture_path) = result {
-            let unprocessed = vec![(picture_id, picture_path)];
+        let result = self.photo_repo.get_face_detection_candidate(&picture_id)?;
+        if let Some(candidate) = result {
+            let unprocessed = vec![candidate];
             self.detect(sender, unprocessed)
         } else {
             Err(anyhow!("No file to scan"))
@@ -65,11 +66,11 @@ impl PhotoDetectFacesTask {
     }
 
     fn detect_for_all(&self, sender: ComponentSender<Self>) -> Result<()> {
-        let unprocessed: Vec<(PictureId, PathBuf)> = self
+        let unprocessed: Vec<FaceDetectionCandidate> = self
             .photo_repo
-            .find_need_face_scan()?
+            .find_face_detection_candidates()?
             .into_iter()
-            .filter(|(_, path)| path.exists())
+            .filter(|candidate| candidate.sandbox_path.exists())
             .collect();
 
         self.detect(sender, unprocessed)
@@ -78,7 +79,7 @@ impl PhotoDetectFacesTask {
     fn detect(
         &self,
         sender: ComponentSender<Self>,
-        unprocessed: Vec<(PictureId, PathBuf)>,
+        unprocessed: Vec<FaceDetectionCandidate>,
     ) -> Result<()> {
         let start = std::time::Instant::now();
 
@@ -108,20 +109,20 @@ impl PhotoDetectFacesTask {
             //.into_iter()
             .par_iter()
             .take_any_while(|_| !self.stop.load(Ordering::Relaxed))
-            .for_each(|(picture_id, path)| {
+            .for_each(|candidate| {
                 let mut repo = self.people_repo.clone();
 
                 // Careful! panic::catch_unwind returns Ok(Err) if the evaluated expression returns
                 // an error but doesn't panic.
-                let result = block_on(async { extractor.extract_faces(picture_id, path).await })
-                    .and_then(|faces| repo.clone().add_face_scans(picture_id, &faces));
+                let result = block_on(async { extractor.extract_faces(&candidate.picture_id, &candidate.sandbox_path).await })
+                    .and_then(|faces| repo.clone().add_face_scans(&candidate.picture_id, &faces));
 
                 if result.is_err() {
                     error!(
                         "Failed detecting faces: Photo path: {:?}. Error: {:?}",
-                        path, result
+                        candidate.sandbox_path, result
                     );
-                    let _ = repo.mark_face_scan_broken(picture_id);
+                    let _ = repo.mark_face_scan_broken(&candidate.picture_id);
                 }
 
                 self.progress_monitor.emit(ProgressMonitorInput::Advance);
