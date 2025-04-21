@@ -410,8 +410,8 @@ pub struct Bootstrap {
 impl Bootstrap {
     fn build_controllers(
         &mut self,
-        pic_base_dir: PathBuf,
-        pic_base_dir_host_path: PathBuf,
+        library_sandbox_base_path: PathBuf,
+        library_host_base_path: PathBuf,
         sender: &ComponentSender<Self>,
     ) -> anyhow::Result<Controllers> {
         let data_dir = glib::user_data_dir().join(APP_ID);
@@ -429,11 +429,11 @@ impl Bootstrap {
 
         let thumbnailer = Thumbnailer::build(&thumbnail_dir);
 
-        let photo_scanner = photo::Scanner::build(&pic_base_dir)?;
+        let photo_scanner = photo::Scanner::build(&library_sandbox_base_path)?;
 
         let photo_repo = photo::Repository::open(
-            &pic_base_dir,
-            &pic_base_dir_host_path,
+            &library_sandbox_base_path,
+            &library_host_base_path,
             &cache_dir,
             &data_dir,
             self.con.clone(),
@@ -441,11 +441,11 @@ impl Bootstrap {
 
         let photo_thumbnailer = photo::PhotoThumbnailer::build(thumbnailer.clone())?;
 
-        let video_scanner = video::Scanner::build(&pic_base_dir)?;
+        let video_scanner = video::Scanner::build(&library_sandbox_base_path)?;
 
         let video_repo = video::Repository::open(
-            &pic_base_dir,
-            &pic_base_dir_host_path,
+            &library_sandbox_base_path,
+            &library_host_base_path,
             &cache_dir,
             &data_dir,
             self.con.clone(),
@@ -456,13 +456,15 @@ impl Bootstrap {
         let motion_photo_extractor = photo::MotionPhotoExtractor::build(&cache_dir)?;
 
         let visual_repo = visual::Repository::open(
-            &pic_base_dir,
-            &pic_base_dir_host_path,
+            &library_sandbox_base_path,
+            &library_host_base_path,
             &cache_dir,
             self.con.clone(),
         )?;
 
-        let people_repo = people::Repository::open(&data_dir, self.con.clone())?;
+        let people_repo = people::Repository::open(
+            &data_dir,
+            self.con.clone())?;
 
         let stop = Arc::new(AtomicBool::new(false));
 

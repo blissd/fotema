@@ -2,11 +2,25 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use crate::photo::model::Orientation;
+use crate::photo::model::{Orientation, PictureId};
+use crate::thumbnailify;
 use chrono::{DateTime, Utc};
 use opencv::core::Mat;
 use std::fmt::Display;
 use std::path::PathBuf;
+
+#[derive(Debug, Clone)]
+pub struct FaceDetectionCandidate {
+    pub picture_id: PictureId,
+    pub host_path: PathBuf,
+    pub sandbox_path: PathBuf,
+}
+
+impl FaceDetectionCandidate {
+    pub fn thumbnail_hash(&self) -> String {
+        thumbnailify::compute_hash_for_path(&self.host_path)
+    }
+}
 
 /// Database ID
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

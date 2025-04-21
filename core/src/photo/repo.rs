@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use crate::path_encoding;
+use crate::people::model::FaceDetectionCandidate;
 use crate::photo::model::{Picture, PictureId, ScannedFile};
 
 use super::Metadata;
@@ -21,11 +22,11 @@ use std::sync::{Arc, Mutex};
 #[derive(Debug, Clone)]
 pub struct Repository {
     /// Base path to picture library on file system
-    library_base_path: PathBuf,
+    library_sandbox_base_path: PathBuf,
 
     /// Base path to picture library on file system.
     /// This is the path outside of the Flatpak sandbox.
-    library_base_dir_host_path: PathBuf,
+    library_host_base_path: PathBuf,
 
     /// Base path cache directory for motion photo videos
     cache_dir_base_path: PathBuf,
@@ -40,19 +41,19 @@ pub struct Repository {
 impl Repository {
     /// Builds a Repository and creates operational tables.
     pub fn open(
-        library_base_path: &Path,
-        library_base_dir_host_path: &Path,
+        library_sandbox_base_path: &Path,
+        library_host_base_path: &Path,
         cache_dir_base_path: &Path,
         data_dir_base_path: &Path,
         con: Arc<Mutex<rusqlite::Connection>>,
     ) -> Result<Repository> {
-        if !library_base_path.is_dir() {
-            bail!("{:?} is not a directory", library_base_path);
+        if !library_sandbox_base_path.is_dir() {
+            bail!("{:?} is not a directory", library_sandbox_base_path);
         }
 
         let repo = Repository {
-            library_base_path: library_base_path.into(),
-            library_base_dir_host_path: library_base_dir_host_path.into(),
+            library_sandbox_base_path: library_sandbox_base_path.into(),
+            library_host_base_path: library_host_base_path.into(),
             cache_dir_base_path: cache_dir_base_path.into(),
             data_dir_base_path: data_dir_base_path.into(),
             con,
@@ -163,7 +164,7 @@ impl Repository {
 
             for pic in pics {
                 // convert to relative path before saving to database
-                let picture_path = pic.path.strip_prefix(&self.library_base_path)?;
+                let picture_path = pic.path.strip_prefix(&self.library_sandbox_base_path)?;
                 let picture_path_b64 = path_encoding::to_base64(picture_path);
 
                 // Path without suffix so sibling pictures and videos can be related
@@ -375,15 +376,15 @@ impl Repository {
         let relative_path = path_encoding::from_base64(&relative_path)
             .map_err(|_| rusqlite::Error::InvalidQuery)?;
 
-        let picture_path = self.library_base_path.join(&relative_path);
-        let host_path = self.library_base_dir_host_path.join(&relative_path);
+        let sandbox_path = self.library_sandbox_base_path.join(&relative_path);
+        let host_path = self.library_host_base_path.join(&relative_path);
 
         let ordering_ts = row.get("ordering_ts").expect("must have ordering_ts");
         let is_selfie = row.get("is_selfie").ok();
 
         std::result::Result::Ok(Picture {
             picture_id,
-            path: picture_path,
+            path: sandbox_path,
             host_path,
             ordering_ts,
             is_selfie,
@@ -414,6 +415,7 @@ impl Repository {
     /// Gets all pictures that haven't been scanned for faces.
     /// This method is not on the people repo because I don't what that repo
     /// to need a pic_base_dir.
+    // deprecated. use find_face_detection_candidates.
     pub fn find_need_face_scan(&self) -> Result<Vec<(PictureId, PathBuf)>> {
         let con = self.con.lock().unwrap();
         let mut stmt = con.prepare(
@@ -442,6 +444,61 @@ impl Repository {
         Ok(result)
     }
 
+    /// Gets all pictures that haven't been scanned for faces.
+    /// This method is not on the people repo because I don't what that repo
+    /// to need a pic_base_dir.
+    pub fn find_face_detection_candidates(&self) -> Result<Vec<FaceDetectionCandidate>> {
+        let con = self.con.lock().unwrap();
+        let mut stmt = con.prepare(
+            "SELECT
+                    pictures.picture_id,
+                    pictures.picture_path_b64,
+                    COALESCE(
+                        pictures.exif_created_ts,
+                        pictures.exif_modified_ts,
+                        pictures.fs_created_ts,
+                        pictures.fs_modified_ts,
+                        CURRENT_TIMESTAMP
+                    ) AS ordering_ts
+                FROM pictures
+                LEFT OUTER JOIN pictures_face_scans USING (picture_id)
+                WHERE pictures_face_scans.picture_id IS NULL
+                AND COALESCE(pictures.is_broken, FALSE) IS FALSE
+                ORDER BY ordering_ts DESC",
+        )?;
+
+        let result = stmt
+            .query_map([], |row| self.to_face_detection_candidate(row))?
+            .flatten()
+            .collect();
+
+        Ok(result)
+    }
+
+    fn to_face_detection_candidate(
+        &self,
+        row: &Row<'_>,
+    ) -> rusqlite::Result<FaceDetectionCandidate> {
+        let picture_id = row.get("picture_id").map(PictureId::new)?;
+
+        let relative_path = row
+            .get("picture_path_b64")
+            .ok()
+            .and_then(|x: String| path_encoding::from_base64(&x).ok());
+
+        let host_path = relative_path
+            .as_ref()
+            .map(|x| self.library_host_base_path.join(x));
+
+        let sandbox_path = relative_path.map(|x| self.library_sandbox_base_path.join(x));
+
+        Ok(FaceDetectionCandidate {
+            picture_id,
+            host_path: host_path.expect("Must have host path"),
+            sandbox_path: sandbox_path.expect("Must have sandbox path"),
+        })
+    }
+
     pub fn get_picture_path(&self, picture_id: PictureId) -> Result<Option<PathBuf>> {
         let con = self.con.lock().unwrap();
         let mut stmt = con.prepare(
@@ -464,11 +521,11 @@ impl Repository {
     fn to_picture_id_path_tuple(&self, row: &Row<'_>) -> rusqlite::Result<(PictureId, PathBuf)> {
         let picture_id = row.get("picture_id").map(PictureId::new)?;
 
-        let picture_path: String = row.get("picture_path_b64")?;
-        let picture_path =
-            path_encoding::from_base64(&picture_path).map_err(|_| rusqlite::Error::InvalidQuery)?;
-        let picture_path = self.library_base_path.join(picture_path);
+        let relative_path: String = row.get("picture_path_b64")?;
+        let relative_path = path_encoding::from_base64(&relative_path)
+            .map_err(|_| rusqlite::Error::InvalidQuery)?;
+        let sandbox_path = self.library_sandbox_base_path.join(relative_path);
 
-        std::result::Result::Ok((picture_id, picture_path))
+        std::result::Result::Ok((picture_id, sandbox_path))
     }
 }
