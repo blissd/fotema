@@ -10,6 +10,7 @@ use gdk4::prelude::TextureExt;
 use glycin;
 use std::io::Cursor;
 use std::path::Path;
+use tracing::info;
 
 use crate::thumbnailify;
 
@@ -35,6 +36,9 @@ impl PhotoThumbnailer {
                 host_path.to_string_lossy()
             );
         }
+
+        let exists = sandbox_path.exists();
+        info!("Photo sandbox path exists? {exists}");
 
         self.thumbnail_internal(host_path, sandbox_path)
             .await
