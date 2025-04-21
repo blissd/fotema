@@ -37,9 +37,6 @@ impl PhotoThumbnailer {
             );
         }
 
-        let exists = sandbox_path.exists();
-        info!("Photo sandbox path exists? {exists}");
-
         self.thumbnail_internal(host_path, sandbox_path)
             .await
             .map_err(|err| {

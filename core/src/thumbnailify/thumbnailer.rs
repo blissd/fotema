@@ -168,6 +168,7 @@ pub fn generate_thumbnail(
     // Prepare a temporary file in the same directory as the final thumbnail.
     // Using `tempfile_in` ensures that the temp file is on the same filesystem
     // so that we can atomically persist (rename) it.
+    info!("thumb_path={:?}", thumb_path);
     let thumb_dir = thumb_path.parent().ok_or_else(|| {
         io::Error::new(
             io::ErrorKind::Other,
