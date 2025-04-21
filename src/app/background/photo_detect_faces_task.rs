@@ -114,7 +114,7 @@ impl PhotoDetectFacesTask {
 
                 // Careful! panic::catch_unwind returns Ok(Err) if the evaluated expression returns
                 // an error but doesn't panic.
-                let result = block_on(async { extractor.extract_faces(&candidate.picture_id, &candidate.sandbox_path).await })
+                let result = block_on(async { extractor.extract_faces(&candidate).await })
                     .and_then(|faces| repo.clone().add_face_scans(&candidate.picture_id, &faces));
 
                 if result.is_err() {

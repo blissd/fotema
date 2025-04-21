@@ -2,7 +2,9 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+use crate::people::FaceDetectionCandidate;
 use crate::photo::model::PictureId;
+
 use anyhow::*;
 
 use super::nms::Nms;
@@ -164,15 +166,10 @@ impl FaceExtractor {
     }
 
     /// Identify faces in a photo and return a vector of paths of extracted face images.
-    pub async fn extract_faces(
-        &self,
-        picture_id: &PictureId,
-        picture_path: &Path,
-    ) -> Result<Vec<Face>> {
-        // return Ok(vec![]);
-        info!("Detecting faces in {:?}", picture_path);
+    pub async fn extract_faces(&self, candidate: &FaceDetectionCandidate) -> Result<Vec<Face>> {
+        info!("Detecting faces in {:?}", candidate.sandbox_path);
 
-        let original_image = Self::open_image(picture_path).await?;
+        let original_image = Self::open_image(&candidate.sandbox_path).await?;
 
         let image = original_image.clone().into_rgb8().into_array3();
 
@@ -216,16 +213,16 @@ impl FaceExtractor {
 
         debug!(
             "Picture {} has {} faces. Found: {:?}",
-            picture_id,
+            candidate.picture_id,
             faces.len(),
             faces
         );
 
         let base_path = {
             // Create a directory per 1000 thumbnails
-            let partition = (picture_id.id() / 1000) as i32;
+            let partition = (candidate.picture_id.id() / 1000) as i32;
             let partition = format!("{:0>4}", partition);
-            let file_name = format!("{}", picture_id);
+            let file_name = format!("{}", candidate.picture_id);
             self.base_path.join(partition).join(file_name)
         };
 
