@@ -133,6 +133,7 @@ pub fn generate_thumbnail(
     size: ThumbnailSize,
     src_image: DynamicImage,
 ) -> Result<PathBuf, ThumbnailError> {
+    info!("Generating thumbnail for hostpath: {:?}", host_path);
     let abs_path = host_path.canonicalize()?;
     info!("canonicalized path: {:?}", abs_path);
 
