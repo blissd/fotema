@@ -21,6 +21,7 @@ use fotema_core::people;
 use fotema_core::people::FaceDetectionCandidate;
 use fotema_core::photo;
 use fotema_core::photo::PictureId;
+use fotema_core::thumbnailify::Thumbnailer;
 
 use crate::app::components::progress_monitor::{ProgressMonitor, ProgressMonitorInput, TaskName};
 
@@ -46,6 +47,7 @@ pub struct PhotoDetectFacesTask {
 
     /// Base directory for storing photo faces
     faces_base_dir: PathBuf,
+    thumbnailer: Thumbnailer,
 
     photo_repo: photo::Repository,
     people_repo: people::Repository,
@@ -103,7 +105,7 @@ impl PhotoDetectFacesTask {
         // on the main thread.
         // Also, this has the advantage of extractor being dropped after use, which means
         // the face detection models will be unloaded from memory.
-        let extractor = FaceExtractor::build(&self.faces_base_dir)?;
+        let extractor = FaceExtractor::build(&self.faces_base_dir, self.thumbnailer.clone())?;
 
         unprocessed
             //.into_iter()
@@ -146,6 +148,7 @@ impl Worker for PhotoDetectFacesTask {
     type Init = (
         Arc<AtomicBool>,
         PathBuf,
+        Thumbnailer,
         photo::Repository,
         people::Repository,
         Arc<Reducer<ProgressMonitor>>,
@@ -154,12 +157,13 @@ impl Worker for PhotoDetectFacesTask {
     type Output = PhotoDetectFacesTaskOutput;
 
     fn init(
-        (stop, faces_base_dir, photo_repo, people_repo, progress_monitor): Self::Init,
+        (stop, faces_base_dir, thumbnailer, photo_repo, people_repo, progress_monitor): Self::Init,
         _sender: ComponentSender<Self>,
     ) -> Self {
         PhotoDetectFacesTask {
             stop,
             faces_base_dir,
+            thumbnailer,
             photo_repo,
             people_repo,
             progress_monitor,

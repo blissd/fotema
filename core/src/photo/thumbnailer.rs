@@ -69,6 +69,13 @@ impl PhotoThumbnailer {
             host_path,
             sandbox_path,
             thumbnailify::ThumbnailSize::Large,
+            src_image.clone(),
+        )?;
+
+        let _ = self.thumbnailer.generate_thumbnail(
+            host_path,
+            sandbox_path,
+            thumbnailify::ThumbnailSize::XLarge,
             src_image,
         )?;
 

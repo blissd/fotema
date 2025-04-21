@@ -44,6 +44,10 @@ impl Thumbnailer {
         thumbnailer::is_thumbnail_up_to_date(&self.thumbnails_path, host_path)
     }
 
+    pub fn get_thumbnail_path(&self, hash: &str, size: ThumbnailSize) -> PathBuf {
+        get_thumbnail_hash_output(&self.thumbnails_path, hash, size)
+    }
+
     /**
      * Compute thumbnail path, or sensible fallback if preferred size does not exist.
      * If no thumbnails exist, then return preferred path pointing to absent file.

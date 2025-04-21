@@ -451,7 +451,7 @@ impl Bootstrap {
             self.con.clone(),
         )?;
 
-        let video_thumbnailer = video::VideoThumbnailer::build(thumbnailer)?;
+        let video_thumbnailer = video::VideoThumbnailer::build(thumbnailer.clone())?;
 
         let motion_photo_extractor = photo::MotionPhotoExtractor::build(&cache_dir)?;
 
@@ -619,6 +619,7 @@ impl Bootstrap {
             .detach_worker((
                 stop.clone(),
                 data_dir,
+                thumbnailer,
                 photo_repo.clone(),
                 people_repo.clone(),
                 self.progress_monitor.clone(),
