@@ -133,13 +133,15 @@ pub fn generate_thumbnail(
     size: ThumbnailSize,
     src_image: DynamicImage,
 ) -> Result<PathBuf, ThumbnailError> {
-    info!("Generating thumbnail for hostpath: {:?}", host_path);
-    let abs_path = host_path.canonicalize()?;
-    info!("canonicalized path: {:?}", abs_path);
+    // info!("Generating thumbnail for hostpath: {:?}", host_path);
 
-    let _ = abs_path
-        .to_str()
-        .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::InvalidData, "Invalid file path"))?;
+    // `canonicalize()` will fail if `host_path` does not exist... which means
+    // that it will __never work__ inside the Flatpak sandbox.
+    // let abs_path = host_path.canonicalize()?;
+
+    //let _ = abs_path
+    //    .to_str()
+    //   .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::InvalidData, "Invalid file path"))?;
 
     let file_uri = get_file_uri(host_path)?;
 
@@ -158,7 +160,6 @@ pub fn generate_thumbnail(
 
     // Determine the expected output thumbnail path.
     let thumb_path = get_thumbnail_hash_output(thumbnails_base_dir, &hash, size);
-    info!("thumb_path={:?}", thumb_path);
 
     // If the thumbnail already exists and is up to date, return it immediately.
     if thumb_path.exists() && is_thumbnail_up_to_date(&thumb_path, sandbox_path) {
