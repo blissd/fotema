@@ -134,6 +134,7 @@ pub fn generate_thumbnail(
     src_image: DynamicImage,
 ) -> Result<PathBuf, ThumbnailError> {
     let abs_path = host_path.canonicalize()?;
+    info!("canonicalized path: {:?}", abs_path);
 
     let _ = abs_path
         .to_str()
@@ -156,6 +157,7 @@ pub fn generate_thumbnail(
 
     // Determine the expected output thumbnail path.
     let thumb_path = get_thumbnail_hash_output(thumbnails_base_dir, &hash, size);
+    info!("thumb_path={:?}", thumb_path);
 
     // If the thumbnail already exists and is up to date, return it immediately.
     if thumb_path.exists() && is_thumbnail_up_to_date(&thumb_path, sandbox_path) {
@@ -168,7 +170,6 @@ pub fn generate_thumbnail(
     // Prepare a temporary file in the same directory as the final thumbnail.
     // Using `tempfile_in` ensures that the temp file is on the same filesystem
     // so that we can atomically persist (rename) it.
-    info!("thumb_path={:?}", thumb_path);
     let thumb_dir = thumb_path.parent().ok_or_else(|| {
         io::Error::new(
             io::ErrorKind::Other,
