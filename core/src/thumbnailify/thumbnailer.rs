@@ -206,8 +206,10 @@ pub fn generate_thumbnail(
     let dst_height = (src_height * scale) as u32;
     let mut dst_image = Image::new(dst_width, dst_height, fr::PixelType::U8x4);
 
+    // By default uses a slow but high-quality thumbnail generator.
     let mut resizer = Resizer::new();
-    resizer.resize(&src_image, &mut dst_image, &ResizeOptions::new())?;
+    let resize_options = ResizeOptions::new();
+    resizer.resize(&src_image, &mut dst_image, &resize_options)?;
 
     let file = std::fs::File::create(&temp_path)?;
     let file = BufWriter::new(file);
