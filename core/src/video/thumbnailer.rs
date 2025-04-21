@@ -32,6 +32,16 @@ impl VideoThumbnailer {
             );
         }
 
+        self.thumbnail_internal(host_path, sandbox_path)
+            .map_err(|err| {
+                let _ = self
+                    .thumbnailer
+                    .write_failed_thumbnail(&host_path, sandbox_path);
+                err
+            })
+    }
+
+    pub fn thumbnail_internal(&self, host_path: &Path, sandbox_path: &Path) -> Result<()> {
         // Extract first frame of video for thumbnail
         let temporary_png_file = tempfile::Builder::new().suffix(".png").tempfile()?;
 
@@ -50,21 +60,10 @@ impl VideoThumbnailer {
             .status()?;
 
         if !status.success() {
-            let _ = self
-                .thumbnailer
-                .write_failed_thumbnail(&host_path, sandbox_path);
-
             anyhow::bail!("FFMpeg exited with status {:?}", status.code());
         }
 
-        let src_image = ImageReader::open(&temporary_png_file)?
-            .decode()
-            .map_err(|err| {
-                let _ = self
-                    .thumbnailer
-                    .write_failed_thumbnail(&host_path, sandbox_path);
-                err
-            })?;
+        let src_image = ImageReader::open(&temporary_png_file)?.decode()?;
 
         let _ = self.thumbnailer.generate_thumbnail(
             host_path,

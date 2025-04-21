@@ -10,6 +10,7 @@ use gdk4::prelude::TextureExt;
 use glycin;
 use std::io::Cursor;
 use std::path::Path;
+use tracing::error;
 
 use crate::thumbnailify;
 
@@ -36,32 +37,33 @@ impl PhotoThumbnailer {
             );
         }
 
-        let file = gio::File::for_path(sandbox_path);
-        let loader = glycin::Loader::new(file);
-        let image = loader.load().await.map_err(|err| {
-            let _ = self
-                .thumbnailer
-                .write_failed_thumbnail(&host_path, sandbox_path);
-            err
-        })?;
-
-        let frame = image.next_frame().await.map_err(|err| {
-            let _ = self
-                .thumbnailer
-                .write_failed_thumbnail(&host_path, sandbox_path);
-            err
-        })?;
-
-        let bytes = frame.texture().save_to_png_bytes();
-
-        let src_image = ImageReader::with_format(Cursor::new(bytes), image::ImageFormat::Png)
-            .decode()
+        self.thumbnail_internal(host_path, sandbox_path)
+            .await
             .map_err(|err| {
                 let _ = self
                     .thumbnailer
                     .write_failed_thumbnail(&host_path, sandbox_path);
                 err
-            })?;
+            })
+    }
+
+    async fn thumbnail_internal(&self, host_path: &Path, sandbox_path: &Path) -> Result<()> {
+        let file = gio::File::for_path(sandbox_path);
+        let loader = glycin::Loader::new(file);
+        let image = loader.load().await.map_err(|err| {
+            error!("Glycin failed to load file at {:?}", sandbox_path);
+            err
+        })?;
+
+        let frame = image.next_frame().await.map_err(|err| {
+            error!("Glycin failed to fetch next frame from {:?}", sandbox_path);
+            err
+        })?;
+
+        let bytes = frame.texture().save_to_png_bytes();
+
+        let src_image =
+            ImageReader::with_format(Cursor::new(bytes), image::ImageFormat::Png).decode()?;
 
         let _ = self.thumbnailer.generate_thumbnail(
             host_path,

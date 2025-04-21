@@ -133,11 +133,15 @@ pub fn generate_thumbnail(
     size: ThumbnailSize,
     src_image: DynamicImage,
 ) -> Result<PathBuf, ThumbnailError> {
-    let abs_path = host_path.canonicalize()?;
+    // info!("Generating thumbnail for hostpath: {:?}", host_path);
 
-    let _ = abs_path
-        .to_str()
-        .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::InvalidData, "Invalid file path"))?;
+    // `canonicalize()` will fail if `host_path` does not exist... which means
+    // that it will __never work__ inside the Flatpak sandbox.
+    // let abs_path = host_path.canonicalize()?;
+
+    //let _ = abs_path
+    //    .to_str()
+    //   .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::InvalidData, "Invalid file path"))?;
 
     let file_uri = get_file_uri(host_path)?;
 
@@ -206,8 +210,10 @@ pub fn generate_thumbnail(
     let dst_height = (src_height * scale) as u32;
     let mut dst_image = Image::new(dst_width, dst_height, fr::PixelType::U8x4);
 
+    // By default uses a slow but high-quality thumbnail generator.
     let mut resizer = Resizer::new();
-    resizer.resize(&src_image, &mut dst_image, &ResizeOptions::new())?;
+    let resize_options = ResizeOptions::new();
+    resizer.resize(&src_image, &mut dst_image, &resize_options)?;
 
     let file = std::fs::File::create(&temp_path)?;
     let file = BufWriter::new(file);
