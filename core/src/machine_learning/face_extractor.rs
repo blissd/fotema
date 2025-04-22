@@ -203,17 +203,17 @@ impl FaceExtractor {
 
         let mut faces: Vec<(DetectedFace, String)> = vec![];
 
-        /*
-                let result = self.mtcnn.detect(image.view().into_dyn());
-                if let Ok(detected_faces) = result {
-                    for f in detected_faces {
-                        faces.push((f, "mtcnn".into()));
-                    }
-                } else {
-                    error!("Failed extracting faces with MTCNN: {:?}", result);
-                }
-        */
 
+        let result = self.mtcnn.detect(image.view().into_dyn());
+        if let Ok(detected_faces) = result {
+            for f in detected_faces {
+                faces.push((f, "mtcnn".into()));
+            }
+        } else {
+            error!("Failed extracting faces with MTCNN: {:?}", result);
+        }
+
+/*
         let result = self.blaze_face_big.detect(image.view().into_dyn());
         if let Ok(detected_faces) = result {
             for f in detected_faces {
@@ -222,6 +222,7 @@ impl FaceExtractor {
         } else {
             error!("Failed extracting faces with blaze_face_big: {:?}", result);
         }
+        */
 
         let result = self.blaze_face_small.detect(image.view().into_dyn());
         if let Ok(detected_faces) = result {
@@ -234,7 +235,7 @@ impl FaceExtractor {
                 result
             );
         }
-
+/*
         let result = self.blaze_face_huge.detect(image.view().into_dyn());
         if let Ok(detected_faces) = result {
             for f in detected_faces {
@@ -243,6 +244,7 @@ impl FaceExtractor {
         } else {
             error!("Failed extracting faces with blaze_face_huge: {:?}", result);
         }
+        */
 
         // Use "non-maxima suppression" to remove duplicate matches.
         let nms = Nms::default();
