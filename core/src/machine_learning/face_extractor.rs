@@ -89,17 +89,7 @@ pub struct FaceExtractor {
 
     thumbnailer: Thumbnailer,
 
-    // BlazeFace model configured to match large to huge faces, like selfies
-    blaze_face_huge: Box<dyn rust_faces::FaceDetector>,
-
-    // BlazeFace model configured to match medium to large faces.
-    blaze_face_big: Box<dyn rust_faces::FaceDetector>,
-
-    // BlazeFace model configured to match small to medium faces.
-    blaze_face_small: Box<dyn rust_faces::FaceDetector>,
-
-    // MTCNN model.
-    mtcnn: Box<dyn rust_faces::FaceDetector>,
+    detectors: Vec<(Box<dyn rust_faces::FaceDetector>, String)>,
 }
 
 impl FaceExtractor {
@@ -107,6 +97,8 @@ impl FaceExtractor {
         let base_path = PathBuf::from(base_path).join("photo_faces");
 
         std::fs::create_dir_all(&base_path)?;
+
+        let mut detectors: Vec<(Box<dyn rust_faces::FaceDetector>, String)> = vec![];
 
         // Tweaking the target size seems to affect which faces are detected.
         // Testing against my library, it looks like smaller numbers match bigger faces,
@@ -123,14 +115,18 @@ impl FaceExtractor {
             ..BlazeFaceParams::default()
         };
 
-        let blaze_face_huge = FaceDetectorBuilder::new(FaceDetection::BlazeFace640(bz_params_huge))
+        let blaze_face_huge =
+            FaceDetectorBuilder::new(FaceDetection::BlazeFace640(bz_params_huge.clone()))
+                .download()
+                .build()?;
+
+        detectors.push((blaze_face_huge, "blaze_face_640_huge".into()));
+
+        let blaze_face_huge = FaceDetectorBuilder::new(FaceDetection::BlazeFace320(bz_params_huge))
             .download()
-            .infer_params(InferParams {
-                provider: Provider::OrtCpu,
-                intra_threads: Some(5),
-                ..Default::default()
-            })
             .build()?;
+
+        detectors.push((blaze_face_huge, "blaze_face_320_huge".into()));
 
         let bz_params_big = BlazeFaceParams {
             score_threshold: 0.95,
@@ -138,51 +134,47 @@ impl FaceExtractor {
             ..BlazeFaceParams::default()
         };
 
-        let blaze_face_big = FaceDetectorBuilder::new(FaceDetection::BlazeFace640(bz_params_big))
+        let blaze_face_big =
+            FaceDetectorBuilder::new(FaceDetection::BlazeFace640(bz_params_big.clone()))
+                .download()
+                .build()?;
+
+        detectors.push((blaze_face_big, "blaze_face_640_big".into()));
+
+        let blaze_face_big = FaceDetectorBuilder::new(FaceDetection::BlazeFace320(bz_params_big))
             .download()
-            .infer_params(InferParams {
-                provider: Provider::OrtCpu,
-                intra_threads: Some(5),
-                ..Default::default()
-            })
             .build()?;
 
-        let bz_params_small = BlazeFaceParams {
-            score_threshold: 0.95,
-            target_size: 1280,
-            ..BlazeFaceParams::default()
-        };
+        detectors.push((blaze_face_big, "blaze_face_320_big".into()));
 
-        //let bz_params_small = BlazeFaceParams::default();
+        let bz_params_small = BlazeFaceParams::default();
 
         let blaze_face_small =
-            FaceDetectorBuilder::new(FaceDetection::BlazeFace640(bz_params_small))
+            FaceDetectorBuilder::new(FaceDetection::BlazeFace640(bz_params_small.clone()))
                 .download()
-                .infer_params(InferParams {
-                    provider: Provider::OrtCpu,
-                    //intra_threads: Some(5),
-                    ..Default::default()
-                })
                 .build()?;
+
+        detectors.push((blaze_face_small, "blaze_face_640_small".into()));
+
+        let blaze_face_small =
+            FaceDetectorBuilder::new(FaceDetection::BlazeFace320(bz_params_small))
+                .download()
+                .build()?;
+
+        detectors.push((blaze_face_small, "blaze_face_320_small".into()));
 
         let mtcnn_params = rust_faces::MtCnnParams::default();
 
         let mtcnn = FaceDetectorBuilder::new(FaceDetection::MtCnn(mtcnn_params))
             .download()
-            .infer_params(InferParams {
-                provider: Provider::OrtCpu,
-                //intra_threads: Some(5),
-                ..Default::default()
-            })
             .build()?;
+
+        detectors.push((mtcnn, "mtcnn".into()));
 
         Ok(FaceExtractor {
             base_path,
             thumbnailer,
-            blaze_face_huge,
-            blaze_face_big,
-            blaze_face_small,
-            mtcnn,
+            detectors,
         })
     }
 
@@ -203,48 +195,16 @@ impl FaceExtractor {
 
         let mut faces: Vec<(DetectedFace, String)> = vec![];
 
-
-        let result = self.mtcnn.detect(image.view().into_dyn());
-        if let Ok(detected_faces) = result {
-            for f in detected_faces {
-                faces.push((f, "mtcnn".into()));
+        for (detector, name) in &self.detectors {
+            let result = detector.detect(image.view().into_dyn());
+            if let Ok(detected_faces) = result {
+                for f in detected_faces {
+                    faces.push((f, name.into()));
+                }
+            } else {
+                error!("Failed extracting faces with {name}: {:?}", result);
             }
-        } else {
-            error!("Failed extracting faces with MTCNN: {:?}", result);
         }
-
-/*
-        let result = self.blaze_face_big.detect(image.view().into_dyn());
-        if let Ok(detected_faces) = result {
-            for f in detected_faces {
-                faces.push((f, "blaze_face_big".into()));
-            }
-        } else {
-            error!("Failed extracting faces with blaze_face_big: {:?}", result);
-        }
-        */
-
-        let result = self.blaze_face_small.detect(image.view().into_dyn());
-        if let Ok(detected_faces) = result {
-            for f in detected_faces {
-                faces.push((f, "blaze_face_small".into()));
-            }
-        } else {
-            error!(
-                "Failed extracting faces with blaze_face_small: {:?}",
-                result
-            );
-        }
-/*
-        let result = self.blaze_face_huge.detect(image.view().into_dyn());
-        if let Ok(detected_faces) = result {
-            for f in detected_faces {
-                faces.push((f, "blaze_face_huge".into()));
-            }
-        } else {
-            error!("Failed extracting faces with blaze_face_huge: {:?}", result);
-        }
-        */
 
         // Use "non-maxima suppression" to remove duplicate matches.
         let nms = Nms::default();
@@ -258,19 +218,21 @@ impl FaceExtractor {
 
         faces.sort_by_key(|x| x.1.clone());
 
-        let mut faces_flat_grouped: Vec<(String, usize, DetectedFace)> = Vec::new();
+        //      let mut faces_flat_grouped: Vec<(String, usize, DetectedFace)> = Vec::new();
 
+        /*
         for (model_name, chunk) in &faces.into_iter().chunk_by(|x| x.1.clone()) {
             let mut vs = chunk
                 .enumerate()
                 .map(|(i, x)| (model_name.clone(), i, x.0))
                 .collect::<Vec<(String, usize, DetectedFace)>>();
             faces_flat_grouped.append(&mut vs);
-        }
+        }*/
 
-        let faces = faces_flat_grouped
+        let faces = faces
             .into_iter()
-            .map(|(model_name, index, f)| {
+            .enumerate()
+            .map(|(index, (f, model_name))| {
                 // Extract face and save to thumbnail.
                 // The bounding box is pretty tight, so make it a bit bigger.
                 // Also, make the box a square.
