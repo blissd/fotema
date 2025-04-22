@@ -120,13 +120,13 @@ impl FaceExtractor {
                 .download()
                 .build()?;
 
-        detectors.push((blaze_face_huge, "blaze_face_640_huge".into()));
+        //detectors.push((blaze_face_huge, "blaze_face_640_huge".into()));
 
         let blaze_face_huge = FaceDetectorBuilder::new(FaceDetection::BlazeFace320(bz_params_huge))
             .download()
             .build()?;
 
-        detectors.push((blaze_face_huge, "blaze_face_320_huge".into()));
+        //detectors.push((blaze_face_huge, "blaze_face_320_huge".into()));
 
         let bz_params_big = BlazeFaceParams {
             score_threshold: 0.95,
@@ -139,29 +139,29 @@ impl FaceExtractor {
                 .download()
                 .build()?;
 
-        detectors.push((blaze_face_big, "blaze_face_640_big".into()));
+        //detectors.push((blaze_face_big, "blaze_face_640_big".into()));
 
         let blaze_face_big = FaceDetectorBuilder::new(FaceDetection::BlazeFace320(bz_params_big))
             .download()
             .build()?;
 
-        detectors.push((blaze_face_big, "blaze_face_320_big".into()));
+        //detectors.push((blaze_face_big, "blaze_face_320_big".into()));
 
         let bz_params_small = BlazeFaceParams::default();
 
-        let blaze_face_small =
+        let blaze_face_default =
             FaceDetectorBuilder::new(FaceDetection::BlazeFace640(bz_params_small.clone()))
                 .download()
                 .build()?;
 
-        detectors.push((blaze_face_small, "blaze_face_640_small".into()));
+        detectors.push((blaze_face_default, "blaze_face_640_default".into()));
 
-        let blaze_face_small =
+        let blaze_face_default =
             FaceDetectorBuilder::new(FaceDetection::BlazeFace320(bz_params_small))
                 .download()
                 .build()?;
 
-        detectors.push((blaze_face_small, "blaze_face_320_small".into()));
+        //detectors.push((blaze_face_default, "blaze_face_320_default".into()));
 
         let mtcnn_params = rust_faces::MtCnnParams::default();
 
@@ -189,7 +189,6 @@ impl FaceExtractor {
             .get_thumbnail_path(&thumbnail_hash, ThumbnailSize::XLarge);
 
         let original_image = Self::open_image(&image_path).await?;
-        //let original_image = Self::open_image(&candidate.sandbox_path).await?;
 
         let image = original_image.clone().into_rgb8().into_array3();
 
@@ -215,19 +214,6 @@ impl FaceExtractor {
             candidate.picture_id,
             faces.len()
         );
-
-        faces.sort_by_key(|x| x.1.clone());
-
-        //      let mut faces_flat_grouped: Vec<(String, usize, DetectedFace)> = Vec::new();
-
-        /*
-        for (model_name, chunk) in &faces.into_iter().chunk_by(|x| x.1.clone()) {
-            let mut vs = chunk
-                .enumerate()
-                .map(|(i, x)| (model_name.clone(), i, x.0))
-                .collect::<Vec<(String, usize, DetectedFace)>>();
-            faces_flat_grouped.append(&mut vs);
-        }*/
 
         let faces = faces
             .into_iter()
