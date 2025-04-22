@@ -188,7 +188,7 @@ impl FaceExtractor {
 
     /// Identify faces in a photo and return a vector of paths of extracted face images.
     pub async fn extract_faces(&self, candidate: &FaceDetectionCandidate) -> Result<Vec<Face>> {
-        info!("Detecting faces in {:?}", candidate.sandbox_path);
+        info!("Detecting faces in {:?}", candidate.host_path);
 
         let thumbnail_hash = candidate.thumbnail_hash();
 
@@ -223,7 +223,6 @@ impl FaceExtractor {
             error!("Failed extracting faces with blaze_face_big: {:?}", result);
         }
 
-        /*
         let result = self.blaze_face_small.detect(image.view().into_dyn());
         if let Ok(detected_faces) = result {
             for f in detected_faces {
@@ -234,7 +233,7 @@ impl FaceExtractor {
                 "Failed extracting faces with blaze_face_small: {:?}",
                 result
             );
-        }*/
+        }
 
         let result = self.blaze_face_huge.detect(image.view().into_dyn());
         if let Ok(detected_faces) = result {
