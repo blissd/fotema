@@ -123,7 +123,7 @@ impl FaceExtractor {
             ..BlazeFaceParams::default()
         };
 
-        let blaze_face_huge = FaceDetectorBuilder::new(FaceDetection::BlazeFace320(bz_params_huge))
+        let blaze_face_huge = FaceDetectorBuilder::new(FaceDetection::BlazeFace640(bz_params_huge))
             .download()
             .infer_params(InferParams {
                 provider: Provider::OrtCpu,
@@ -138,7 +138,7 @@ impl FaceExtractor {
             ..BlazeFaceParams::default()
         };
 
-        let blaze_face_big = FaceDetectorBuilder::new(FaceDetection::BlazeFace320(bz_params_big))
+        let blaze_face_big = FaceDetectorBuilder::new(FaceDetection::BlazeFace640(bz_params_big))
             .download()
             .infer_params(InferParams {
                 provider: Provider::OrtCpu,
@@ -153,8 +153,10 @@ impl FaceExtractor {
             ..BlazeFaceParams::default()
         };
 
+        //let bz_params_small = BlazeFaceParams::default();
+
         let blaze_face_small =
-            FaceDetectorBuilder::new(FaceDetection::BlazeFace320(bz_params_small))
+            FaceDetectorBuilder::new(FaceDetection::BlazeFace640(bz_params_small))
                 .download()
                 .infer_params(InferParams {
                     provider: Provider::OrtCpu,
@@ -192,23 +194,26 @@ impl FaceExtractor {
 
         let image_path = self
             .thumbnailer
-            .get_thumbnail_path(&thumbnail_hash, ThumbnailSize::Large);
+            .get_thumbnail_path(&thumbnail_hash, ThumbnailSize::XLarge);
 
         let original_image = Self::open_image(&image_path).await?;
+        //let original_image = Self::open_image(&candidate.sandbox_path).await?;
 
         let image = original_image.clone().into_rgb8().into_array3();
 
         let mut faces: Vec<(DetectedFace, String)> = vec![];
-        let result = self.mtcnn.detect(image.view().into_dyn());
-        if let Ok(detected_faces) = result {
-            for f in detected_faces {
-                faces.push((f, "mtcnn".into()));
-            }
-        } else {
-            error!("Failed extracting faces with MTCNN: {:?}", result);
-        }
 
         /*
+                let result = self.mtcnn.detect(image.view().into_dyn());
+                if let Ok(detected_faces) = result {
+                    for f in detected_faces {
+                        faces.push((f, "mtcnn".into()));
+                    }
+                } else {
+                    error!("Failed extracting faces with MTCNN: {:?}", result);
+                }
+        */
+
         let result = self.blaze_face_big.detect(image.view().into_dyn());
         if let Ok(detected_faces) = result {
             for f in detected_faces {
@@ -216,38 +221,38 @@ impl FaceExtractor {
             }
         } else {
             error!("Failed extracting faces with blaze_face_big: {:?}", result);
+        }
+
+        /*
+        let result = self.blaze_face_small.detect(image.view().into_dyn());
+        if let Ok(detected_faces) = result {
+            for f in detected_faces {
+                faces.push((f, "blaze_face_small".into()));
+            }
+        } else {
+            error!(
+                "Failed extracting faces with blaze_face_small: {:?}",
+                result
+            );
         }*/
 
-        //let result = self.blaze_face_small.detect(image.view().into_dyn());
-        //if let Ok(detected_faces) = result {
-        //    for f in detected_faces {
-        //        faces.push((f, "blaze_face_small".into()));
-        //    }
-        //} else {
-        //    error!(
-        //        "Failed extracting faces with blaze_face_small: {:?}",
-        //        result
-        //    );
-        //}
-
-        //let result = self.blaze_face_huge.detect(image.view().into_dyn());
-        //if let Ok(detected_faces) = result {
-        //    for f in detected_faces {
-        //        faces.push((f, "blaze_face_huge".into()));
-        //    }
-        //} else {
-        //    error!("Failed extracting faces with blaze_face_huge: {:?}", result);
-        //}
+        let result = self.blaze_face_huge.detect(image.view().into_dyn());
+        if let Ok(detected_faces) = result {
+            for f in detected_faces {
+                faces.push((f, "blaze_face_huge".into()));
+            }
+        } else {
+            error!("Failed extracting faces with blaze_face_huge: {:?}", result);
+        }
 
         // Use "non-maxima suppression" to remove duplicate matches.
         let nms = Nms::default();
         let mut faces = nms.suppress_non_maxima(faces);
 
         debug!(
-            "Picture {} has {} faces. Found: {:?}",
+            "Picture {} has {} faces.",
             candidate.picture_id,
-            faces.len(),
-            faces
+            faces.len()
         );
 
         faces.sort_by_key(|x| x.1.clone());
