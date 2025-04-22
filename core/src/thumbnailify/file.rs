@@ -129,14 +129,19 @@ pub fn write_failed_thumbnail(
 /// `input` must be a host path.
 pub fn get_file_uri(input: &Path) -> Result<String, ThumbnailError> {
     debug!("Attempting to get file URI for path: {:?}", input);
-    // Attempt to canonicalize the input to get the full file path.
-    let canonical = std::fs::canonicalize(input).unwrap_or_else(|_| {
-        debug!(
-            "Failed to canonicalize path: {:?}, using the raw path as fallback",
-            input
-        );
-        PathBuf::from(input)
-    });
+    // Attempt to canonicalize the input to get the full file path.#
+    // `canonicalize()` will fail if `host_path` does not exist... which means
+    // that it will __never work__ inside the Flatpak sandbox.
+
+    //let canonical = std::fs::canonicalize(input).unwrap_or_else(|_| {
+    //    debug!(
+    //        "Failed to canonicalize path: {:?}, using the raw path as fallback",
+    //        input
+    //    );
+    //    PathBuf::from(input)
+    //});
+    let canonical = PathBuf::from(input);
+
     let url = Url::from_file_path(&canonical).map_err(|_| {
         std::io::Error::new(
             std::io::ErrorKind::InvalidData,
