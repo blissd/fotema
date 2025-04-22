@@ -94,3 +94,5 @@ prefs-ui-chronological-album-sort = Sort Order
     .descending = Malejąco
 prefs-machine-learning-section = Machine Learning
     .description = Skonfiguruj funkcje uczenia maszynowego.
+progress-idle = Brak zadań w tle.
+primary-menu-preferences = Preferencje
