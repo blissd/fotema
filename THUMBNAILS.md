@@ -30,41 +30,4 @@ cache [cleanup policies](https://davejansen.com/increase-thumbnail-cache-in-ubun
 
 ## Thumbnail size
 
-Fotema generates thumbnails of the "large" size, which makes the longest edge of
-the thumbnail 256 pixels. In my testing about 12,000 thumbnails takes a little over 1GB of storage.
-Your mileage may vary.
-
-## Using Fotema thumbnails for your system
-
-If you want to use Fotema's thumbnails for your system, then you can symlink
-your thumbnail cache to Fotema's thumbnail cache--but be aware that you will
-probably lose thumbnails unless you reconfigure the thumbnail cache cleanup policies.
-
-To use Fotema's thumbnail cache for your system:
-
-```bash
-rm -rf ~/.cache/thumbnails
-ln -s ~/.var/app/app.fotema.Fotema/cache/app.fotema.Fotema/thumbnails ~/.cache/thumbnails
-```
-
-## Packaging for non-Flatpak systems
-
-If you are packaging Fotema for a non-Flatpak system, then I suggest you keep
-Fotema's thumbnails in their default location to give your users
-the least surprising experience.
-
-However, if you wish to cause Fotema to use the user's default thumbnail cache, then
-you must patch the following files to change the thumbnail cache path:
-
-* `app.rs`
-* `bootstrap.rs`
-
-Look for the lines with the comment "Remove to use standard XDG thumbnail path".
-Example code:
-
-```rust
-let thumbnail_dir = glib::user_cache_dir()
-    .join(APP_ID) // Remove to use standard XDG thumbnail path
-    .join("thumbnails");
-```
-
+Fotema generates thumbnails of both the "large" and "x-large" size.
