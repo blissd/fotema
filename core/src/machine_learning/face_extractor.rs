@@ -14,13 +14,11 @@ use std::path::{Path, PathBuf};
 use std::result::Result::Ok;
 
 use rust_faces::{
-    BlazeFaceParams, Face as DetectedFace, FaceDetection, FaceDetectorBuilder, InferParams,
-    Provider, ToArray3,
+    BlazeFaceParams, Face as DetectedFace, FaceDetection, FaceDetectorBuilder, ToArray3,
 };
 
 use gdk4::prelude::TextureExt;
 use image::DynamicImage;
-use itertools::*;
 use tracing::{debug, error, info};
 
 #[derive(Debug, Clone)]
@@ -109,59 +107,62 @@ impl FaceExtractor {
         // 640. Half default. Misses a mix of some larger, some smaller.
         // 320. Quarter default. Matches only very big faces.
 
-        let bz_params_huge = BlazeFaceParams {
-            score_threshold: 0.95,
-            target_size: 160,
-            ..BlazeFaceParams::default()
-        };
+        /*
+                let bz_params_huge = BlazeFaceParams {
+                    score_threshold: 0.95,
+                    target_size: 160,
+                    ..BlazeFaceParams::default()
+                };
 
-        let blaze_face_huge =
-            FaceDetectorBuilder::new(FaceDetection::BlazeFace640(bz_params_huge.clone()))
-                .download()
-                .build()?;
+                let blaze_face_huge =
+                    FaceDetectorBuilder::new(FaceDetection::BlazeFace640(bz_params_huge.clone()))
+                        .download()
+                        .build()?;
 
-        //detectors.push((blaze_face_huge, "blaze_face_640_huge".into()));
+                //detectors.push((blaze_face_huge, "blaze_face_640_huge".into()));
 
-        let blaze_face_huge = FaceDetectorBuilder::new(FaceDetection::BlazeFace320(bz_params_huge))
-            .download()
-            .build()?;
+                let blaze_face_huge = FaceDetectorBuilder::new(FaceDetection::BlazeFace320(bz_params_huge))
+                    .download()
+                    .build()?;
 
-        //detectors.push((blaze_face_huge, "blaze_face_320_huge".into()));
+                //detectors.push((blaze_face_huge, "blaze_face_320_huge".into()));
 
-        let bz_params_big = BlazeFaceParams {
-            score_threshold: 0.95,
-            target_size: 640,
-            ..BlazeFaceParams::default()
-        };
+                let bz_params_big = BlazeFaceParams {
+                    score_threshold: 0.95,
+                    target_size: 640,
+                    ..BlazeFaceParams::default()
+                };
 
-        let blaze_face_big =
-            FaceDetectorBuilder::new(FaceDetection::BlazeFace640(bz_params_big.clone()))
-                .download()
-                .build()?;
+                let blaze_face_big =
+                    FaceDetectorBuilder::new(FaceDetection::BlazeFace640(bz_params_big.clone()))
+                        .download()
+                        .build()?;
 
-        //detectors.push((blaze_face_big, "blaze_face_640_big".into()));
+                //detectors.push((blaze_face_big, "blaze_face_640_big".into()));
 
-        let blaze_face_big = FaceDetectorBuilder::new(FaceDetection::BlazeFace320(bz_params_big))
-            .download()
-            .build()?;
+                let blaze_face_big = FaceDetectorBuilder::new(FaceDetection::BlazeFace320(bz_params_big))
+                    .download()
+                    .build()?;
 
-        //detectors.push((blaze_face_big, "blaze_face_320_big".into()));
-
-        let bz_params_small = BlazeFaceParams::default();
+                //detectors.push((blaze_face_big, "blaze_face_320_big".into()));
+        */
+        let bz_params_default = BlazeFaceParams::default();
 
         let blaze_face_default =
-            FaceDetectorBuilder::new(FaceDetection::BlazeFace640(bz_params_small.clone()))
+            FaceDetectorBuilder::new(FaceDetection::BlazeFace640(bz_params_default.clone()))
                 .download()
                 .build()?;
 
         detectors.push((blaze_face_default, "blaze_face_640_default".into()));
 
+        /*
         let blaze_face_default =
             FaceDetectorBuilder::new(FaceDetection::BlazeFace320(bz_params_small))
                 .download()
                 .build()?;
 
-        //detectors.push((blaze_face_default, "blaze_face_320_default".into()));
+        detectors.push((blaze_face_default, "blaze_face_320_default".into()));
+        */
 
         let mtcnn_params = rust_faces::MtCnnParams::default();
 
@@ -207,7 +208,7 @@ impl FaceExtractor {
 
         // Use "non-maxima suppression" to remove duplicate matches.
         let nms = Nms::default();
-        let mut faces = nms.suppress_non_maxima(faces);
+        let faces = nms.suppress_non_maxima(faces);
 
         debug!(
             "Picture {} has {} faces.",
