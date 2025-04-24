@@ -224,17 +224,17 @@ people-not-this-person = Not { $name }
 prefs-title = Preferences
 
 # Title of section of preferences for views
-prefs-ui-section = UI
-  .description = Tweak the user interface.
+prefs-albums-section = Albums
+  .description = Configure albums.
 
 # Selfies page enabled or disabled.
 # Attributes:
-#   .subtitle - Description of toggle button action action.
-prefs-ui-selfies = Selfies
+#   .subtitle - Description of toggle button action.
+prefs-albums-selfies = Selfies
   .subtitle = Shows a separate album for selfies taken on iOS devices. Restart {-app-name} to apply.
 
 # Album sort drop-down menu
-prefs-ui-chronological-album-sort = Sort Order
+prefs-albums-chronological-sort = Sort order
   .subtitle = Chronological sort order for albums.
   .ascending = Ascending
   .descending = Descending
@@ -242,12 +242,18 @@ prefs-ui-chronological-album-sort = Sort Order
 # Preferences related to machine learning, such as face detection.
 # Machine learning is CPU intensive so capabilities can be turned on or off by
 # the user
-prefs-machine-learning-section = Machine Learning
-  .description = Configure machine learning features.
+prefs-processing-section = Photo and video processing
+  .description = Configure photo and video processing features.
 
 # Enable or disable face detection
-prefs-machine-learning-face-detection = Face Detection
-  .subtitle = Enable face detection when { -app-name } launches. This is a time consuming process.
+prefs-processing-face-detection = Face detection
+  .subtitle = Detect faces and recognize people you've named. This is a time consuming process.
+
+# Motion photo processing enabled or disabled.
+# Attributes:
+#   .subtitle - Description of toggle button action.
+prefs-processing-motion-photos = Motion photos
+  .subtitle = Detect Android motion photos and extract the videos.
 
 prefs-library-section =
   .title = Library

@@ -53,71 +53,38 @@ pub enum PreferencesInput {
 
     UpdateFaceDetectionMode(FaceDetectionMode),
 
+    UpdateProcessMotionPhotos(bool),
+
     Sort(AlbumSort),
 
     ChoosePicturesDir,
 }
 
+// Note that some settings update through the shared state, and others through output messages.
+/// Should probably make this consistent or draw a clear line between what updates when.
+#[derive(Debug)]
+pub enum PreferencesOutput {
+
+    /// Start face detection right now.
+    EnableFaceDetection,
+
+    /// Process motion photos right now.
+    ProcessMotionPhotos,
+}
+
+
+
+
 #[relm4::component(pub async)]
 impl SimpleAsyncComponent for PreferencesDialog {
     type Init = (SettingsState, adw::ApplicationWindow);
     type Input = PreferencesInput;
-    type Output = ();
+    type Output = PreferencesOutput;
 
     view! {
         adw::PreferencesDialog {
             set_title: &fl!("prefs-title"),
             add = &adw::PreferencesPage {
-                add = &adw::PreferencesGroup {
-                    set_title: &fl!("prefs-ui-section"),
-                    set_description: Some(&fl!("prefs-ui-section", "description")),
-
-                    adw::SwitchRow {
-                        set_title: &fl!("prefs-ui-selfies"),
-                        set_subtitle: &fl!("prefs-ui-selfies", "subtitle"),
-
-                        #[watch]
-                        set_active: model.settings.show_selfies,
-
-                        connect_active_notify[sender] => move |switch| {
-                            let _ = sender.input_sender().send(PreferencesInput::UpdateShowSelfies(switch.is_active()));
-                        },
-                    },
-
-                    #[local_ref]
-                    album_sort_row -> adw::ComboRow {
-                        set_title: &fl!("prefs-ui-chronological-album-sort"),
-                        set_subtitle: &fl!("prefs-ui-chronological-album-sort", "subtitle"),
-
-                        connect_selected_item_notify[sender] => move |row| {
-                            let mode = AlbumSort::from_repr(row.selected()).unwrap_or_default();
-                            let _ = sender.input_sender().send(PreferencesInput::Sort(mode));
-                        }
-                    }
-                },
-                add = &adw::PreferencesGroup {
-                    set_title: &fl!("prefs-machine-learning-section"),
-                    set_description: Some(&fl!("prefs-machine-learning-section", "description")),
-
-
-                    #[local_ref]
-                    face_detection_mode_row -> adw::SwitchRow {
-                        set_title: &fl!("prefs-machine-learning-face-detection"),
-                        set_subtitle: &fl!("prefs-machine-learning-face-detection", "subtitle"),
-
-                        #[watch]
-                        set_active: model.is_face_detection_active(),
-
-                        connect_active_notify[sender] => move |switch| {
-                            let mode = if switch.is_active() {
-                                FaceDetectionMode::On
-                            } else {
-                                FaceDetectionMode::Off
-                            };
-                            let _ = sender.input_sender().send(PreferencesInput::UpdateFaceDetectionMode(mode));
-                        },
-                    },
-                },
 
                 add = &adw::PreferencesGroup {
                     set_title: &fl!("prefs-library-section", "title"),
@@ -136,6 +103,70 @@ impl SimpleAsyncComponent for PreferencesDialog {
                             connect_clicked => PreferencesInput::ChoosePicturesDir,
                         }
                     }
+                },
+
+                add = &adw::PreferencesGroup {
+                    set_title: &fl!("prefs-albums-section"),
+                    set_description: Some(&fl!("prefs-albums-section", "description")),
+
+                    adw::SwitchRow {
+                        set_title: &fl!("prefs-albums-selfies"),
+                        set_subtitle: &fl!("prefs-albums-selfies", "subtitle"),
+
+                        #[watch]
+                        set_active: model.settings.show_selfies,
+
+                        connect_active_notify[sender] => move |switch| {
+                            let _ = sender.input_sender().send(PreferencesInput::UpdateShowSelfies(switch.is_active()));
+                        },
+                    },
+
+                    #[local_ref]
+                    album_sort_row -> adw::ComboRow {
+                        set_title: &fl!("prefs-albums-chronological-sort"),
+                        set_subtitle: &fl!("prefs-albums-chronological-sort", "subtitle"),
+
+                        connect_selected_item_notify[sender] => move |row| {
+                            let mode = AlbumSort::from_repr(row.selected()).unwrap_or_default();
+                            let _ = sender.input_sender().send(PreferencesInput::Sort(mode));
+                        }
+                    }
+                },
+                add = &adw::PreferencesGroup {
+                    set_title: &fl!("prefs-processing-section"),
+                    set_description: Some(&fl!("prefs-processing-section", "description")),
+
+
+                    #[local_ref]
+                    face_detection_mode_row -> adw::SwitchRow {
+                        set_title: &fl!("prefs-processing-face-detection"),
+                        set_subtitle: &fl!("prefs-processing-face-detection", "subtitle"),
+
+                        #[watch]
+                        set_active: model.is_face_detection_active(),
+
+                        connect_active_notify[sender] => move |switch| {
+                            let mode = if switch.is_active() {
+                                FaceDetectionMode::On
+                            } else {
+                                FaceDetectionMode::Off
+                            };
+                            let _ = sender.input_sender().send(PreferencesInput::UpdateFaceDetectionMode(mode));
+                        },
+                    },
+
+                    adw::SwitchRow {
+                        set_title: &fl!("prefs-processing-motion-photos"),
+                        set_subtitle: &fl!("prefs-processing-motion-photos", "subtitle"),
+
+                        #[watch]
+                        set_active: model.settings.process_motion_photos,
+
+                        connect_active_notify[sender] => move |switch| {
+                            let _ = sender.input_sender().send(PreferencesInput::UpdateProcessMotionPhotos(switch.is_active()));
+                        },
+                    },
+
                 },
             }
         }
@@ -156,8 +187,8 @@ impl SimpleAsyncComponent for PreferencesDialog {
 
         let album_sort_row = adw::ComboRow::new();
         let list = gtk::StringList::new(&[
-            &fl!("prefs-ui-chronological-album-sort", "ascending"),
-            &fl!("prefs-ui-chronological-album-sort", "descending"),
+            &fl!("prefs-albums-chronological-sort", "ascending"),
+            &fl!("prefs-albums-chronological-sort", "descending"),
         ]);
         album_sort_row.set_model(Some(&list));
 
@@ -176,7 +207,7 @@ impl SimpleAsyncComponent for PreferencesDialog {
         AsyncComponentParts { model, widgets }
     }
 
-    async fn update(&mut self, msg: Self::Input, _sender: AsyncComponentSender<Self>) {
+    async fn update(&mut self, msg: Self::Input, sender: AsyncComponentSender<Self>) {
         match msg {
             PreferencesInput::Present => {
                 self.settings = self.settings_state.read().clone();
@@ -198,10 +229,21 @@ impl SimpleAsyncComponent for PreferencesDialog {
                 self.settings.show_selfies = show_selfies;
                 *self.settings_state.write() = self.settings.clone();
             }
+            PreferencesInput::UpdateProcessMotionPhotos(enable) => {
+                info!("Update process motion photos: {:?}", enable);
+                self.settings.process_motion_photos = enable;
+                *self.settings_state.write() = self.settings.clone();
+                if enable {
+                    let _ = sender.output(PreferencesOutput::ProcessMotionPhotos);
+                }
+            }
             PreferencesInput::UpdateFaceDetectionMode(mode) => {
                 info!("Update face detection mode: {:?}", mode);
                 self.settings.face_detection_mode = mode;
                 *self.settings_state.write() = self.settings.clone();
+                if mode == FaceDetectionMode::On {
+                    let _ = sender.output(PreferencesOutput::EnableFaceDetection);
+                }
             }
             PreferencesInput::Sort(mode) => {
                 info!("Update album sort: {:?}", mode);

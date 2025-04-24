@@ -125,8 +125,11 @@
         <ul>
           <li>BREAKING CHANGE: Fotema requires version 1.20.0+ of the xdg-desktop-portal.</li>
           <li>Faster face recognition.</li>
-          <li>Display full directory path of photo library in preferences dialog.</li>
           <li>No longer need to transcode HEVC videos.</li>
+          <li>Add setting to enable or disable Android motion photo processing.</li>
+          <li>Enabling face detection now applies immediately.</li>
+          <li>Re-organize settings.</li>
+          <li>Display full directory path of photo library in preferences dialog.</li>
         </ul>
       </description>
     </release>
