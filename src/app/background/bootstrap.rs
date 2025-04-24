@@ -101,8 +101,11 @@ pub enum BootstrapInput {
     ScanPictureForFaces(PictureId),
     ScanPicturesForFaces,
 
-    // Queue task for transcoding videos
+    /// Queue task for transcoding videos
     TranscodeAll,
+
+    /// Queue task for processing motion photos
+    ProcessMotionPhotos,
 
     /// A background task has started.
     TaskStarted(TaskName),
@@ -208,6 +211,11 @@ impl Controllers {
                 self.add_task_video_transcode();
                 self.run_if_idle();
             }
+            BootstrapInput::ProcessMotionPhotos => {
+                info!("Queueing task to process motion photos");
+                self.add_task_photo_extract_motion();
+                self.run_if_idle();
+            }
             BootstrapInput::TaskStarted(task_name) => {
                 info!("Task started: {:?}", task_name);
                 let _ = sender.output(BootstrapOutput::TaskStarted(task_name));
@@ -302,9 +310,12 @@ impl Controllers {
 
     fn add_task_photo_extract_motion(&mut self) {
         let sender = self.photo_extract_motion_task.sender().clone();
-        self.enqueue(Box::new(move || {
-            sender.emit(PhotoExtractMotionTaskInput::Start)
-        }));
+        let enable = self.settings_state.read().process_motion_photos;
+        if enable {
+            self.enqueue(Box::new(move || {
+                sender.emit(PhotoExtractMotionTaskInput::Start)
+            }));
+        }
     }
 
     fn add_task_photo_detect_faces(&mut self) {

@@ -62,7 +62,7 @@ use self::components::{
     },
     library::{Library, LibraryInput, LibraryOutput},
     onboard::{Onboard, OnboardOutput},
-    preferences::{PreferencesDialog, PreferencesInput},
+    preferences::{PreferencesDialog, PreferencesInput, PreferencesOutput},
     viewer::view_nav::{ViewNav, ViewNavInput, ViewNavOutput},
 };
 
@@ -118,6 +118,9 @@ pub struct Settings {
     /// Sorting for albums.
     /// NOTE: doesn't include folder's album.
     pub album_sort: AlbumSort,
+
+    /// Enable processing of Android motion photos.
+    pub process_motion_photos: bool,
 
     /// Has the user completed the onboarding processes to select
     /// the picture library root directory?
@@ -246,6 +249,8 @@ pub(super) enum AppMsg {
 
     ScanPictureForFaces(PictureId),
     ScanPicturesForFaces,
+
+    ProcessMotionPhotos,
 
     // Stop all background tasks
     StopBackgroundTasks,
@@ -761,7 +766,10 @@ impl SimpleAsyncComponent for App {
 
         let preferences_dialog = PreferencesDialog::builder()
             .launch((settings_state.clone(), root.clone()))
-            .detach();
+            .forward(sender.input_sender(), |msg| match msg {
+                PreferencesOutput::EnableFaceDetection => AppMsg::ScanPicturesForFaces,
+                PreferencesOutput::ProcessMotionPhotos=> AppMsg::ProcessMotionPhotos,
+            });
 
         let picture_navigation_view = adw::NavigationView::builder().build();
 
@@ -1037,6 +1045,10 @@ impl SimpleAsyncComponent for App {
                 info!("Scan pictures for faces");
                 self.bootstrap.emit(BootstrapInput::ScanPicturesForFaces);
             }
+            AppMsg::ProcessMotionPhotos => {
+                info!("Process motion photos");
+                self.bootstrap.emit(BootstrapInput::ProcessMotionPhotos);
+            }
             AppMsg::StopBackgroundTasks => {
                 info!("Stop all background tasks");
                 self.banner.set_button_label(None);
@@ -1095,6 +1107,7 @@ impl App {
 
         Ok(Settings {
             show_selfies: gio_settings.boolean("show-selfies"),
+            process_motion_photos: gio_settings.boolean("process-motion-photos"),
             face_detection_mode: FaceDetectionMode::from_str(
                 &gio_settings.string("face-detection-mode"),
             )
@@ -1111,6 +1124,7 @@ impl App {
         info!("Saving settings");
         let gio_settings = gio::Settings::new(APP_ID);
         gio_settings.set_boolean("show-selfies", settings.show_selfies)?;
+        gio_settings.set_boolean("process-motion-photos", settings.process_motion_photos)?;
         gio_settings.set_string("face-detection-mode", settings.face_detection_mode.as_ref())?;
         gio_settings.set_string("album-sort", settings.album_sort.as_ref())?;
         gio_settings.set_boolean("onboarding-complete", settings.is_onboarding_complete)?;

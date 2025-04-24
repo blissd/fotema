@@ -34,5 +34,9 @@
       <default>'L3Zhci9lbXB0eQ=='</default>
       <summary>Sandbox view of user selected pictures directory. Base64 encoded because paths aren't strings. Default is /var/empty</summary>
     </key>
+    <key name="process-motion-photos" type="b">
+      <default>false</default>
+      <summary>Extract videos from Android motion photos.</summary>
+    </key>
   </schema>
 </schemalist>
