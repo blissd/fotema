@@ -30,4 +30,4 @@ cache [cleanup policies](https://davejansen.com/increase-thumbnail-cache-in-ubun
 
 ## Thumbnail size
 
-Fotema generates thumbnails of both the "large" and "x-large" size.
+Fotema generates thumbnails of both the "large" and "x-large" sizes.
