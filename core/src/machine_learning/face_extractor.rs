@@ -2,7 +2,9 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use crate::photo::model::PictureId;
+use crate::people::FaceDetectionCandidate;
+use crate::thumbnailify::{ThumbnailSize, Thumbnailer};
+
 use anyhow::*;
 
 use super::nms::Nms;
@@ -12,13 +14,11 @@ use std::path::{Path, PathBuf};
 use std::result::Result::Ok;
 
 use rust_faces::{
-    BlazeFaceParams, Face as DetectedFace, FaceDetection, FaceDetectorBuilder, InferParams,
-    Provider, ToArray3,
+    BlazeFaceParams, Face as DetectedFace, FaceDetection, FaceDetectorBuilder, ToArray3,
 };
 
 use gdk4::prelude::TextureExt;
 use image::DynamicImage;
-use itertools::*;
 use tracing::{debug, error, info};
 
 #[derive(Debug, Clone)]
@@ -85,20 +85,18 @@ impl Face {
 pub struct FaceExtractor {
     base_path: PathBuf,
 
-    /// BlazeFace model configured to match large to huge faces, like selfies
-    blaze_face_huge: Box<dyn rust_faces::FaceDetector>,
+    thumbnailer: Thumbnailer,
 
-    /// BlazeFace model configured to match medium to large faces.
-    blaze_face_big: Box<dyn rust_faces::FaceDetector>,
-
-    /// BlazeFace model configured to match small to medium faces.
-    blaze_face_small: Box<dyn rust_faces::FaceDetector>,
+    detectors: Vec<(Box<dyn rust_faces::FaceDetector>, String)>,
 }
 
 impl FaceExtractor {
-    pub fn build(base_path: &Path) -> Result<FaceExtractor> {
+    pub fn build(base_path: &Path, thumbnailer: Thumbnailer) -> Result<FaceExtractor> {
         let base_path = PathBuf::from(base_path).join("photo_faces");
+
         std::fs::create_dir_all(&base_path)?;
+
+        let mut detectors: Vec<(Box<dyn rust_faces::FaceDetector>, String)> = vec![];
 
         // Tweaking the target size seems to affect which faces are detected.
         // Testing against my library, it looks like smaller numbers match bigger faces,
@@ -109,145 +107,119 @@ impl FaceExtractor {
         // 640. Half default. Misses a mix of some larger, some smaller.
         // 320. Quarter default. Matches only very big faces.
 
-        let bz_params_huge = BlazeFaceParams {
-            score_threshold: 0.95,
-            target_size: 160,
-            ..BlazeFaceParams::default()
-        };
+        /*
+                let bz_params_huge = BlazeFaceParams {
+                    score_threshold: 0.95,
+                    target_size: 160,
+                    ..BlazeFaceParams::default()
+                };
 
-        let blaze_face_huge = FaceDetectorBuilder::new(FaceDetection::BlazeFace640(bz_params_huge))
-            .download()
-            .infer_params(InferParams {
-                provider: Provider::OrtCpu,
-                intra_threads: Some(5),
-                ..Default::default()
-            })
-            .build()?;
+                let blaze_face_huge =
+                    FaceDetectorBuilder::new(FaceDetection::BlazeFace640(bz_params_huge.clone()))
+                        .download()
+                        .build()?;
 
-        let bz_params_big = BlazeFaceParams {
-            score_threshold: 0.95,
-            target_size: 640,
-            ..BlazeFaceParams::default()
-        };
+                //detectors.push((blaze_face_huge, "blaze_face_640_huge".into()));
 
-        let blaze_face_big = FaceDetectorBuilder::new(FaceDetection::BlazeFace640(bz_params_big))
-            .download()
-            .infer_params(InferParams {
-                provider: Provider::OrtCpu,
-                intra_threads: Some(5),
-                ..Default::default()
-            })
-            .build()?;
+                let blaze_face_huge = FaceDetectorBuilder::new(FaceDetection::BlazeFace320(bz_params_huge))
+                    .download()
+                    .build()?;
 
-        let bz_params_small = BlazeFaceParams {
-            score_threshold: 0.95,
-            target_size: 1280,
-            ..BlazeFaceParams::default()
-        };
+                //detectors.push((blaze_face_huge, "blaze_face_320_huge".into()));
 
-        let blaze_face_small =
-            FaceDetectorBuilder::new(FaceDetection::BlazeFace640(bz_params_small))
+                let bz_params_big = BlazeFaceParams {
+                    score_threshold: 0.95,
+                    target_size: 640,
+                    ..BlazeFaceParams::default()
+                };
+
+                let blaze_face_big =
+                    FaceDetectorBuilder::new(FaceDetection::BlazeFace640(bz_params_big.clone()))
+                        .download()
+                        .build()?;
+
+                //detectors.push((blaze_face_big, "blaze_face_640_big".into()));
+
+                let blaze_face_big = FaceDetectorBuilder::new(FaceDetection::BlazeFace320(bz_params_big))
+                    .download()
+                    .build()?;
+
+                //detectors.push((blaze_face_big, "blaze_face_320_big".into()));
+        */
+        let bz_params_default = BlazeFaceParams::default();
+
+        let blaze_face_default =
+            FaceDetectorBuilder::new(FaceDetection::BlazeFace640(bz_params_default.clone()))
                 .download()
-                .infer_params(InferParams {
-                    provider: Provider::OrtCpu,
-                    //intra_threads: Some(5),
-                    ..Default::default()
-                })
                 .build()?;
+
+        detectors.push((blaze_face_default, "blaze_face_640_default".into()));
+
+        /*
+        let blaze_face_default =
+            FaceDetectorBuilder::new(FaceDetection::BlazeFace320(bz_params_small))
+                .download()
+                .build()?;
+
+        detectors.push((blaze_face_default, "blaze_face_320_default".into()));
+        */
+
+        let mtcnn_params = rust_faces::MtCnnParams::default();
+
+        let mtcnn = FaceDetectorBuilder::new(FaceDetection::MtCnn(mtcnn_params))
+            .download()
+            .build()?;
+
+        detectors.push((mtcnn, "mtcnn".into()));
 
         Ok(FaceExtractor {
             base_path,
-            blaze_face_huge,
-            blaze_face_big,
-            blaze_face_small,
+            thumbnailer,
+            detectors,
         })
     }
 
     /// Identify faces in a photo and return a vector of paths of extracted face images.
-    pub async fn extract_faces(
-        &self,
-        picture_id: &PictureId,
-        picture_path: &Path,
-    ) -> Result<Vec<Face>> {
-        // return Ok(vec![]);
-        info!("Detecting faces in {:?}", picture_path);
+    pub async fn extract_faces(&self, candidate: &FaceDetectionCandidate) -> Result<Vec<Face>> {
+        info!("Detecting faces in {:?}", candidate.host_path);
 
-        let original_image = Self::open_image(picture_path).await?;
+        let thumbnail_hash = candidate.thumbnail_hash();
+
+        let image_path = self
+            .thumbnailer
+            .get_thumbnail_path(&thumbnail_hash, ThumbnailSize::XLarge);
+
+        let original_image = Self::open_image(&image_path).await?;
 
         let image = original_image.clone().into_rgb8().into_array3();
 
         let mut faces: Vec<(DetectedFace, String)> = vec![];
 
-        let result = self.blaze_face_big.detect(image.view().into_dyn());
-        if let Ok(detected_faces) = result {
-            for f in detected_faces {
-                faces.push((f, "blaze_face_big".into()));
+        for (detector, name) in &self.detectors {
+            let result = detector.detect(image.view().into_dyn());
+            if let Ok(detected_faces) = result {
+                for f in detected_faces {
+                    faces.push((f, name.into()));
+                }
+            } else {
+                error!("Failed extracting faces with {name}: {:?}", result);
             }
-        } else {
-            error!("Failed extracting faces with blaze_face_big: {:?}", result);
-        }
-
-        let result = self.blaze_face_small.detect(image.view().into_dyn());
-        if let Ok(detected_faces) = result {
-            //let detected_faces = Self::remove_duplicates(detected_faces, &faces);
-            for f in detected_faces {
-                faces.push((f, "blaze_face_small".into()));
-            }
-        } else {
-            error!(
-                "Failed extracting faces with blaze_face_small: {:?}",
-                result
-            );
-        }
-
-        let result = self.blaze_face_huge.detect(image.view().into_dyn());
-        if let Ok(detected_faces) = result {
-            //let detected_faces = Self::remove_duplicates(detected_faces, &faces);
-            for f in detected_faces {
-                faces.push((f, "blaze_face_huge".into()));
-            }
-        } else {
-            error!("Failed extracting faces with blaze_face_huge: {:?}", result);
         }
 
         // Use "non-maxima suppression" to remove duplicate matches.
         let nms = Nms::default();
-        let mut faces = nms.suppress_non_maxima(faces);
+        let faces = nms.suppress_non_maxima(faces);
 
         debug!(
-            "Picture {} has {} faces. Found: {:?}",
-            picture_id,
-            faces.len(),
-            faces
+            "Picture {} has {} faces.",
+            candidate.picture_id,
+            faces.len()
         );
 
-        let base_path = {
-            // Create a directory per 1000 thumbnails
-            let partition = (picture_id.id() / 1000) as i32;
-            let partition = format!("{:0>4}", partition);
-            let file_name = format!("{}", picture_id);
-            self.base_path.join(partition).join(file_name)
-        };
-
-        faces.sort_by_key(|x| x.1.clone());
-
-        let mut faces_flat_grouped: Vec<(String, usize, DetectedFace)> = Vec::new();
-
-        for (model_name, chunk) in &faces.into_iter().chunk_by(|x| x.1.clone()) {
-            let mut vs = chunk
-                .enumerate()
-                .map(|(i, x)| (model_name.clone(), i, x.0))
-                .collect::<Vec<(String, usize, DetectedFace)>>();
-            faces_flat_grouped.append(&mut vs);
-        }
-
-        let faces = faces_flat_grouped
+        let faces = faces
             .into_iter()
-            .map(|(model_name, index, f)| {
-                if !base_path.exists() {
-                    let _ = std::fs::create_dir_all(&base_path);
-                }
-
+            .enumerate()
+            .map(|(index, (f, model_name))| {
                 // Extract face and save to thumbnail.
                 // The bounding box is pretty tight, so make it a bit bigger.
                 // Also, make the box a square.
@@ -296,9 +268,10 @@ impl FaceExtractor {
                 // FIXME use fast_image_resize instead of image-rs
                 let thumbnail =
                     original_image.crop_imm(x as u32, y as u32, longest as u32, longest as u32);
-                let thumbnail = thumbnail.thumbnail(200, 200);
-                let thumbnail_path =
-                    base_path.join(format!("{}_{}_thumbnail.png", index, model_name));
+                let thumbnail = thumbnail.thumbnail(256, 256);
+                let thumbnail_path = self
+                    .base_path
+                    .join(format!("{}_{}_thumbnail.png", &thumbnail_hash, index));
                 let _ = thumbnail.save(&thumbnail_path);
 
                 let bounds = Rect {
@@ -315,7 +288,9 @@ impl FaceExtractor {
                     bounds.height as u32,
                 );
 
-                let bounds_path = base_path.join(format!("{}_{}_original.png", index, model_name));
+                let bounds_path = self
+                    .base_path
+                    .join(format!("{}_{}_original.png", &thumbnail_hash, index));
                 let _ = bounds_img.save(&bounds_path);
 
                 Face {
@@ -328,8 +303,6 @@ impl FaceExtractor {
                 }
             })
             .collect();
-
-        // Remove duplicates
 
         Ok(faces)
     }

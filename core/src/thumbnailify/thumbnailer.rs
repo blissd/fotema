@@ -210,9 +210,12 @@ pub fn generate_thumbnail(
     let dst_height = (src_height * scale) as u32;
     let mut dst_image = Image::new(dst_width, dst_height, fr::PixelType::U8x4);
 
-    // By default uses a slow but high-quality thumbnail generator.
+    // By default uses a slow but high-quality thumbnail algorithm.
+    // Configure to use a lower-quality (but still good) and faster algorithm.
     let mut resizer = Resizer::new();
-    let resize_options = ResizeOptions::new();
+    let resize_options = ResizeOptions::new().resize_alg(
+        fast_image_resize::ResizeAlg::Convolution(fast_image_resize::FilterType::Hamming),
+    );
     resizer.resize(&src_image, &mut dst_image, &resize_options)?;
 
     let file = std::fs::File::create(&temp_path)?;
