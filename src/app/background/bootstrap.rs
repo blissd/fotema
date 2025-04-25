@@ -14,6 +14,7 @@ use fotema_core::photo;
 use fotema_core::thumbnailify::Thumbnailer;
 use fotema_core::video;
 use fotema_core::visual;
+use fotema_core::Scanner;
 
 use std::result::Result::Ok;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -29,6 +30,7 @@ use anyhow;
 
 use super::{
     load_library_task::{LoadLibraryTask, LoadLibraryTaskInput, LoadLibraryTaskOutput},
+    library_scan_task::{LibraryScanTask, LibraryScanTaskInput, LibraryScanTaskOutput},
     photo_clean_task::{PhotoCleanTask, PhotoCleanTaskInput, PhotoCleanTaskOutput},
     photo_detect_faces_task::{
         PhotoDetectFacesTask, PhotoDetectFacesTaskInput, PhotoDetectFacesTaskOutput,
@@ -40,11 +42,9 @@ use super::{
     photo_recognize_faces_task::{
         PhotoRecognizeFacesTask, PhotoRecognizeFacesTaskInput, PhotoRecognizeFacesTaskOutput,
     },
-    photo_scan_task::{PhotoScanTask, PhotoScanTaskInput, PhotoScanTaskOutput},
     photo_thumbnail_task::{PhotoThumbnailTask, PhotoThumbnailTaskInput, PhotoThumbnailTaskOutput},
     video_clean_task::{VideoCleanTask, VideoCleanTaskInput, VideoCleanTaskOutput},
     video_enrich_task::{VideoEnrichTask, VideoEnrichTaskInput, VideoEnrichTaskOutput},
-    video_scan_task::{VideoScanTask, VideoScanTaskInput, VideoScanTaskOutput},
     video_thumbnail_task::{VideoThumbnailTask, VideoThumbnailTaskInput, VideoThumbnailTaskOutput},
     video_transcode_task::{VideoTranscodeTask, VideoTranscodeTaskInput, VideoTranscodeTaskOutput},
 
@@ -69,7 +69,7 @@ pub enum MediaType {
 #[derive(Debug)]
 pub enum TaskName {
     LoadLibrary,
-    Scan(MediaType),
+    Scan,
     Enrich(MediaType),
     MotionPhoto,
     Thumbnail(MediaType),
@@ -145,9 +145,7 @@ pub struct Controllers {
     library_stale: Arc<AtomicBool>,
 
     load_library_task: Arc<WorkerController<LoadLibraryTask>>,
-
-    photo_scan_task: Arc<WorkerController<PhotoScanTask>>,
-    video_scan_task: Arc<WorkerController<VideoScanTask>>,
+    library_scan_task: Arc<WorkerController<LibraryScanTask>>,
 
     photo_enrich_task: Arc<WorkerController<PhotoEnrichTask>>,
     video_enrich_task: Arc<WorkerController<VideoEnrichTask>>,
@@ -264,14 +262,9 @@ impl Controllers {
         };
     }
 
-    fn add_task_photo_scan(&mut self) {
-        let sender = self.photo_scan_task.sender().clone();
-        self.enqueue(Box::new(move || sender.emit(PhotoScanTaskInput::Start)));
-    }
-
-    fn add_task_video_scan(&mut self) {
-        let sender = self.video_scan_task.sender().clone();
-        self.enqueue(Box::new(move || sender.emit(VideoScanTaskInput::Start)));
+    fn add_task_library_scan(&mut self) {
+        let sender = self.library_scan_task.sender().clone();
+        self.enqueue(Box::new(move || sender.emit(LibraryScanTaskInput::Start)));
     }
 
     fn add_task_photo_enrich(&mut self) {
@@ -440,8 +433,6 @@ impl Bootstrap {
 
         let thumbnailer = Thumbnailer::build(&thumbnail_dir);
 
-        let photo_scanner = photo::Scanner::build(&library_sandbox_base_path)?;
-
         let photo_repo = photo::Repository::open(
             &library_sandbox_base_path,
             &library_host_base_path,
@@ -452,7 +443,7 @@ impl Bootstrap {
 
         let photo_thumbnailer = photo::PhotoThumbnailer::build(thumbnailer.clone())?;
 
-        let video_scanner = video::Scanner::build(&library_sandbox_base_path)?;
+        let scanner = Scanner::build(&library_sandbox_base_path)?;
 
         let video_repo = video::Repository::open(
             &library_sandbox_base_path,
@@ -487,25 +478,14 @@ impl Bootstrap {
                 }
             });
 
-        let photo_scan_task = PhotoScanTask::builder()
-            .detach_worker((photo_scanner.clone(), photo_repo.clone()))
+        let library_scan_task = LibraryScanTask::builder()
+            .detach_worker((scanner, photo_repo.clone(), video_repo.clone()))
             .forward(sender.input_sender(), |msg| match msg {
-                PhotoScanTaskOutput::Started => {
-                    BootstrapInput::TaskStarted(TaskName::Scan(MediaType::Photo))
+                LibraryScanTaskOutput::Started => {
+                    BootstrapInput::TaskStarted(TaskName::Scan)
                 }
-                PhotoScanTaskOutput::Completed => {
-                    BootstrapInput::TaskCompleted(TaskName::Scan(MediaType::Photo), None)
-                }
-            });
-
-        let video_scan_task = VideoScanTask::builder()
-            .detach_worker((video_scanner.clone(), video_repo.clone()))
-            .forward(sender.input_sender(), |msg| match msg {
-                VideoScanTaskOutput::Started => {
-                    BootstrapInput::TaskStarted(TaskName::Scan(MediaType::Video))
-                }
-                VideoScanTaskOutput::Completed => {
-                    BootstrapInput::TaskCompleted(TaskName::Scan(MediaType::Video), None)
+                LibraryScanTaskOutput::Completed => {
+                    BootstrapInput::TaskCompleted(TaskName::Scan, None)
                 }
             });
 
@@ -677,8 +657,7 @@ impl Bootstrap {
             shared_state: self.shared_state.clone(),
             settings_state: self.settings_state.clone(),
             load_library_task: Arc::new(load_library_task),
-            photo_scan_task: Arc::new(photo_scan_task),
-            video_scan_task: Arc::new(video_scan_task),
+            library_scan_task: Arc::new(library_scan_task),
             photo_enrich_task: Arc::new(photo_enrich_task),
             video_enrich_task: Arc::new(video_enrich_task),
             photo_extract_motion_task: Arc::new(photo_extract_motion_task),
@@ -699,8 +678,7 @@ impl Bootstrap {
 
         // Initial library load to reduce time from starting app and seeing a photo grid
         controllers.add_task_load_library(sender.input_sender().clone());
-        controllers.add_task_photo_scan();
-        controllers.add_task_video_scan();
+        controllers.add_task_library_scan();
         controllers.add_task_photo_enrich();
         controllers.add_task_video_enrich();
 

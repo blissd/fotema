@@ -4,8 +4,9 @@
 
 use super::Metadata;
 use super::metadata;
+use crate::ScannedFile;
 use crate::path_encoding;
-use crate::video::model::{ScannedFile, Video, VideoId};
+use crate::video::model::{Video, VideoId};
 
 use anyhow::*;
 use chrono::*;
@@ -158,28 +159,30 @@ impl Repository {
                     ",
             )?;
 
-            for vid in vids {
-                // convert to relative path before saving to database
-                let video_path = vid.path.strip_prefix(&self.library_base_path)?;
-                let video_path_b64 = path_encoding::to_base64(video_path);
+            for scanned_file in vids {
+                if let ScannedFile::Photo(info) = scanned_file {
+                    // convert to relative path before saving to database
+                    let video_path = info.path.strip_prefix(&self.library_base_path)?;
+                    let video_path_b64 = path_encoding::to_base64(video_path);
 
-                // Path without suffix so sibling pictures and videos can be related
-                let link_path = video_path
-                    .file_stem()
-                    .and_then(|x| x.to_str())
-                    .expect("Must exist");
+                    // Path without suffix so sibling pictures and videos can be related
+                    let link_path = video_path
+                        .file_stem()
+                        .and_then(|x| x.to_str())
+                        .expect("Must exist");
 
-                let link_path = video_path.with_file_name(link_path);
-                let link_path_b64 = path_encoding::to_base64(&link_path);
+                    let link_path = video_path.with_file_name(link_path);
+                    let link_path_b64 = path_encoding::to_base64(&link_path);
 
-                vid_stmt.execute(params![
-                    vid.fs_created_at,
-                    vid.fs_modified_at,
-                    video_path_b64,
-                    video_path.to_string_lossy(),
-                    link_path_b64,
-                    link_path.to_string_lossy(),
-                ])?;
+                    vid_stmt.execute(params![
+                        info.fs_created_at,
+                        info.fs_modified_at,
+                        video_path_b64,
+                        video_path.to_string_lossy(),
+                        link_path_b64,
+                        link_path.to_string_lossy(),
+                    ])?;
+                }
             }
         }
 

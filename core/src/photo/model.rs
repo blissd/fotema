@@ -56,21 +56,6 @@ impl Picture {
     }
 }
 
-// scanner
-
-/// A picture on the local file system that has been scanned.
-#[derive(Debug, Clone)]
-pub struct ScannedFile {
-    /// Full path to picture file.
-    pub path: PathBuf,
-
-    pub fs_created_at: Option<DateTime<Utc>>,
-
-    pub fs_modified_at: Option<DateTime<Utc>>,
-
-    pub fs_file_size_bytes: u64,
-}
-
 /// Extra (non-filesystem) metadata for videos
 
 // EXIF data can include an orientation, which is a number from 1 to 8 that describes

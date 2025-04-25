@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+use super::FileInfo;
 use super::ScannedFile;
 
 use anyhow::*;
@@ -21,6 +22,12 @@ pub struct Scanner {
 }
 
 impl Scanner {
+    const PICTURES_SUFFIXES: [&str; 11] = [
+        "avif", "exr", "heic", "jpeg", "jpg", "jxl", "png", "qoi", "tiff", "webp", "gif",
+    ];
+
+    const VIDEO_SUFFIXES: [&str; 4] = ["mov", "mp4", "avi", "mkv"];
+
     pub fn build(scan_base: &Path) -> Result<Self> {
         fs::create_dir_all(scan_base)?;
         let scan_base = PathBuf::from(scan_base);
@@ -32,21 +39,6 @@ impl Scanner {
     where
         F: FnMut(ScannedFile),
     {
-        let picture_suffixes = [
-            String::from("avif"),
-            String::from("exr"),
-            String::from("heic"),
-            String::from("jpeg"),
-            String::from("jpg"),
-            String::from("jxl"),
-            String::from("png"),
-            String::from("qoi"),
-            String::from("tiff"),
-            String::from("webp"),
-        ];
-
-        let video_suffixes = [String::from("mov"), String::from("mp4")];
-
         WalkDir::new(&self.scan_base)
             .into_iter()
             .inspect(|x| {
@@ -56,21 +48,24 @@ impl Scanner {
             })
             .flatten() // skip files we failed to read
             .filter(|x| x.path().is_file()) // only process files
-            .filter(|x| {
+            .map(|x| {
                 // only process supported image types
                 let ext = x
                     .path()
                     .extension()
                     .and_then(|s| s.to_str())
-                    .map(|s| s.to_lowercase());
+                    .map(|s| s.to_lowercase())
+                    .unwrap_or(String::from("unknown"));
 
-                if let Some(ext) = ext {
-                    picture_suffixes.contains(&ext) || video_suffixes.contains(&ext)
+                let scanned_file = if Self::PICTURES_SUFFIXES.contains(&ext.as_ref()) {
+                    self.scan_one(x.path()).map(|info| ScannedFile::Photo(info))
+                } else if Self::VIDEO_SUFFIXES.contains(&ext.as_ref()) {
+                    self.scan_one(x.path()).map(|info| ScannedFile::Video(info))
                 } else {
-                    false
-                }
+                    Err(anyhow!("Not a picture or video: {:?}", x))
+                };
+                scanned_file
             })
-            .map(|x| self.scan_one(x.path())) // Get picture info for image path
             .inspect(|x| {
                 let _ = x
                     .as_ref()
@@ -90,7 +85,7 @@ impl Scanner {
         Ok(pics)
     }
 
-    pub fn scan_one(&self, path: &Path) -> Result<ScannedFile> {
+    pub fn scan_one(&self, path: &Path) -> Result<FileInfo> {
         let file = fs::File::open(path)?;
 
         let metadata = file.metadata()?;
@@ -101,7 +96,7 @@ impl Scanner {
 
         let fs_file_size_bytes = metadata.len();
 
-        let scanned = ScannedFile {
+        let scanned = FileInfo {
             path: PathBuf::from(path),
             fs_created_at,
             fs_modified_at,

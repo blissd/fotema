@@ -2,9 +2,10 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+use crate::ScannedFile;
 use crate::path_encoding;
 use crate::people::model::FaceDetectionCandidate;
-use crate::photo::model::{Picture, PictureId, ScannedFile};
+use crate::photo::model::{Picture, PictureId};
 
 use super::Metadata;
 use super::metadata;
@@ -162,28 +163,30 @@ impl Repository {
                 ",
             )?;
 
-            for pic in pics {
-                // convert to relative path before saving to database
-                let picture_path = pic.path.strip_prefix(&self.library_sandbox_base_path)?;
-                let picture_path_b64 = path_encoding::to_base64(picture_path);
+            for scanned_file in pics {
+                if let ScannedFile::Photo(info) = scanned_file {
+                    // convert to relative path before saving to database
+                    let picture_path = info.path.strip_prefix(&self.library_sandbox_base_path)?;
+                    let picture_path_b64 = path_encoding::to_base64(picture_path);
 
-                // Path without suffix so sibling pictures and videos can be related
-                let link_path = picture_path
-                    .file_stem()
-                    .and_then(|x| x.to_str())
-                    .expect("Must exist");
+                    // Path without suffix so sibling pictures and videos can be related
+                    let link_path = picture_path
+                        .file_stem()
+                        .and_then(|x| x.to_str())
+                        .expect("Must exist");
 
-                let link_path = picture_path.with_file_name(link_path);
-                let link_path_b64 = path_encoding::to_base64(&link_path);
+                    let link_path = picture_path.with_file_name(link_path);
+                    let link_path_b64 = path_encoding::to_base64(&link_path);
 
-                pic_insert_stmt.execute(params![
-                    pic.fs_created_at,
-                    pic.fs_modified_at,
-                    picture_path_b64,
-                    picture_path.to_string_lossy(),
-                    link_path_b64,
-                    link_path.to_string_lossy(),
-                ])?;
+                    pic_insert_stmt.execute(params![
+                        info.fs_created_at,
+                        info.fs_modified_at,
+                        picture_path_b64,
+                        picture_path.to_string_lossy(),
+                        link_path_b64,
+                        link_path.to_string_lossy(),
+                    ])?;
+                }
             }
         }
 
