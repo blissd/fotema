@@ -117,7 +117,7 @@
   </screenshots>
 
   <releases>
-    <release version="2.0.0" date="2025-04-18">
+    <release version="2.0.0" date="2025-04-25">
       <description>
         <p>Fotema has changed the way it generates thumbnails, which has the unfortunate
           side-effect of requiring all your thumbnails to be re-generated.
@@ -125,7 +125,7 @@
         <ul>
           <li>BREAKING CHANGE: Fotema requires version 1.20.0+ of the xdg-desktop-portal.</li>
           <li>Faster face recognition.</li>
-          <li>Fast library scanning--now scan library only once instead of twice.</li>
+          <li>Faster library scanning--now scan library only once instead of twice.</li>
           <li>No longer need to transcode HEVC videos.</li>
           <li>Add setting to enable or disable Android motion photo processing.</li>
           <li>Enabling face detection now applies immediately.</li>
