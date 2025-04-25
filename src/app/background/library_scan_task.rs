@@ -50,6 +50,8 @@ impl Worker for LibraryScanTask {
 
 impl LibraryScanTask {
     fn scan_and_add(&mut self, sender: ComponentSender<Self>) -> std::result::Result<(), String> {
+        let start = std::time::Instant::now();
+
         sender
             .output(LibraryScanTaskOutput::Started)
             .map_err(|e| format!("{:?}", e))?;
@@ -57,7 +59,7 @@ impl LibraryScanTask {
         info!("Scanning file system for pictures...");
 
         let result = self.scan.scan_all().map_err(|e| e.to_string())?;
-        info!("Found {} items to add to database", result.len());
+        let count = result.len();
 
         let (photos, videos) = result.into_iter().partition_map(|scanned_file|
             match scanned_file {
@@ -67,6 +69,12 @@ impl LibraryScanTask {
 
         self.photo_repo.add_all(&photos).map_err(|e| e.to_string())?;
         self.video_repo.add_all(&videos).map_err(|e| e.to_string())?;
+
+        info!(
+            "Scanned {} photos and videos in {} seconds.",
+            count,
+            start.elapsed().as_secs()
+        );
 
         sender
             .output(LibraryScanTaskOutput::Completed)
