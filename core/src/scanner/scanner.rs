@@ -91,9 +91,7 @@ impl Scanner {
     }
 
     pub fn scan_one(&self, path: &Path) -> Result<FileInfo> {
-        let file = fs::File::open(path)?;
-
-        let metadata = file.metadata()?;
+        let metadata = fs::metadata(path)?;
 
         let fs_created_at = metadata.created().map(Into::<DateTime<Utc>>::into).ok();
 
