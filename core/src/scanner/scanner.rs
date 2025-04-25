@@ -58,18 +58,23 @@ impl Scanner {
                     .unwrap_or(String::from("unknown"));
 
                 let scanned_file = if Self::PICTURES_SUFFIXES.contains(&ext.as_ref()) {
-                    self.scan_one(x.path()).map(|info| ScannedFile::Photo(info))
+                    self.scan_one(x.path())
+                        .map(|info| ScannedFile::Photo(info))
+                        .map_err(|e| {
+                            error!("Failed scanning picture: {:?}", e);
+                            e
+                        })
                 } else if Self::VIDEO_SUFFIXES.contains(&ext.as_ref()) {
-                    self.scan_one(x.path()).map(|info| ScannedFile::Video(info))
+                    self.scan_one(x.path())
+                        .map(|info| ScannedFile::Video(info))
+                        .map_err(|e| {
+                            error!("Failed scanning video: {:?}", e);
+                            e
+                        })
                 } else {
                     Err(anyhow!("Not a picture or video: {:?}", x))
                 };
                 scanned_file
-            })
-            .inspect(|x| {
-                let _ = x
-                    .as_ref()
-                    .inspect_err(|e| error!("Failed scanning: {:?}", e));
             })
             .flatten() // ignore any errors when reading images
             .for_each(func); // visit
