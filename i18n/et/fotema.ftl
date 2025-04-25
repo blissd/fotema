@@ -164,3 +164,4 @@ prefs-processing-section = Foto- ja videotöötlus
     .description = Seadista foto- ja videotöötluse funktsionaalsuseid.
 prefs-albums-selfies = Selfid
     .subtitle = Näitab iOS-is tehtud selfide puhul eraldi albumit. Jõustamiseks käivita { -app-name } uuesti.
+banner-scan-library = Skaneerin meediakogu.
