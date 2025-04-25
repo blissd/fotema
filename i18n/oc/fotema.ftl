@@ -150,3 +150,17 @@ onboard-select-pictures =
 
         S’avètz utilizat una version anteriora { -app-name } ont vòstra fototèca foguèt automaticament descobèrta, alara mercés de seleccionar lo meteis repertòri aquí per evitar los tractaments d’imatge en doble.
     .button = Causir un repertòri
+prefs-albums-chronological-sort = Òrdre de triada
+    .subtitle = Òrdre cronologic pels albums.
+    .ascending = Ascendent
+    .descending = Descendent
+prefs-processing-section = Tractament de las fòtos e vidèos
+    .description = Configurar las foncionalitats de tractament de las fòtos e vidèos.
+prefs-processing-face-detection = Deteccion de las caras
+    .subtitle = Detectar las caras e reconéisser las personas que nomenèretz. Aquò es un procèssus que triga.
+prefs-albums-section = Albums
+    .description = Configurar los albums.
+prefs-albums-selfies = Autoretraches
+    .subtitle = mòstra un dossièr separat pels autoretraches prese amb un aparelh iOS. Relancatz { -app-name } per aplicar lo cambiamen.
+prefs-processing-motion-photos = Fòtos animadas
+    .subtitle = Detectar las fòtos animadas d'Android e extraire las vidèos.
