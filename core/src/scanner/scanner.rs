@@ -2,7 +2,9 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use crate::photo::model::ScannedFile;
+use super::FileInfo;
+use super::ScannedFile;
+
 use anyhow::*;
 use chrono;
 use chrono::prelude::*;
@@ -12,8 +14,6 @@ use std::path::PathBuf;
 use tracing::error;
 use walkdir::WalkDir;
 
-// FIXME photos::Scanner and videos::Scanner are now broadly the same. Can they be consolidated?
-
 /// Scans a file system for pictures.
 #[derive(Debug, Clone)]
 pub struct Scanner {
@@ -22,6 +22,12 @@ pub struct Scanner {
 }
 
 impl Scanner {
+    const PICTURES_SUFFIXES: [&str; 11] = [
+        "avif", "exr", "heic", "jpeg", "jpg", "jxl", "png", "qoi", "tiff", "webp", "gif",
+    ];
+
+    const VIDEO_SUFFIXES: [&str; 4] = ["mov", "mp4", "avi", "mkv"];
+
     pub fn build(scan_base: &Path) -> Result<Self> {
         fs::create_dir_all(scan_base)?;
         let scan_base = PathBuf::from(scan_base);
@@ -33,19 +39,6 @@ impl Scanner {
     where
         F: FnMut(ScannedFile),
     {
-        let picture_suffixes = [
-            String::from("avif"),
-            String::from("exr"),
-            String::from("heic"), // not supported by image-rs
-            String::from("jpeg"),
-            String::from("jpg"),
-            String::from("jxl"),
-            String::from("png"),
-            String::from("qoi"),
-            String::from("tiff"),
-            String::from("webp"),
-        ];
-
         WalkDir::new(&self.scan_base)
             .into_iter()
             .inspect(|x| {
@@ -55,20 +48,33 @@ impl Scanner {
             })
             .flatten() // skip files we failed to read
             .filter(|x| x.path().is_file()) // only process files
-            .filter(|x| {
+            .map(|x| {
                 // only process supported image types
                 let ext = x
                     .path()
                     .extension()
                     .and_then(|s| s.to_str())
-                    .map(|s| s.to_lowercase());
-                picture_suffixes.contains(&ext.unwrap_or(String::from("not_an_image")))
-            })
-            .map(|x| self.scan_one(x.path())) // Get picture info for image path
-            .inspect(|x| {
-                let _ = x
-                    .as_ref()
-                    .inspect_err(|e| error!("Failed scanning: {:?}", e));
+                    .map(|s| s.to_lowercase())
+                    .unwrap_or(String::from("unknown"));
+
+                let scanned_file = if Self::PICTURES_SUFFIXES.contains(&ext.as_ref()) {
+                    self.scan_one(x.path())
+                        .map(|info| ScannedFile::Photo(info))
+                        .map_err(|e| {
+                            error!("Failed scanning picture: {:?}", e);
+                            e
+                        })
+                } else if Self::VIDEO_SUFFIXES.contains(&ext.as_ref()) {
+                    self.scan_one(x.path())
+                        .map(|info| ScannedFile::Video(info))
+                        .map_err(|e| {
+                            error!("Failed scanning video: {:?}", e);
+                            e
+                        })
+                } else {
+                    Err(anyhow!("Not a picture or video: {:?}", x))
+                };
+                scanned_file
             })
             .flatten() // ignore any errors when reading images
             .for_each(func); // visit
@@ -84,10 +90,8 @@ impl Scanner {
         Ok(pics)
     }
 
-    pub fn scan_one(&self, path: &Path) -> Result<ScannedFile> {
-        let file = fs::File::open(path)?;
-
-        let metadata = file.metadata()?;
+    pub fn scan_one(&self, path: &Path) -> Result<FileInfo> {
+        let metadata = fs::metadata(path)?;
 
         let fs_created_at = metadata.created().map(Into::<DateTime<Utc>>::into).ok();
 
@@ -95,7 +99,7 @@ impl Scanner {
 
         let fs_file_size_bytes = metadata.len();
 
-        let scanned = ScannedFile {
+        let scanned = FileInfo {
             path: PathBuf::from(path),
             fs_created_at,
             fs_modified_at,

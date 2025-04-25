@@ -298,10 +298,7 @@ progress-idle = Idle.
 # Similar to the progress bar, but allows for longer messages.
 
 # Scanning file system for new photos
-banner-scan-photos = Scanning file system for photos.
-
-# Scanning file system for new videos
-banner-scan-videos = Scanning file system for videos.
+banner-scan-library = Scanning library.
 
 # Processing new photos to extract metadata from EXIF tags.
 banner-metadata-photos = Processing photo metadata.

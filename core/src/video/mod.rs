@@ -5,7 +5,6 @@
 pub mod metadata;
 pub mod model;
 pub mod repo;
-pub mod scanner;
 pub mod thumbnailer;
 pub mod transcode;
 
@@ -13,6 +12,5 @@ pub use model::Metadata;
 pub use model::Video;
 pub use model::VideoId;
 pub use repo::Repository;
-pub use scanner::Scanner;
 pub use thumbnailer::VideoThumbnailer;
 pub use transcode::Transcoder;
