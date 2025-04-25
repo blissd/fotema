@@ -987,7 +987,7 @@ impl SimpleAsyncComponent for App {
                         // do nothing
                     }
                     TaskName::Scan => {
-                        self.banner.set_title(&fl!("banner-scan-photos"));
+                        self.banner.set_title(&fl!("banner-scan-library"));
                     }
                     TaskName::Enrich(MediaType::Photo) => {
                         self.banner.set_title(&fl!("banner-metadata-photos"));
