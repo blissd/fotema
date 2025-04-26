@@ -59,7 +59,6 @@ impl LibraryScanTask {
         info!("Scanning file system for pictures...");
 
         let result = self.scan.scan_all().map_err(|e| e.to_string())?;
-        let count = result.len();
 
         let (photos, videos) = result.into_iter().partition_map(|scanned_file|
             match scanned_file {

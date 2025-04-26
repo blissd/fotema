@@ -19,6 +19,8 @@ pub use file::write_failed_thumbnail;
 pub use sizes::ThumbnailSize;
 pub use thumbnailer::generate_thumbnail;
 
+use crate::FlatpakPathBuf;
+
 pub fn compute_hash_for_path(host_path: &Path) -> String {
     let file_uri = file::get_file_uri(host_path).unwrap();
     hash::compute_hash(&file_uri)
@@ -88,24 +90,13 @@ impl Thumbnailer {
 
     pub fn generate_thumbnail(
         &self,
-        host_path: &Path,
-        sandbox_path: &Path,
+        path: &FlatpakPathBuf,
         size: ThumbnailSize,
         src_image: DynamicImage,
     ) -> Result<PathBuf, ThumbnailError> {
-        thumbnailer::generate_thumbnail(
-            &self.thumbnails_path,
-            host_path,
-            sandbox_path,
-            size,
-            src_image,
-        )
+        thumbnailer::generate_thumbnail(&self.thumbnails_path, path, size, src_image)
     }
-    pub fn write_failed_thumbnail(
-        &self,
-        host_path: &Path,
-        sandbox_path: &Path,
-    ) -> Result<(), ThumbnailError> {
-        file::write_failed_thumbnail(&self.thumbnails_path, host_path, sandbox_path)
+    pub fn write_failed_thumbnail(&self, path: &FlatpakPathBuf) -> Result<(), ThumbnailError> {
+        file::write_failed_thumbnail(&self.thumbnails_path, path)
     }
 }

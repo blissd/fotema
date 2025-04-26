@@ -12,12 +12,14 @@ use std::{
 };
 use tracing::{debug, info};
 
+use crate::FlatpakPathBuf;
 use crate::thumbnailify::{
     error::ThumbnailError,
     file::{get_failed_thumbnail_output, get_file_uri, get_thumbnail_hash_output},
     hash::compute_hash,
     sizes::ThumbnailSize,
 };
+
 use png::Decoder;
 
 use image::DynamicImage;
@@ -39,10 +41,10 @@ use tempfile;
 ///
 /// Returns true if "Thumb::MTime" is present and matches the source file's modification time,
 /// and if "Thumb::Size" is present it must match the source file's size.
-pub fn is_thumbnail_up_to_date(thumb_path: &Path, source_path: &Path) -> bool {
+pub fn is_thumbnail_up_to_date(thumb_path: &Path, host_path: &Path) -> bool {
     debug!(
         "Checking if thumbnail at {:?} is up-to-date with source {:?}",
-        thumb_path, source_path
+        thumb_path, host_path
     );
 
     let file = match File::open(thumb_path) {
@@ -73,10 +75,10 @@ pub fn is_thumbnail_up_to_date(thumb_path: &Path, source_path: &Path) -> bool {
     };
     let thumb_mtime = thumb_mtime_str.parse::<u64>().unwrap_or(0);
 
-    let source_metadata = match std::fs::metadata(source_path) {
+    let source_metadata = match std::fs::metadata(host_path) {
         Ok(m) => m,
         Err(e) => {
-            debug!("Failed to get metadata of source {:?}: {}", source_path, e);
+            debug!("Failed to get metadata of source {:?}: {}", host_path, e);
             return false;
         }
     };
@@ -86,7 +88,7 @@ pub fn is_thumbnail_up_to_date(thumb_path: &Path, source_path: &Path) -> bool {
         Err(e) => {
             debug!(
                 "Failed to read modified time of source {:?}: {}",
-                source_path, e
+                host_path, e
             );
             return false;
         }
@@ -114,7 +116,7 @@ pub fn is_thumbnail_up_to_date(thumb_path: &Path, source_path: &Path) -> bool {
 
     debug!(
         "Thumbnail at {:?} is up-to-date with source {:?}",
-        thumb_path, source_path
+        thumb_path, host_path
     );
     true
 }
@@ -128,8 +130,7 @@ pub fn is_thumbnail_up_to_date(thumb_path: &Path, source_path: &Path) -> bool {
 /// `src_image` - image data for thumbnail. Image data will have been loaded in a safe way using Glycin.
 pub fn generate_thumbnail(
     thumbnails_base_dir: &Path,
-    host_path: &Path,
-    sandbox_path: &Path,
+    path: &FlatpakPathBuf,
     size: ThumbnailSize,
     src_image: DynamicImage,
 ) -> Result<PathBuf, ThumbnailError> {
@@ -143,14 +144,14 @@ pub fn generate_thumbnail(
     //    .to_str()
     //   .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::InvalidData, "Invalid file path"))?;
 
-    let file_uri = get_file_uri(host_path)?;
+    let file_uri = get_file_uri(&path.host_path)?;
 
     // Compute the MD5 hash from the file URI.
     let hash = compute_hash(&file_uri);
 
     // Check if the fail marker exists and is up to date
     let fail_path = get_failed_thumbnail_output(thumbnails_base_dir, &hash);
-    if fail_path.exists() && is_thumbnail_up_to_date(&fail_path, sandbox_path) {
+    if fail_path.exists() && is_thumbnail_up_to_date(&fail_path, &path.sandbox_path) {
         info!(
             "A fail marker exists and is up-to-date, returning fail marker at {:?}",
             fail_path
@@ -162,7 +163,7 @@ pub fn generate_thumbnail(
     let thumb_path = get_thumbnail_hash_output(thumbnails_base_dir, &hash, size);
 
     // If the thumbnail already exists and is up to date, return it immediately.
-    if thumb_path.exists() && is_thumbnail_up_to_date(&thumb_path, sandbox_path) {
+    if thumb_path.exists() && is_thumbnail_up_to_date(&thumb_path, &path.host_path) {
         info!(
             "Cached thumbnail at {:?} is up-to-date, returning it",
             thumb_path
@@ -228,10 +229,10 @@ pub fn generate_thumbnail(
     // FIXME hard-coded app-id
     encoder.add_text_chunk("Software".to_string(), "app.fotema.Fotema".to_string())?;
 
-    let uri = get_file_uri(&host_path)?;
+    let uri = get_file_uri(&path.host_path)?;
     encoder.add_text_chunk("Thumb::URI".to_string(), uri)?;
 
-    let metadata = std::fs::metadata(&sandbox_path)?;
+    let metadata = std::fs::metadata(&path.sandbox_path)?;
 
     let size = metadata.len();
     encoder.add_text_chunk("Thumb::Size".to_string(), size.to_string())?;
