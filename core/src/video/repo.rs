@@ -4,6 +4,7 @@
 
 use super::Metadata;
 use super::metadata;
+use crate::FlatpakPathBuf;
 use crate::ScannedFile;
 use crate::path_encoding;
 use crate::video::model::{Video, VideoId};
@@ -15,6 +16,7 @@ use rusqlite::Row;
 use rusqlite::params;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
+use tracing::error;
 
 /// Repository of picture metadata.
 /// Repository is backed by a Sqlite database.
@@ -160,7 +162,7 @@ impl Repository {
             )?;
 
             for scanned_file in vids {
-                if let ScannedFile::Photo(info) = scanned_file {
+                if let ScannedFile::Video(info) = scanned_file {
                     // convert to relative path before saving to database
                     let video_path = info.path.strip_prefix(&self.library_base_path)?;
                     let video_path_b64 = path_encoding::to_base64(video_path);
@@ -182,6 +184,8 @@ impl Repository {
                         link_path_b64,
                         link_path.to_string_lossy(),
                     ])?;
+                } else {
+                    error!("Expected a video, but got: {:?}", scanned_file);
                 }
             }
         }
@@ -263,7 +267,7 @@ impl Repository {
         let relative_path: String = row.get("video_path_b64")?;
         let relative_path = path_encoding::from_base64(&relative_path)
             .map_err(|_| rusqlite::Error::InvalidQuery)?;
-        let video_path = self.library_base_path.join(&relative_path);
+        let sandbox_path = self.library_base_path.join(&relative_path);
         let host_path = self.library_base_dir_host_path.join(&relative_path);
 
         let ordering_ts = row.get("ordering_ts").expect("must have ordering_ts");
@@ -282,8 +286,7 @@ impl Repository {
 
         std::result::Result::Ok(Video {
             video_id,
-            path: video_path,
-            host_path,
+            path: FlatpakPathBuf::build(host_path, sandbox_path),
             ordering_ts,
             stream_duration,
             video_codec,

@@ -18,6 +18,7 @@ use rusqlite::Row;
 use rusqlite::params;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
+use tracing::error;
 
 /// Repository of picture metadata.
 /// Repository is backed by a Sqlite database.
@@ -187,6 +188,8 @@ impl Repository {
                         link_path_b64,
                         link_path.to_string_lossy(),
                     ])?;
+                } else {
+                    error!("Expected a photo, but got: {:?}", scanned_file);
                 }
             }
         }

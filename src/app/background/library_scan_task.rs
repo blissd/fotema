@@ -71,8 +71,9 @@ impl LibraryScanTask {
         self.video_repo.add_all(&videos).map_err(|e| e.to_string())?;
 
         info!(
-            "Scanned {} photos and videos in {} seconds.",
-            count,
+            "Scanned {} photos and {} videos in {} seconds.",
+            photos.len(),
+            videos.len(),
             start.elapsed().as_secs()
         );
 

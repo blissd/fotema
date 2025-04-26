@@ -71,7 +71,7 @@ impl VideoEnrichTask {
             .par_iter()
             .take_any_while(|_| !stop.load(Ordering::Relaxed))
             .flat_map(|vid| {
-                let result = metadata::from_path(&vid.path);
+                let result = metadata::from_path(&vid.sandbox_path());
                 progress_monitor.emit(ProgressMonitorInput::Advance);
                 result.map(|m| (vid.video_id, m))
             })
