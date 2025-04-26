@@ -61,7 +61,7 @@ impl PhotoEnrichTask {
             .par_iter()
             .take_any_while(|_| !stop.load(Ordering::Relaxed))
             .flat_map(|pic| {
-                let result = metadata::from_path(&pic.path);
+                let result = metadata::from_path(&pic.sandbox_path());
                 result.map(|m| (pic.picture_id, m))
             })
             .collect();

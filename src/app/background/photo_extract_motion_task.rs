@@ -80,7 +80,7 @@ impl PhotoExtractMotionTask {
             .par_iter()
             .take_any_while(|_| !stop.load(Ordering::Relaxed))
             .for_each(|photo| {
-                let result = extractor.extract(&photo.picture_id, &photo.path);
+                let result = extractor.extract(&photo.picture_id, photo.sandbox_path());
 
                 let result = match result {
                     Ok(opt_video) => repo

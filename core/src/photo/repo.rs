@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+use crate::FlatpakPathBuf;
 use crate::ScannedFile;
 use crate::path_encoding;
 use crate::people::model::FaceDetectionCandidate;
@@ -387,8 +388,7 @@ impl Repository {
 
         std::result::Result::Ok(Picture {
             picture_id,
-            path: sandbox_path,
-            host_path,
+            path: FlatpakPathBuf::build(host_path, sandbox_path),
             ordering_ts,
             is_selfie,
         })

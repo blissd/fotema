@@ -107,7 +107,7 @@ impl PhotoThumbnailTask {
                 // Careful! panic::catch_unwind returns Ok(Err) if the evaluated expression returns
                 // an error but doesn't panic.
                 let result = panic::catch_unwind(|| {
-                    block_on(async { thumbnailer.thumbnail(&pic.host_path, &pic.path).await })
+                    block_on(async { thumbnailer.thumbnail(&pic.path.host_path, &pic.path.sandbox_path).await })
                 });
 
                 // If we got an err, then there was a panic.

@@ -5,9 +5,16 @@
 use crate::thumbnailify;
 use std::path::PathBuf;
 
+/// A path to a file that exists both inside and outside of the Flatpak sandbox.
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct FlatpakPathBuf {
+    /// Path on the host system. This is the path to display in the UI and to use
+    /// when computing thumbnail hashes.
+    /// Fotema likely won't be able to read from this path.
     pub host_path: PathBuf,
+
+    /// Path inside the sandbox, likely under `/run/user/$UID/docs/$DOC_ID/...`.
+    /// This is the path to use when reading a file.
     pub sandbox_path: PathBuf,
 }
 

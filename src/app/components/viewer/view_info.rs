@@ -19,7 +19,6 @@ use relm4::gtk;
 use relm4::gtk::gio;
 use relm4::prelude::*;
 use std::fs;
-use std::path::PathBuf;
 use std::sync::Arc;
 
 use crate::app::SharedState;
