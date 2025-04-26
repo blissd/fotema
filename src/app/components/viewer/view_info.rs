@@ -7,6 +7,7 @@ use super::face_thumbnails::{FaceThumbnails, FaceThumbnailsInput};
 ///Inspired by how Loupe displays its property view.
 use fotema_core::VisualId;
 use fotema_core::people;
+use fotema_core::FlatpakPathBuf;
 
 use gtk::prelude::OrientableExt;
 
@@ -46,8 +47,8 @@ pub enum ViewInfoInput {
 pub struct ViewInfo {
     state: SharedState,
 
-    path: Option<PathBuf>,
-    host_path: Option<PathBuf>,
+    path: Option<FlatpakPathBuf>,
+
     folder: adw::ActionRow,
     file_name: adw::ActionRow,
 
@@ -324,7 +325,6 @@ impl SimpleComponent for ViewInfo {
             folder: folder.clone(),
             file_name: file_name.clone(),
             path: None,
-            host_path: None,
 
             date_time_details: date_time_details.clone(),
             created_at: created_at.clone(),
@@ -361,7 +361,7 @@ impl SimpleComponent for ViewInfo {
             ViewInfoInput::OpenFolder => {
                 // FIXME using self.host_path works when run in GNOME Builder, but
                 // doesn't work in the Flatpak sandbox.
-                let Some(ref path) = self.path else {
+                let Some(ref path) = self.path.as_ref().map(|p| &p.sandbox_path) else {
                     return;
                 };
 
@@ -449,20 +449,17 @@ const FALLBACK: &str = "–";
 
 impl ViewInfo {
     fn update_file_details(&mut self, vis: Arc<fotema_core::visual::Visual>) -> Result<(), String> {
-        let Some(ref path) = vis.path() else {
-            return Err("No picture or video path".to_string());
-        };
+
+        self.path = Some(vis.path().clone());
 
         Self::update_row(&self.folder, vis.folder_name());
         Self::update_row(
             &self.file_name,
-            path.file_name().map(|x| x.to_string_lossy().to_string()),
+            vis.host_path().file_name().map(|p| p.to_string_lossy()),
         );
-        self.path = Some(path.to_path_buf());
-        self.host_path = vis.host_path().cloned();
 
         // FIXME duplicated from Scanner
-        let file = fs::File::open(path).map_err(|e| e.to_string())?;
+        let file = fs::File::open(vis.sandbox_path()).map_err(|e| e.to_string())?;
 
         let metadata = file.metadata().map_err(|e| e.to_string())?;
 
@@ -500,7 +497,7 @@ impl ViewInfo {
         };
 
         // FIXME duplicated from Scanner
-        let file = fs::File::open(picture_path).map_err(|e| e.to_string())?;
+        let file = fs::File::open(&picture_path.sandbox_path).map_err(|e| e.to_string())?;
         let metadata = file.metadata().map_err(|e| e.to_string())?;
 
         let fs_file_size_bytes = metadata.len();
@@ -557,10 +554,10 @@ impl ViewInfo {
         };
 
         // FIXME duplicated from Scanner
-        let file = fs::File::open(video_path).map_err(|e| e.to_string())?;
+        let file = fs::File::open(&video_path.sandbox_path).map_err(|e| e.to_string())?;
         let fs_file_size_bytes = file.metadata().ok().map(|x| format_size(x.len(), DECIMAL));
 
-        let metadata = fotema_core::video::metadata::from_path(video_path).ok();
+        let metadata = fotema_core::video::metadata::from_path(&video_path.sandbox_path).ok();
         if metadata.is_none() {
             self.video_details.set_visible(false);
         }

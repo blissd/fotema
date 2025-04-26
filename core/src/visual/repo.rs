@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+use crate::FlatpakPathBuf;
 use crate::photo::PictureId;
 use crate::video::VideoId;
 use crate::visual::model::{PictureOrientation, Visual, VisualId};
@@ -103,16 +104,24 @@ impl Repository {
 
         let picture_id: Option<PictureId> = row.get("picture_id").map(PictureId::new).ok();
 
-        let picture_path: Option<PathBuf> = row
+        let picture_relative_path: Option<PathBuf> = row
             .get("picture_path_b64")
             .ok()
             .and_then(|x: String| path_encoding::from_base64(&x).ok());
 
-        let picture_host_path = picture_path
+        let picture_host_path = picture_relative_path
             .as_ref()
             .map(|x| self.library_base_dir_host_path.join(x));
 
-        let picture_path = picture_path.map(|x| self.library_base_path.join(x));
+        let picture_sandbox_path = picture_relative_path.map(|x| self.library_base_path.join(x));
+
+        let picture_path = if let (Some(host_path), Some(sandbox_path)) =
+            (picture_host_path, picture_sandbox_path)
+        {
+            Some(FlatpakPathBuf::build(host_path, sandbox_path))
+        } else {
+            None
+        };
 
         let picture_orientation: Option<PictureOrientation> = row
             .get("picture_orientation")
@@ -123,16 +132,23 @@ impl Repository {
 
         let video_id: Option<VideoId> = row.get("video_id").map(VideoId::new).ok();
 
-        let video_path: Option<PathBuf> = row
+        let video_relative_path: Option<PathBuf> = row
             .get("video_path_b64")
             .ok()
             .and_then(|x: String| path_encoding::from_base64(&x).ok());
 
-        let video_host_path = video_path
+        let video_host_path = video_relative_path
             .as_ref()
             .map(|x| self.library_base_dir_host_path.join(x));
 
-        let video_path = video_path.map(|x| self.library_base_path.join(x));
+        let video_sandbox_path = video_relative_path.map(|x| self.library_base_path.join(x));
+
+        let video_path =
+            if let (Some(host_path), Some(sandbox_path)) = (video_host_path, video_sandbox_path) {
+                Some(FlatpakPathBuf::build(host_path, sandbox_path))
+            } else {
+                None
+            };
 
         let video_orientation: Option<PictureOrientation> = row
             .get("video_rotation")
@@ -178,11 +194,9 @@ impl Repository {
             parent_path: link_path.parent().map(PathBuf::from).expect("Parent path"),
             picture_id,
             picture_path,
-            picture_host_path,
             picture_orientation,
             video_id,
             video_path,
-            video_host_path,
             ordering_ts,
             is_selfie,
             is_live_photo,

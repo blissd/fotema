@@ -79,7 +79,7 @@ impl VideoTranscodeTask {
 
                 let result = self
                     .transcoder
-                    .transcode(video_id, video_path)
+                    .transcode(video_id, &video_path.sandbox_path)
                     .with_context(|| format!("Video path: {:?}", video_path));
 
                 if let std::result::Result::Ok(ref transcode_path) = result {
