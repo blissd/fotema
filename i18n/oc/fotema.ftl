@@ -164,3 +164,4 @@ prefs-albums-selfies = Autoretraches
     .subtitle = mòstra un dossièr separat pels autoretraches prese amb un aparelh iOS. Relancatz { -app-name } per aplicar lo cambiamen.
 prefs-processing-motion-photos = Fòtos animadas
     .subtitle = Detectar las fòtos animadas d'Android e extraire las vidèos.
+banner-scan-library = Analisi de la bibliotèca.
