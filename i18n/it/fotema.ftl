@@ -298,3 +298,4 @@ prefs-albums-selfies = Selfie
     .subtitle = Mostra un album separato per i selfie scattati su dispositivi iOS. Riavvia { -app-name } per applicare.
 prefs-processing-motion-photos = Foto in movimento
     .subtitle = Rileva le foto in movimento di Android ed estrai i video.
+banner-scan-library = Scansione della libreria.
