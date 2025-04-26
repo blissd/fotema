@@ -15,6 +15,7 @@ use crate::app::FaceDetectionMode;
 use crate::app::{Settings, SettingsState};
 use crate::fl;
 use crate::host_path;
+use fotema_core::FlatpakPathBuf;
 
 pub struct PreferencesDialog {
     parent: adw::ApplicationWindow,
@@ -34,7 +35,8 @@ impl PreferencesDialog {
 
     pub fn picture_base_dir_host_path(&self) -> String {
         self.settings
-            .pictures_base_dir_host_path
+            .library_base_dir
+            .host_path
             .to_string_lossy()
             .to_string()
     }
@@ -265,21 +267,20 @@ impl SimpleAsyncComponent for PreferencesDialog {
                             info!("Open: {:?}", files);
                             if let Some(first) = files.uris().first() {
                                 info!("User has chosen picture library at: {:?}", first.path());
-                                if let Some(pictures_base_dir) =
+                                if let Some(library_base_dir) =
                                     files.uris().first().and_then(|uri| uri.to_file_path().ok())
                                 {
                                     info!(
                                         "User has chosen picture library at: {:?}",
-                                        pictures_base_dir
+                                        library_base_dir
                                     );
-                                    if self.settings.pictures_base_dir != pictures_base_dir {
+                                    if self.settings.library_base_dir.sandbox_path != library_base_dir {
                                         info!(
                                             "New pictures base director is: {:?}",
-                                            pictures_base_dir
+                                            library_base_dir
                                         );
-                                        self.settings.pictures_base_dir = pictures_base_dir.clone();
-                                        self.settings.pictures_base_dir_host_path = host_path::host_path(&pictures_base_dir)
-                                            .await.unwrap_or(pictures_base_dir);
+                                        self.settings.library_base_dir = host_path::host_path(&library_base_dir)
+                                            .await.unwrap_or(FlatpakPathBuf::build(&library_base_dir, &library_base_dir));
                                         *self.settings_state.write() = self.settings.clone();
                                     }
                                 }

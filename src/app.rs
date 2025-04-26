@@ -31,6 +31,7 @@ use fotema_core::database;
 use fotema_core::path_encoding;
 use fotema_core::people;
 use fotema_core::thumbnailify::Thumbnailer;
+use fotema_core::FlatpakPathBuf;
 
 use h3o::CellIndex;
 
@@ -128,11 +129,7 @@ pub struct Settings {
 
     /// Base path of pictures directory inside Flatpak sandbox.
     /// Will be under `/run/users/<uid>/docs/<doc-id>/...`
-    pub pictures_base_dir: PathBuf,
-
-    /// Real base path outside of Flatpak sandbox.
-    /// For example, `/var/home/<user>/Pictures`.
-    pub pictures_base_dir_host_path: PathBuf,
+    pub library_base_dir: FlatpakPathBuf,
 }
 
 /// Active settings
@@ -853,11 +850,11 @@ impl SimpleAsyncComponent for App {
 
         let settings = settings_state.read();
         let is_onboarding_complete =
-            settings.is_onboarding_complete && settings.pictures_base_dir.exists();
+            settings.is_onboarding_complete && settings.library_base_dir.exists();
         if is_onboarding_complete {
             model.picture_navigation_view.set_visible(true);
             model.onboard_view.set_visible(false);
-            sender.input(AppMsg::OnboardDone(settings.pictures_base_dir.clone()));
+            sender.input(AppMsg::OnboardDone(settings.library_base_dir.sandbox_path.clone()));
         } else {
             model.picture_navigation_view.set_visible(false);
             model.onboard_view.set_visible(true);
@@ -1072,14 +1069,14 @@ impl SimpleAsyncComponent for App {
                 // Notify of a change of layout.
                 *self.adaptive_layout.write() = adaptive::Layout::Wide;
             }
-            AppMsg::OnboardDone(pic_base_dir) => {
+            AppMsg::OnboardDone(library_base_dir) => {
                 let mut settings = self.settings_state.read().clone();
                 settings.is_onboarding_complete = true;
-                settings.pictures_base_dir = pic_base_dir.clone();
-                settings.pictures_base_dir_host_path = host_path::host_path(&pic_base_dir).await.unwrap_or(pic_base_dir.clone());
+                settings.library_base_dir = host_path::host_path(&library_base_dir).await
+                    .unwrap_or(FlatpakPathBuf::build(&library_base_dir, &library_base_dir));
                 *self.settings_state.write() = settings.clone();
 
-                self.bootstrap.emit(BootstrapInput::Configure(pic_base_dir, settings.pictures_base_dir_host_path.clone()));
+                self.bootstrap.emit(BootstrapInput::Configure(settings.library_base_dir.clone()));
                 self.picture_navigation_view.set_visible(true);
                 self.onboard_view.set_visible(false);
             }
@@ -1100,7 +1097,8 @@ impl App {
         let pic_base_dir: PathBuf =  path_encoding::from_base64(
                 &gio_settings.string("pictures-base-dir-b64").into())?;
 
-        let pic_base_dir_host_path = host_path::host_path(&pic_base_dir).await.unwrap_or(pic_base_dir.clone());
+        let library_base_dir = host_path::host_path(&pic_base_dir).await
+            .unwrap_or(FlatpakPathBuf::build(&pic_base_dir, &pic_base_dir));
 
         Ok(Settings {
             show_selfies: gio_settings.boolean("show-selfies"),
@@ -1112,8 +1110,7 @@ impl App {
             album_sort: AlbumSort::from_str(&gio_settings.string("album-sort"))
                 .unwrap_or(AlbumSort::Ascending),
             is_onboarding_complete: gio_settings.boolean("onboarding-complete"),
-            pictures_base_dir: pic_base_dir,
-            pictures_base_dir_host_path: pic_base_dir_host_path,
+            library_base_dir,
         })
     }
 
@@ -1127,7 +1124,7 @@ impl App {
         gio_settings.set_boolean("onboarding-complete", settings.is_onboarding_complete)?;
         gio_settings.set_string(
             "pictures-base-dir-b64",
-            &path_encoding::to_base64(settings.pictures_base_dir.as_ref()),
+            &path_encoding::to_base64(&settings.library_base_dir.sandbox_path),
         )?;
         Ok(())
     }

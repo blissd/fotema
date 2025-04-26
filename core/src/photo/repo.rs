@@ -24,12 +24,8 @@ use tracing::error;
 /// Repository is backed by a Sqlite database.
 #[derive(Debug, Clone)]
 pub struct Repository {
-    /// Base path to picture library on file system
-    library_sandbox_base_path: PathBuf,
-
-    /// Base path to picture library on file system.
-    /// This is the path outside of the Flatpak sandbox.
-    library_host_base_path: PathBuf,
+    /// Base path to library
+    library_base_dir: FlatpakPathBuf,
 
     /// Base path cache directory for motion photo videos
     cache_dir_base_path: PathBuf,
@@ -44,19 +40,17 @@ pub struct Repository {
 impl Repository {
     /// Builds a Repository and creates operational tables.
     pub fn open(
-        library_sandbox_base_path: &Path,
-        library_host_base_path: &Path,
+        library_base_dir: &FlatpakPathBuf,
         cache_dir_base_path: &Path,
         data_dir_base_path: &Path,
         con: Arc<Mutex<rusqlite::Connection>>,
     ) -> Result<Repository> {
-        if !library_sandbox_base_path.is_dir() {
-            bail!("{:?} is not a directory", library_sandbox_base_path);
+        if !library_base_dir.sandbox_path.is_dir() {
+            bail!("{:?} is not a directory", library_base_dir);
         }
 
         let repo = Repository {
-            library_sandbox_base_path: library_sandbox_base_path.into(),
-            library_host_base_path: library_host_base_path.into(),
+            library_base_dir: library_base_dir.clone(),
             cache_dir_base_path: cache_dir_base_path.into(),
             data_dir_base_path: data_dir_base_path.into(),
             con,
@@ -168,7 +162,9 @@ impl Repository {
             for scanned_file in pics {
                 if let ScannedFile::Photo(info) = scanned_file {
                     // convert to relative path before saving to database
-                    let picture_path = info.path.strip_prefix(&self.library_sandbox_base_path)?;
+                    let picture_path = info
+                        .path
+                        .strip_prefix(&self.library_base_dir.sandbox_path)?;
                     let picture_path_b64 = path_encoding::to_base64(picture_path);
 
                     // Path without suffix so sibling pictures and videos can be related
@@ -383,8 +379,8 @@ impl Repository {
         let relative_path = path_encoding::from_base64(&relative_path)
             .map_err(|_| rusqlite::Error::InvalidQuery)?;
 
-        let sandbox_path = self.library_sandbox_base_path.join(&relative_path);
-        let host_path = self.library_host_base_path.join(&relative_path);
+        let sandbox_path = self.library_base_dir.sandbox_path.join(&relative_path);
+        let host_path = self.library_base_dir.host_path.join(&relative_path);
 
         let ordering_ts = row.get("ordering_ts").expect("must have ordering_ts");
         let is_selfie = row.get("is_selfie").ok();
@@ -488,9 +484,9 @@ impl Repository {
 
         let host_path = relative_path
             .as_ref()
-            .map(|x| self.library_host_base_path.join(x));
+            .map(|x| self.library_base_dir.host_path.join(x));
 
-        let sandbox_path = relative_path.map(|x| self.library_sandbox_base_path.join(x));
+        let sandbox_path = relative_path.map(|x| self.library_base_dir.sandbox_path.join(x));
 
         Ok(FaceDetectionCandidate {
             picture_id,

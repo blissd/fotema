@@ -6,7 +6,8 @@ use crate::thumbnailify;
 use std::path::PathBuf;
 
 /// A path to a file that exists both inside and outside of the Flatpak sandbox.
-#[derive(Debug, Clone, Eq, PartialEq)]
+/// FIXME does Default make sense? It is here to make Settings compile.
+#[derive(Debug, Clone, Eq, PartialEq, Default)]
 pub struct FlatpakPathBuf {
     /// Path on the host system. This is the path to display in the UI and to use
     /// when computing thumbnail hashes.

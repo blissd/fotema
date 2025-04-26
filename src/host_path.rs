@@ -3,16 +3,17 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use ashpd::documents::{DocumentID, Documents};
+use fotema_core::FlatpakPathBuf;
 use regex::Regex;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use tracing::debug;
 
 /// Derive host path from sandbox document path.
-pub async fn host_path(sandbox_path: &Path) -> Option<PathBuf> {
+pub async fn host_path(sandbox_path: &Path) -> Option<FlatpakPathBuf> {
     // If sandbox_path doesn't start with "/run/user/" then
     // it is a host path.
     if !sandbox_path.starts_with("/run/user/") {
-        return Some(sandbox_path.into());
+        return Some(FlatpakPathBuf::build(sandbox_path, sandbox_path));
     }
 
     // Parse Document ID from file chooser path.
@@ -29,10 +30,9 @@ pub async fn host_path(sandbox_path: &Path) -> Option<PathBuf> {
         debug!("Document ID={:?}", doc_id);
         let proxy = Documents::new().await.unwrap();
         let host_paths = proxy.host_paths(&[doc_id.clone()]).await.unwrap();
-        let host_path = host_paths
+        host_paths
             .get(&doc_id)
-            .map(|file_path| file_path.as_ref().to_path_buf());
-        host_path
+            .map(|file_path| FlatpakPathBuf::build(file_path.as_ref().to_path_buf(), sandbox_path))
     } else {
         None
     }
