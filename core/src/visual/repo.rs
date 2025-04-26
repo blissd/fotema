@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+use crate::FlatpakPathBuf;
 use crate::photo::PictureId;
 use crate::video::VideoId;
 use crate::visual::model::{PictureOrientation, Visual, VisualId};
@@ -21,13 +22,8 @@ use std::sync::{Arc, Mutex};
 /// Repository is backed by a Sqlite database.
 #[derive(Debug, Clone)]
 pub struct Repository {
-    /// Base path to picture library on file system.
-    /// This is the path in the Flatpak sandbox.
-    library_base_path: path::PathBuf,
-
-    /// Base path to picture library on file system.
-    /// This is the path outside of the Flatpak sandbox.
-    library_base_dir_host_path: path::PathBuf,
+    /// Base path to library
+    library_base_dir: FlatpakPathBuf,
 
     /// Base path for transcoded videos
     cache_dir_base_path: path::PathBuf,
@@ -39,15 +35,13 @@ pub struct Repository {
 impl Repository {
     /// Builds a Repository and creates operational tables.
     pub fn open(
-        library_base_path: &path::Path,
-        library_base_dir_host_path: &path::Path,
+        library_base_dir: &FlatpakPathBuf,
         cache_dir_base_path: &path::Path,
         con: Arc<Mutex<rusqlite::Connection>>,
     ) -> Result<Repository> {
         let repo = Repository {
-            library_base_path: path::PathBuf::from(library_base_path),
-            library_base_dir_host_path: path::PathBuf::from(library_base_dir_host_path),
-            cache_dir_base_path: path::PathBuf::from(cache_dir_base_path),
+            library_base_dir: library_base_dir.clone(),
+            cache_dir_base_path: cache_dir_base_path.into(),
             con,
         };
         Ok(repo)
@@ -99,20 +93,29 @@ impl Repository {
         let link_path: String = row.get("link_path_b64")?;
         let link_path =
             path_encoding::from_base64(&link_path).map_err(|_| rusqlite::Error::InvalidQuery)?;
-        let link_path = self.library_base_dir_host_path.join(link_path);
+        let link_path = self.library_base_dir.host_path.join(link_path);
 
         let picture_id: Option<PictureId> = row.get("picture_id").map(PictureId::new).ok();
 
-        let picture_path: Option<PathBuf> = row
+        let picture_relative_path: Option<PathBuf> = row
             .get("picture_path_b64")
             .ok()
             .and_then(|x: String| path_encoding::from_base64(&x).ok());
 
-        let picture_host_path = picture_path
+        let picture_host_path = picture_relative_path
             .as_ref()
-            .map(|x| self.library_base_dir_host_path.join(x));
+            .map(|x| self.library_base_dir.host_path.join(x));
 
-        let picture_path = picture_path.map(|x| self.library_base_path.join(x));
+        let picture_sandbox_path =
+            picture_relative_path.map(|x| self.library_base_dir.sandbox_path.join(x));
+
+        let picture_path = if let (Some(host_path), Some(sandbox_path)) =
+            (picture_host_path, picture_sandbox_path)
+        {
+            Some(FlatpakPathBuf::build(host_path, sandbox_path))
+        } else {
+            None
+        };
 
         let picture_orientation: Option<PictureOrientation> = row
             .get("picture_orientation")
@@ -123,16 +126,24 @@ impl Repository {
 
         let video_id: Option<VideoId> = row.get("video_id").map(VideoId::new).ok();
 
-        let video_path: Option<PathBuf> = row
+        let video_relative_path: Option<PathBuf> = row
             .get("video_path_b64")
             .ok()
             .and_then(|x: String| path_encoding::from_base64(&x).ok());
 
-        let video_host_path = video_path
+        let video_host_path = video_relative_path
             .as_ref()
-            .map(|x| self.library_base_dir_host_path.join(x));
+            .map(|x| self.library_base_dir.host_path.join(x));
 
-        let video_path = video_path.map(|x| self.library_base_path.join(x));
+        let video_sandbox_path =
+            video_relative_path.map(|x| self.library_base_dir.sandbox_path.join(x));
+
+        let video_path =
+            if let (Some(host_path), Some(sandbox_path)) = (video_host_path, video_sandbox_path) {
+                Some(FlatpakPathBuf::build(host_path, sandbox_path))
+            } else {
+                None
+            };
 
         let video_orientation: Option<PictureOrientation> = row
             .get("video_rotation")
@@ -178,11 +189,9 @@ impl Repository {
             parent_path: link_path.parent().map(PathBuf::from).expect("Parent path"),
             picture_id,
             picture_path,
-            picture_host_path,
             picture_orientation,
             video_id,
             video_path,
-            video_host_path,
             ordering_ts,
             is_selfie,
             is_live_photo,

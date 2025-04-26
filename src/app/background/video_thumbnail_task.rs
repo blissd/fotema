@@ -102,7 +102,7 @@ impl VideoThumbnailTask {
                 // Careful! panic::catch_unwind returns Ok(Err) if the evaluated expression returns
                 // an error but doesn't panic.
                 let result =
-                    panic::catch_unwind(|| thumbnailer.thumbnail(&vid.host_path, &vid.path));
+                    panic::catch_unwind(|| thumbnailer.thumbnail(&vid.path));
 
                 // If we got an err, then there was a panic.
                 // If we got Ok(Err(e)) there wasn't a panic, but we still failed.

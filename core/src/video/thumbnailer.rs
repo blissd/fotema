@@ -2,10 +2,11 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+use crate::FlatpakPathBuf;
 use crate::thumbnailify;
+
 use anyhow::*;
 use image::ImageReader;
-use std::path::Path;
 use std::process::Command;
 use std::result::Result::Ok;
 use tempfile;
@@ -24,24 +25,18 @@ impl VideoThumbnailer {
     }
 
     /// Computes a preview for a video
-    pub fn thumbnail(&self, host_path: &Path, sandbox_path: &Path) -> Result<()> {
-        if self.thumbnailer.is_failed(host_path) {
-            anyhow::bail!(
-                "Failed thumbnail marker exists for {:?}",
-                host_path.to_string_lossy()
-            );
+    pub fn thumbnail(&self, path: &FlatpakPathBuf) -> Result<()> {
+        if self.thumbnailer.is_failed(&path.host_path) {
+            anyhow::bail!("Failed thumbnail marker exists for {:?}", path.host_path);
         }
 
-        self.thumbnail_internal(host_path, sandbox_path)
-            .map_err(|err| {
-                let _ = self
-                    .thumbnailer
-                    .write_failed_thumbnail(&host_path, sandbox_path);
-                err
-            })
+        self.thumbnail_internal(path).map_err(|err| {
+            let _ = self.thumbnailer.write_failed_thumbnail(path);
+            err
+        })
     }
 
-    pub fn thumbnail_internal(&self, host_path: &Path, sandbox_path: &Path) -> Result<()> {
+    pub fn thumbnail_internal(&self, path: &FlatpakPathBuf) -> Result<()> {
         // Extract first frame of video for thumbnail
         let temporary_png_file = tempfile::Builder::new().suffix(".png").tempfile()?;
 
@@ -51,7 +46,7 @@ impl VideoThumbnailer {
             .arg("error")
             .arg("-y") // temp file will already exist, so allow overwriting
             .arg("-i")
-            .arg(sandbox_path.as_os_str())
+            .arg(path.sandbox_path.as_os_str())
             .arg("-update")
             .arg("true")
             .arg("-vf")
@@ -66,8 +61,7 @@ impl VideoThumbnailer {
         let src_image = ImageReader::open(&temporary_png_file)?.decode()?;
 
         let _ = self.thumbnailer.generate_thumbnail(
-            host_path,
-            sandbox_path,
+            path,
             thumbnailify::ThumbnailSize::Large,
             src_image,
         )?;

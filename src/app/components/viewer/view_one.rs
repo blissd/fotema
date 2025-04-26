@@ -6,6 +6,8 @@ use chrono::TimeDelta;
 use fotema_core::Visual;
 use fotema_core::VisualId;
 use fotema_core::visual::model::PictureOrientation;
+use fotema_core::FlatpakPathBuf;
+
 use glycin;
 use relm4::adw::gdk;
 use relm4::gtk;
@@ -19,7 +21,6 @@ use crate::app::components::progress_monitor::ProgressMonitor;
 use crate::app::components::progress_panel::ProgressPanel;
 use crate::fl;
 
-use std::path::PathBuf;
 use std::sync::Arc;
 
 use tracing::{Level, debug, event, info};
@@ -58,7 +59,7 @@ pub enum Broken {
     MissingPath,
 
     /// Visual item no longer on file system.
-    MissingInFileSystem(PathBuf),
+    MissingInFileSystem(FlatpakPathBuf),
 
     /// Glycin couldn't load the file.
     Failed,
@@ -355,10 +356,7 @@ impl SimpleAsyncComponent for ViewOne {
             ViewOneInput::Load(visual) => {
                 info!("Load visual {}", visual.visual_id);
 
-                let visual_path = visual
-                    .picture_path
-                    .as_ref()
-                    .or_else(|| visual.video_path.as_ref());
+                let visual_sandbox_path = visual.sandbox_path();
 
                 self.viewing = Viewing::None;
                 self.audio = Audio::None;
@@ -367,15 +365,9 @@ impl SimpleAsyncComponent for ViewOne {
                 self.is_skipping_allowed = false;
                 self.visual_id = None;
 
-                let Some(visual_path) = visual_path else {
+                if !visual_sandbox_path.exists() {
                     self.viewing = Viewing::Error;
-                    self.broken = Broken::MissingPath;
-                    return;
-                };
-
-                if !visual_path.exists() {
-                    self.viewing = Viewing::Error;
-                    self.broken = Broken::MissingInFileSystem(visual_path.clone());
+                    self.broken = Broken::MissingInFileSystem(visual.path().clone());
                     return;
                 }
 
@@ -401,7 +393,7 @@ impl SimpleAsyncComponent for ViewOne {
                         .unwrap_or(PictureOrientation::North);
                     self.picture.add_css_class(orientation.as_ref());
 
-                    let file = gio::File::for_path(visual_path);
+                    let file = gio::File::for_path(visual_sandbox_path);
 
                     let mut loader = glycin::Loader::new(file);
                     loader.apply_transformations(false);
@@ -453,7 +445,7 @@ impl SimpleAsyncComponent for ViewOne {
                             .video_transcoded_path
                             .as_ref()
                             .filter(|x| x.exists())
-                            .or_else(|| visual.video_path.as_ref())
+                            .or(Some(visual_sandbox_path))
                             .filter(|x| x.exists())
                             .or_else(|| visual.motion_photo_video_path.as_ref())
                             .expect("must have video path");
@@ -681,7 +673,7 @@ impl ViewOne {
             Broken::MissingPath => Some(fl!("viewer-error-missing-path")),
             Broken::MissingInFileSystem(ref visual_path) => Some(fl!(
                 "viewer-error-missing-file",
-                file_name = visual_path.to_string_lossy()
+                file_name = visual_path.host_path.to_string_lossy()
             )),
             Broken::Failed => Some(fl!("viewer-error-failed-to-load")),
             Broken::None => None::<String>,

@@ -5,6 +5,7 @@
 use std::fmt::Display;
 use std::path::PathBuf;
 
+use crate::FlatpakPathBuf;
 use crate::photo::model::Orientation;
 use crate::thumbnailify;
 use crate::{PictureId, VideoId, YearMonth};
@@ -46,9 +47,7 @@ pub struct Visual {
 
     pub video_id: Option<VideoId>,
 
-    pub video_path: Option<PathBuf>,
-
-    pub video_host_path: Option<PathBuf>,
+    pub video_path: Option<FlatpakPathBuf>,
 
     // Transcoded version of video_path of video_codec is not supported.
     pub video_transcoded_path: Option<PathBuf>,
@@ -61,9 +60,7 @@ pub struct Visual {
 
     pub picture_id: Option<PictureId>,
 
-    pub picture_path: Option<PathBuf>,
-
-    pub picture_host_path: Option<PathBuf>,
+    pub picture_path: Option<FlatpakPathBuf>,
 
     pub picture_orientation: Option<Orientation>,
 
@@ -86,19 +83,23 @@ pub struct Visual {
 }
 
 impl Visual {
-    pub fn path(&self) -> Option<&PathBuf> {
-        self.picture_path.as_ref().or(self.video_path.as_ref())
+    pub fn path(&self) -> &FlatpakPathBuf {
+        self.picture_path
+            .as_ref()
+            .or(self.video_path.as_ref())
+            .expect("Must have either picture path or video path")
     }
 
-    // FIXME not an option! One must always be present.
-    pub fn host_path(&self) -> Option<&PathBuf> {
-        self.picture_host_path
-            .as_ref()
-            .or(self.video_host_path.as_ref())
+    pub fn sandbox_path(&self) -> &PathBuf {
+        &self.path().sandbox_path
+    }
+
+    pub fn host_path(&self) -> &PathBuf {
+        &self.path().host_path
     }
 
     pub fn thumbnail_hash(&self) -> String {
-        thumbnailify::compute_hash_for_path(&self.host_path().expect("Must have host path!"))
+        thumbnailify::compute_hash_for_path(self.host_path())
     }
 
     pub fn is_selfie(&self) -> bool {

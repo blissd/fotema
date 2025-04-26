@@ -16,6 +16,7 @@ use image::{DynamicImage, Rgba, RgbaImage};
 use png::{Decoder, Encoder};
 use url::Url;
 
+use crate::FlatpakPathBuf;
 use crate::thumbnailify::hash;
 use crate::thumbnailify::{error::ThumbnailError, sizes::ThumbnailSize};
 
@@ -72,16 +73,15 @@ pub fn is_failed(thumbnails_base_dir: &Path, host_path: &Path) -> bool {
 /// Writes a failed thumbnail using an empty (1x1 transparent) DynamicImage.
 pub fn write_failed_thumbnail(
     thumbnails_base_dir: &Path,
-    host_path: &Path,
-    sandbox_path: &Path,
+    path: &FlatpakPathBuf,
 ) -> Result<(), ThumbnailError> {
-    let file_uri = get_file_uri(&host_path)?;
+    let file_uri = get_file_uri(&path.host_path)?;
     let file_uri_hash = hash::compute_hash(&file_uri);
     let fail_path = get_failed_thumbnail_output(thumbnails_base_dir, &file_uri_hash);
 
     info!(
         "Writing failed thumbnail marker at {:?} for source {:?}",
-        fail_path, host_path
+        fail_path, path.host_path
     );
 
     fail_path.parent().as_ref().map(|p| fs::create_dir_all(p));
@@ -102,10 +102,10 @@ pub fn write_failed_thumbnail(
     // FIXME hard-coded app-id
     encoder.add_text_chunk("Software".to_string(), "app.fotema.Fotema".to_string())?;
 
-    let uri = get_file_uri(&host_path)?;
+    let uri = get_file_uri(&path.host_path)?;
     encoder.add_text_chunk("Thumb::URI".to_string(), uri)?;
 
-    let metadata = std::fs::metadata(&sandbox_path)?;
+    let metadata = std::fs::metadata(&path.sandbox_path)?;
 
     let size = metadata.len();
     encoder.add_text_chunk("Thumb::Size".to_string(), size.to_string())?;
