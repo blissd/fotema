@@ -82,7 +82,7 @@ person-delete-dialog =
     .body = لن يتم إزالة أي صور أو فيديوهات.
     .cancel-button = ألغِ
     .delete-button = احذف
-about-translator-credits = أحمد محمد <iramosu@protonmail.com>
+about-translator-credits = أحمد النجماوي <iramosu@protonmail.com>
 month-thumbnail-label =
     { $month ->
         [1] يناير { $year }
@@ -156,3 +156,7 @@ prefs-library-section =
 prefs-library-section-pictures-dir =
     .title = دليل الصور
     .tooltip = اختر دليل الصور.
+prefs-albums-selfies = الصور الذاتية
+    .subtitle = يعرض أبلومًا منفصلًا للصور الذاتية المتلقطة على أجهزة آي أو إس. أعِد تشغيل { -app-name } للتطبيق.
+prefs-albums-section = الألبومات
+    .description = اضبط الألبومات.
