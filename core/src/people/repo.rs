@@ -6,6 +6,7 @@ use crate::photo::model::PictureId;
 
 use crate::machine_learning::face_extractor;
 use crate::people::FaceId;
+use crate::people::FaceToMigrate;
 use crate::people::PersonId;
 use crate::people::model;
 use crate::people::model::PersonForRecognition;
@@ -748,5 +749,52 @@ impl Repository {
         };
 
         std::result::Result::Ok(person)
+    }
+
+    pub fn migrate_get_all(&self) -> Result<Vec<FaceToMigrate>> {
+        let con = self.con.lock().unwrap();
+        let mut stmt = con.prepare(
+            "SELECT
+                migrate_faces.face_id AS face_id,
+                migrate_faces.face_index AS face_index,
+                pictures.path AS relative_path,
+                pictures_faces.bounds_path AS bounds_path,
+                pictures_faces.thumbnail_path AS thumbnail_path
+            FROM migrate_faces
+            INNER JOIN pictures_faces USING (face_id)
+            INNER JOIN pictures USING (picture_id)",
+        )?;
+
+        let result: Vec<model::FaceToMigrate> = stmt
+            .query_map([], |row| self.to_face_to_migrate(row))?
+            .flatten()
+            .collect();
+
+        Ok(result)
+    }
+
+    fn to_face_to_migrate(&self, row: &Row<'_>) -> rusqlite::Result<FaceToMigrate> {
+        let face_id = row.get("face_id").map(FaceId::new)?;
+        let face_index: u32 = row.get("face_index")?;
+
+        let picture_relative_path = row.get("relative_path").map(|p: String| PathBuf::from(p))?;
+
+        let bounds_path = row
+            .get("bounds_path")
+            .map(|p: String| self.data_dir_base_path.join(p))?;
+
+        let thumbnail_path = row
+            .get("bounds_path")
+            .map(|p: String| self.data_dir_base_path.join(p))?;
+
+        let face = model::FaceToMigrate {
+            face_id,
+            face_index,
+            picture_relative_path,
+            bounds_path,
+            thumbnail_path,
+        };
+
+        std::result::Result::Ok(face)
     }
 }
