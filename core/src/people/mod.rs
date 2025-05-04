@@ -9,6 +9,7 @@ pub mod repo;
 pub use model::FaceDetectionCandidate;
 pub use model::FaceId;
 pub use model::FaceToMigrate;
+pub use model::MigratedFace;
 pub use model::Person;
 pub use model::PersonId;
 pub use repo::Repository;

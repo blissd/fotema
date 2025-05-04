@@ -16,6 +16,7 @@ use fotema_core::video;
 use fotema_core::visual;
 use fotema_core::Scanner;
 use fotema_core::FlatpakPathBuf;
+use fotema_core::people::migrate::Migrate;
 
 use std::result::Result::Ok;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -49,6 +50,7 @@ use super::{
     video_transcode_task::{VideoTranscodeTask, VideoTranscodeTaskInput, VideoTranscodeTaskOutput},
 
     tidy_task::{TidyTask, TidyTaskInput, TidyTaskOutput},
+    migrate_task::{MigrateTask, MigrateTaskInput, MigrateTaskOutput},
 };
 
 use crate::app::FaceDetectionMode;
@@ -78,6 +80,7 @@ pub enum TaskName {
     RecognizeFaces,
     Transcode,
     Tidy,
+    Migrate,
 }
 
 #[derive(Debug)]
@@ -164,6 +167,7 @@ pub struct Controllers {
     video_transcode_task: Arc<WorkerController<VideoTranscodeTask>>,
 
     tidy_task: Arc<WorkerController<TidyTask>>,
+    migrate_task: Arc<WorkerController<MigrateTask>>,
 
     /// Pending ordered tasks to process
     /// Wow... figuring out a type signature that would compile was a nightmare.
@@ -372,6 +376,11 @@ impl Controllers {
     fn add_task_tidy(&mut self) {
         let sender = self.tidy_task.sender().clone();
         self.enqueue(Box::new(move || sender.emit(TidyTaskInput::Start)));
+    }
+
+    fn add_task_migrate(&mut self) {
+        let sender = self.migrate_task.sender().clone();
+        self.enqueue(Box::new(move || sender.emit(MigrateTaskInput::Start)));
     }
 
     fn enqueue(&mut self, task: Box<dyn Fn() + Send + Sync>) {
@@ -605,7 +614,7 @@ impl Bootstrap {
         let photo_detect_faces_task = PhotoDetectFacesTask::builder()
             .detach_worker((
                 stop.clone(),
-                data_dir,
+                data_dir.clone(),
                 thumbnailer,
                 photo_repo.clone(),
                 people_repo.clone(),
@@ -647,6 +656,19 @@ impl Bootstrap {
                 }
             });
 
+        let migrate = Migrate::build(people_repo, &data_dir, library_base_dir.clone());
+
+        let migrate_task = MigrateTask::builder()
+            .detach_worker((stop.clone(), migrate))
+            .forward(sender.input_sender(), |msg| match msg {
+                MigrateTaskOutput::Started => {
+                    BootstrapInput::TaskStarted(TaskName::Migrate)
+                }
+                MigrateTaskOutput::Completed => {
+                    BootstrapInput::TaskCompleted(TaskName::Migrate, None)
+                }
+            });
+
         let mut controllers = Controllers {
             stop,
             started_at: None,
@@ -665,6 +687,7 @@ impl Bootstrap {
             photo_recognize_faces_task: Arc::new(photo_recognize_faces_task),
             video_transcode_task: Arc::new(video_transcode_task),
             tidy_task: Arc::new(tidy_task),
+            migrate_task: Arc::new(migrate_task),
             pending_tasks: Arc::new(Mutex::new(VecDeque::new())),
             is_running: false,
             library_stale: Arc::new(AtomicBool::new(true)),
@@ -674,6 +697,9 @@ impl Bootstrap {
 
         // Initial library load to reduce time from starting app and seeing a photo grid
         controllers.add_task_load_library(sender.input_sender().clone());
+
+        controllers.add_task_migrate();
+
         controllers.add_task_library_scan();
         controllers.add_task_photo_enrich();
         controllers.add_task_video_enrich();

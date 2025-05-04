@@ -20,3 +20,4 @@ pub mod video_thumbnail_task;
 pub mod video_transcode_task;
 
 pub mod tidy_task;
+pub mod migrate_task;

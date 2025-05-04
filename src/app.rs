@@ -1019,6 +1019,9 @@ impl SimpleAsyncComponent for App {
                     TaskName::Tidy => {
                         // Show nothing
                     }
+                    TaskName::Migrate => {
+                        // Show nothing
+                    }
                 };
             }
             AppMsg::BootstrapCompleted => {
