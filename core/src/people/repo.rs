@@ -10,7 +10,6 @@ use crate::people::PersonId;
 use crate::people::model;
 use crate::people::model::PersonForRecognition;
 use crate::people::model::Rect;
-use crate::photo::model::Orientation;
 
 use anyhow::*;
 use rusqlite;
@@ -75,12 +74,12 @@ impl Repository {
                 faces.thumbnail_path AS face_thumbnail_path,
                 people.person_id AS person_id,
                 people.name AS person_name,
-                people.thumbnail_path AS person_thumbnail_path,
-                pictures.orientation
+                person_face.thumbnail_path AS person_thumbnail_path
             FROM pictures_faces AS faces
-            INNER JOIN pictures USING (picture_id)
             LEFT OUTER JOIN people USING (person_id)
-            WHERE picture_id = ?1 AND faces.is_ignored = FALSE
+            LEFT OUTER JOIN pictures_faces AS person_face
+                ON (person_face.person_id = faces.person_id AND person_face.is_thumbnail = TRUE)
+            WHERE faces.picture_id = ?1 AND faces.is_ignored = FALSE
             ORDER BY faces.nose_x ASC, faces.nose_y ASC",
         )?;
 
@@ -132,10 +131,12 @@ impl Repository {
         let con = self.con.lock().unwrap();
         let mut stmt = con.prepare(
             "SELECT
-                people.person_id AS person_id,
-                people.name AS person_name,
-                people.thumbnail_path AS person_thumbnail_path
-            FROM  people
+                p.person_id AS person_id,
+                p.name AS person_name,
+                f.thumbnail_path AS person_thumbnail_path
+            FROM people AS p
+            LEFT OUTER JOIN pictures_faces AS f
+                ON (f.person_id = p.person_id AND f.is_thumbnail = TRUE)
             WHERE person_id = ?1",
         )?;
 
@@ -155,7 +156,8 @@ impl Repository {
             let mut stmt = tx.prepare_cached(
                 "UPDATE pictures_faces
                 SET
-                    is_confirmed = FALSE
+                    is_confirmed = FALSE,
+                    is_thumbnail = FALSE
                 WHERE person_id = ?1",
             )?;
             stmt.execute(params![person_id.id(),])?;
@@ -190,10 +192,12 @@ impl Repository {
         let con = self.con.lock().unwrap();
         let mut stmt = con.prepare(
             "SELECT
-                people.person_id AS person_id,
-                people.name AS person_name,
-                people.thumbnail_path AS person_thumbnail_path
-            FROM  people
+                p.person_id AS person_id,
+                p.name AS person_name,
+                f.thumbnail_path AS person_thumbnail_path
+            FROM people AS p
+            LEFT OUTER JOIN pictures_faces AS f
+                ON (f.person_id = p.person_id AND f.is_thumbnail = TRUE)
             ORDER BY name ASC",
         )?;
 
@@ -335,6 +339,7 @@ impl Repository {
                 SET
                     is_ignored = TRUE,
                     is_confirmed = FALSE,
+                    is_thumbnail = FALSE,
                     person_id = NULL
                 WHERE face_id = ?1",
             )?;
@@ -485,11 +490,8 @@ impl Repository {
         {
             let mut insert_person = tx.prepare_cached(
                 "
-                WITH face(name, thumbnail_path) AS (
-                    SELECT ?2 as name, thumbnail_path FROM pictures_faces WHERE face_id = ?1
-                )
-                INSERT INTO people (name, thumbnail_path)
-                SELECT name, thumbnail_path FROM face
+                INSERT INTO people (name) VALUES (?2)
+                WHERE face_id = ?1
                 ",
             )?;
 
@@ -500,7 +502,8 @@ impl Repository {
                 "UPDATE pictures_faces
                 SET
                     person_id = ?2,
-                    is_confirmed = TRUE
+                    is_confirmed = TRUE,
+                    is_thumbnail = TRUE
                 WHERE face_id = ?1",
             )?;
 
@@ -585,7 +588,8 @@ impl Repository {
                 "UPDATE pictures_faces
                 SET
                     person_id = NULL,
-                    is_confirmed = FALSE
+                    is_confirmed = FALSE,
+                    is_thumbnail = FALSE
                 WHERE face_id = ?1",
             )?;
 
@@ -602,20 +606,20 @@ impl Repository {
 
         {
             let mut stmt = tx.prepare_cached(
-                "UPDATE people
+                "UPDATE pictures_faces
                 SET
-                    thumbnail_path = faces.thumbnail_path
-                FROM pictures_faces AS faces
-                WHERE people.person_id = ?1
-                AND faces.face_id = ?2",
+                    is_thumbnail = FALSE
+                WHERE
+                    person_id = ?1",
             )?;
 
-            stmt.execute(params![person_id.id(), face_id.id(),])?;
+            stmt.execute(params![person_id.id(),])?;
 
             let mut stmt = tx.prepare_cached(
                 "UPDATE pictures_faces
                 SET
-                    is_confirmed = TRUE
+                    is_confirmed = TRUE,
+                    is_thumbnail = TRUE
                 WHERE face_id = ?1",
             )?;
 
@@ -636,15 +640,9 @@ impl Repository {
             .get("face_thumbnail_path")
             .map(|p: String| self.data_dir_base_path.join(p))?;
 
-        let orientation: Orientation = row
-            .get("orientation")
-            .map(|x: u32| Orientation::from(x))
-            .unwrap_or_default();
-
         let face = model::Face {
             face_id,
             thumbnail_path: face_thumbnail_path,
-            orientation,
         };
 
         let person_id = row.get("person_id").map(PersonId::new).ok();

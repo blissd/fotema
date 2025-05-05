@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use crate::photo::model::{Orientation, PictureId};
+use crate::photo::model::PictureId;
 use crate::thumbnailify;
 use chrono::{DateTime, Utc};
 use opencv::core::Mat;
@@ -86,9 +86,6 @@ pub struct Face {
     /// Path to thumbnail generated from face bounds.
     /// Normalized to be square and expanded to capture the whole head.
     pub thumbnail_path: PathBuf,
-
-    /// Orientation of source image, which will need to be applied to face thumbnail.
-    pub orientation: Orientation,
 }
 
 /// A face hat has been detected, containing the appropriate landmarks to perform
