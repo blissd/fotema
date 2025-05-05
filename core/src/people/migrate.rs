@@ -91,7 +91,7 @@ impl Migrate {
                 thumbnail_path: thumbnail_path.into(),
             };
 
-            let _ = self.repo.migrate_update_paths(mf).map_err(|e| {
+            let _ = self.repo.migrate_update_face_paths(mf).map_err(|e| {
                 error!("Failed migrating face {:?}: {:?}", f.face_id, e);
                 e
             });

@@ -28,6 +28,13 @@ OR (picture_id IN (SELECT DISTINCT picture_id FROM pictures_faces WHERE is_confi
 DELETE FROM pictures_faces
 WHERE picture_id NOT IN (SELECT DISTINCT picture_id FROM migrate_faces);
 
+-- Finally, delete scan row for all pictures that don't have a confirmed
+-- face to force a rescan.
+DELETE FROM pictures_face_scans
+WHERE
+face_count > 0
+AND picture_id NOT IN (SELECT DISTINCT picture_id FROM migrate_faces);
+
 -- This isn't the full migration: the rest will be completed in the Rust
 -- code at core/src/people/migrate.rs
 -- For each row in migrate_faces:

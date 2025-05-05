@@ -5,8 +5,10 @@
 use crate::photo::model::PictureId;
 
 use crate::machine_learning::face_extractor;
+use crate::path_encoding;
 use crate::people::FaceId;
 use crate::people::FaceToMigrate;
+use crate::people::MigratedFace;
 use crate::people::PersonId;
 use crate::people::model;
 use crate::people::model::PersonForRecognition;
@@ -757,7 +759,7 @@ impl Repository {
             "SELECT
                 migrate_faces.face_id AS face_id,
                 migrate_faces.face_index AS face_index,
-                pictures.path AS relative_path,
+                pictures.picture_path_b64 AS picture_path_b64,
                 pictures_faces.bounds_path AS bounds_path,
                 pictures_faces.thumbnail_path AS thumbnail_path
             FROM migrate_faces
@@ -773,18 +775,56 @@ impl Repository {
         Ok(result)
     }
 
+    pub fn migrate_update_face_paths(&mut self, mf: MigratedFace) -> Result<()> {
+        let mut con = self.con.lock().unwrap();
+        let tx = con.transaction()?;
+
+        {
+            let mut stmt = tx.prepare_cached(
+                "UPDATE pictures_faces
+                SET
+                    bounds_path = ?1,
+                    thumbnail_path = ?2
+                WHERE face_id = ?3",
+            )?;
+
+            stmt.execute(params![
+                mf.bounds_path.to_string_lossy(),
+                mf.thumbnail_path.to_string_lossy(),
+                mf.face_id.id(),
+            ])?;
+        }
+
+        tx.commit()?;
+        Ok(())
+    }
+
+    pub fn migrate_truncate(&mut self) -> Result<()> {
+        let mut con = self.con.lock().unwrap();
+        let tx = con.transaction()?;
+        {
+            tx.execute("DELETE FROM migrate_faces", [])?;
+        }
+        tx.commit()?;
+        Ok(())
+    }
+
     fn to_face_to_migrate(&self, row: &Row<'_>) -> rusqlite::Result<FaceToMigrate> {
         let face_id = row.get("face_id").map(FaceId::new)?;
         let face_index: u32 = row.get("face_index")?;
 
-        let picture_relative_path = row.get("relative_path").map(|p: String| PathBuf::from(p))?;
+        let picture_relative_path = row
+            .get("picture_path_b64")
+            .ok()
+            .and_then(|x: String| path_encoding::from_base64(&x).ok())
+            .expect("Must have picture path");
 
         let bounds_path = row
             .get("bounds_path")
             .map(|p: String| self.data_dir_base_path.join(p))?;
 
         let thumbnail_path = row
-            .get("bounds_path")
+            .get("thumbnail_path")
             .map(|p: String| self.data_dir_base_path.join(p))?;
 
         let face = model::FaceToMigrate {
