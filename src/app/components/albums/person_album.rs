@@ -228,8 +228,11 @@ impl SimpleComponent for PersonAlbum {
             PersonAlbumInput::View(person) => {
                 info!("Viewing album for person: {}", person.person_id);
 
-                let img = gdk::Texture::from_filename(&person.thumbnail_path).ok();
-                self.avatar.set_custom_image(img.as_ref());
+                if let Some(ref thumbnail_path) = person.thumbnail_path {
+                    let img = gdk::Texture::from_filename(&thumbnail_path).ok();
+                    self.avatar.set_custom_image(img.as_ref());
+                }
+
                 self.avatar.set_text(Some(&person.name));
 
                 if !self.avatar.is_visible() {
