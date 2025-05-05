@@ -654,13 +654,11 @@ impl Repository {
             .map(|p: String| self.data_dir_base_path.join(p))
             .ok();
 
-        let person = if let (Some(person_id), Some(name), Some(thumbnail_path)) =
-            (person_id, person_name, person_thumbnail_path)
-        {
+        let person = if let (Some(person_id), Some(name)) = (person_id, person_name) {
             Some(model::Person {
                 person_id,
                 name,
-                thumbnail_path,
+                thumbnail_path: person_thumbnail_path,
             })
         } else {
             None
@@ -676,7 +674,8 @@ impl Repository {
 
         let thumbnail_path = row
             .get("person_thumbnail_path")
-            .map(|p: String| self.data_dir_base_path.join(p))?;
+            .map(|p: String| self.data_dir_base_path.join(p))
+            .ok();
 
         std::result::Result::Ok(model::Person {
             person_id,

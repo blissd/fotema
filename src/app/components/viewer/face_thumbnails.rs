@@ -234,7 +234,7 @@ impl SimpleAsyncComponent for FaceThumbnails {
                                     ),
                                 ];
 
-                                (menu_items, face.thumbnail_path)
+                                (menu_items, Some(face.thumbnail_path))
                             };
 
                             for item in menu_items {
@@ -245,9 +245,10 @@ impl SimpleAsyncComponent for FaceThumbnails {
 
                             let avatar = adw::Avatar::builder().size(AVATAR_SIZE).build();
 
-                            let img = gdk::Texture::from_filename(&thumbnail_path).ok();
-                            avatar.set_custom_image(img.as_ref());
-                            //avatar.add_css_class(face.orientation.as_ref());
+                            if let Some(thumbnail_path) = thumbnail_path {
+                                let img = gdk::Texture::from_filename(&thumbnail_path).ok();
+                                avatar.set_custom_image(img.as_ref());
+                            }
 
                             let children = gtk::Box::new(gtk::Orientation::Vertical, 0);
                             children.append(&avatar);

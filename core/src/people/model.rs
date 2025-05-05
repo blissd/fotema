@@ -47,7 +47,9 @@ impl Display for FaceId {
 pub struct Person {
     pub person_id: PersonId,
     pub name: String,
-    pub thumbnail_path: PathBuf,
+
+    /// Optional because picture for thumbnail can be deleted.
+    pub thumbnail_path: Option<PathBuf>,
 }
 
 /// Database ID

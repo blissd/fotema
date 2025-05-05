@@ -162,8 +162,10 @@ impl SimpleAsyncComponent for PersonSelect {
                 for person in people {
                     let avatar = adw::Avatar::builder().size(50).name(&person.name).build();
 
-                    let img = gdk::Texture::from_filename(&person.thumbnail_path).ok();
-                    avatar.set_custom_image(img.as_ref());
+                    if let Some(thumbnail_path) = person.thumbnail_path {
+                        let img = gdk::Texture::from_filename(&thumbnail_path).ok();
+                        avatar.set_custom_image(img.as_ref());
+                    }
 
                     let row = adw::ActionRow::builder()
                         .title(person.name)
