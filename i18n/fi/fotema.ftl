@@ -170,7 +170,7 @@ month-thumbnail-label =
 # About Dialog
 # Translator note: add one translator per-line to get a translation
 # credit in the Fotema's "About" page.
-about-translator-credits = David Bliss <hello@fotema.app>
+about-translator-credits = Jiri Grönroos <jiri.gronroos+l10n@iki.fi>
 # Photo/Video Viewer
 # Skip video backwards 10 seconds button.
 # Attributes:
@@ -300,3 +300,18 @@ onboard-select-pictures =
 
         Jos olet käyttänyt { -app-name }n aiempia versioita, joissa kuvakirjasto havaittiin automaattisesti, niin valitse sama kansio välttääksesi kuvien käsittelyn uudelleen.
     .button = Valitse kansio
+prefs-albums-chronological-sort = Järjestys
+    .subtitle = Aikaan perustuva järjestys albumeille.
+    .ascending = Nousevasti
+    .descending = Laskevasti
+prefs-processing-section = Kuvan- ja videonkäsittely
+    .description = Määritä kuvan- ja videokäsittelyn ominaisuudet.
+prefs-processing-face-detection = Kasvojentunnistus
+    .subtitle = Havaitse kasvoja ja tunnista nimeämiäsi ihmisiä. Tämä on aikaavievä toimenpide.
+prefs-processing-motion-photos = Liikekuvat
+    .subtitle = Havaitse Androidin liikekuvat ja pura videoita.
+banner-scan-library = Läpikäydään kirjastoa.
+prefs-albums-section = Albumit
+    .description = Muokkaa albumeja.
+prefs-albums-selfies = Selfies
+    .subtitle = Näyttää erillisen albumin iOS-laitteilla otetuista selfiekuvista. Käynnistä { -app-name } uudelleen, jotta muutokset tulevat voimaan.
