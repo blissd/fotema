@@ -46,7 +46,7 @@ dist:
 
 # Install Fedora development dependencies
 setup:
-    pipx install reuse
+    uv tool install --force reuse
     sudo dnf install -y libavformat-free-devel
     sudo dnf install -y libavfilter-free-devel
     sudo dnf install -y libavdevice-free-devel
