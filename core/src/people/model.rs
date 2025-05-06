@@ -47,8 +47,6 @@ impl Display for FaceId {
 pub struct Person {
     pub person_id: PersonId,
     pub name: String,
-
-    /// Optional because picture for thumbnail can be deleted.
     pub thumbnail_path: Option<PathBuf>,
 }
 
@@ -154,4 +152,25 @@ pub struct PersonForRecognition {
 
     /// "Best" confirmed face for person.
     pub face: DetectedFace,
+}
+
+/// A face to migrated from Fotema 1.x to Fotema 2.0
+#[derive(Debug, Clone)]
+pub struct FaceToMigrate {
+    pub face_id: FaceId,
+    pub face_index: u32,
+
+    /// Path to picture in library.
+    /// Relative because people repository cannot have a library base path.
+    pub picture_relative_path: PathBuf,
+    pub bounds_path: PathBuf,
+    pub thumbnail_path: PathBuf,
+}
+
+/// A migrated face
+#[derive(Debug, Clone)]
+pub struct MigratedFace {
+    pub face_id: FaceId,
+    pub bounds_path: PathBuf,
+    pub thumbnail_path: PathBuf,
 }

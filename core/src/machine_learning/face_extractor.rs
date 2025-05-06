@@ -92,7 +92,7 @@ pub struct FaceExtractor {
 
 impl FaceExtractor {
     pub fn build(base_path: &Path, thumbnailer: Thumbnailer) -> Result<FaceExtractor> {
-        let base_path = PathBuf::from(base_path).join("photo_faces");
+        let base_path = PathBuf::from(base_path).join("faces");
 
         std::fs::create_dir_all(&base_path)?;
 
