@@ -456,7 +456,7 @@ impl Repository {
         let mut stmt = con.prepare(
             "SELECT
                     pictures.picture_id,
-                    pictures.picture_path_b64,
+                    pictures.picture_path_b64
                 FROM pictures
                 WHERE pictures.picture_id = ?1",
         )?;
