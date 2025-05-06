@@ -55,9 +55,6 @@ pub enum Playback {
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum Broken {
-    /// Visual item has no path in database. Shouldn't really happen.
-    MissingPath,
-
     /// Visual item no longer on file system.
     MissingInFileSystem(FlatpakPathBuf),
 
@@ -661,7 +658,6 @@ impl ViewOne {
 
     fn broken_status_icon_name(&self) -> Option<&str> {
         match self.broken {
-            Broken::MissingPath => Some("item-missing-symbolic"),
             Broken::MissingInFileSystem(_) => Some("item-missing-symbolic"),
             Broken::Failed => Some("sad-computer-symbolic"),
             Broken::None => None,
@@ -670,7 +666,6 @@ impl ViewOne {
 
     fn broken_status_description(&self) -> Option<String> {
         match self.broken {
-            Broken::MissingPath => Some(fl!("viewer-error-missing-path")),
             Broken::MissingInFileSystem(ref visual_path) => Some(fl!(
                 "viewer-error-missing-file",
                 file_name = visual_path.host_path.to_string_lossy()
