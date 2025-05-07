@@ -98,6 +98,7 @@ impl Thumbnailer {
     ) -> Result<PathBuf, ThumbnailError> {
         thumbnailer::generate_thumbnail(&self.thumbnails_path, path, size, src_image)
     }
+
     pub fn write_failed_thumbnail(&self, path: &FlatpakPathBuf) -> Result<(), ThumbnailError> {
         file::write_failed_thumbnail(&self.thumbnails_path, path)
     }
