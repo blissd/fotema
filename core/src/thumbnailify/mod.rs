@@ -99,6 +99,14 @@ impl Thumbnailer {
         thumbnailer::generate_thumbnail(&self.thumbnails_path, path, size, src_image)
     }
 
+    pub fn generate_all_thumbnails(
+        &self,
+        path: &FlatpakPathBuf,
+        src_image: DynamicImage,
+    ) -> Result<(), ThumbnailError> {
+        thumbnailer::generate_all_thumbnails(&self.thumbnails_path, path, src_image)
+    }
+
     pub fn write_failed_thumbnail(&self, path: &FlatpakPathBuf) -> Result<(), ThumbnailError> {
         file::write_failed_thumbnail(&self.thumbnails_path, path)
     }

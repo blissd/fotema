@@ -71,7 +71,7 @@ impl PhotoThumbnailTask {
                 let large_path = thumbnailify::get_thumbnail_hash_output(
                     thumbnails_path,
                     &thumb_hash,
-                    ThumbnailSize::Large,
+                    ThumbnailSize::XLarge,
                 );
                 !large_path.exists()
             })
