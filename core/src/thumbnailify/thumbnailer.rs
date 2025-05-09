@@ -195,20 +195,13 @@ pub fn generate_thumbnail(
 
     let src_width: f32 = src_image.width() as f32;
     let src_height: f32 = src_image.height() as f32;
-    let src_longest_edge = if src_width > src_height {
-        src_width
-    } else {
-        src_height
-    };
+    let src_longest_edge = f32::max(src_width, src_height);
 
-    let scale: f32 = if src_longest_edge <= dimension {
-        1.0
-    } else {
-        dimension / (src_longest_edge as f32)
-    };
+    let scale: f32 = f32::min(1.0, dimension / src_longest_edge);
 
     let dst_width = (src_width * scale) as u32;
     let dst_height = (src_height * scale) as u32;
+    /*
     let mut dst_image = Image::new(dst_width, dst_height, fr::PixelType::U8x4);
 
     // By default uses a slow but high-quality thumbnail algorithm.
@@ -218,6 +211,8 @@ pub fn generate_thumbnail(
         fast_image_resize::ResizeAlg::Convolution(fast_image_resize::FilterType::Hamming),
     );
     resizer.resize(&src_image, &mut dst_image, &resize_options)?;
+    */
+    let dst_image = resize(src_image, dst_width, dst_height)?;
 
     let file = std::fs::File::create(&temp_path)?;
     let file = BufWriter::new(file);
@@ -255,4 +250,35 @@ pub fn generate_thumbnail(
     named_temp.persist(&thumb_path)?;
 
     return Ok(thumb_path.into());
+}
+
+fn resize(
+    src_image: DynamicImage,
+    thumbnail_width: u32,
+    thumbnail_height: u32,
+) -> Result<Image<'static>, ThumbnailError> {
+    // An idea borrowed from Glycin.
+    // Resize to double thumbnail size using a fast algorithm, and them
+    // resize result to final size using high-quality algorithm.
+
+    let mut rough_scaled = Image::new(
+        thumbnail_width * 2,
+        thumbnail_height * 2,
+        fr::PixelType::U8x4,
+    );
+
+    let resize_options = ResizeOptions::new().resize_alg(fast_image_resize::ResizeAlg::Nearest);
+
+    let mut resizer = Resizer::new();
+    resizer.resize(&src_image, &mut rough_scaled, &resize_options)?;
+
+    let mut final_scaled = Image::new(thumbnail_width, thumbnail_height, fr::PixelType::U8x4);
+
+    let mut resizer = Resizer::new();
+    let resize_options = ResizeOptions::new().resize_alg(
+        fast_image_resize::ResizeAlg::Convolution(fast_image_resize::FilterType::Lanczos3),
+    );
+
+    resizer.resize(&rough_scaled, &mut final_scaled, &resize_options)?;
+    Ok(final_scaled)
 }
