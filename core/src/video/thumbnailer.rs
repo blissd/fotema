@@ -19,9 +19,7 @@ pub struct VideoThumbnailer {
 
 impl VideoThumbnailer {
     pub fn build(thumbnailer: thumbnailify::Thumbnailer) -> Result<VideoThumbnailer> {
-        Ok(VideoThumbnailer {
-            thumbnailer,
-        })
+        Ok(VideoThumbnailer { thumbnailer })
     }
 
     /// Computes a preview for a video
@@ -55,9 +53,7 @@ impl VideoThumbnailer {
             .status()?;
 
         if !status.success() {
-            let _ = self
-                .thumbnailer
-                .write_failed_thumbnail(&host_path, sandbox_path);
+            let _ = self.thumbnailer.write_failed_thumbnail(&path);
 
             anyhow::bail!("FFMPEG exited with status {:?}", status.code());
         }
