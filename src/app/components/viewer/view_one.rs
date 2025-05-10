@@ -439,16 +439,18 @@ impl SimpleAsyncComponent for ViewOne {
                         }
 
                         let video_path = visual
-                            .video_transcoded_path
-                            .as_ref()
+                            .video_transcoded_path.clone()
                             .filter(|x| x.exists())
-                            .or(Some(visual_sandbox_path))
+                            .or_else(|| visual.video_path.clone().map(|p| p.sandbox_path))
                             .filter(|x| x.exists())
-                            .or_else(|| visual.motion_photo_video_path.as_ref())
+                            .or_else(|| visual.motion_photo_video_path.clone())
                             .expect("must have video path");
+
+                        debug!("Video path is: {:?}", video_path);
 
                         let video = gtk::MediaFile::for_filename(video_path);
                         if visual.is_motion_photo() {
+                            debug!("Is a motion photo");
                             self.viewing = Viewing::MotionPhoto;
 
                             self.playback = Playback::Playing;
