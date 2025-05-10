@@ -21,8 +21,8 @@
             "name": "libde265",
             "sources": [
                 {
-                    "commit": "17bb8d9fcea62db8cdeb0fc7ef8d15dbd19a22e4",
-                    "tag": "v1.0.15",
+                    "commit": "7ba65889d3d6d8a0d99b5360b028243ba843be3a",
+                    "tag": "v1.0.16",
                     "type": "git",
                     "url": "https://github.com/strukturag/libde265.git",
                     "x-checker-data": {
@@ -54,8 +54,8 @@
             "name": "libheif",
             "sources": [
                 {
-                    "commit": "c22636155fc6848b71ad77971159e6e1cc349cce",
-                    "tag": "v1.19.7",
+                    "commit": "5e9deb19fe6b3768af0bb8e9e5e8438b15171bf3",
+                    "tag": "v1.19.8",
                     "type": "git",
                     "url": "https://github.com/strukturag/libheif.git",
                     "x-checker-data": {
