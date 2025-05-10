@@ -52,6 +52,9 @@ impl Thumbnailer {
         get_thumbnail_hash_output(&self.thumbnails_path, hash, size)
     }
 
+    //pub fn nearest_thumbnail_by_dimension(&self, hash: &str, dimension: u32) -> Option<PathBuf> {
+    //}
+
     /**
      * Compute thumbnail path, or sensible fallback if preferred size does not exist.
      * If no thumbnails exist, then return preferred path pointing to absent file.
@@ -80,7 +83,7 @@ impl Thumbnailer {
                 // TODO figure out if some fallback sizes should be excluded?
                 // Do I want a request for a small thumbnail to return an XXLarge?
                 ThumbnailSize::Small => [small, normal, large, xlarge, xxlarge],
-                ThumbnailSize::Normal => [normal, large, small, xlarge, xxlarge],
+                ThumbnailSize::Normal => [normal, large, xlarge, xxlarge, small],
                 ThumbnailSize::Large => [large, xlarge, xxlarge, normal, small],
                 ThumbnailSize::XLarge => [xlarge, xxlarge, large, normal, small],
                 ThumbnailSize::XXLarge => [xxlarge, xlarge, large, normal, small],
@@ -97,6 +100,14 @@ impl Thumbnailer {
         src_image: DynamicImage,
     ) -> Result<PathBuf, ThumbnailError> {
         thumbnailer::generate_thumbnail(&self.thumbnails_path, path, size, src_image)
+    }
+
+    pub fn generate_all_thumbnails(
+        &self,
+        path: &FlatpakPathBuf,
+        src_image: DynamicImage,
+    ) -> Result<(), ThumbnailError> {
+        thumbnailer::generate_all_thumbnails(&self.thumbnails_path, path, src_image)
     }
 
     pub fn write_failed_thumbnail(&self, path: &FlatpakPathBuf) -> Result<(), ThumbnailError> {

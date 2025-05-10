@@ -60,18 +60,14 @@ impl PhotoThumbnailer {
 
         let src_image =
             ImageReader::with_format(Cursor::new(bytes), image::ImageFormat::Png).decode()?;
-
-        let _ = self.thumbnailer.generate_thumbnail(
-            path,
-            thumbnailify::ThumbnailSize::Large,
-            src_image.clone(),
-        )?;
-
-        let _ = self.thumbnailer.generate_thumbnail(
-            path,
-            thumbnailify::ThumbnailSize::XLarge,
-            src_image,
-        )?;
+        /*
+                let _ = self.thumbnailer.generate_thumbnail(
+                    path,
+                    thumbnailify::ThumbnailSize::Large,
+                    src_image.clone(),
+                )?;
+        */
+        let _ = self.thumbnailer.generate_all_thumbnails(path, src_image)?;
 
         Ok(())
     }

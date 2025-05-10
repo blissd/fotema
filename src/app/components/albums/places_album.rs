@@ -35,8 +35,8 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::rc::Rc;
 
-const NARROW_EDGE_LENGTH: i32 = 80;
-const WIDE_EDGE_LENGTH: i32 = 100;
+const NARROW_EDGE_LENGTH: i32 = 64; // ThumbnailSize::Small
+const WIDE_EDGE_LENGTH: i32 = 128; // ThumbnailSize::Normal
 
 const MIN_ZOOM_LEVEL: u32 = 3;
 const MAX_ZOOM_LEVEL: u32 = 17;

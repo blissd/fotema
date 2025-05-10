@@ -144,8 +144,14 @@ impl RelmGridItem for PhotoGridItem {
             ), // Should we convert to string?
         );
 
+        let thumbnail_size = if self.edge_length.value() == NARROW_EDGE_LENGTH {
+            ThumbnailSize::Normal
+        } else {
+            ThumbnailSize::Large
+        };
+
         let thumbnail_path = self.thumbnailer
-            .nearest_thumbnail(&self.visual.thumbnail_hash(), ThumbnailSize::Large);
+            .nearest_thumbnail(&self.visual.thumbnail_hash(), thumbnail_size);
 
         if thumbnail_path.is_some() {
             widgets

@@ -60,11 +60,7 @@ impl VideoThumbnailer {
 
         let src_image = ImageReader::open(&temporary_png_file)?.decode()?;
 
-        let _ = self.thumbnailer.generate_thumbnail(
-            path,
-            thumbnailify::ThumbnailSize::Large,
-            src_image,
-        )?;
+        let _ = self.thumbnailer.generate_all_thumbnails(path, src_image)?;
 
         Ok(())
     }
