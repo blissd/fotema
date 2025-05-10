@@ -44,6 +44,9 @@
         "*.la",
         "*.a"
     ],
+    "cleanup-commands": [
+        "mkdir -p ${FLATPAK_DEST}/lib/ffmpeg"
+    ],
     "add-extensions": {
         "app.fotema.Fotema.Devel.HEIC": {
             "directory": "lib/libheif-heic",
