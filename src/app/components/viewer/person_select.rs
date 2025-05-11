@@ -97,6 +97,7 @@ impl SimpleAsyncComponent for PersonSelect {
 
         let face_name = gtk::Entry::builder()
             .placeholder_text(fl!("people-person-search", "placeholder"))
+            .input_purpose(gtk::InputPurpose::Name)
             .build();
 
         let people_list = gtk::ListBox::builder()
@@ -139,7 +140,7 @@ impl SimpleAsyncComponent for PersonSelect {
     async fn update(&mut self, msg: Self::Input, sender: AsyncComponentSender<Self>) {
         match msg {
             PersonSelectInput::Activate(face_id, thumbnail) => {
-                debug!("Set person for face {}", face_id);
+                debug!("Activate for face {}", face_id);
 
                 self.people_list.remove_all();
                 self.all_people.clear();
@@ -222,6 +223,7 @@ impl SimpleAsyncComponent for PersonSelect {
                 }
                 self.people_list.remove_all();
                 self.all_people.clear();
+                self.face_id = None;
                 let _ = sender.output(PersonSelectOutput::Done);
             }
         }
