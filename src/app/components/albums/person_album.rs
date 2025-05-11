@@ -291,6 +291,7 @@ impl SimpleComponent for PersonAlbum {
 
                 let person_name = gtk::Entry::builder()
                     .placeholder_text(fl!("person-rename-dialog", "placeholder"))
+                    .input_purpose(gtk::InputPurpose::Name)
                     .build();
 
                 let dialog = adw::AlertDialog::builder()

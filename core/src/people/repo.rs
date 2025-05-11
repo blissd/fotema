@@ -21,6 +21,7 @@ use rusqlite::params;
 use std::path::{Path, PathBuf};
 use std::result::Result::Ok;
 use std::sync::{Arc, Mutex};
+use tracing::warn;
 
 /// Repository of people data.
 /// Repository is backed by a Sqlite database.
@@ -491,15 +492,27 @@ impl Repository {
         let tx = con.transaction()?;
 
         {
+            // GTK allows the text gtk::Entry input box to be activated multiple times
+            // which results in duplicate people being created :-(
+            // FIXME can we configure gtk::Entry to only be activatible once?
             let mut insert_person = tx.prepare_cached(
                 "
-                INSERT INTO people (name) VALUES (?2)
-                WHERE face_id = ?1
+                INSERT INTO people (name)
+                SELECT ?1 AS name
+                FROM pictures_faces
+                WHERE face_id = ?2 AND person_id IS NULL
                 ",
             )?;
 
-            insert_person.execute(params![face_id.id(), name])?;
+            insert_person.execute(params![name, face_id.id(),])?;
+
+            // Zero if no rows inserted.
+            // See https://www.sqlite.org/c3ref/last_insert_rowid.html
             let person_id = tx.last_insert_rowid();
+            if person_id == 0 {
+                warn!("Detected double insert of person. Skipping.");
+                return Ok(());
+            }
 
             let mut update_face = tx.prepare_cached(
                 "UPDATE pictures_faces
@@ -552,7 +565,8 @@ impl Repository {
                 "UPDATE pictures_faces
                 SET
                     person_id = ?2,
-                    is_confirmed = FALSE
+                    is_confirmed = FALSE,
+                    is_thumbnail = FALSE
                 WHERE face_id = ?1",
             )?;
 
@@ -613,10 +627,11 @@ impl Repository {
                 SET
                     is_thumbnail = FALSE
                 WHERE
-                    person_id = ?1",
+                    person_id = ?1
+                    AND face_id != ?2",
             )?;
 
-            stmt.execute(params![person_id.id(),])?;
+            stmt.execute(params![person_id.id(), face_id.id(),])?;
 
             let mut stmt = tx.prepare_cached(
                 "UPDATE pictures_faces
