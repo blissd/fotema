@@ -81,7 +81,7 @@ impl SimpleComponent for Library {
 
     view! {
         adw::ViewStack {
-            add_titled_with_icon[Some(LibraryViewName::All.into()), &fl!("all-album"), "playlist-infinite-symbolic"] = all_album.widget(),
+            add_titled_with_icon[Some(LibraryViewName::All.into()), &fl!("all-album"), "today-symbolic"] = all_album.widget(),
             add_titled_with_icon[Some(LibraryViewName::Month.into()), &fl!("months-album"), "month-symbolic"] = months_album.widget(),
             add_titled_with_icon[Some(LibraryViewName::Year.into()), &fl!("years-album"), "year-symbolic"] = years_album.widget(),
             connect_visible_child_notify => LibraryInput::Activate,
