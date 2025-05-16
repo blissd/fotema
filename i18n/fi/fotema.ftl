@@ -98,7 +98,7 @@ infobar-file-size = Tiedoston koko
 infobar-file-format = Muoto
 # Photo/Video Information Sidebar
 # File creation timestamp from image or video embedded metadata.
-infobar-originally-created = Luoto alun perin
+infobar-originally-created = Luotu alun perin
 # Photo/Video Information Sidebar
 # Duration (HH:MM) of video.
 infobar-video-duration = Kesto
