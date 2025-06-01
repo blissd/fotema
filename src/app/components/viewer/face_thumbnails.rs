@@ -75,7 +75,8 @@ pub struct FaceThumbnails {
     person_select: AsyncController<PersonSelect>,
 }
 
-const AVATAR_SIZE: i32 = 50;
+// Face thumbnails generated at this size in face_extractor.rs
+const AVATAR_SIZE: i32 = 64;
 
 #[relm4::component(pub async)]
 impl SimpleAsyncComponent for FaceThumbnails {

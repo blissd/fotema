@@ -268,7 +268,9 @@ impl FaceExtractor {
                 // FIXME use fast_image_resize instead of image-rs
                 let thumbnail =
                     original_image.crop_imm(x as u32, y as u32, longest as u32, longest as u32);
-                let thumbnail = thumbnail.thumbnail(256, 256);
+
+                // 64x64 matches size in thumbnail list in picture view
+                let thumbnail = thumbnail.thumbnail(64, 64);
                 let thumbnail_path = self
                     .base_path
                     .join(format!("{}_{}_thumbnail.png", &thumbnail_hash, index));
