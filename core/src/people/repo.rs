@@ -228,6 +228,8 @@ impl Repository {
                 face_id,
                 detected_at,
 
+                is_source_original,
+
                 bounds_path,
 
                 bounds_x,
@@ -276,6 +278,8 @@ impl Repository {
                 face_id,
                 detected_at,
 
+                is_source_original,
+
                 bounds_path,
 
                 bounds_x,
@@ -298,7 +302,7 @@ impl Repository {
                 left_mouth_corner_x,
                 left_mouth_corner_y,
 
-                confidence
+                confidence,
             FROM  pictures_faces AS faces
             WHERE faces.person_id IS NULL
             AND faces.is_ignored = FALSE",
@@ -735,9 +739,12 @@ impl Repository {
 
         let detected_at = row.get("detected_at")?;
 
+        let is_source_original: bool = row.get("is_source_original")?;
+
         let face = model::DetectedFace {
             face_id,
             face_path,
+            is_source_original,
             bounds,
             right_eye: (right_eye_x, right_eye_y),
             left_eye: (left_eye_x, left_eye_y),

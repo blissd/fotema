@@ -79,6 +79,17 @@ pub struct Rect {
     pub height: f32,
 }
 
+impl Rect {
+    pub fn scale(self, ratio: f32) -> Self {
+        Rect {
+            x: self.x * ratio,
+            y: self.y * ratio,
+            width: self.width * ratio,
+            height: self.height * ratio,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Face {
     pub face_id: FaceId,
@@ -103,6 +114,13 @@ pub struct DetectedFace {
     /// Bounds around face in source image.
     /// NOTE: this is not the same image as is pointed at by face_path.
     pub bounds: Rect,
+
+    /// In Fotema 1.x landmarks reference the original image,
+    /// but in Fotema 2.x landmarks reference the x-large thumbnail of the original image.
+    /// However, in migrating from 1.x to 2.x, any photos containing a face marked as a
+    /// person will not have had its faces regenerated which means those faces will
+    /// have landmarks mapping to the original photo, not the x-large thumbnail.
+    pub is_source_original: bool,
 
     /// Landmarks relative to the source image, not relative to the bounds.
     pub right_eye: (f32, f32),
@@ -138,6 +156,32 @@ impl DetectedFace {
             .into_iter(),
         )
         .unwrap()
+    }
+
+    /// Computes the centre of a face.
+    pub fn centre(&self) -> (f32, f32) {
+        // Use the midpoint between the eyes as the centre of the thumbnail.
+        let x = (self.left_eye.0 + self.right_eye.0) / 2.0;
+        let y = (self.left_eye.1 + self.right_eye.1) / 2.0;
+        (x, y)
+    }
+
+    pub fn scale(self, ratio: f32) -> Self {
+        DetectedFace {
+            bounds: self.bounds.scale(ratio),
+            right_eye: (self.right_eye.0 * ratio, self.right_eye.1 * ratio),
+            left_eye: (self.left_eye.0 * ratio, self.left_eye.1 * ratio),
+            nose: (self.nose.0 * ratio, self.nose.1 * ratio),
+            right_mouth_corner: (
+                self.right_mouth_corner.0 * ratio,
+                self.right_mouth_corner.1 * ratio,
+            ),
+            left_mouth_corner: (
+                self.left_mouth_corner.0 * ratio,
+                self.left_mouth_corner.1 * ratio,
+            ),
+            ..self
+        }
     }
 }
 

@@ -25,6 +25,7 @@ CREATE TABLE pictures_faces2 (
         person_id      INTEGER, -- person associated with face
         is_thumbnail   BOOLEAN NOT NULL CHECK (is_confirmed IN (0, 1)) DEFAULT 0, -- is face also thumbnail for person
         is_confirmed   BOOLEAN NOT NULL CHECK (is_confirmed IN (0, 1)) DEFAULT 0, -- person_id confirmed by user?
+        is_source_original BOOLEAN NOT NULL CHECK (is_confirmed IN (0, 1)) DEFAULT 0, -- source photo is original instead of thumbnail
 
         thumbnail_path TEXT UNIQUE NOT NULL, -- path to square face thumbnail
         bounds_path    TEXT UNIQUE NOT NULL, -- path to face cropped to exact detected bounds
@@ -67,6 +68,7 @@ SELECT
         person_id,
         0 AS is_thumbnail,
         is_confirmed,
+        1 AS is_source_original,
 
         thumbnail_path,
         bounds_path,

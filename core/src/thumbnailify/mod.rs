@@ -48,8 +48,12 @@ impl Thumbnailer {
         thumbnailer::is_thumbnail_up_to_date(&self.thumbnails_path, host_path)
     }
 
-    pub fn get_thumbnail_path(&self, hash: &str, size: ThumbnailSize) -> PathBuf {
+    pub fn get_thumbnail_hash_output(&self, hash: &str, size: ThumbnailSize) -> PathBuf {
         get_thumbnail_hash_output(&self.thumbnails_path, hash, size)
+    }
+
+    pub fn get_thumbnail_path(&self, host_path: &Path, size: ThumbnailSize) -> PathBuf {
+        get_thumbnail_path(&self.thumbnails_path, host_path, size)
     }
 
     //pub fn nearest_thumbnail_by_dimension(&self, hash: &str, dimension: u32) -> Option<PathBuf> {

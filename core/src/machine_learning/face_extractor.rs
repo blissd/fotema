@@ -187,7 +187,7 @@ impl FaceExtractor {
 
         let image_path = self
             .thumbnailer
-            .get_thumbnail_path(&thumbnail_hash, ThumbnailSize::XLarge);
+            .get_thumbnail_hash_output(&thumbnail_hash, ThumbnailSize::XLarge);
 
         let original_image = Self::open_image(&image_path).await?;
 
