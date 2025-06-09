@@ -12,6 +12,8 @@ use std::path::PathBuf;
 #[derive(Debug, Clone)]
 pub struct FaceDetectionCandidate {
     pub picture_id: PictureId,
+
+    // FIXME replace both with a single FlatpakPathBuf
     pub host_path: PathBuf,
     pub sandbox_path: PathBuf,
 }

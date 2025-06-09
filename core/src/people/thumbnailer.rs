@@ -1,6 +1,10 @@
 // SPDX-FileCopyrightText: © 2025 David Bliss
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
+//
+// Generates high-quality thumbnails for faces selected as the thumbnail for a person.
+// Necessary because face thumbnails are extracted from x-large thumbnail images, which
+// makes the face thumbnails quite small.
 
 use std::io::Cursor;
 use std::path::PathBuf;
@@ -20,27 +24,34 @@ use tracing::error;
 pub struct PersonThumbnailer {
     thumbnailer: thumbnailify::Thumbnailer,
     cache_dir: PathBuf,
-    data_dir: PathBuf,
 }
 
 impl PersonThumbnailer {
     pub fn build(
         thumbnailer: thumbnailify::Thumbnailer,
         cache_dir: impl Into<PathBuf>,
-        data_dir: impl Into<PathBuf>,
     ) -> PersonThumbnailer {
         PersonThumbnailer {
             thumbnailer,
             cache_dir: cache_dir.into(),
-            data_dir: data_dir.into(),
         }
     }
 
     pub async fn thumbnail(
         &self,
-        original_picture: FlatpakPathBuf,
-        face: DetectedFace,
+        original_picture: &FlatpakPathBuf,
+        face: &DetectedFace,
     ) -> Result<()> {
+        let thumbnail_path = self.cache_dir.join("face_thumbnails").join(format!(
+            "{}_{}.png",
+            original_picture.thumbnail_hash(),
+            face.face_id.id()
+        ));
+
+        if thumbnail_path.exists() {
+            return Ok(());
+        }
+
         let file = gio::File::for_path(&original_picture.sandbox_path);
         let loader = glycin::Loader::new(file);
 
@@ -83,7 +94,7 @@ impl PersonThumbnailer {
             f32::min(1.0, (thumb_edge / original_edge) as f32)
         };
 
-        let face = face.scale(ratio);
+        let face = face.clone().scale(ratio);
 
         // FIXME the rest of this code is pretty much a copy and paste from face_extractor.rs
 
@@ -135,7 +146,7 @@ impl PersonThumbnailer {
         // FIXME use fast_image_resize instead of image-rs
         let thumbnail = original_image.crop_imm(x as u32, y as u32, longest as u32, longest as u32);
         let thumbnail = thumbnail.thumbnail(256, 256);
-        let thumbnail_path = self.cache_dir.join("person_faces").join(format!(
+        let thumbnail_path = self.cache_dir.join("face_thumbnails").join(format!(
             "{}_{}.png",
             original_picture.thumbnail_hash(),
             face.face_id.id()

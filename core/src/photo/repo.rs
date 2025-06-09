@@ -5,7 +5,7 @@
 use crate::FlatpakPathBuf;
 use crate::ScannedFile;
 use crate::path_encoding;
-use crate::people::model::FaceDetectionCandidate;
+use crate::people::model::{DetectedFace, FaceDetectionCandidate, FaceId, Rect};
 use crate::photo::model::{Picture, PictureId};
 
 use super::Metadata;
@@ -414,9 +414,129 @@ impl Repository {
         Ok(())
     }
 
+    /// Find all people and associated face.
+    /// FIXME move to people repo
+    pub fn find_people_for_thumbnails(&self) -> Result<Vec<(FlatpakPathBuf, DetectedFace)>> {
+        let con = self.con.lock().unwrap();
+
+        // NOTE: this is non-standard SQL that might not work in DBs that aren't SQLite.
+        let mut stmt = con.prepare(
+            "SELECT
+                face_id,
+                detected_at,
+
+                is_source_original,
+                pictures.picture_path_b64 AS picture_path_b64,
+
+                bounds_path,
+
+                bounds_x,
+                bounds_y,
+                bounds_width,
+                bounds_height,
+
+                right_eye_x,
+                right_eye_y,
+
+                left_eye_x,
+                left_eye_y,
+
+                nose_x,
+                nose_y,
+
+                right_mouth_corner_x,
+                right_mouth_corner_y,
+
+                left_mouth_corner_x,
+                left_mouth_corner_y,
+
+                confidence
+            FROM  pictures_faces AS faces
+            WHERE faces.person_id IS NOT NULL
+            INNER JOIN pictures USING (picture_id)",
+        )?;
+
+        let result: Vec<(FlatpakPathBuf, DetectedFace)> = stmt
+            .query_map([], |row| {
+                Ok((self.to_library_path(row)?, self.to_detected_face(row)?))
+            })?
+            .flatten()
+            .collect();
+
+        Ok(result)
+    }
+
+    fn to_library_path(&self, row: &Row<'_>) -> rusqlite::Result<FlatpakPathBuf> {
+        let relative_path: String = row.get("picture_path_b64")?;
+        let relative_path = path_encoding::from_base64(&relative_path)
+            .map_err(|_| rusqlite::Error::InvalidQuery)?;
+
+        let sandbox_path = self.library_base_dir.sandbox_path.join(&relative_path);
+        let host_path = self.library_base_dir.host_path.join(&relative_path);
+
+        std::result::Result::Ok(FlatpakPathBuf {
+            host_path,
+            sandbox_path,
+        })
+    }
+
+    /// FIXME a copy-n-paste from people repo :-()
+    fn to_detected_face(&self, row: &Row<'_>) -> rusqlite::Result<DetectedFace> {
+        let face_id = row.get("face_id").map(FaceId::new)?;
+
+        let face_path = row
+            .get("bounds_path")
+            .map(|p: String| self.data_dir_base_path.join(p))?;
+
+        let bounds = Rect {
+            x: row.get("bounds_x")?,
+            y: row.get("bounds_y")?,
+            width: row.get("bounds_width")?,
+            height: row.get("bounds_height")?,
+        };
+
+        let right_eye_x = row.get("right_eye_x")?;
+        let right_eye_y = row.get("right_eye_y")?;
+
+        let left_eye_x = row.get("left_eye_x")?;
+        let left_eye_y = row.get("left_eye_y")?;
+
+        let nose_x = row.get("nose_x")?;
+        let nose_y = row.get("nose_y")?;
+
+        let right_mouth_corner_x = row.get("right_mouth_corner_x")?;
+        let right_mouth_corner_y = row.get("right_mouth_corner_y")?;
+
+        let left_mouth_corner_x = row.get("left_mouth_corner_x")?;
+        let left_mouth_corner_y = row.get("left_mouth_corner_y")?;
+
+        let confidence = row.get("confidence")?;
+
+        let detected_at = row.get("detected_at")?;
+
+        let is_source_original: bool = row.get("is_source_original")?;
+
+        let face = DetectedFace {
+            face_id,
+            face_path,
+            is_source_original,
+            bounds,
+            right_eye: (right_eye_x, right_eye_y),
+            left_eye: (left_eye_x, left_eye_y),
+            nose: (nose_x, nose_y),
+            right_mouth_corner: (right_mouth_corner_x, right_mouth_corner_y),
+            left_mouth_corner: (left_mouth_corner_x, left_mouth_corner_y),
+            confidence,
+            detected_at,
+        };
+
+        std::result::Result::Ok(face)
+    }
+
     /// Gets all pictures that haven't been scanned for faces.
     /// This method is not on the people repo because I don't what that repo
     /// to need a pic_base_dir.
+    /// FIXME move to people repo
     pub fn find_face_detection_candidates(&self) -> Result<Vec<FaceDetectionCandidate>> {
         let con = self.con.lock().unwrap();
         let mut stmt = con.prepare(
@@ -448,6 +568,7 @@ impl Repository {
     /// Gets all pictures that haven't been scanned for faces.
     /// This method is not on the people repo because I don't what that repo
     /// to need a pic_base_dir.
+    /// FIXME move to people repo
     pub fn get_face_detection_candidate(
         &self,
         picture_id: &PictureId,
@@ -471,6 +592,7 @@ impl Repository {
         Ok(result)
     }
 
+    /// FIXME move to people repo
     fn to_face_detection_candidate(
         &self,
         row: &Row<'_>,
