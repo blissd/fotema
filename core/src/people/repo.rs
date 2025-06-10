@@ -302,7 +302,7 @@ impl Repository {
                 left_mouth_corner_x,
                 left_mouth_corner_y,
 
-                confidence,
+                confidence
             FROM  pictures_faces AS faces
             WHERE faces.person_id IS NULL
             AND faces.is_ignored = FALSE",

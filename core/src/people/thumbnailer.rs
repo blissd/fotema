@@ -42,13 +42,13 @@ impl PersonThumbnailer {
         original_picture: &FlatpakPathBuf,
         face: &DetectedFace,
     ) -> Result<()> {
-        let thumbnail_path = self.cache_dir.join("face_thumbnails").join(format!(
+        let large_thumbnail_path = self.cache_dir.join("face_thumbnails").join(format!(
             "{}_{}.png",
             original_picture.thumbnail_hash(),
             face.face_id.id()
         ));
 
-        if thumbnail_path.exists() {
+        if large_thumbnail_path.exists() {
             return Ok(());
         }
 
@@ -76,7 +76,7 @@ impl PersonThumbnailer {
         // If face was detected in the x-large thumbnail image, then the bounds of the detected
         // face map to the thumbnail so must be translated by the scale ration between the
         // source image and the thumbnail.
-        let ratio = if face.is_source_original {
+        let ratio: f32 = if face.is_source_original {
             1.0
         } else {
             let thumb_path = self
@@ -91,7 +91,7 @@ impl PersonThumbnailer {
 
             let original_edge = u32::max(original_image.info().height, original_image.info().width);
             let thumb_edge = u32::max(thumbnail_image.info().height, thumbnail_image.info().width);
-            f32::min(1.0, (thumb_edge / original_edge) as f32)
+            original_edge as f32 / thumb_edge as f32
         };
 
         let face = face.clone().scale(ratio);
@@ -140,21 +140,23 @@ impl PersonThumbnailer {
 
         let bytes = frame.texture().save_to_png_bytes();
 
-        let original_image =
-            ImageReader::with_format(Cursor::new(bytes), image::ImageFormat::Png).decode()?;
+        let original_image = ImageReader::with_format(Cursor::new(bytes), image::ImageFormat::Png)
+            .decode()
+            .map_err(|err| {
+                error!("Failed to convert to PNG: {:?}", original_picture.host_path);
+                err
+            })?;
 
         // FIXME use fast_image_resize instead of image-rs
         let thumbnail = original_image.crop_imm(x as u32, y as u32, longest as u32, longest as u32);
         let thumbnail = thumbnail.thumbnail(256, 256);
-        let thumbnail_path = self.cache_dir.join("face_thumbnails").join(format!(
-            "{}_{}.png",
-            original_picture.thumbnail_hash(),
-            face.face_id.id()
-        ));
 
-        std::fs::create_dir(thumbnail_path.parent().expect("Must have parent"))?;
+        let _ = std::fs::create_dir_all(large_thumbnail_path.parent().expect("Must have parent"));
 
-        let _ = thumbnail.save(&thumbnail_path);
+        thumbnail.save(&large_thumbnail_path).map_err(|err| {
+            error!("Failed to save face thumbnail: {:?}", large_thumbnail_path);
+            err
+        })?;
 
         Ok(())
     }

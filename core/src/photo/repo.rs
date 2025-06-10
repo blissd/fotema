@@ -452,8 +452,9 @@ impl Repository {
 
                 confidence
             FROM  pictures_faces AS faces
+            INNER JOIN pictures USING (picture_id)
             WHERE faces.person_id IS NOT NULL
-            INNER JOIN pictures USING (picture_id)",
+            AND faces.is_thumbnail IS TRUE",
         )?;
 
         let result: Vec<(FlatpakPathBuf, DetectedFace)> = stmt

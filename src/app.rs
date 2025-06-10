@@ -1022,6 +1022,9 @@ impl SimpleAsyncComponent for App {
                     TaskName::Migrate => {
                         // Show nothing
                     }
+                    TaskName::FaceThumbnails => {
+                        self.banner.set_title("Face thumbnails");
+                    }
                 };
             }
             AppMsg::BootstrapCompleted => {
