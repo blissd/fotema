@@ -31,9 +31,13 @@ impl PersonThumbnailer {
         thumbnailer: thumbnailify::Thumbnailer,
         cache_dir: impl Into<PathBuf>,
     ) -> PersonThumbnailer {
+        let cache_dir: PathBuf = cache_dir.into();
+        let large_thumbnail_path = cache_dir.join("face_thumbnails").join("large");
+        let _ = std::fs::create_dir_all(large_thumbnail_path);
+
         PersonThumbnailer {
             thumbnailer,
-            cache_dir: cache_dir.into(),
+            cache_dir,
         }
     }
 
@@ -42,11 +46,15 @@ impl PersonThumbnailer {
         original_picture: &FlatpakPathBuf,
         face: &DetectedFace,
     ) -> Result<()> {
-        let large_thumbnail_path = self.cache_dir.join("face_thumbnails").join(format!(
-            "{}_{}.png",
-            original_picture.thumbnail_hash(),
-            face.face_id.id()
-        ));
+        let large_thumbnail_path =
+            self.cache_dir
+                .join("face_thumbnails")
+                .join("large")
+                .join(format!(
+                    "{}_{}.png",
+                    original_picture.thumbnail_hash(),
+                    face.face_id.id()
+                ));
 
         if large_thumbnail_path.exists() {
             return Ok(());
@@ -150,8 +158,6 @@ impl PersonThumbnailer {
         // FIXME use fast_image_resize instead of image-rs
         let thumbnail = original_image.crop_imm(x as u32, y as u32, longest as u32, longest as u32);
         let thumbnail = thumbnail.thumbnail(256, 256);
-
-        let _ = std::fs::create_dir_all(large_thumbnail_path.parent().expect("Must have parent"));
 
         thumbnail.save(&large_thumbnail_path).map_err(|err| {
             error!("Failed to save face thumbnail: {:?}", large_thumbnail_path);
