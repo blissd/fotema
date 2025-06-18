@@ -46,15 +46,11 @@ impl PersonThumbnailer {
         original_picture: &FlatpakPathBuf,
         face: &DetectedFace,
     ) -> Result<()> {
-        let large_thumbnail_path =
-            self.cache_dir
-                .join("face_thumbnails")
-                .join("large")
-                .join(format!(
-                    "{}_{}.png",
-                    original_picture.thumbnail_hash(),
-                    face.face_id.id()
-                ));
+        let large_thumbnail_path = self.cache_dir.join("face_thumbnails").join("large").join(
+            face.small_thumbnail_path
+                .file_name()
+                .expect("Face thumbnail must have file name"),
+        );
 
         if large_thumbnail_path.exists() {
             return Ok(());

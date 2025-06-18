@@ -125,6 +125,9 @@ pub struct DetectedFace {
     /// Path to originally detected face, with no transformations applied
     pub face_path: PathBuf,
 
+    /// Path to small 64x64 face thumbnail.
+    pub small_thumbnail_path: PathBuf,
+
     /// When face was detected
     pub detected_at: DateTime<Utc>,
 

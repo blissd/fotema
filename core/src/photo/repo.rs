@@ -429,6 +429,7 @@ impl Repository {
                 pictures.picture_path_b64 AS picture_path_b64,
 
                 bounds_path,
+                faces.thumbnail_path AS thumbnail_path,
 
                 bounds_x,
                 bounds_y,
@@ -489,6 +490,10 @@ impl Repository {
             .get("bounds_path")
             .map(|p: String| self.data_dir_base_path.join(p))?;
 
+        let thumbnail_path = row
+            .get("thumbnail_path")
+            .map(|p: String| self.data_dir_base_path.join(p))?;
+
         let bounds = Rect {
             x: row.get("bounds_x")?,
             y: row.get("bounds_y")?,
@@ -520,6 +525,7 @@ impl Repository {
         let face = DetectedFace {
             face_id,
             face_path,
+            small_thumbnail_path: thumbnail_path,
             is_source_original,
             bounds,
             right_eye: (right_eye_x, right_eye_y),
