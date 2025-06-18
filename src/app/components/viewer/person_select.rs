@@ -163,7 +163,7 @@ impl SimpleAsyncComponent for PersonSelect {
                 for person in people {
                     let avatar = adw::Avatar::builder().size(50).name(&person.name).build();
 
-                    if let Some(thumbnail_path) = person.thumbnail_path {
+                    if let Some(thumbnail_path) = person.small_thumbnail_path {
                         let img = gdk::Texture::from_filename(&thumbnail_path).ok();
                         avatar.set_custom_image(img.as_ref());
                     }

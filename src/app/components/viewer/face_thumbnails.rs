@@ -202,7 +202,7 @@ impl SimpleAsyncComponent for FaceThumbnails {
                                     ),
                                 ];
 
-                                (menu_items, person.thumbnail_path)
+                                (menu_items, person.small_thumbnail_path)
                             } else {
                                 let set_person: RelmAction<FaceSetPersonAction> = {
                                     let sender = sender.clone();

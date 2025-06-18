@@ -549,7 +549,7 @@ impl SimpleAsyncComponent for App {
         let con = database::setup(&db_path).expect("Must be able to open database");
         let con = Arc::new(Mutex::new(con));
 
-        let people_repo = people::Repository::open(&data_dir, con.clone()).unwrap();
+        let people_repo = people::Repository::open(&cache_dir, &data_dir, con.clone()).unwrap();
 
         let state = SharedState::new(relm4::SharedState::new());
         let active_view = ActiveView::new(relm4::SharedState::new());

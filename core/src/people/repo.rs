@@ -27,7 +27,10 @@ use tracing::warn;
 /// Repository is backed by a Sqlite database.
 #[derive(Debug, Clone)]
 pub struct Repository {
-    /// Base path for photo thumbnails
+    /// Cache direcctory
+    cache_dir_base_path: PathBuf,
+
+    /// Data directory
     data_dir_base_path: PathBuf,
 
     /// Connection to backing Sqlite database.
@@ -37,12 +40,15 @@ pub struct Repository {
 impl Repository {
     /// Builds a Repository and creates operational tables.
     pub fn open(
+        cache_dir_base_path: &Path,
         data_dir_base_path: &Path,
         con: Arc<Mutex<rusqlite::Connection>>,
     ) -> Result<Repository> {
+        let cache_dir_base_path = PathBuf::from(cache_dir_base_path);
         let data_dir_base_path = PathBuf::from(data_dir_base_path);
 
         let repo = Repository {
+            cache_dir_base_path,
             data_dir_base_path,
             con,
         };
@@ -680,7 +686,8 @@ impl Repository {
             Some(model::Person {
                 person_id,
                 name,
-                thumbnail_path: person_thumbnail_path,
+                small_thumbnail_path: person_thumbnail_path.clone(),
+                large_thumbnail_path: person_thumbnail_path,
             })
         } else {
             None
@@ -702,7 +709,8 @@ impl Repository {
         std::result::Result::Ok(model::Person {
             person_id,
             name,
-            thumbnail_path,
+            small_thumbnail_path: thumbnail_path.clone(),
+            large_thumbnail_path: thumbnail_path,
         })
     }
 

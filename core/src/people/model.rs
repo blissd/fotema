@@ -49,7 +49,22 @@ impl Display for FaceId {
 pub struct Person {
     pub person_id: PersonId,
     pub name: String,
-    pub thumbnail_path: Option<PathBuf>,
+    pub small_thumbnail_path: Option<PathBuf>,
+    pub large_thumbnail_path: Option<PathBuf>,
+}
+
+impl Person {
+    pub fn thumbnail_path(&self) -> Option<&PathBuf> {
+        if self
+            .large_thumbnail_path
+            .as_ref()
+            .is_some_and(|path| path.exists())
+        {
+            self.large_thumbnail_path.as_ref()
+        } else {
+            self.small_thumbnail_path.as_ref()
+        }
+    }
 }
 
 /// Database ID

@@ -486,6 +486,7 @@ impl Bootstrap {
         )?;
 
         let people_repo = people::Repository::open(
+            &cache_dir,
             &data_dir,
             self.con.clone())?;
 

@@ -116,7 +116,7 @@ impl RelmGridItem for PhotoGridItem {
 
         widgets.avatar.set_text(Some(&self.person.name));
 
-        if let Some(ref thumbnail_path) = self.person.thumbnail_path {
+        if let Some(ref thumbnail_path) = self.person.thumbnail_path() {
             if thumbnail_path.exists() {
                 let img = gdk::Texture::from_filename(thumbnail_path).ok();
                 widgets.avatar.set_custom_image(img.as_ref());
