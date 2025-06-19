@@ -67,6 +67,13 @@ pub enum MediaType {
     Video,
 }
 
+#[derive(Debug)]
+pub enum ThumbnailType {
+    Photo,
+    Video,
+    Face,
+}
+
 /// FIXME very similar (but different) to progress_monitor::TaskName.
 /// Any thoughts about this fact?
 #[derive(Debug)]
@@ -75,11 +82,10 @@ pub enum TaskName {
     Scan,
     Enrich(MediaType),
     MotionPhoto,
-    Thumbnail(MediaType),
+    Thumbnail(ThumbnailType),
     Clean(MediaType),
     DetectFaces,
     RecognizeFaces,
-    FaceThumbnails,
     Transcode,
     Tidy,
     Migrate,
@@ -563,10 +569,10 @@ impl Bootstrap {
             ))
             .forward(sender.input_sender(), |msg| match msg {
                 PhotoThumbnailTaskOutput::Started => {
-                    BootstrapInput::TaskStarted(TaskName::Thumbnail(MediaType::Photo))
+                    BootstrapInput::TaskStarted(TaskName::Thumbnail(ThumbnailType::Photo))
                 }
                 PhotoThumbnailTaskOutput::Completed(count) => BootstrapInput::TaskCompleted(
-                    TaskName::Thumbnail(MediaType::Photo),
+                    TaskName::Thumbnail(ThumbnailType::Photo),
                     Some(count),
                 ),
             });
@@ -581,10 +587,10 @@ impl Bootstrap {
             ))
             .forward(sender.input_sender(), |msg| match msg {
                 VideoThumbnailTaskOutput::Started => {
-                    BootstrapInput::TaskStarted(TaskName::Thumbnail(MediaType::Video))
+                    BootstrapInput::TaskStarted(TaskName::Thumbnail(ThumbnailType::Video))
                 }
                 VideoThumbnailTaskOutput::Completed(count) => BootstrapInput::TaskCompleted(
-                    TaskName::Thumbnail(MediaType::Video),
+                    TaskName::Thumbnail(ThumbnailType::Video),
                     Some(count),
                 ),
             });
@@ -692,10 +698,10 @@ impl Bootstrap {
             .detach_worker((stop.clone(), person_thumbnailer, photo_repo.clone(), self.progress_monitor.clone()))
             .forward(sender.input_sender(), |msg| match msg {
                 PersonThumbnailTaskOutput::Started => {
-                    BootstrapInput::TaskStarted(TaskName::FaceThumbnails)
+                    BootstrapInput::TaskStarted(TaskName::Thumbnail(ThumbnailType::Face))
                 }
                 PersonThumbnailTaskOutput::Completed(count) => {
-                    BootstrapInput::TaskCompleted(TaskName::FaceThumbnails, Some(count))
+                    BootstrapInput::TaskCompleted(TaskName::Thumbnail(ThumbnailType::Face), Some(count))
                 }
             });
 

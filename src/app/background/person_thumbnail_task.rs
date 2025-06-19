@@ -19,7 +19,7 @@ use fotema_core::people::PersonThumbnailer;
 
 
 use crate::app::components::progress_monitor::{
-    MediaType, ProgressMonitor, ProgressMonitorInput, TaskName,
+    ThumbnailType, ProgressMonitor, ProgressMonitorInput, TaskName,
 };
 
 #[derive(Debug)]
@@ -86,7 +86,7 @@ impl PersonThumbnailTask {
         let _ = sender.output(PersonThumbnailTaskOutput::Started);
 
         progress_monitor.emit(ProgressMonitorInput::Start(
-            TaskName::Thumbnail(MediaType::Photo),
+            TaskName::Thumbnail(ThumbnailType::Face),
             count,
         ));
 

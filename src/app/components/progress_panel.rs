@@ -9,7 +9,7 @@ use relm4::*;
 
 use std::sync::Arc;
 
-use super::progress_monitor::{MediaType, ProgressMonitor, TaskName};
+use super::progress_monitor::{MediaType, ThumbnailType, ProgressMonitor, TaskName};
 use crate::fl;
 
 #[derive(Debug)]
@@ -74,13 +74,17 @@ impl SimpleComponent for ProgressPanel {
                             self.progress_bar
                                 .set_text(Some(&fl!("progress-metadata-videos")));
                         }
-                        TaskName::Thumbnail(MediaType::Photo) => {
+                        TaskName::Thumbnail(ThumbnailType::Photo) => {
                             self.progress_bar
                                 .set_text(Some(&fl!("progress-thumbnails-photos")));
                         }
-                        TaskName::Thumbnail(MediaType::Video) => {
+                        TaskName::Thumbnail(ThumbnailType::Video) => {
                             self.progress_bar
                                 .set_text(Some(&fl!("progress-thumbnails-videos")));
+                        }
+                        TaskName::Thumbnail(ThumbnailType::Face) => {
+                            self.progress_bar
+                                .set_text(Some(&fl!("progress-thumbnails-faces")));
                         }
                         TaskName::Transcode => {
                             self.progress_bar

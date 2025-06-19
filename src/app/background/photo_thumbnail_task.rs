@@ -21,7 +21,7 @@ use fotema_core::thumbnailify::ThumbnailSize;
 use fotema_core::photo::thumbnailer::PhotoThumbnailer;
 
 use crate::app::components::progress_monitor::{
-    MediaType, ProgressMonitor, ProgressMonitorInput, TaskName,
+    ThumbnailType, ProgressMonitor, ProgressMonitorInput, TaskName,
 };
 
 #[derive(Debug)]
@@ -93,7 +93,7 @@ impl PhotoThumbnailTask {
         let _ = sender.output(PhotoThumbnailTaskOutput::Started);
 
         progress_monitor.emit(ProgressMonitorInput::Start(
-            TaskName::Thumbnail(MediaType::Photo),
+            TaskName::Thumbnail(ThumbnailType::Photo),
             count,
         ));
 

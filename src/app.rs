@@ -70,7 +70,7 @@ use self::components::{
 mod background;
 
 use self::background::bootstrap::{
-    Bootstrap, BootstrapInput, BootstrapOutput, MediaType, TaskName,
+    Bootstrap, BootstrapInput, BootstrapOutput, MediaType, ThumbnailType, TaskName,
 };
 
 use self::components::progress_monitor::ProgressMonitor;
@@ -995,11 +995,14 @@ impl SimpleAsyncComponent for App {
                     TaskName::MotionPhoto => {
                         self.banner.set_title(&fl!("banner-extract-motion-photos"));
                     }
-                    TaskName::Thumbnail(MediaType::Photo) => {
+                    TaskName::Thumbnail(ThumbnailType::Photo) => {
                         self.banner.set_title(&fl!("banner-thumbnails-photos"));
                     }
-                    TaskName::Thumbnail(MediaType::Video) => {
+                    TaskName::Thumbnail(ThumbnailType::Video) => {
                         self.banner.set_title(&fl!("banner-thumbnails-videos"));
+                    }
+                    TaskName::Thumbnail(ThumbnailType::Face) => {
+                        self.banner.set_title(&fl!("banner-face-thumbnails"));
                     }
                     TaskName::DetectFaces => {
                         self.banner.set_title(&fl!("banner-detect-faces-photos"));
@@ -1021,9 +1024,6 @@ impl SimpleAsyncComponent for App {
                     }
                     TaskName::Migrate => {
                         // Show nothing
-                    }
-                    TaskName::FaceThumbnails => {
-                        self.banner.set_title("Face thumbnails");
                     }
                 };
             }
