@@ -278,6 +278,9 @@ progress-thumbnails-photos = Generating photo thumbnails.
 # Generating thumbnails from videos
 progress-thumbnails-videos = Generating video thumbnails.
 
+# Generating thumbnails from faces
+progress-thumbnails-faces = Generating face thumbnails.
+
 # Transcoding videos to a compatible format
 progress-convert-videos = Converting videos.
 
@@ -329,6 +332,9 @@ banner-recognize-faces-photos = Recognizing people in photos. This will take a w
 
 # Transcoding videos to a compatible format
 banner-convert-videos = Converting videos.
+
+# Generate face thumbnails
+banner-face-thumbnails = Generating face thumbnails
 
 # Button to stop all tasks doing background processing.
 banner-button-stop =

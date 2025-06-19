@@ -117,14 +117,13 @@
   </screenshots>
 
   <releases>
-    <release version="2.0.0-dev" date="2025-06-10">
+    <release version="2.0.0-dev" date="2025-06-16">
       <description>
         <p>Fotema has changed the way it generates thumbnails, which has the unfortunate
           side-effect of requiring all your thumbnails to be re-generated.
         </p>
         <ul>
           <li>BREAKING CHANGE: Fotema requires version 1.20.0+ of the xdg-desktop-portal.</li>
-          <li>Faster thumbnail generation.</li>
           <li>Faster face recognition.</li>
           <li>Faster library scanning—now scan library only once instead of twice.</li>
           <li>Use the ffmpeg-full Flatpak extension.</li>
@@ -133,6 +132,7 @@
           <li>Enabling face detection now applies immediately.</li>
           <li>Re-organize settings.</li>
           <li>Display full directory path of photo library in preferences dialog.</li>
+          <li>New icon for day album.</li>
         </ul>
       </description>
     </release>

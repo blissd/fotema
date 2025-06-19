@@ -83,7 +83,8 @@ impl Face {
 }
 
 pub struct FaceExtractor {
-    base_path: PathBuf,
+    faces_base_path: PathBuf,
+    thumbnail_base_path: PathBuf,
 
     thumbnailer: Thumbnailer,
 
@@ -92,9 +93,13 @@ pub struct FaceExtractor {
 
 impl FaceExtractor {
     pub fn build(base_path: &Path, thumbnailer: Thumbnailer) -> Result<FaceExtractor> {
-        let base_path = PathBuf::from(base_path).join("faces");
+        let faces_base_path = PathBuf::from(base_path).join("faces");
+        let _ = std::fs::create_dir_all(&faces_base_path)?;
 
-        std::fs::create_dir_all(&base_path)?;
+        let thumbnail_base_path = PathBuf::from(base_path)
+            .join("face_thumbnails")
+            .join("small");
+        let _ = std::fs::create_dir_all(&thumbnail_base_path)?;
 
         let mut detectors: Vec<(Box<dyn rust_faces::FaceDetector>, String)> = vec![];
 
@@ -173,7 +178,8 @@ impl FaceExtractor {
         detectors.push((mtcnn, "mtcnn".into()));
 
         Ok(FaceExtractor {
-            base_path,
+            faces_base_path,
+            thumbnail_base_path,
             thumbnailer,
             detectors,
         })
@@ -187,7 +193,7 @@ impl FaceExtractor {
 
         let image_path = self
             .thumbnailer
-            .get_thumbnail_path(&thumbnail_hash, ThumbnailSize::XLarge);
+            .get_thumbnail_hash_output(&thumbnail_hash, ThumbnailSize::XLarge);
 
         let original_image = Self::open_image(&image_path).await?;
 
@@ -268,10 +274,12 @@ impl FaceExtractor {
                 // FIXME use fast_image_resize instead of image-rs
                 let thumbnail =
                     original_image.crop_imm(x as u32, y as u32, longest as u32, longest as u32);
-                let thumbnail = thumbnail.thumbnail(256, 256);
+
+                // 64x64 matches size in thumbnail list in picture view
+                let thumbnail = thumbnail.thumbnail(64, 64);
                 let thumbnail_path = self
-                    .base_path
-                    .join(format!("{}_{}_thumbnail.png", &thumbnail_hash, index));
+                    .thumbnail_base_path
+                    .join(format!("{}_{}.png", &thumbnail_hash, index));
                 let _ = thumbnail.save(&thumbnail_path);
 
                 let bounds = Rect {
@@ -289,8 +297,8 @@ impl FaceExtractor {
                 );
 
                 let bounds_path = self
-                    .base_path
-                    .join(format!("{}_{}_original.png", &thumbnail_hash, index));
+                    .faces_base_path
+                    .join(format!("{}_{}.png", &thumbnail_hash, index));
                 let _ = bounds_img.save(&bounds_path);
 
                 Face {

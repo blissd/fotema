@@ -19,7 +19,7 @@ use fotema_core::thumbnailify::ThumbnailSize;
 use fotema_core::video::{Repository, VideoThumbnailer, Video};
 
 use crate::app::components::progress_monitor::{
-    MediaType, ProgressMonitor, ProgressMonitorInput, TaskName,
+    ThumbnailType, ProgressMonitor, ProgressMonitorInput, TaskName,
 };
 
 #[derive(Debug)]
@@ -91,7 +91,7 @@ impl VideoThumbnailTask {
         let _ = sender.output(VideoThumbnailTaskOutput::Started);
 
         progress_monitor.emit(ProgressMonitorInput::Start(
-            TaskName::Thumbnail(MediaType::Video),
+            TaskName::Thumbnail(ThumbnailType::Video),
             count,
         ));
 

@@ -11,12 +11,19 @@ pub enum MediaType {
     Video,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub enum ThumbnailType {
+    Photo,
+    Video,
+    Face,
+}
+
 /// Different kinds of background task that have a progress bar
 /// Note that some background tasks just have the banner and spinner.
 #[derive(Debug, Clone, Copy)]
 pub enum TaskName {
     Enrich(MediaType),
-    Thumbnail(MediaType),
+    Thumbnail(ThumbnailType),
     Transcode,
     MotionPhoto,
     DetectFaces,

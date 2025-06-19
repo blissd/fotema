@@ -3,7 +3,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use crate::thumbnailify;
-use std::path::PathBuf;
+use crate::thumbnailify::ThumbnailSize;
+use std::path::{Path, PathBuf};
 
 /// A path to a file that exists both inside and outside of the Flatpak sandbox.
 /// FIXME does Default make sense? It is here to make Settings compile.
@@ -32,6 +33,10 @@ impl FlatpakPathBuf {
 
     pub fn thumbnail_hash(&self) -> String {
         thumbnailify::compute_hash_for_path(&self.host_path)
+    }
+
+    pub fn thumbnail_path(&self, thumbnails_base_dir: &Path, size: ThumbnailSize) -> PathBuf {
+        thumbnailify::get_thumbnail_path(thumbnails_base_dir, &self.host_path, size)
     }
 
     pub fn exists(&self) -> bool {

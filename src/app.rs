@@ -70,7 +70,7 @@ use self::components::{
 mod background;
 
 use self::background::bootstrap::{
-    Bootstrap, BootstrapInput, BootstrapOutput, MediaType, TaskName,
+    Bootstrap, BootstrapInput, BootstrapOutput, MediaType, ThumbnailType, TaskName,
 };
 
 use self::components::progress_monitor::ProgressMonitor;
@@ -549,7 +549,7 @@ impl SimpleAsyncComponent for App {
         let con = database::setup(&db_path).expect("Must be able to open database");
         let con = Arc::new(Mutex::new(con));
 
-        let people_repo = people::Repository::open(&data_dir, con.clone()).unwrap();
+        let people_repo = people::Repository::open(&cache_dir, &data_dir, con.clone()).unwrap();
 
         let state = SharedState::new(relm4::SharedState::new());
         let active_view = ActiveView::new(relm4::SharedState::new());
@@ -995,11 +995,14 @@ impl SimpleAsyncComponent for App {
                     TaskName::MotionPhoto => {
                         self.banner.set_title(&fl!("banner-extract-motion-photos"));
                     }
-                    TaskName::Thumbnail(MediaType::Photo) => {
+                    TaskName::Thumbnail(ThumbnailType::Photo) => {
                         self.banner.set_title(&fl!("banner-thumbnails-photos"));
                     }
-                    TaskName::Thumbnail(MediaType::Video) => {
+                    TaskName::Thumbnail(ThumbnailType::Video) => {
                         self.banner.set_title(&fl!("banner-thumbnails-videos"));
+                    }
+                    TaskName::Thumbnail(ThumbnailType::Face) => {
+                        self.banner.set_title(&fl!("banner-face-thumbnails"));
                     }
                     TaskName::DetectFaces => {
                         self.banner.set_title(&fl!("banner-detect-faces-photos"));

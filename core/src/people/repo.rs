@@ -27,7 +27,10 @@ use tracing::warn;
 /// Repository is backed by a Sqlite database.
 #[derive(Debug, Clone)]
 pub struct Repository {
-    /// Base path for photo thumbnails
+    /// Cache direcctory
+    cache_dir_base_path: PathBuf,
+
+    /// Data directory
     data_dir_base_path: PathBuf,
 
     /// Connection to backing Sqlite database.
@@ -37,12 +40,15 @@ pub struct Repository {
 impl Repository {
     /// Builds a Repository and creates operational tables.
     pub fn open(
+        cache_dir_base_path: &Path,
         data_dir_base_path: &Path,
         con: Arc<Mutex<rusqlite::Connection>>,
     ) -> Result<Repository> {
+        let cache_dir_base_path = PathBuf::from(cache_dir_base_path);
         let data_dir_base_path = PathBuf::from(data_dir_base_path);
 
         let repo = Repository {
+            cache_dir_base_path,
             data_dir_base_path,
             con,
         };
@@ -228,7 +234,10 @@ impl Repository {
                 face_id,
                 detected_at,
 
+                is_source_original,
+
                 bounds_path,
+                thumbnail_path,
 
                 bounds_x,
                 bounds_y,
@@ -276,7 +285,10 @@ impl Repository {
                 face_id,
                 detected_at,
 
+                is_source_original,
+
                 bounds_path,
+                thumbnail_path,
 
                 bounds_x,
                 bounds_y,
@@ -667,16 +679,29 @@ impl Repository {
 
         let person_name = row.get("person_name").ok();
 
-        let person_thumbnail_path = row
-            .get("person_thumbnail_path")
-            .map(|p: String| self.data_dir_base_path.join(p))
-            .ok();
-
         let person = if let (Some(person_id), Some(name)) = (person_id, person_name) {
+            let small_thumbnail_path = row
+                .get("person_thumbnail_path")
+                .map(|p: String| self.data_dir_base_path.join(p))
+                .ok()
+                .expect("Must have small thumbnail path");
+
+            // FIXME should this path be in database?
+            let large_thumbnail_path = self
+                .cache_dir_base_path
+                .join("face_thumbnails")
+                .join("large")
+                .join(
+                    small_thumbnail_path
+                        .file_name()
+                        .expect("Must have file name"),
+                );
+
             Some(model::Person {
                 person_id,
                 name,
-                thumbnail_path: person_thumbnail_path,
+                small_thumbnail_path: Some(small_thumbnail_path),
+                large_thumbnail_path: Some(large_thumbnail_path),
             })
         } else {
             None
@@ -690,15 +715,28 @@ impl Repository {
 
         let name = row.get("person_name")?;
 
-        let thumbnail_path = row
+        let small_thumbnail_path = row
             .get("person_thumbnail_path")
             .map(|p: String| self.data_dir_base_path.join(p))
-            .ok();
+            .ok()
+            .expect("Must have small thumbnail path");
+
+        // FIXME should this path be in database?
+        let large_thumbnail_path = self
+            .cache_dir_base_path
+            .join("face_thumbnails")
+            .join("large")
+            .join(
+                small_thumbnail_path
+                    .file_name()
+                    .expect("Must have file name"),
+            );
 
         std::result::Result::Ok(model::Person {
             person_id,
             name,
-            thumbnail_path,
+            small_thumbnail_path: Some(small_thumbnail_path),
+            large_thumbnail_path: Some(large_thumbnail_path),
         })
     }
 
@@ -707,6 +745,10 @@ impl Repository {
 
         let face_path = row
             .get("bounds_path")
+            .map(|p: String| self.data_dir_base_path.join(p))?;
+
+        let thumbnail_path = row
+            .get("thumbnail_path")
             .map(|p: String| self.data_dir_base_path.join(p))?;
 
         let bounds = Rect {
@@ -735,9 +777,13 @@ impl Repository {
 
         let detected_at = row.get("detected_at")?;
 
+        let is_source_original: bool = row.get("is_source_original")?;
+
         let face = model::DetectedFace {
             face_id,
             face_path,
+            small_thumbnail_path: thumbnail_path,
+            is_source_original,
             bounds,
             right_eye: (right_eye_x, right_eye_y),
             left_eye: (left_eye_x, left_eye_y),

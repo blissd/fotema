@@ -22,9 +22,7 @@ pub struct PhotoThumbnailer {
 
 impl PhotoThumbnailer {
     pub fn build(thumbnailer: thumbnailify::Thumbnailer) -> Result<PhotoThumbnailer> {
-        Ok(PhotoThumbnailer {
-            thumbnailer: thumbnailer,
-        })
+        Ok(PhotoThumbnailer { thumbnailer })
     }
 
     /// Computes a preview square for an image that has been inserted

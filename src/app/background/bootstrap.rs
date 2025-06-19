@@ -32,6 +32,7 @@ use anyhow;
 use super::{
     load_library_task::{LoadLibraryTask, LoadLibraryTaskInput, LoadLibraryTaskOutput},
     library_scan_task::{LibraryScanTask, LibraryScanTaskInput, LibraryScanTaskOutput},
+    person_thumbnail_task::{PersonThumbnailTask, PersonThumbnailTaskInput, PersonThumbnailTaskOutput},
     photo_clean_task::{PhotoCleanTask, PhotoCleanTaskInput, PhotoCleanTaskOutput},
     photo_detect_faces_task::{
         PhotoDetectFacesTask, PhotoDetectFacesTaskInput, PhotoDetectFacesTaskOutput,
@@ -66,6 +67,13 @@ pub enum MediaType {
     Video,
 }
 
+#[derive(Debug)]
+pub enum ThumbnailType {
+    Photo,
+    Video,
+    Face,
+}
+
 /// FIXME very similar (but different) to progress_monitor::TaskName.
 /// Any thoughts about this fact?
 #[derive(Debug)]
@@ -74,7 +82,7 @@ pub enum TaskName {
     Scan,
     Enrich(MediaType),
     MotionPhoto,
-    Thumbnail(MediaType),
+    Thumbnail(ThumbnailType),
     Clean(MediaType),
     DetectFaces,
     RecognizeFaces,
@@ -168,6 +176,7 @@ pub struct Controllers {
 
     tidy_task: Arc<WorkerController<TidyTask>>,
     migrate_task: Arc<WorkerController<MigrateTask>>,
+    person_thumbnail_task: Arc<WorkerController<PersonThumbnailTask>>,
 
     /// Pending ordered tasks to process
     /// Wow... figuring out a type signature that would compile was a nightmare.
@@ -354,6 +363,19 @@ impl Controllers {
         };
     }
 
+    fn add_task_person_thumbnails(&mut self) {
+        let sender = self.person_thumbnail_task.sender().clone();
+        let mode = self.settings_state.read().face_detection_mode;
+        match mode {
+            FaceDetectionMode::Off => {}
+            FaceDetectionMode::On => {
+                self.enqueue(Box::new(move || {
+                    sender.emit(PersonThumbnailTaskInput::Start)
+                }));
+            }
+        };
+    }
+
     fn add_task_video_transcode(&mut self) {
         let sender = self.video_transcode_task.sender().clone();
         self.enqueue(Box::new(move || sender.emit(VideoTranscodeTaskInput::Start)));
@@ -470,6 +492,7 @@ impl Bootstrap {
         )?;
 
         let people_repo = people::Repository::open(
+            &cache_dir,
             &data_dir,
             self.con.clone())?;
 
@@ -546,10 +569,10 @@ impl Bootstrap {
             ))
             .forward(sender.input_sender(), |msg| match msg {
                 PhotoThumbnailTaskOutput::Started => {
-                    BootstrapInput::TaskStarted(TaskName::Thumbnail(MediaType::Photo))
+                    BootstrapInput::TaskStarted(TaskName::Thumbnail(ThumbnailType::Photo))
                 }
                 PhotoThumbnailTaskOutput::Completed(count) => BootstrapInput::TaskCompleted(
-                    TaskName::Thumbnail(MediaType::Photo),
+                    TaskName::Thumbnail(ThumbnailType::Photo),
                     Some(count),
                 ),
             });
@@ -564,10 +587,10 @@ impl Bootstrap {
             ))
             .forward(sender.input_sender(), |msg| match msg {
                 VideoThumbnailTaskOutput::Started => {
-                    BootstrapInput::TaskStarted(TaskName::Thumbnail(MediaType::Video))
+                    BootstrapInput::TaskStarted(TaskName::Thumbnail(ThumbnailType::Video))
                 }
                 VideoThumbnailTaskOutput::Completed(count) => BootstrapInput::TaskCompleted(
-                    TaskName::Thumbnail(MediaType::Video),
+                    TaskName::Thumbnail(ThumbnailType::Video),
                     Some(count),
                 ),
             });
@@ -615,7 +638,7 @@ impl Bootstrap {
             .detach_worker((
                 stop.clone(),
                 data_dir.clone(),
-                thumbnailer,
+                thumbnailer.clone(),
                 photo_repo.clone(),
                 people_repo.clone(),
                 self.progress_monitor.clone(),
@@ -669,6 +692,19 @@ impl Bootstrap {
                 }
             });
 
+        let person_thumbnailer = people::PersonThumbnailer::build(thumbnailer.clone(), &cache_dir);
+
+        let person_thumbnail_task = PersonThumbnailTask::builder()
+            .detach_worker((stop.clone(), person_thumbnailer, photo_repo.clone(), self.progress_monitor.clone()))
+            .forward(sender.input_sender(), |msg| match msg {
+                PersonThumbnailTaskOutput::Started => {
+                    BootstrapInput::TaskStarted(TaskName::Thumbnail(ThumbnailType::Face))
+                }
+                PersonThumbnailTaskOutput::Completed(count) => {
+                    BootstrapInput::TaskCompleted(TaskName::Thumbnail(ThumbnailType::Face), Some(count))
+                }
+            });
+
         let mut controllers = Controllers {
             stop,
             started_at: None,
@@ -688,6 +724,7 @@ impl Bootstrap {
             video_transcode_task: Arc::new(video_transcode_task),
             tidy_task: Arc::new(tidy_task),
             migrate_task: Arc::new(migrate_task),
+            person_thumbnail_task: Arc::new(person_thumbnail_task),
             pending_tasks: Arc::new(Mutex::new(VecDeque::new())),
             is_running: false,
             library_stale: Arc::new(AtomicBool::new(true)),
@@ -719,9 +756,9 @@ impl Bootstrap {
 
         controllers.add_task_tidy();
 
-        // This is the last background task to complete. Refresh library if there
-        // has been a visible change to the library state.
         controllers.add_task_load_library(sender.input_sender().clone());
+
+        controllers.add_task_person_thumbnails();
 
         Ok(controllers)
     }
