@@ -679,17 +679,29 @@ impl Repository {
 
         let person_name = row.get("person_name").ok();
 
-        let person_thumbnail_path = row
+        let small_thumbnail_path = row
             .get("person_thumbnail_path")
             .map(|p: String| self.data_dir_base_path.join(p))
-            .ok();
+            .ok()
+            .expect("Must have small thumbnail path");
+
+        // FIXME should this path be in database?
+        let large_thumbnail_path = self
+            .cache_dir_base_path
+            .join("face_thumbnails")
+            .join("large")
+            .join(
+                small_thumbnail_path
+                    .file_name()
+                    .expect("Must have file name"),
+            );
 
         let person = if let (Some(person_id), Some(name)) = (person_id, person_name) {
             Some(model::Person {
                 person_id,
                 name,
-                small_thumbnail_path: person_thumbnail_path.clone(),
-                large_thumbnail_path: person_thumbnail_path,
+                small_thumbnail_path: Some(small_thumbnail_path),
+                large_thumbnail_path: Some(large_thumbnail_path),
             })
         } else {
             None
@@ -703,16 +715,28 @@ impl Repository {
 
         let name = row.get("person_name")?;
 
-        let thumbnail_path = row
+        let small_thumbnail_path = row
             .get("person_thumbnail_path")
             .map(|p: String| self.data_dir_base_path.join(p))
-            .ok();
+            .ok()
+            .expect("Must have small thumbnail path");
+
+        // FIXME should this path be in database?
+        let large_thumbnail_path = self
+            .cache_dir_base_path
+            .join("face_thumbnails")
+            .join("large")
+            .join(
+                small_thumbnail_path
+                    .file_name()
+                    .expect("Must have file name"),
+            );
 
         std::result::Result::Ok(model::Person {
             person_id,
             name,
-            small_thumbnail_path: thumbnail_path.clone(),
-            large_thumbnail_path: thumbnail_path,
+            small_thumbnail_path: Some(small_thumbnail_path),
+            large_thumbnail_path: Some(large_thumbnail_path),
         })
     }
 

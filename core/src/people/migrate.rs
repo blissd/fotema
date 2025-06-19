@@ -46,8 +46,14 @@ impl Migrate {
             return Ok(());
         }
 
-        let base_dir = self.data_dir_base_path.join("faces");
-        std::fs::create_dir_all(&base_dir)?;
+        let faces_base_dir = self.data_dir_base_path.join("faces");
+        std::fs::create_dir_all(&faces_base_dir)?;
+
+        let thumbnails_base_dir = self
+            .data_dir_base_path
+            .join("faces_thumbnails")
+            .join("migrated");
+        std::fs::create_dir_all(&thumbnails_base_dir)?;
 
         info!("Migrating {} faces", faces_to_migrate.len());
 
@@ -65,10 +71,10 @@ impl Migrate {
             let file_uri_hash = thumbnailify::compute_hash(&file_uri);
 
             let thumbnail_path =
-                base_dir.join(format!("{}_{}_thumbnail.png", file_uri_hash, f.face_index));
+                thumbnails_base_dir.join(format!("{}_{}.png", file_uri_hash, f.face_index));
 
             let bounds_path =
-                base_dir.join(format!("{}_{}_original.png", file_uri_hash, f.face_index));
+                faces_base_dir.join(format!("{}_{}.png", file_uri_hash, f.face_index));
 
             let _ = std::fs::rename(&f.thumbnail_path, &thumbnail_path)
                 .and_then(|()| std::fs::rename(&f.bounds_path, &bounds_path))
