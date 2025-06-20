@@ -51,7 +51,7 @@ impl Migrate {
 
         let thumbnails_base_dir = self
             .data_dir_base_path
-            .join("faces_thumbnails")
+            .join("faces_thumbnail")
             .join("migrated");
         std::fs::create_dir_all(&thumbnails_base_dir)?;
 
