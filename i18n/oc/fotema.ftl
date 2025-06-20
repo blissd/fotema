@@ -165,3 +165,5 @@ prefs-albums-selfies = Autoretraches
 prefs-processing-motion-photos = Fòtos animadas
     .subtitle = Detectar las fòtos animadas d'Android e extraire las vidèos.
 banner-scan-library = Analisi de la bibliotèca.
+banner-face-thumbnails = Generacion de las miniaturas de las caras
+progress-thumbnails-faces = Generacion de las miniaturas de las caras.
