@@ -299,3 +299,5 @@ prefs-albums-selfies = Selfie
 prefs-processing-motion-photos = Foto in movimento
     .subtitle = Rileva le foto in movimento di Android ed estrai i video.
 banner-scan-library = Scansione della libreria.
+progress-thumbnails-faces = Generazione di miniature dei volti.
+banner-face-thumbnails = Generazione di miniature dei volti
