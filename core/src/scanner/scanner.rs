@@ -12,7 +12,7 @@ use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
 use tracing::error;
-use walkdir::WalkDir;
+use walkdir::{DirEntry, WalkDir};
 
 /// Scans a file system for pictures.
 #[derive(Debug, Clone)]
@@ -41,6 +41,7 @@ impl Scanner {
     {
         WalkDir::new(&self.scan_base)
             .into_iter()
+            .filter_entry(|e| !Scanner::is_hidden(e))
             .inspect(|x| {
                 let _ = x
                     .as_ref()
@@ -78,6 +79,14 @@ impl Scanner {
             })
             .flatten() // ignore any errors when reading images
             .for_each(func); // visit
+    }
+
+    fn is_hidden(entry: &DirEntry) -> bool {
+        entry
+            .file_name()
+            .to_str()
+            .map(|s| s.starts_with("."))
+            .unwrap_or(false)
     }
 
     pub fn scan_all(&self) -> Result<Vec<ScannedFile>> {
