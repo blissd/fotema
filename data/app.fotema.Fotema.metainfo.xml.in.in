@@ -117,6 +117,13 @@
   </screenshots>
 
   <releases>
+    <release version="2.0.1" date="2025-06-23">
+      <description>
+        <ul>
+          <li>Fix crash when picture backing a person's thumbnail is deleted.</li>
+        </ul>
+      </description>
+    </release>
     <release version="2.0.0" date="2025-06-21">
       <description>
         <p>Fotema has changed the way it generates thumbnails, which has the unfortunate
