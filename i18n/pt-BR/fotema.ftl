@@ -150,3 +150,5 @@ onboard-select-pictures =
 
         Se você usou uma versão anterior do { -app-name } onde sua biblioteca de imagens foi descoberta automaticamente, selecione o mesmo diretório aqui para evitar qualquer processamento duplicado de imagens.
     .button = Selecionar diretório
+prefs-albums-section = Álbums
+    .description = Configure os álbuns.
