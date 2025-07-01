@@ -54,8 +54,8 @@
             "name": "libheif",
             "sources": [
                 {
-                    "commit": "5e9deb19fe6b3768af0bb8e9e5e8438b15171bf3",
-                    "tag": "v1.19.8",
+                    "commit": "a6d433aef7c854ce3fcdb7662b55f8bbcaca36c2",
+                    "tag": "v1.20.0",
                     "type": "git",
                     "url": "https://github.com/strukturag/libheif.git",
                     "x-checker-data": {
@@ -69,9 +69,9 @@
     "name": "glycin-loaders",
     "sources": [
         {
-            "sha256": "ccc578e9a3e83d0dc1535737d1fda09baa95c7167f5e5ecb15f786654094eed5",
+            "sha256": "4ab446d58b10c76283227a65487b8bbdb74ba5009e9ed23045fcfa8ba3fb2861",
             "type": "archive",
-            "url": "https://download.gnome.org/sources/glycin/1.2/glycin-1.2.1.tar.xz",
+            "url": "https://download.gnome.org/sources/glycin/1.2/glycin-1.2.2.tar.xz",
             "x-checker-data": {
                 "name": "glycin",
                 "type": "gnome"
