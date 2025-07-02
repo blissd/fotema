@@ -118,7 +118,7 @@ banner-detect-faces-photos = Se detectează fețe în fotografi. Acest proces va
 banner-recognize-faces-photos = Se recunosc persoanele in fotografi. Acest proces va dura o vreme.
 primary-menu-about = Despre { -app-name }
 person-menu-rename = Redenumește persoana
-person-menu-delete = Șterge persoana
+person-menu-delete = Ștergeți persoana
 person-rename-dialog =
     .heading = Redenumește persoana?
     .placeholder = Nume nou
@@ -156,3 +156,5 @@ prefs-library-section =
     .description =
         Configurați folderul bibliotecii.
         Atenție: schimbarea folderului imaginilor poate cauza { -app-name } să proceseze din nou toate imaginile.
+banner-face-thumbnails = Se generează miniaturile fețelor
+progress-thumbnails-faces = Se generează miniaturile fețelor
