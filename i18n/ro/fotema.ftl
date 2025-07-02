@@ -157,4 +157,4 @@ prefs-library-section =
         Configurați folderul bibliotecii.
         Atenție: schimbarea folderului imaginilor poate cauza { -app-name } să proceseze din nou toate imaginile.
 banner-face-thumbnails = Se generează miniaturile fețelor
-progress-thumbnails-faces = Se generează miniaturile fețelor
+progress-thumbnails-faces = Se generează miniaturile fețelor.
