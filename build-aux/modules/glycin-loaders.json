@@ -54,8 +54,8 @@
             "name": "libheif",
             "sources": [
                 {
-                    "commit": "a6d433aef7c854ce3fcdb7662b55f8bbcaca36c2",
-                    "tag": "v1.20.0",
+                    "commit": "f74700228336c8fa6d71f01d1fbbd8772985deea",
+                    "tag": "v1.20.1",
                     "type": "git",
                     "url": "https://github.com/strukturag/libheif.git",
                     "x-checker-data": {
