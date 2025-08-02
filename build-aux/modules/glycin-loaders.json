@@ -69,9 +69,9 @@
     "name": "glycin-loaders",
     "sources": [
         {
-            "sha256": "4ab446d58b10c76283227a65487b8bbdb74ba5009e9ed23045fcfa8ba3fb2861",
+            "sha256": "380aafe2bfb4eca0c45b42660ebff449600d00a43b609d5b1c83f795f5c8fb3c",
             "type": "archive",
-            "url": "https://download.gnome.org/sources/glycin/1.2/glycin-1.2.2.tar.xz",
+            "url": "https://download.gnome.org/sources/glycin/1.2/glycin-1.2.3.tar.xz",
             "x-checker-data": {
                 "name": "glycin",
                 "type": "gnome"
