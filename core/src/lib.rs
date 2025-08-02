@@ -4,6 +4,7 @@
 
 pub mod database;
 pub mod flatpak_path;
+pub mod google_metadata;
 pub mod machine_learning;
 pub mod path_encoding;
 pub mod people;

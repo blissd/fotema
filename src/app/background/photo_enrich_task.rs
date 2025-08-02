@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use anyhow::*;
+use fotema_core::google_metadata::enrich_photo;
 use fotema_core::photo::metadata;
 use rayon::prelude::*;
 use relm4::Worker;
@@ -62,6 +63,7 @@ impl PhotoEnrichTask {
             .take_any_while(|_| !stop.load(Ordering::Relaxed))
             .flat_map(|pic| {
                 let result = metadata::from_path(&pic.sandbox_path());
+                let result = enrich_photo(result.ok(), &pic.sandbox_path());
                 result.map(|m| (pic.picture_id, m))
             })
             .collect();

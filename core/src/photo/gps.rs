@@ -85,6 +85,22 @@ impl GPSCoord {
             sec.map(exif::Rational::to_f64),
         ))
     }
+
+    pub fn decimal_to_gps_coord(value: f64) -> GPSCoord {
+        let sign = value >= 0.0;
+        let abs = value.abs();
+        let deg = abs.trunc();
+        let rem = (abs - deg) * 60.0;
+        let min = rem.trunc();
+        let sec = (rem - min) * 60.0;
+
+        GPSCoord {
+            sing: sign,
+            deg: deg,
+            min: Some(min),
+            sec: Some(sec),
+        }
+    }
 }
 
 impl GPSLocation {
