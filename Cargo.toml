@@ -27,7 +27,7 @@ glycin = { version = "2.1.0", features = ["gdk4"] }
 futures = "0.3.31"
 chrono = "0.4.41"
 anyhow = "1.0.97"
-strum = { version = "0.27.0", features = ["derive"] }
+strum = { version = "0.27.2", features = ["derive"] }
 i18n-embed = { version = "0.16.0", features = ["fluent-system", "filesystem-assets", "desktop-requester"] }
 rust-embed = "8.7.2"
 i18n-embed-fl = "0.10.0"
