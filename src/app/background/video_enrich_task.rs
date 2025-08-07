@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use anyhow::*;
+use fotema_core::google_metadata::enrich_video;
 use fotema_core::video::metadata;
 use rayon::prelude::*;
 use relm4::Worker;
@@ -72,6 +73,7 @@ impl VideoEnrichTask {
             .take_any_while(|_| !stop.load(Ordering::Relaxed))
             .flat_map(|vid| {
                 let result = metadata::from_path(&vid.sandbox_path());
+                let result = enrich_video(result.ok(), &vid.sandbox_path());
                 progress_monitor.emit(ProgressMonitorInput::Advance);
                 result.map(|m| (vid.video_id, m))
             })
