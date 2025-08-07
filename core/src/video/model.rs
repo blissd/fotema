@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use crate::FlatpakPathBuf;
+use crate::photo::gps::GPSLocation;
 use chrono::{DateTime, TimeDelta, Utc};
 use std::fmt::Display;
 use std::path::PathBuf;
@@ -81,6 +82,9 @@ pub struct Metadata {
     pub audio_codec: Option<String>,
 
     pub content_id: Option<String>, // TODO make this a non-string type
+
+    // GPS location
+    pub location: Option<GPSLocation>,
 
     // Rotation of video in degrees.
     // Should be 90, 180, 270, or the negative of those.

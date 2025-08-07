@@ -104,7 +104,7 @@ impl Repository {
         let tx = con.transaction()?;
 
         {
-            let mut stmt = tx.prepare(
+            let mut update_videos = tx.prepare(
                 "UPDATE videos
                 SET
                     metadata_version = ?2,
@@ -116,8 +116,21 @@ impl Repository {
                 WHERE video_id = ?1",
             )?;
 
+            let mut update_geo = tx.prepare_cached(
+                "INSERT INTO videos_geo (
+                    video_id,
+                    latitude,
+                    longitude
+                ) VALUES (
+                    ?1, ?2, ?3
+                ) ON CONFLICT (video_id) DO UPDATE SET
+                    latitude = ?2,
+                    longitude = ?3
+                ",
+            )?;
+
             for (video_id, metadata) in vids {
-                stmt.execute(params![
+                update_videos.execute(params![
                     video_id.id(),
                     metadata::VERSION,
                     metadata.created_at,
@@ -126,6 +139,17 @@ impl Repository {
                     metadata.content_id,
                     metadata.rotation,
                 ])?;
+
+                if let Some(location) = metadata.location {
+                    // Belts and braces.
+                    // SQLite will treat a "nan" (not-a-number) as a null and cause
+                    // the not-null constraint to be violated.
+                    let latitude = location.latitude.to_f64_safe();
+                    let longitude = location.longitude.to_f64_safe();
+                    if latitude.is_some() && longitude.is_some() {
+                        update_geo.execute(params![video_id.id(), latitude, longitude,])?;
+                    }
+                }
             }
         }
 
