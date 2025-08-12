@@ -10,7 +10,7 @@ edition = "2024"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow = "1.0.97"
+anyhow = "1.0.99"
 base64 = "0.22.1"
 chrono = "0.4.41"
 fast_image_resize = { version = "5.2.1", features = ["image"] }
