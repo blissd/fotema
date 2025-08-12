@@ -3,11 +3,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use super::face_thumbnails::{FaceThumbnails, FaceThumbnailsInput};
+use fotema_core::FlatpakPathBuf;
 /// Properties view for a photo.
 ///Inspired by how Loupe displays its property view.
 use fotema_core::VisualId;
+use fotema_core::google_metadata::enrich_photo;
+use fotema_core::google_metadata::enrich_video;
 use fotema_core::people;
-use fotema_core::FlatpakPathBuf;
 
 use gtk::prelude::OrientableExt;
 
@@ -448,7 +450,6 @@ const FALLBACK: &str = "–";
 
 impl ViewInfo {
     fn update_file_details(&mut self, vis: Arc<fotema_core::visual::Visual>) -> Result<(), String> {
-
         self.path = Some(vis.path().clone());
 
         Self::update_row(&self.folder, vis.folder_name());
@@ -516,17 +517,18 @@ impl ViewInfo {
 
         self.image_details.set_visible(has_image_details);
 
-        if let Some(Ok(exif)) = image_info.details.exif.as_ref().map(|x| x.get_full()) {
-            let metadata = fotema_core::photo::metadata::from_raw(exif).ok();
+        let metadata = fotema_core::photo::metadata::from_path(&picture_path.sandbox_path).ok();
+        let metadata = enrich_photo(metadata, &picture_path.sandbox_path);
 
+        if let Some(metadata) = metadata {
             let created_at: Option<String> = metadata
                 .clone()
-                .and_then(|x| x.created_at)
+                .created_at
                 .map(|x| x.format("%Y-%m-%d %H:%M:%S %:z").to_string());
 
             let modified_at: Option<String> = metadata
                 .clone()
-                .and_then(|x| x.modified_at)
+                .modified_at
                 .map(|x| x.format("%Y-%m-%d %H:%M:%S %:z").to_string());
 
             let has_exif_details = [
@@ -557,6 +559,7 @@ impl ViewInfo {
         let fs_file_size_bytes = file.metadata().ok().map(|x| format_size(x.len(), DECIMAL));
 
         let metadata = fotema_core::video::metadata::from_path(&video_path.sandbox_path).ok();
+        let metadata = enrich_video(metadata, &video_path.sandbox_path);
         if metadata.is_none() {
             self.video_details.set_visible(false);
         }
