@@ -315,3 +315,5 @@ prefs-albums-section = Albumit
     .description = Muokkaa albumeja.
 prefs-albums-selfies = Selfies
     .subtitle = Näyttää erillisen albumin iOS-laitteilla otetuista selfiekuvista. Käynnistä { -app-name } uudelleen, jotta muutokset tulevat voimaan.
+progress-thumbnails-faces = Luodaan kasvojen pikkukuvia.
+banner-face-thumbnails = Luodaan kasvojen pikkukuvia

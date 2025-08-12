@@ -58,7 +58,9 @@ month-thumbnail-label =
 about-opensource = Quelloffene Projekte
 # Translator note: add one translator per-line to get a translation
 # credit in the Fotema's "About" page.
-about-translator-credits = David Bliss <hello@fotema.app>
+about-translator-credits =
+    David Bliss <hello@fotema.app>
+    Konstantin Tutsch <mail@konstantintutsch.com>
 
 ## Photo/Video Viewer
 
@@ -191,11 +193,11 @@ banner-thumbnails-photos = Foto-Miniaturansichten werden erstellt. Dies kann ein
 # Generating thumbnails for all videos.
 banner-thumbnails-videos = Video-Miniaturansichten werden erstellt. Dies kann eine Weile dauern.
 # Updating the database to remove details of absent photos.
-banner-clean-photos = Fotodatenbank wird optimiert
+banner-clean-photos = Fotodatenbank wird optimiert.
 # Updating the database to remove details of absent videos.
-banner-clean-videos = Videodatenbank wird optimiert
+banner-clean-videos = Videodatenbank wird optimiert.
 # Extracting video component from Android motion photos
-banner-extract-motion-photos = Bewegungsfotos werden verarbeitet
+banner-extract-motion-photos = Bewegungsfotos werden verarbeitet.
 
 ## Primary menu
 
@@ -293,3 +295,5 @@ prefs-processing-face-detection = Gesichtserkennung
 prefs-processing-motion-photos = Bewegungsfotos
     .subtitle = Erkennen von Android-Bewegungsfotos und extrahieren der Videos.
 banner-scan-library = Mediathek scannen.
+progress-thumbnails-faces = Gesicht-Miniaturansichten werden erstellt.
+banner-face-thumbnails = Gesicht-Miniaturansichten werden erstellt
