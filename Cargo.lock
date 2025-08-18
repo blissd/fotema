@@ -1104,7 +1104,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "54f0d287c53ffd184d04d8677f590f4ac5379785529e5e08b1c8083acdd5c198"
 dependencies = [
  "memchr",
- "thiserror 2.0.14",
+ "thiserror 2.0.15",
 ]
 
 [[package]]
@@ -1239,7 +1239,7 @@ dependencies = [
  "sm_motion_photo",
  "strum",
  "tempfile",
- "thiserror 2.0.14",
+ "thiserror 2.0.15",
  "tracing",
  "url",
  "walkdir",
@@ -1642,7 +1642,7 @@ dependencies = [
  "memmap2",
  "nix 0.29.0",
  "static_assertions",
- "thiserror 2.0.14",
+ "thiserror 2.0.15",
  "tracing",
  "yeslogic-fontconfig-sys",
  "zbus",
@@ -1664,7 +1664,7 @@ dependencies = [
  "paste",
  "rmp-serde",
  "serde",
- "thiserror 2.0.14",
+ "thiserror 2.0.15",
  "zbus",
 ]
 
@@ -1793,7 +1793,7 @@ checksum = "ccb2b4c040e67e6d6ad954f04693a11864df82bce6c6c468524b6a78bb75581f"
 dependencies = [
  "paste",
  "serde",
- "thiserror 2.0.14",
+ "thiserror 2.0.15",
 ]
 
 [[package]]
@@ -1803,7 +1803,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1448d72e2458b35dd10c0f148ea913b38c61b649552b22a97fa836ec376189ff"
 dependencies = [
  "gufo-common",
- "thiserror 2.0.14",
+ "thiserror 2.0.15",
  "tracing",
 ]
 
@@ -4658,11 +4658,11 @@ dependencies = [
 
 [[package]]
 name = "thiserror"
-version = "2.0.14"
+version = "2.0.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0b0949c3a6c842cbde3f1686d6eea5a010516deb7085f79db747562d4102f41e"
+checksum = "80d76d3f064b981389ecb4b6b7f45a0bf9fdac1d5b9204c7bd6714fecc302850"
 dependencies = [
- "thiserror-impl 2.0.14",
+ "thiserror-impl 2.0.15",
 ]
 
 [[package]]
@@ -4678,9 +4678,9 @@ dependencies = [
 
 [[package]]
 name = "thiserror-impl"
-version = "2.0.14"
+version = "2.0.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cc5b44b4ab9c2fdd0e0512e6bece8388e214c0749f5862b114cc5b7a25daf227"
+checksum = "44d29feb33e986b6ea906bd9c3559a856983f92371b3eaa5e83782a351623de0"
 dependencies = [
  "proc-macro2",
  "quote",
