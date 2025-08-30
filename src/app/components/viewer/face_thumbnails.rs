@@ -2,11 +2,16 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+use relm4::*;
 use relm4::actions::{RelmAction, RelmActionGroup};
 use relm4::adw::{self, prelude::*};
+use relm4::binding::*;
+use relm4::gtk::prelude::*;
 use relm4::gtk::{self, gdk, gio};
 use relm4::prelude::*;
-use relm4::*;
+use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
+
+use std::rc::Rc;
 
 use crate::fl;
 use fotema_core::FaceId;
@@ -33,6 +38,48 @@ relm4::new_stateless_action!(FaceIgnoreAction, FaceActionGroup, "ignore");
 
 // Associate person with new face thumbnail.
 relm4::new_stateless_action!(FaceThumbnailAction, FaceActionGroup, "thumbnail");
+
+pub struct FaceGridItem {
+    /// Person for avatar
+    person: Rc<people::Person>,
+
+    // Length of thumbnail edge to allow for resizing when layout changes.
+    edge_length: I32Binding,
+}
+
+pub struct FaceGridItemWidgets {
+    avatar: adw::Avatar,
+
+    // If the avatar has been bound to edge_length.
+    is_bound: bool,
+}
+
+
+impl RelmGridItem for FaceGridItem {
+    type Root = gtk::Frame;
+    type Widgets = FaceGridItemWidgets;
+
+    fn setup(_item: &gtk::ListItem) -> (Self::Root, Self::Widgets) {
+        relm4::view! {
+            root = gtk::Frame {
+
+                #[name(avatar)]
+                adw::Avatar {
+                },
+            }
+        }
+
+        let widgets = FaceGridItemWidgets {
+            avatar,
+            is_bound: false,
+        };
+
+        (root, widgets)
+    }
+
+    fn bind(&mut self, widgets: &mut Self::Widgets, _root: &mut Self::Root) {
+    }
+}
 
 #[derive(Debug)]
 pub enum FaceThumbnailsInput {
