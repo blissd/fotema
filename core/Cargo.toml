@@ -13,7 +13,7 @@ edition = "2024"
 anyhow = "1.0.99"
 base64 = "0.22.1"
 chrono = "0.4.41"
-fast_image_resize = { version = "5.2.1", features = ["image"] }
+fast_image_resize = { version = "5.3.0", features = ["image"] }
 ffmpeg-next = "7.1.0"
 gdk4 = "0.9.5"
 gio = "0.20.12"
