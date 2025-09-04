@@ -69,6 +69,7 @@ impl RelmGridItem for FaceGridItem {
     fn setup(_item: &gtk::ListItem) -> (Self::Root, Self::Widgets) {
         relm4::view! {
             root = gtk::Frame {
+                add_css_class: "face-small",
 
                 #[name(avatar)]
                 adw::Avatar {
@@ -88,7 +89,11 @@ impl RelmGridItem for FaceGridItem {
     fn bind(&mut self, widgets: &mut Self::Widgets, _root: &mut Self::Root) {
         let pop = gtk::PopoverMenu::builder().menu_model(&self.menu_model).build();
 
-        let img = gdk::Texture::from_filename(&self.face.thumbnail_path).ok();
+        let thumbnail_path = self.person.as_ref()
+            .and_then(|p| p.small_thumbnail_path.as_ref())
+            .unwrap_or_else( || &self.face.thumbnail_path);
+
+        let img = gdk::Texture::from_filename(thumbnail_path).ok();
         widgets.avatar.set_custom_image(img.as_ref());
     }
 }
