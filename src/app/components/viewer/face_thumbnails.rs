@@ -6,10 +6,12 @@ use relm4::*;
 use relm4::actions::{RelmAction, RelmActionGroup};
 use relm4::adw::{self, prelude::*};
 use relm4::binding::*;
+use relm4::gtk::prelude::AdjustmentExt;
 use relm4::gtk::prelude::*;
 use relm4::gtk::{self, gdk, gio};
 use relm4::prelude::*;
 use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
+use gtk::prelude::OrientableExt;
 
 use std::rc::Rc;
 
@@ -24,6 +26,10 @@ use super::person_select::{PersonSelect, PersonSelectInput, PersonSelectOutput};
 use tracing::{debug, error, info};
 
 use std::path::PathBuf;
+
+
+// Face thumbnails generated at this size in face_extractor.rs
+const AVATAR_SIZE: i32 = 64;
 
 relm4::new_action_group!(FaceActionGroup, "face");
 
@@ -40,11 +46,12 @@ relm4::new_stateless_action!(FaceIgnoreAction, FaceActionGroup, "ignore");
 relm4::new_stateless_action!(FaceThumbnailAction, FaceActionGroup, "thumbnail");
 
 pub struct FaceGridItem {
-    /// Person for avatar
-    person: Rc<people::Person>,
+    face: people::Face,
 
-    // Length of thumbnail edge to allow for resizing when layout changes.
-    edge_length: I32Binding,
+    /// Person for avatar
+    person: Option<people::Person>,
+
+    menu_model: gio::Menu,
 }
 
 pub struct FaceGridItemWidgets {
@@ -65,6 +72,7 @@ impl RelmGridItem for FaceGridItem {
 
                 #[name(avatar)]
                 adw::Avatar {
+                    set_size: AVATAR_SIZE,
                 },
             }
         }
@@ -78,6 +86,10 @@ impl RelmGridItem for FaceGridItem {
     }
 
     fn bind(&mut self, widgets: &mut Self::Widgets, _root: &mut Self::Root) {
+        let pop = gtk::PopoverMenu::builder().menu_model(&self.menu_model).build();
+
+        let img = gdk::Texture::from_filename(&self.face.thumbnail_path).ok();
+        widgets.avatar.set_custom_image(img.as_ref());
     }
 }
 
@@ -117,13 +129,11 @@ pub struct FaceThumbnails {
     picture_id: Option<PictureId>,
 
     face_thumbnails: gtk::Box,
+    face_grid: TypedGridView<FaceGridItem, gtk::SingleSelection>,
 
     person_dialog: adw::Dialog,
     person_select: AsyncController<PersonSelect>,
 }
-
-// Face thumbnails generated at this size in face_extractor.rs
-const AVATAR_SIZE: i32 = 64;
 
 #[relm4::component(pub async)]
 impl SimpleAsyncComponent for FaceThumbnails {
@@ -132,18 +142,27 @@ impl SimpleAsyncComponent for FaceThumbnails {
     type Output = FaceThumbnailsOutput;
 
     view! {
-        gtk::ScrolledWindow {
-            set_hexpand: true,
-            set_vscrollbar_policy: gtk::PolicyType::Never,
-            set_hscrollbar_policy: gtk::PolicyType::External, // scroll bar not visible, but faces scrollable
-            set_propagate_natural_width: true,
-
-            #[name(face_thumbnails)]
-            gtk::Box {
+        gtk::Box {
+            set_orientation: gtk::Orientation::Vertical,
+            gtk::ScrolledWindow {
                 set_hexpand: true,
-                set_orientation: gtk::Orientation::Horizontal,
-                set_spacing: 8,
-            }
+                set_vscrollbar_policy: gtk::PolicyType::Never,
+                set_hscrollbar_policy: gtk::PolicyType::External, // scroll bar not visible, but faces scrollable
+                set_propagate_natural_width: true,
+
+                #[name(face_thumbnails)]
+                gtk::Box {
+                    set_hexpand: true,
+                    set_orientation: gtk::Orientation::Horizontal,
+                    set_spacing: 8,
+                }
+            },
+
+            #[local_ref]
+            grid_view -> gtk::GridView {
+                set_orientation: gtk::Orientation::Vertical,
+                set_single_click_activate: true,
+            },
         }
     }
 
@@ -152,6 +171,10 @@ impl SimpleAsyncComponent for FaceThumbnails {
         root: Self::Root,
         sender: AsyncComponentSender<Self>,
     ) -> AsyncComponentParts<Self> {
+
+        let face_grid: TypedGridView<FaceGridItem, gtk::SingleSelection>  = TypedGridView::new();
+        let grid_view = &face_grid.view.clone();
+
         let widgets = view_output!();
 
         let person_select = PersonSelect::builder().launch(people_repo.clone()).forward(
@@ -173,6 +196,7 @@ impl SimpleAsyncComponent for FaceThumbnails {
             face_thumbnails: widgets.face_thumbnails.clone(),
             person_dialog,
             person_select,
+            face_grid,
         };
 
         AsyncComponentParts { model, widgets }
@@ -189,6 +213,7 @@ impl SimpleAsyncComponent for FaceThumbnails {
             }
             FaceThumbnailsInput::Refresh => {
                 self.face_thumbnails.remove_all();
+                self.face_grid.clear();
 
                 let Some(picture_id) = self.picture_id else {
                     return;
@@ -208,6 +233,7 @@ impl SimpleAsyncComponent for FaceThumbnails {
                         .into_iter()
                         .filter(|(face, _)| face.thumbnail_path.exists())
                         .for_each(|(face, person)| {
+
                             let mut group = RelmActionGroup::<FaceActionGroup>::new();
 
                             let menu_model = gio::Menu::new();
@@ -215,6 +241,7 @@ impl SimpleAsyncComponent for FaceThumbnails {
                             let is_known_person = person.is_some();
 
                             let (menu_items, thumbnail_path) = if let Some(person) = person {
+                                let face = face.clone();
                                 let not_person: RelmAction<FaceNotPersonAction> = {
                                     let sender = sender.clone();
                                     RelmAction::new_stateless(move |_| {
@@ -251,6 +278,7 @@ impl SimpleAsyncComponent for FaceThumbnails {
 
                                 (menu_items, person.small_thumbnail_path)
                             } else {
+                                let face = face.clone();
                                 let set_person: RelmAction<FaceSetPersonAction> = {
                                     let sender = sender.clone();
                                     let thumbnail_path = face.thumbnail_path.clone();
@@ -288,6 +316,14 @@ impl SimpleAsyncComponent for FaceThumbnails {
                             for item in menu_items {
                                 menu_model.append_item(&item);
                             }
+
+                            let item = FaceGridItem {
+                                face: face.clone(),
+                                person: None,
+                                menu_model: menu_model.clone(),
+                            };
+
+                            self.face_grid.append(item);
 
                             let pop = gtk::PopoverMenu::builder().menu_model(&menu_model).build();
 

@@ -7,6 +7,7 @@ pub mod model;
 pub mod repo;
 pub mod thumbnailer;
 
+pub use model::Face;
 pub use model::FaceDetectionCandidate;
 pub use model::FaceId;
 pub use model::FaceToMigrate;
