@@ -117,6 +117,13 @@
   </screenshots>
 
   <releases>
+    <release version="2.1.0" date="2025-09-11">
+      <description>
+        <ul>
+          <li>Support non-DRM m4v video files.</li>
+        </ul>
+      </description>
+    </release>
     <release version="2.0.2" date="2025-06-24">
       <description>
         <ul>
