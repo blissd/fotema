@@ -26,7 +26,7 @@ impl Scanner {
         "avif", "exr", "heic", "jpeg", "jpg", "jxl", "png", "qoi", "tiff", "webp", "gif",
     ];
 
-    const VIDEO_SUFFIXES: [&str; 4] = ["mov", "mp4", "avi", "mkv"];
+    const VIDEO_SUFFIXES: [&str; 5] = ["m4v", "mov", "mp4", "avi", "mkv"];
 
     pub fn build(scan_base: &Path) -> Result<Self> {
         fs::create_dir_all(scan_base)?;
