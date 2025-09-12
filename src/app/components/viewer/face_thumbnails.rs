@@ -59,7 +59,7 @@ pub struct FaceGridItem {
 pub struct FaceGridItemWidgets {
     avatar: adw::Avatar,
 
-    pop: gtk::PopoverMenu,
+    container: gtk::Box,
 
     // If the avatar has been bound to edge_length.
     is_bound: bool,
@@ -72,12 +72,11 @@ impl RelmGridItem for FaceGridItem {
 
     fn setup(_item: &gtk::ListItem) -> (Self::Root, Self::Widgets) {
 
-        let pop = gtk::PopoverMenu::builder().build();
-
         relm4::view! {
             root = gtk::Frame {
                 add_css_class: "face-small",
 
+                #[name(container)]
                 gtk::Box {
                     set_orientation: gtk::Orientation::Vertical,
 
@@ -85,9 +84,6 @@ impl RelmGridItem for FaceGridItem {
                     adw::Avatar {
                         set_size: AVATAR_SIZE,
                     },
-
-                    #[local_ref]
-                    pop -> gtk::PopoverMenu {},
                 }
 
             }
@@ -95,7 +91,7 @@ impl RelmGridItem for FaceGridItem {
 
         let widgets = FaceGridItemWidgets {
             avatar,
-            pop,
+            container,
             is_bound: false,
         };
 
@@ -190,11 +186,12 @@ impl RelmGridItem for FaceGridItem {
             menu_model.append_item(&item);
         }
 
-        //let pop = gtk::PopoverMenu::builder().menu_model(&menu_model).build();
-        let pop = widgets.pop.clone();
+        let pop = gtk::PopoverMenu::builder().menu_model(&menu_model).build();
         pop.set_menu_model(Some(&menu_model));
 
-        group.register_for_widget(&widgets.avatar);
+        widgets.container.append(&pop);
+
+        group.register_for_widget(&root);
 
         let click = gtk::GestureClick::new();
         click.connect_released(move |_click, _, _, _| {
