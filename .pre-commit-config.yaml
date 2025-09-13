@@ -5,7 +5,7 @@
 exclude: ".sql$"
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+    rev: v6.0.0
     hooks:
       - id: check-yaml
       - id: check-json
@@ -21,7 +21,7 @@ repos:
           - "--autofix"
           - "--indent=4"
   - repo: https://github.com/fsfe/reuse-tool
-    rev: v5.0.2
+    rev: v5.1.1
     hooks:
       - id: reuse
   - repo: https://github.com/doublify/pre-commit-rust
