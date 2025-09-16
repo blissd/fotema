@@ -1860,9 +1860,9 @@ dependencies = [
 
 [[package]]
 name = "h3o"
-version = "0.9.1"
+version = "0.9.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "78ddb6a64649a2a6b58638f339c2bb68418389635a8eeff01c64e1a66ecdc580"
+checksum = "a2904b68d4350b1a86c8f24157e05fd81776c20bab18a0c18b45807bc9050f1e"
 dependencies = [
  "ahash",
  "either",
