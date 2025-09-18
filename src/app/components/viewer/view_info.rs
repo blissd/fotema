@@ -12,7 +12,7 @@ use fotema_core::FlatpakPathBuf;
 use gtk::prelude::OrientableExt;
 
 use chrono::{DateTime, Utc};
-use glycin::ImageInfo;
+use glycin::ImageDetails;
 use humansize::{DECIMAL, format_size};
 use relm4::adw::prelude::*;
 use relm4::gtk;
@@ -29,7 +29,7 @@ use tracing::{debug, warn};
 #[derive(Debug)]
 pub enum ViewInfoInput {
     /// Show photo details
-    Photo(VisualId, ImageInfo),
+    Photo(VisualId, ImageDetails),
 
     /// Show video details
     Video(VisualId),
@@ -489,7 +489,7 @@ impl ViewInfo {
     fn update_photo_details(
         &mut self,
         vis: Arc<fotema_core::visual::Visual>,
-        image_info: &ImageInfo,
+        image_details: &ImageDetails,
     ) -> Result<(), String> {
         let Some(ref picture_path) = vis.picture_path else {
             return Err("No picture path".to_string());
@@ -501,11 +501,11 @@ impl ViewInfo {
 
         let fs_file_size_bytes = metadata.len();
 
-        let image_size = format!("{} ⨉ {}", image_info.width, image_info.height);
+        let image_size = format!("{} ⨉ {}", image_details.width(), image_details.height());
 
         let has_image_details = [
             Self::update_row(&self.image_size, Some(image_size)),
-            Self::update_row(&self.image_format, image_info.details.format_name.as_ref()),
+            Self::update_row(&self.image_format, image_details.info_format_name().as_ref()),
             Self::update_row(
                 &self.image_file_size,
                 Some(format_size(fs_file_size_bytes, DECIMAL)),
@@ -516,7 +516,7 @@ impl ViewInfo {
 
         self.image_details.set_visible(has_image_details);
 
-        if let Some(Ok(exif)) = image_info.details.exif.as_ref().map(|x| x.get_full()) {
+        if let Some(Ok(exif)) = image_details.metadata_exif().as_ref().map(|x| x.get_full()) {
             let metadata = fotema_core::photo::metadata::from_raw(exif).ok();
 
             let created_at: Option<String> = metadata

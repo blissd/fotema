@@ -65,7 +65,7 @@ pub enum ViewNavInput {
     Hidden,
 
     /// Inform info bar of photo details.
-    ShowPhotoInfo(VisualId, glycin::ImageInfo),
+    ShowPhotoInfo(VisualId, glycin::ImageDetails),
 
     /// Inform info bar of video details.
     ShowVideoInfo(VisualId),
