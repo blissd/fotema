@@ -203,7 +203,11 @@ pub fn add_thumbnail_metadata(
     let info = reader.info();
     let existing_text = &info.uncompressed_latin1_text.clone();
 
-    let mut buf = vec![0; reader.output_buffer_size()];
+    let output_buffer_size = reader
+        .output_buffer_size()
+        .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::InvalidData, "Failed decoding"))?;
+
+    let mut buf = vec![0; output_buffer_size];
     reader.next_frame(&mut buf)?;
 
     // Re-encode with updated metadata
