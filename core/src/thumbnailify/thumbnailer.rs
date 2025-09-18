@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use std::collections::HashMap;
-use std::io::BufWriter;
+use std::io::{BufReader, BufWriter};
 use std::{
     fs,
     fs::File,
@@ -57,6 +57,7 @@ pub fn is_thumbnail_up_to_date(thumb_path: &Path, host_path: &Path) -> bool {
         }
     };
 
+    let file = BufReader::new(file);
     let decoder = Decoder::new(file);
     let reader = match decoder.read_info() {
         Ok(r) => r,
