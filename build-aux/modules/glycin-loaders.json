@@ -2,7 +2,8 @@
     "buildsystem": "meson",
     "config-opts": [
         "-Dglycin-loaders=true",
-        "-Dlibglycin=false"
+        "-Dlibglycin=false",
+        "-Dglycin-thumbnailer=false"
     ],
     "modules": [
         {
