@@ -103,7 +103,7 @@ pub enum ViewOneOutput {
     TranscodeAll,
 
     /// Successfully showing a photo.
-    PhotoShown(VisualId, glycin::ImageInfo),
+    PhotoShown(VisualId, glycin::ImageDetails),
 
     /// Successfully showing a video.
     VideoShown(VisualId),
@@ -127,7 +127,7 @@ pub struct ViewOne {
     video: Option<gtk::MediaFile>,
 
     /// Info for loaded image
-    image_info: Option<glycin::ImageInfo>,
+    image_info: Option<glycin::ImageDetails>,
 
     visual_id: Option<VisualId>,
 
@@ -412,7 +412,7 @@ impl SimpleAsyncComponent for ViewOne {
                         return;
                     };
 
-                    self.image_info = Some(image.info().clone());
+                    self.image_info = Some(image.details().clone());
 
                     let texture = frame.texture();
                     self.picture.set_paintable(Some(&texture));

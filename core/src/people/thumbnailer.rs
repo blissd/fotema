@@ -93,8 +93,14 @@ impl PersonThumbnailer {
                 err
             })?;
 
-            let original_edge = u32::max(original_image.info().height, original_image.info().width);
-            let thumb_edge = u32::max(thumbnail_image.info().height, thumbnail_image.info().width);
+            let original_edge = u32::max(
+                original_image.details().height(),
+                original_image.details().width(),
+            );
+            let thumb_edge = u32::max(
+                thumbnail_image.details().height(),
+                thumbnail_image.details().width(),
+            );
             original_edge as f32 / thumb_edge as f32
         };
 
@@ -113,12 +119,12 @@ impl PersonThumbnailer {
         let (centre_x, centre_y) = face.centre();
 
         // Normalize thumbnail to be a square.
-        if (original_image.info().width as f32) < centre_x + half_longest {
-            half_longest = original_image.info().width as f32 - centre_x;
+        if (original_image.details().width() as f32) < centre_x + half_longest {
+            half_longest = original_image.details().width() as f32 - centre_x;
             longest = half_longest * 2.0;
         }
-        if (original_image.info().height as f32) < centre_y + half_longest {
-            half_longest = original_image.info().height as f32 - centre_y;
+        if (original_image.details().height() as f32) < centre_y + half_longest {
+            half_longest = original_image.details().height() as f32 - centre_y;
             longest = half_longest * 2.0;
         }
 
