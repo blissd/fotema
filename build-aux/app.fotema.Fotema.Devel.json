@@ -55,7 +55,6 @@
           }
     },
     "modules": [
-        "modules/libshumate.json",
         "modules/opencv.json",
         "modules/libonnxruntime.json",
         {
