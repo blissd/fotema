@@ -48,6 +48,12 @@
         "mkdir -p ${FLATPAK_DEST}/lib/ffmpeg"
     ],
     "add-extensions": {
+        "app.fotema.Fotema.Devel.HEIC": {
+            "directory": "lib/libheif-heic",
+            "add-ld-path": "lib",
+            "bundle": true,
+            "autodelete": true
+        },
         "org.freedesktop.Platform.ffmpeg-full": {
             "version": "24.08",
             "directory": "lib/ffmpeg",
@@ -55,6 +61,7 @@
           }
     },
     "modules": [
+        "modules/libshumate.json",
         "modules/opencv.json",
         "modules/libonnxruntime.json",
         {
