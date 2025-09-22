@@ -26,7 +26,7 @@ rayon = "1.11.0"
 glycin = { version = "3.0.0", features = ["gdk4"] }
 futures = "0.3.31"
 chrono = "0.4.42"
-anyhow = "1.0.99"
+anyhow = "1.0.100"
 strum = { version = "0.27.2", features = ["derive"] }
 i18n-embed = { version = "0.16.0", features = ["fluent-system", "filesystem-assets", "desktop-requester"] }
 rust-embed = "8.7.2"
