@@ -74,18 +74,35 @@ impl RelmGridItem for FaceGridItem {
 
         relm4::view! {
             root = gtk::Frame {
-                    add_css_class: "face-small",
+                    add_css_class: "face-thumbnail-overlay",
+                    gtk::Overlay {
+                        add_overlay = &gtk::Frame {
+                            set_valign: gtk::Align::End,
+                            set_halign: gtk::Align::End,
+                            add_css_class: "face-thumbnail-label-frame",
 
-                    #[wrap(Some)]
-                    set_child = &gtk::Frame {
-                        #[name(container)]
-                        gtk::Box {
-                            set_orientation: gtk::Orientation::Vertical,
+                            #[wrap(Some)]
+                            set_child = &gtk::Image {
+                                set_width_request: 16,
+                                set_height_request: 16,
 
-                            #[name(avatar)]
-                            adw::Avatar {
-                                set_size: AVATAR_SIZE,
+                                //#[wrap(Some)]
+                                set_icon_name: Some("reaction-add-symbolic"),
                             },
+                        },
+
+                        #[wrap(Some)]
+                        set_child = &gtk::Frame {
+                            add_css_class: "face-small",
+                            #[name(container)]
+                            gtk::Box {
+                                set_orientation: gtk::Orientation::Vertical,
+
+                                #[name(avatar)]
+                                adw::Avatar {
+                                    set_size: AVATAR_SIZE,
+                                },
+                            }
                         }
                     }
                 }
@@ -470,7 +487,9 @@ impl SimpleAsyncComponent for FaceThumbnails {
                             frame.set_child(Some(&children));
 
                             let frame = if !is_known_person {
-                                let overlay = gtk::Overlay::builder().child(&frame).build();
+                                let overlay = gtk::Overlay::builder()
+                                    .child(&frame)
+                                    .build();
 
                                 let face_icon = gtk::Image::builder()
                                     .width_request(16)
