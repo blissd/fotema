@@ -74,20 +74,22 @@ impl RelmGridItem for FaceGridItem {
 
         relm4::view! {
             root = gtk::Frame {
-                add_css_class: "face-small",
+                    add_css_class: "face-small",
 
-                #[name(container)]
-                gtk::Box {
-                    set_orientation: gtk::Orientation::Vertical,
+                    #[wrap(Some)]
+                    set_child = &gtk::Frame {
+                        #[name(container)]
+                        gtk::Box {
+                            set_orientation: gtk::Orientation::Vertical,
 
-                    #[name(avatar)]
-                    adw::Avatar {
-                        set_size: AVATAR_SIZE,
-                    },
+                            #[name(avatar)]
+                            adw::Avatar {
+                                set_size: AVATAR_SIZE,
+                            },
+                        }
+                    }
                 }
-
             }
-        }
 
         let widgets = FaceGridItemWidgets {
             avatar,
