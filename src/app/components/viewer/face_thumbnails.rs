@@ -52,8 +52,6 @@ pub struct FaceGridItem {
     person: Option<people::Person>,
 
     sender: AsyncComponentSender<FaceThumbnails>,
-
-    menu_model: gio::Menu,
 }
 
 pub struct FaceGridItemWidgets {
@@ -129,7 +127,7 @@ impl RelmGridItem for FaceGridItem {
         let menu_model = gio::Menu::new();
 
         // Only show face icon on unknown faces
-        widgets.face_icon.set_visible(self.person.is_some());
+        widgets.face_icon.set_visible(!self.person.is_some());
 
         let (menu_items, thumbnail_path) = if let Some(person) = self.person.as_ref() {
             let not_person: RelmAction<FaceNotPersonAction> = {
@@ -272,9 +270,7 @@ pub struct FaceThumbnails {
 
     picture_id: Option<PictureId>,
 
-    face_thumbnails: gtk::Box,
     face_grid: TypedGridView<FaceGridItem, gtk::SingleSelection>,
-    faces_and_people: Vec<(people::FaceId, Option<people::PersonId>)>,
 
     person_dialog: adw::Dialog,
     person_select: AsyncController<PersonSelect>,
@@ -289,22 +285,8 @@ impl SimpleAsyncComponent for FaceThumbnails {
     view! {
         gtk::Box {
             set_orientation: gtk::Orientation::Vertical,
-            gtk::ScrolledWindow {
-                set_hexpand: true,
-                set_vscrollbar_policy: gtk::PolicyType::Never,
-                set_hscrollbar_policy: gtk::PolicyType::External, // scroll bar not visible, but faces scrollable
-                set_propagate_natural_width: true,
-
-                #[name(face_thumbnails)]
-                gtk::Box {
-                    set_hexpand: false,
-                    set_orientation: gtk::Orientation::Horizontal,
-                    set_spacing: 8,
-                }
-            },
-
             #[local_ref]
-            grid_view -> gtk::GridView {
+            append = grid_view -> gtk::GridView {
                 set_orientation: gtk::Orientation::Vertical,
                 set_single_click_activate: true,
             },
@@ -338,11 +320,9 @@ impl SimpleAsyncComponent for FaceThumbnails {
         let model = Self {
             picture_id: None,
             people_repo,
-            face_thumbnails: widgets.face_thumbnails.clone(),
             person_dialog,
             person_select,
             face_grid,
-            faces_and_people: Vec::new(),
         };
 
         AsyncComponentParts { model, widgets }
@@ -351,16 +331,14 @@ impl SimpleAsyncComponent for FaceThumbnails {
     async fn update(&mut self, msg: Self::Input, sender: AsyncComponentSender<Self>) {
         match msg {
             FaceThumbnailsInput::Hide => {
-                self.face_thumbnails.remove_all();
+                self.face_grid.clear();
             }
             FaceThumbnailsInput::View(picture_id) => {
                 self.picture_id = Some(picture_id);
                 sender.input(FaceThumbnailsInput::Refresh);
             }
             FaceThumbnailsInput::Refresh => {
-                self.face_thumbnails.remove_all();
                 self.face_grid.clear();
-                self.faces_and_people.clear();
 
                 let Some(picture_id) = self.picture_id else {
                     return;
@@ -380,165 +358,19 @@ impl SimpleAsyncComponent for FaceThumbnails {
                         .into_iter()
                         .filter(|(face, _)| face.thumbnail_path.exists())
                         .for_each(|(face, person)| {
-
-                            let mut group = RelmActionGroup::<FaceActionGroup>::new();
-
-                            let menu_model = gio::Menu::new();
-
-                            let is_known_person = person.is_some();
-
-                            let (menu_items, thumbnail_path) = if let Some(ref person) = person {
-                                let face = face.clone();
-                                let not_person: RelmAction<FaceNotPersonAction> = {
-                                    let sender = sender.clone();
-                                    RelmAction::new_stateless(move |_| {
-                                        sender.input(FaceThumbnailsInput::NotPerson(face.face_id));
-                                    })
-                                };
-                                group.add_action(not_person);
-
-                                let set_thumbnail: RelmAction<FaceThumbnailAction> = {
-                                    let sender = sender.clone();
-                                    let person_id = person.person_id;
-                                    let face_id = face.face_id;
-                                    RelmAction::new_stateless(move |_| {
-                                        sender.input(FaceThumbnailsInput::SetThumbnail(
-                                            person_id,
-                                            face_id,
-                                        ));
-                                    })
-                                };
-                                group.add_action(set_thumbnail);
-
-                                let menu_items = vec![
-                                    //  gio::MenuItem::new(Some(&fl!("people-view-more-photos", name = person.name.clone())), None),
-                                    gio::MenuItem::new(
-                                        Some(&fl!("people-set-face-thumbnail")),
-                                        Some("face.thumbnail"),
-                                    ),
-                                    gio::MenuItem::new(
-                                        Some(&fl!(
-                                            "people-not-this-person",
-                                            name = person.name.clone()
-                                        )),
-                                        Some("face.not_person"),
-                                    ),
-                                ];
-
-                                (menu_items, person.small_thumbnail_path.clone())
-                            } else {
-                                let face = face.clone();
-                                let set_person: RelmAction<FaceSetPersonAction> = {
-                                    let sender = sender.clone();
-                                    let thumbnail_path = face.thumbnail_path.clone();
-                                    RelmAction::new_stateless(move |_| {
-                                        sender.input(FaceThumbnailsInput::SetPerson(
-                                            face.face_id,
-                                            thumbnail_path.clone(),
-                                        ));
-                                    })
-                                };
-                                group.add_action(set_person);
-
-                                let not_a_face: RelmAction<FaceIgnoreAction> = {
-                                    let sender = sender.clone();
-                                    RelmAction::new_stateless(move |_| {
-                                        sender.input(FaceThumbnailsInput::Ignore(face.face_id));
-                                    })
-                                };
-                                group.add_action(not_a_face);
-
-                                let menu_items = vec![
-                                    gio::MenuItem::new(
-                                        Some(&fl!("people-set-name")),
-                                        Some("face.set_person"),
-                                    ),
-                                    gio::MenuItem::new(
-                                        Some(&fl!("people-face-ignore")),
-                                        Some("face.ignore"),
-                                    ),
-                                ];
-
-                                (menu_items, Some(face.thumbnail_path))
-                            };
-
-                            for item in menu_items {
-                                menu_model.append_item(&item);
-                            }
-
                             let item = FaceGridItem {
                                 face: face.clone(),
                                 person: person,
-                                menu_model: menu_model.clone(),
                                 sender: sender.clone(),
                             };
 
                             self.face_grid.append(item);
-
-                            let pop = gtk::PopoverMenu::builder().menu_model(&menu_model).build();
-
-                            let avatar = adw::Avatar::builder().size(AVATAR_SIZE).build();
-
-                            if let Some(thumbnail_path) = thumbnail_path {
-                                let img = gdk::Texture::from_filename(&thumbnail_path).ok();
-                                avatar.set_custom_image(img.as_ref());
-                            }
-
-                            let children = gtk::Box::new(gtk::Orientation::Vertical, 0);
-                            children.append(&avatar);
-                            children.append(&pop);
-
-                            let frame = gtk::Frame::new(None);
-                            frame.add_css_class("face-small");
-                            frame.set_child(Some(&children));
-
-                            let frame = if !is_known_person {
-                                let overlay = gtk::Overlay::builder()
-                                    .child(&frame)
-                                    .build();
-
-                                let face_icon = gtk::Image::builder()
-                                    .width_request(16)
-                                    .height_request(16)
-                                    .icon_name("reaction-add-symbolic")
-                                    .build();
-
-                                let label_frame = gtk::Frame::builder()
-                                    .halign(gtk::Align::End)
-                                    .valign(gtk::Align::End)
-                                    .css_classes(["face-thumbnail-label-frame"])
-                                    .child(&face_icon)
-                                    .build();
-
-                                overlay.add_overlay(&label_frame);
-
-                                let frame = gtk::Frame::new(None);
-                                frame.set_child(Some(&overlay));
-                                frame.add_css_class("face-thumbnail-overlay");
-                                frame
-                            } else {
-                                frame
-                            };
-
-                            group.register_for_widget(&frame);
-
-                            let click = gtk::GestureClick::new();
-                            click.connect_released(move |_click, _, _, _| {
-                                pop.popup();
-                            });
-
-                            // if we get a stop message, then we are not dealing with a single-click.
-                            click.connect_stopped(move |click| click.reset());
-
-                            frame.add_controller(click);
-
-                            self.face_thumbnails.append(&frame);
-                        });
+                        })
                 }
             }
             FaceThumbnailsInput::SetPerson(face_id, thumbnail) => {
                 debug!("Set person for face {}", face_id);
-                if let Some(root) = gtk::Widget::root(self.face_thumbnails.widget_ref()) {
+                if let Some(root) = gtk::Widget::root(self.face_grid.view.widget_ref()) {
                     self.person_select
                         .emit(PersonSelectInput::Activate(face_id, thumbnail));
                     self.person_dialog.present(Some(&root));
