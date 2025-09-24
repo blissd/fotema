@@ -69,13 +69,13 @@ pub struct FaceGridItemWidgets {
 
 
 impl RelmGridItem for FaceGridItem {
-    type Root = gtk::Frame;
+    type Root = gtk::AspectFrame;
     type Widgets = FaceGridItemWidgets;
 
     fn setup(_item: &gtk::ListItem) -> (Self::Root, Self::Widgets) {
 
         relm4::view! {
-            root = gtk::Frame {
+            root = gtk::AspectFrame {
                     add_css_class: "face-thumbnail-overlay",
                     gtk::Overlay {
 
