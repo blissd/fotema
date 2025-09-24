@@ -47,13 +47,6 @@
     "cleanup-commands": [
         "mkdir -p ${FLATPAK_DEST}/lib/ffmpeg"
     ],
-    "add-extensions": {
-        "org.freedesktop.Platform.ffmpeg-full": {
-            "version": "24.08",
-            "directory": "lib/ffmpeg",
-            "add-ld-path": "."
-          }
-    },
     "modules": [
         "modules/libshumate.json",
         "modules/opencv.json",
