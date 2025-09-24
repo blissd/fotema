@@ -117,6 +117,13 @@
   </screenshots>
 
   <releases>
+    <release version="2.3.0" date="2025-09-24">
+      <description>
+        <ul>
+          <li>Display info bar face thumbnails in grid.</li>
+        </ul>
+      </description>
+    </release>
     <release version="2.2.0" date="2025-09-18">
       <description>
         <ul>
