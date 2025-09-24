@@ -74,6 +74,7 @@ pub struct ViewInfo {
     video_originally_created_at: adw::ActionRow,
     video_duration: adw::ActionRow,
 
+    faces_row: adw::ActionRow,
     face_thumbnails: AsyncController<FaceThumbnails>,
 }
 
@@ -182,6 +183,17 @@ impl SimpleComponent for ViewInfo {
                             set_icon_name: Some("weight-symbolic"),
                         }
                     },
+
+                    #[local_ref]
+                    faces_row -> adw::ActionRow {
+                        add_css_class: "property",
+                        set_subtitle_selectable: false,
+                        add_prefix = &gtk::Image {
+                            set_valign: gtk::Align::Start,
+                            set_icon_name: Some("people-symbolic"),
+                        },
+                        add_suffix = model.face_thumbnails.widget(),
+                    },
                 },
 
                 #[local_ref]
@@ -280,8 +292,6 @@ impl SimpleComponent for ViewInfo {
                         }
                     },
                 },
-
-                model.face_thumbnails.widget(),
             }
         }
     }
@@ -316,6 +326,7 @@ impl SimpleComponent for ViewInfo {
         let video_file_size = adw::ActionRow::new();
         let video_originally_created_at = adw::ActionRow::new();
 
+        let faces_row = adw::ActionRow::new();
         let face_thumbnails = FaceThumbnails::builder().launch(people_repo).detach();
 
         let model = ViewInfo {
@@ -347,6 +358,7 @@ impl SimpleComponent for ViewInfo {
             video_audio_codec: video_audio_codec.clone(),
             video_dimensions: video_dimensions.clone(),
 
+            faces_row: faces_row.clone(),
             face_thumbnails,
         };
 
@@ -407,14 +419,17 @@ impl SimpleComponent for ViewInfo {
                 let _ = self.update_file_details(vis.clone());
 
                 if let Some(picture_id) = vis.picture_id {
+                    self.faces_row.set_visible(true);
                     let _ = self.update_photo_details(vis.clone(), image_info);
                     self.face_thumbnails
                         .emit(FaceThumbnailsInput::View(picture_id));
                 } else {
+                    self.faces_row.set_visible(false);
                     self.face_thumbnails.emit(FaceThumbnailsInput::Hide);
                 }
             }
             ViewInfoInput::Video(ref visual_id) => {
+                self.faces_row.set_visible(false);
                 self.face_thumbnails.emit(FaceThumbnailsInput::Hide);
 
                 let result = {

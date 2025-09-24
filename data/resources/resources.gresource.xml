@@ -45,5 +45,6 @@ SPDX-License-Identifier: GPL-3.0-or-later
     <file alias="stopwatch-symbolic.svg" preprocess="xml-stripblanks">icons/stopwatch-symbolic.svg</file>
     <file alias="sound-wave-symbolic.svg" preprocess="xml-stripblanks">icons/sound-wave-symbolic.svg</file>
     <file alias="weight-symbolic.svg" preprocess="xml-stripblanks">icons/weight-symbolic.svg</file>
+    <file alias="people-symbolic.svg" preprocess="xml-stripblanks">icons/people-symbolic.svg</file>
   </gresource>
 </gresources>

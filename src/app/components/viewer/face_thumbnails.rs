@@ -287,6 +287,8 @@ impl SimpleAsyncComponent for FaceThumbnails {
             set_orientation: gtk::Orientation::Vertical,
             #[local_ref]
             append = grid_view -> gtk::GridView {
+                // Remove 'view' css class to avoid black background.
+                remove_css_class: "view",
                 set_orientation: gtk::Orientation::Vertical,
                 set_single_click_activate: true,
             },
@@ -408,3 +410,4 @@ impl SimpleAsyncComponent for FaceThumbnails {
         }
     }
 }
+
