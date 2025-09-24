@@ -61,6 +61,8 @@ pub struct FaceGridItemWidgets {
 
     container: gtk::Box,
 
+    face_icon: gtk::Frame,
+
     // If the avatar has been bound to edge_length.
     is_bound: bool,
 }
@@ -76,6 +78,8 @@ impl RelmGridItem for FaceGridItem {
             root = gtk::Frame {
                     add_css_class: "face-thumbnail-overlay",
                     gtk::Overlay {
+
+                        #[name(face_icon)]
                         add_overlay = &gtk::Frame {
                             set_valign: gtk::Align::End,
                             set_halign: gtk::Align::End,
@@ -111,6 +115,7 @@ impl RelmGridItem for FaceGridItem {
         let widgets = FaceGridItemWidgets {
             avatar,
             container,
+            face_icon,
             is_bound: false,
         };
 
@@ -123,7 +128,8 @@ impl RelmGridItem for FaceGridItem {
 
         let menu_model = gio::Menu::new();
 
-        let is_known_person = self.person.is_some();
+        // Only show face icon on unknown faces
+        widgets.face_icon.set_visible(self.person.is_some());
 
         let (menu_items, thumbnail_path) = if let Some(person) = self.person.as_ref() {
             let not_person: RelmAction<FaceNotPersonAction> = {
@@ -291,7 +297,7 @@ impl SimpleAsyncComponent for FaceThumbnails {
 
                 #[name(face_thumbnails)]
                 gtk::Box {
-                    set_hexpand: true,
+                    set_hexpand: false,
                     set_orientation: gtk::Orientation::Horizontal,
                     set_spacing: 8,
                 }
