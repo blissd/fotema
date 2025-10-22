@@ -1652,14 +1652,15 @@ checksum = "0cc23270f6e1808e30a928bdc84dea0b9b4136a8bc82338574f23baf47bbd280"
 
 [[package]]
 name = "glycin"
-version = "3.0.3"
+version = "3.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "04fbbe8670e734650c5a96e6107ab52dd14e25b339067e6e6bc1f0e919a3aea4"
+checksum = "70036c016aba916ccf079a5f0149027c4016d6a5fdaae09019a77e93062f2bd3"
 dependencies = [
  "async-fs",
  "async-global-executor",
  "async-io",
  "async-lock",
+ "async-task",
  "blocking",
  "futures-channel",
  "futures-lite",
