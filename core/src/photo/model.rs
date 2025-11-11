@@ -140,9 +140,13 @@ impl From<u32> for Orientation {
 
 #[derive(Debug, Default, Clone)]
 pub struct Metadata {
-    pub created_at: Option<DateTime<FixedOffset>>,
+    pub fs_created_at: Option<DateTime<Utc>>,
 
-    pub modified_at: Option<DateTime<FixedOffset>>,
+    pub fs_modified_at: Option<DateTime<Utc>>,
+
+    pub exif_created_at: Option<DateTime<FixedOffset>>,
+
+    pub exif_modified_at: Option<DateTime<FixedOffset>>,
 
     /// On iPhone the lens model tells you if it was the front or back camera.
     pub lens_model: Option<String>,

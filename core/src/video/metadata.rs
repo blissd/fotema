@@ -4,6 +4,7 @@
 
 use super::Metadata;
 use anyhow::*;
+use chrono::prelude::*;
 use chrono::{DateTime, TimeDelta};
 
 use ffmpeg_next as ffmpeg;
@@ -12,6 +13,8 @@ use std::path::Path;
 use std::result::Result::Ok;
 
 use std::process::Command;
+
+use std::fs;
 
 /// This version number should be incremented each time metadata scanning has
 /// a bug fix or feature addition that changes the metadata produced.
@@ -23,11 +26,15 @@ pub const VERSION: u32 = 2;
 pub fn from_path(path: &Path) -> Result<Metadata> {
     let mut metadata = Metadata::default();
 
+    let fs_metadata = fs::metadata(path)?;
+    metadata.fs_created_at = fs_metadata.created().map(Into::<DateTime<Utc>>::into).ok();
+    metadata.fs_modified_at = fs_metadata.modified().map(Into::<DateTime<Utc>>::into).ok();
+
     let context = ffmpeg::format::input(path)?;
 
     let context_metadata = context.metadata();
 
-    metadata.created_at = context_metadata.get("creation_time").and_then(|x| {
+    metadata.stream_created_at = context_metadata.get("creation_time").and_then(|x| {
         let dt = DateTime::parse_from_rfc3339(x).ok();
         dt.map(|y| y.to_utc())
     });
@@ -44,7 +51,7 @@ pub fn from_path(path: &Path) -> Result<Metadata> {
 
         let stream_metadata = stream.metadata();
 
-        metadata.created_at = metadata.created_at.or_else(|| {
+        metadata.stream_created_at = metadata.stream_created_at.or_else(|| {
             stream_metadata.get("creation_time").and_then(|x| {
                 let dt = DateTime::parse_from_rfc3339(x).ok();
                 dt.map(|y| y.to_utc())

@@ -534,19 +534,19 @@ impl ViewInfo {
         if let Some(Ok(exif)) = image_details.metadata_exif().as_ref().map(|x| x.get_full()) {
             let metadata = fotema_core::photo::metadata::from_raw(exif).ok();
 
-            let created_at: Option<String> = metadata
+            let fs_created_at: Option<String> = metadata
                 .clone()
-                .and_then(|x| x.created_at)
+                .and_then(|x| x.fs_created_at)
                 .map(|x| x.format("%Y-%m-%d %H:%M:%S %:z").to_string());
 
-            let modified_at: Option<String> = metadata
+            let fs_modified_at: Option<String> = metadata
                 .clone()
-                .and_then(|x| x.modified_at)
+                .and_then(|x| x.fs_modified_at)
                 .map(|x| x.format("%Y-%m-%d %H:%M:%S %:z").to_string());
 
             let has_exif_details = [
-                Self::update_row(&self.exif_originally_created_at, created_at),
-                Self::update_row(&self.exif_originally_modified_at, modified_at),
+                Self::update_row(&self.exif_originally_created_at, fs_created_at),
+                Self::update_row(&self.exif_originally_modified_at, fs_modified_at),
             ]
             .into_iter()
             .any(|x| x);
@@ -579,7 +579,8 @@ impl ViewInfo {
         let metadata = metadata.expect("metadata must be present");
 
         let created_at: Option<String> = metadata
-            .created_at
+            .stream_created_at
+            .or(metadata.fs_created_at)
             .map(|x| x.format("%Y-%m-%d %H:%M:%S %:z").to_string());
 
         let duration = metadata

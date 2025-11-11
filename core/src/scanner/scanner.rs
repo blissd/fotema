@@ -100,19 +100,19 @@ impl Scanner {
     }
 
     pub fn scan_one(&self, path: &Path) -> Result<FileInfo> {
-        let metadata = fs::metadata(path)?;
+        //let metadata = fs::metadata(path)?;
 
-        let fs_created_at = metadata.created().map(Into::<DateTime<Utc>>::into).ok();
+        //let fs_created_at = metadata.created().map(Into::<DateTime<Utc>>::into).ok();
 
-        let fs_modified_at = metadata.modified().map(Into::<DateTime<Utc>>::into).ok();
+        //let fs_modified_at = metadata.modified().map(Into::<DateTime<Utc>>::into).ok();
 
-        let fs_file_size_bytes = metadata.len();
+        //let fs_file_size_bytes = metadata.len();
 
         let scanned = FileInfo {
             path: PathBuf::from(path),
-            fs_created_at,
-            fs_modified_at,
-            fs_file_size_bytes,
+            fs_created_at: None,
+            fs_modified_at: None,
+            fs_file_size_bytes: 0, // unused
         };
 
         Ok(scanned)

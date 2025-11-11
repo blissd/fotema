@@ -112,7 +112,9 @@ impl Repository {
                     duration_millis = ?4,
                     video_codec = ?5,
                     content_id = ?6,
-                    rotation = ?7
+                    rotation = ?7,
+                    fs_created_ts = ?8,
+                    fs_modified_ts = ?9
                 WHERE video_id = ?1",
             )?;
 
@@ -133,11 +135,13 @@ impl Repository {
                 update_videos.execute(params![
                     video_id.id(),
                     metadata::VERSION,
-                    metadata.created_at,
+                    metadata.stream_created_at,
                     metadata.duration.map(|x| x.num_milliseconds()),
                     metadata.video_codec,
                     metadata.content_id,
                     metadata.rotation,
+                    metadata.fs_created_at,
+                    metadata.fs_modified_at,
                 ])?;
 
                 if let Some(location) = metadata.location {
@@ -165,14 +169,12 @@ impl Repository {
         {
             let mut vid_stmt = tx.prepare_cached(
                 "INSERT INTO videos (
-                        fs_created_ts,
-                        fs_modified_ts,
                         video_path_b64,
                         video_path_lossy,
                         link_path_b64,
                         link_path_lossy
                     ) VALUES (
-                        ?1, ?2, ?3, ?4, ?5, ?6
+                        ?1, ?2, ?3, ?4
                     ) ON CONFLICT (video_path_b64) DO UPDATE SET
                         fs_created_ts = ?1,
                         fs_modified_ts = ?2
@@ -197,8 +199,6 @@ impl Repository {
                     let link_path_b64 = path_encoding::to_base64(&link_path);
 
                     vid_stmt.execute(params![
-                        info.fs_created_at,
-                        info.fs_modified_at,
                         video_path_b64,
                         video_path.to_string_lossy(),
                         link_path_b64,
@@ -290,7 +290,9 @@ impl Repository {
         let sandbox_path = self.library_base_dir.sandbox_path.join(&relative_path);
         let host_path = self.library_base_dir.host_path.join(&relative_path);
 
-        let ordering_ts = row.get("ordering_ts").expect("must have ordering_ts");
+        // FIXME add inserted_at timestamp to db to use as default
+        //let ordering_ts = row.get("ordering_ts").expect("must have ordering_ts");
+        let ordering_ts = row.get("ordering_ts").unwrap_or(Utc::now());
 
         let stream_duration = row
             .get("stream_duration")

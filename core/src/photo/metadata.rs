@@ -43,6 +43,10 @@ pub fn from_path(path: &Path) -> Result<Metadata> {
 
     let mut metadata = from_exif(exif_data)?;
 
+    let fs_metadata = fs::metadata(path)?;
+    metadata.fs_created_at = fs_metadata.created().map(Into::<DateTime<Utc>>::into).ok();
+    metadata.fs_modified_at = fs_metadata.modified().map(Into::<DateTime<Utc>>::into).ok();
+
     // FIXME what is a better way of doing this?
     //
     // libheif applies the orientation transformation when loading the image,
@@ -124,12 +128,12 @@ fn from_exif(exif_data: Exif) -> Result<Metadata> {
         Some(offset.from_utc_datetime(&naive_date_time))
     }
 
-    let created_at = parse_date_time(
+    let exif_created_at = parse_date_time(
         exif_data.get_field(exif::Tag::DateTimeOriginal, exif::In::PRIMARY),
         exif_data.get_field(exif::Tag::OffsetTimeOriginal, exif::In::PRIMARY),
     );
 
-    let modified_at = parse_date_time(
+    let exif_modified_at = parse_date_time(
         exif_data.get_field(exif::Tag::DateTime, exif::In::PRIMARY),
         exif_data.get_field(exif::Tag::OffsetTime, exif::In::PRIMARY),
     );
@@ -151,8 +155,10 @@ fn from_exif(exif_data: Exif) -> Result<Metadata> {
     let location = gps_location(&exif_data);
 
     let metadata = Metadata {
-        created_at,
-        modified_at,
+        fs_created_at: None,
+        fs_modified_at: None,
+        exif_created_at,
+        exif_modified_at,
         lens_model,
         orientation,
         content_id,

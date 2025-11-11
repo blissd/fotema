@@ -13,6 +13,7 @@ use super::metadata;
 use super::model::MotionPhotoVideo;
 use super::motion_photo;
 use anyhow::{Result, bail};
+use chrono::Utc;
 use rusqlite;
 use rusqlite::Row;
 use rusqlite::params;
@@ -72,7 +73,9 @@ impl Repository {
                     exif_modified_ts = ?4,
                     is_selfie = ?5,
                     content_id = ?6,
-                    orientation = ?7
+                    orientation = ?7,
+                    fs_created_ts = ?8,
+                    fs_modified_ts = ?9
                 WHERE picture_id = ?1",
             )?;
 
@@ -93,11 +96,13 @@ impl Repository {
                 update_pictures.execute(params![
                     picture_id.id(),
                     metadata::VERSION,
-                    metadata.created_at,
-                    metadata.modified_at,
+                    metadata.exif_created_at,
+                    metadata.exif_modified_at,
                     metadata.is_selfie(),
                     metadata.content_id,
                     metadata.orientation.map(|x| x as u8),
+                    metadata.fs_created_at,
+                    metadata.fs_modified_at,
                 ])?;
 
                 if let Some(location) = metadata.location {
@@ -145,14 +150,12 @@ impl Repository {
         {
             let mut pic_insert_stmt = tx.prepare_cached(
                 "INSERT INTO pictures (
-                    fs_created_ts,
-                    fs_modified_ts,
                     picture_path_b64,
                     picture_path_lossy,
                     link_path_b64,
                     link_path_lossy
                 ) VALUES (
-                    ?1, ?2, ?3, ?4, ?5, ?6
+                    ?1, ?2, ?3, ?4
                 ) ON CONFLICT (picture_path_b64) DO UPDATE SET
                     fs_created_ts = ?1,
                     fs_modified_ts = ?2
@@ -177,8 +180,6 @@ impl Repository {
                     let link_path_b64 = path_encoding::to_base64(&link_path);
 
                     pic_insert_stmt.execute(params![
-                        info.fs_created_at,
-                        info.fs_modified_at,
                         picture_path_b64,
                         picture_path.to_string_lossy(),
                         link_path_b64,
@@ -382,7 +383,9 @@ impl Repository {
         let sandbox_path = self.library_base_dir.sandbox_path.join(&relative_path);
         let host_path = self.library_base_dir.host_path.join(&relative_path);
 
-        let ordering_ts = row.get("ordering_ts").expect("must have ordering_ts");
+        // FIXME add inserted_at column to db to use as default
+        //let ordering_ts = row.get("ordering_ts").expect("must have ordering_ts");
+        let ordering_ts = row.get("ordering_ts").unwrap_or(Utc::now());
         let is_selfie = row.get("is_selfie").ok();
 
         std::result::Result::Ok(Picture {
