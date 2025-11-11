@@ -5,15 +5,10 @@
 use relm4::*;
 use relm4::actions::{RelmAction, RelmActionGroup};
 use relm4::adw::{self, prelude::*};
-use relm4::binding::*;
-use relm4::gtk::prelude::AdjustmentExt;
-use relm4::gtk::prelude::*;
 use relm4::gtk::{self, gdk, gio};
 use relm4::prelude::*;
 use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
 use gtk::prelude::OrientableExt;
-
-use std::rc::Rc;
 
 use crate::fl;
 use fotema_core::FaceId;

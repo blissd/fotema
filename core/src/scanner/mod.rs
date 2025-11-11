@@ -5,6 +5,5 @@
 pub mod model;
 pub mod scanner;
 
-pub use model::FileInfo;
 pub use model::ScannedFile;
 pub use scanner::Scanner;

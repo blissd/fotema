@@ -2,12 +2,9 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use super::FileInfo;
 use super::ScannedFile;
 
 use anyhow::*;
-use chrono;
-use chrono::prelude::*;
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
@@ -59,19 +56,9 @@ impl Scanner {
                     .unwrap_or(String::from("unknown"));
 
                 let scanned_file = if Self::PICTURES_SUFFIXES.contains(&ext.as_ref()) {
-                    self.scan_one(x.path())
-                        .map(|info| ScannedFile::Photo(info))
-                        .map_err(|e| {
-                            error!("Failed scanning picture: {:?}", e);
-                            e
-                        })
+                    Ok(ScannedFile::Photo(x.path().into()))
                 } else if Self::VIDEO_SUFFIXES.contains(&ext.as_ref()) {
-                    self.scan_one(x.path())
-                        .map(|info| ScannedFile::Video(info))
-                        .map_err(|e| {
-                            error!("Failed scanning video: {:?}", e);
-                            e
-                        })
+                    Ok(ScannedFile::Video(x.path().into()))
                 } else {
                     Err(anyhow!("Not a picture or video: {:?}", x))
                 };
@@ -89,32 +76,20 @@ impl Scanner {
             .unwrap_or(false)
     }
 
+    /*fn is_picture(path: &Path) -> bool {
+        let Some(path_ext) = path.extension() {
+            for ext in Self::PICTURES_SUFFIXES {
+                if ext.eq_ignore_ascii_case(path.ex)
+            }
+        } else false
+    }*/
+
     pub fn scan_all(&self) -> Result<Vec<ScannedFile>> {
         // Count of files in scan_base.
         // Note: no filtering here, so count could be greater than number of pictures.
         // Might want to use the same WalkDir logic in visit_all(...) to get exact count.
-        let file_count = WalkDir::new(&self.scan_base).into_iter().count();
-        let mut pics = Vec::with_capacity(file_count);
+        let mut pics = Vec::new();
         self.scan_all_visit(|pic| pics.push(pic));
         Ok(pics)
-    }
-
-    pub fn scan_one(&self, path: &Path) -> Result<FileInfo> {
-        //let metadata = fs::metadata(path)?;
-
-        //let fs_created_at = metadata.created().map(Into::<DateTime<Utc>>::into).ok();
-
-        //let fs_modified_at = metadata.modified().map(Into::<DateTime<Utc>>::into).ok();
-
-        //let fs_file_size_bytes = metadata.len();
-
-        let scanned = FileInfo {
-            path: PathBuf::from(path),
-            fs_created_at: None,
-            fs_modified_at: None,
-            fs_file_size_bytes: 0, // unused
-        };
-
-        Ok(scanned)
     }
 }

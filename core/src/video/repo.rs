@@ -182,11 +182,9 @@ impl Repository {
             )?;
 
             for scanned_file in vids {
-                if let ScannedFile::Video(info) = scanned_file {
+                if let ScannedFile::Video(path) = scanned_file {
                     // convert to relative path before saving to database
-                    let video_path = info
-                        .path
-                        .strip_prefix(&self.library_base_dir.sandbox_path)?;
+                    let video_path = path.strip_prefix(&self.library_base_dir.sandbox_path)?;
                     let video_path_b64 = path_encoding::to_base64(video_path);
 
                     // Path without suffix so sibling pictures and videos can be related
