@@ -39,16 +39,18 @@ impl Scanner {
         WalkDir::new(&self.scan_base)
             .into_iter()
             .filter_entry(|e| !Scanner::is_hidden(e))
-            .inspect(|x| {
-                let _ = x
-                    .as_ref()
-                    .inspect_err(|e| error!("Failed walking: {:?}", e));
-            })
+            .inspect(Self::inspect_err)
             .filter_map(|e| e.ok()) // skip files we failed to read
             .filter(|x| x.path().is_file()) // only process files
             .map(Self::to_scanned_file)
             .filter_map(|e| e.ok()) // ignore any errors when reading images
             .for_each(func); // visit
+    }
+
+    fn inspect_err(entry: &std::result::Result<DirEntry, walkdir::Error>) {
+        let _ = entry
+            .as_ref()
+            .inspect_err(|e| error!("Failed walking: {:?}", e));
     }
 
     fn to_scanned_file(entry: DirEntry) -> Result<ScannedFile> {
