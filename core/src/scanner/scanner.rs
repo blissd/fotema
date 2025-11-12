@@ -44,28 +44,24 @@ impl Scanner {
                     .as_ref()
                     .inspect_err(|e| error!("Failed walking: {:?}", e));
             })
-            .flatten() // skip files we failed to read
+            .filter_map(|e| e.ok()) // skip files we failed to read
             .filter(|x| x.path().is_file()) // only process files
-            .map(|x| {
-                // only process supported image types
-                let ext = x
-                    .path()
-                    .extension()
-                    .and_then(|s| s.to_str())
-                    .map(|s| s.to_lowercase())
-                    .unwrap_or(String::from("unknown"));
-
-                let scanned_file = if Self::PICTURES_SUFFIXES.contains(&ext.as_ref()) {
-                    Ok(ScannedFile::Photo(x.path().into()))
-                } else if Self::VIDEO_SUFFIXES.contains(&ext.as_ref()) {
-                    Ok(ScannedFile::Video(x.path().into()))
-                } else {
-                    Err(anyhow!("Not a picture or video: {:?}", x))
-                };
-                scanned_file
-            })
-            .flatten() // ignore any errors when reading images
+            .map(Self::to_scanned_file)
+            .filter_map(|e| e.ok()) // ignore any errors when reading images
             .for_each(func); // visit
+    }
+
+    fn to_scanned_file(entry: DirEntry) -> Result<ScannedFile> {
+        // only process supported image types
+        let path = entry.path();
+        let scanned_file = if Self::is_picture(path) {
+            Ok(ScannedFile::Photo(path.into()))
+        } else if Self::is_video(path) {
+            Ok(ScannedFile::Video(path.into()))
+        } else {
+            Err(anyhow!("Not a picture or video: {:?}", path))
+        };
+        scanned_file
     }
 
     fn is_hidden(entry: &DirEntry) -> bool {
@@ -76,13 +72,33 @@ impl Scanner {
             .unwrap_or(false)
     }
 
-    /*fn is_picture(path: &Path) -> bool {
-        let Some(path_ext) = path.extension() {
-            for ext in Self::PICTURES_SUFFIXES {
-                if ext.eq_ignore_ascii_case(path.ex)
+    fn is_picture(path: &Path) -> bool {
+        let Some(path_ext) = path.extension() else {
+            return false;
+        };
+
+        for pic_ext in Self::PICTURES_SUFFIXES {
+            if path_ext.eq_ignore_ascii_case(pic_ext) {
+                return true;
             }
-        } else false
-    }*/
+        }
+
+        return false;
+    }
+
+    fn is_video(path: &Path) -> bool {
+        let Some(path_ext) = path.extension() else {
+            return false;
+        };
+
+        for pic_ext in Self::VIDEO_SUFFIXES {
+            if path_ext.eq_ignore_ascii_case(pic_ext) {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     pub fn scan_all(&self) -> Result<Vec<ScannedFile>> {
         // Count of files in scan_base.
