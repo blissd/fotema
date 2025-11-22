@@ -112,7 +112,9 @@ impl Repository {
                     duration_millis = ?4,
                     video_codec = ?5,
                     content_id = ?6,
-                    rotation = ?7
+                    rotation = ?7,
+                    fs_created_ts = ?8,
+                    fs_modified_ts = ?9
                 WHERE video_id = ?1",
             )?;
 
@@ -133,11 +135,13 @@ impl Repository {
                 update_videos.execute(params![
                     video_id.id(),
                     metadata::VERSION,
-                    metadata.created_at,
+                    metadata.stream_created_at,
                     metadata.duration.map(|x| x.num_milliseconds()),
                     metadata.video_codec,
                     metadata.content_id,
                     metadata.rotation,
+                    metadata.fs_created_at,
+                    metadata.fs_modified_at,
                 ])?;
 
                 if let Some(location) = metadata.location {
@@ -165,26 +169,20 @@ impl Repository {
         {
             let mut vid_stmt = tx.prepare_cached(
                 "INSERT INTO videos (
-                        fs_created_ts,
-                        fs_modified_ts,
                         video_path_b64,
                         video_path_lossy,
                         link_path_b64,
-                        link_path_lossy
+                        link_path_lossy,
+                        insert_ts
                     ) VALUES (
-                        ?1, ?2, ?3, ?4, ?5, ?6
-                    ) ON CONFLICT (video_path_b64) DO UPDATE SET
-                        fs_created_ts = ?1,
-                        fs_modified_ts = ?2
-                    ",
+                        ?1, ?2, ?3, ?4, CURRENT_TIMESTAMP
+                    ) ON CONFLICT(video_path_b64) DO NOTHING",
             )?;
 
             for scanned_file in vids {
-                if let ScannedFile::Video(info) = scanned_file {
+                if let ScannedFile::Video(path) = scanned_file {
                     // convert to relative path before saving to database
-                    let video_path = info
-                        .path
-                        .strip_prefix(&self.library_base_dir.sandbox_path)?;
+                    let video_path = path.strip_prefix(&self.library_base_dir.sandbox_path)?;
                     let video_path_b64 = path_encoding::to_base64(video_path);
 
                     // Path without suffix so sibling pictures and videos can be related
@@ -197,8 +195,6 @@ impl Repository {
                     let link_path_b64 = path_encoding::to_base64(&link_path);
 
                     vid_stmt.execute(params![
-                        info.fs_created_at,
-                        info.fs_modified_at,
                         video_path_b64,
                         video_path.to_string_lossy(),
                         link_path_b64,
@@ -225,7 +221,7 @@ impl Repository {
                         videos.stream_created_ts,
                         videos.fs_created_ts,
                         videos.fs_modified_ts,
-                        CURRENT_TIMESTAMP
+                        videos.insert_ts
                     ) AS ordering_ts,
                     duration_millis,
                     video_codec,
@@ -251,7 +247,7 @@ impl Repository {
                         videos.stream_created_ts,
                         videos.fs_created_ts,
                         videos.fs_modified_ts,
-                        CURRENT_TIMESTAMP
+                        videos.insert_ts
                     ) AS ordering_ts,
                     duration_millis,
                     video_codec,

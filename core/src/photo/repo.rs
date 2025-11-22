@@ -72,7 +72,9 @@ impl Repository {
                     exif_modified_ts = ?4,
                     is_selfie = ?5,
                     content_id = ?6,
-                    orientation = ?7
+                    orientation = ?7,
+                    fs_created_ts = ?8,
+                    fs_modified_ts = ?9
                 WHERE picture_id = ?1",
             )?;
 
@@ -93,11 +95,13 @@ impl Repository {
                 update_pictures.execute(params![
                     picture_id.id(),
                     metadata::VERSION,
-                    metadata.created_at,
-                    metadata.modified_at,
+                    metadata.exif_created_at,
+                    metadata.exif_modified_at,
                     metadata.is_selfie(),
                     metadata.content_id,
                     metadata.orientation.map(|x| x as u8),
+                    metadata.fs_created_at,
+                    metadata.fs_modified_at,
                 ])?;
 
                 if let Some(location) = metadata.location {
@@ -145,26 +149,20 @@ impl Repository {
         {
             let mut pic_insert_stmt = tx.prepare_cached(
                 "INSERT INTO pictures (
-                    fs_created_ts,
-                    fs_modified_ts,
                     picture_path_b64,
                     picture_path_lossy,
                     link_path_b64,
-                    link_path_lossy
+                    link_path_lossy,
+                    insert_ts
                 ) VALUES (
-                    ?1, ?2, ?3, ?4, ?5, ?6
-                ) ON CONFLICT (picture_path_b64) DO UPDATE SET
-                    fs_created_ts = ?1,
-                    fs_modified_ts = ?2
-                ",
+                    ?1, ?2, ?3, ?4, CURRENT_TIMESTAMP
+                ) ON CONFLICT(picture_path_b64) DO NOTHING",
             )?;
 
             for scanned_file in pics {
-                if let ScannedFile::Photo(info) = scanned_file {
+                if let ScannedFile::Photo(path) = scanned_file {
                     // convert to relative path before saving to database
-                    let picture_path = info
-                        .path
-                        .strip_prefix(&self.library_base_dir.sandbox_path)?;
+                    let picture_path = path.strip_prefix(&self.library_base_dir.sandbox_path)?;
                     let picture_path_b64 = path_encoding::to_base64(picture_path);
 
                     // Path without suffix so sibling pictures and videos can be related
@@ -177,8 +175,6 @@ impl Repository {
                     let link_path_b64 = path_encoding::to_base64(&link_path);
 
                     pic_insert_stmt.execute(params![
-                        info.fs_created_at,
-                        info.fs_modified_at,
                         picture_path_b64,
                         picture_path.to_string_lossy(),
                         link_path_b64,
@@ -206,7 +202,7 @@ impl Repository {
                         pictures.exif_modified_ts,
                         pictures.fs_created_ts,
                         pictures.fs_modified_ts,
-                        CURRENT_TIMESTAMP
+                        pictures.insert_ts
                       ) AS ordering_ts,
                     pictures.is_selfie
                 FROM pictures
@@ -236,7 +232,7 @@ impl Repository {
                         pictures.exif_modified_ts,
                         pictures.fs_created_ts,
                         pictures.fs_modified_ts,
-                        CURRENT_TIMESTAMP
+                        pictures.insert_ts
                       ) AS ordering_ts,
                     pictures.is_selfie
                 FROM pictures
@@ -265,7 +261,7 @@ impl Repository {
                         pictures.exif_modified_ts,
                         pictures.fs_created_ts,
                         pictures.fs_modified_ts,
-                        CURRENT_TIMESTAMP
+                        pictures.insert_ts
                       ) AS ordering_ts,
                     pictures.is_selfie
                 FROM pictures
@@ -555,7 +551,7 @@ impl Repository {
                         pictures.exif_modified_ts,
                         pictures.fs_created_ts,
                         pictures.fs_modified_ts,
-                        CURRENT_TIMESTAMP
+                        pictures.insert_ts
                     ) AS ordering_ts
                 FROM pictures
                 LEFT OUTER JOIN pictures_face_scans USING (picture_id)

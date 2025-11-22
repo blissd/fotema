@@ -67,7 +67,11 @@ impl Video {
 
 #[derive(Debug, Default, Clone)]
 pub struct Metadata {
-    pub created_at: Option<DateTime<Utc>>,
+    pub stream_created_at: Option<DateTime<Utc>>,
+
+    pub fs_created_at: Option<DateTime<Utc>>,
+
+    pub fs_modified_at: Option<DateTime<Utc>>,
 
     pub width: Option<u64>, // 64?
 
