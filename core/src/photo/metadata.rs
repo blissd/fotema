@@ -32,23 +32,13 @@ pub const VERSION: u32 = 3;
 pub fn from_path(path: &Path) -> Result<Metadata> {
     let file = fs::File::open(path)?;
     let file = &mut BufReader::new(file);
-    let exif_data = {
-        match exif::Reader::new().read_from_container(file) {
-            Ok(exif) => exif,
-            Err(_) => {
-                // Assume this error is when there is no EXIF data.
-                return Ok(Metadata::default());
-            }
-        }
+
+    let mut metadata = match exif::Reader::new().read_from_container(file) {
+        Ok(exif_data) => from_exif(exif_data)?,
+        Err(_) => Metadata::default(),
     };
 
-    let mut metadata = from_exif(exif_data)?;
-
     let fs_metadata = fs::metadata(path)?;
-
-    if fs_metadata.modified().ok().is_none() {
-        error!("No modified_ts for {:?}", path)
-    }
 
     metadata.fs_created_at = fs_metadata.created().map(Into::<DateTime<Utc>>::into).ok();
     metadata.fs_modified_at = fs_metadata.modified().map(Into::<DateTime<Utc>>::into).ok();
