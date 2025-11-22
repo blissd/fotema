@@ -23,7 +23,7 @@ relm4 = { version = "0.10.0", features = ["libadwaita", "gnome_48"] }
 itertools = "0.14.0"
 humansize = "2.1.3"
 rayon = "1.11.0"
-glycin = { version = "3.0.4", features = ["gdk4"] }
+glycin = { version = "3.0.7", features = ["gdk4"] }
 futures = "0.3.31"
 chrono = "0.4.42"
 anyhow = "1.0.100"
