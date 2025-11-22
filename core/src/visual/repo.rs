@@ -156,8 +156,7 @@ impl Repository {
             .map(|x| self.cache_dir_base_path.join(x))
             .ok();
 
-        // FIXME use insert_at instead of Utc::now()
-        let ordering_ts: DateTime<Utc> = row.get("ordering_ts").unwrap_or(Utc::now());
+        let ordering_ts: DateTime<Utc> = row.get("ordering_ts").expect("Must have ordering_ts");
 
         let is_live_photo: Option<bool> = row.get("is_live_photo").ok();
 

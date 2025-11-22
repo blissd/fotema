@@ -14,6 +14,7 @@ use std::fs;
 use std::io::BufReader;
 use std::path::Path;
 use std::result::Result::Ok;
+use tracing::error;
 
 /// This version number should be incremented each time metadata scanning has
 /// a bug fix or feature addition that changes the metadata produced.
@@ -44,6 +45,11 @@ pub fn from_path(path: &Path) -> Result<Metadata> {
     let mut metadata = from_exif(exif_data)?;
 
     let fs_metadata = fs::metadata(path)?;
+
+    if fs_metadata.modified().ok().is_none() {
+        error!("No modified_ts for {:?}", path)
+    }
+
     metadata.fs_created_at = fs_metadata.created().map(Into::<DateTime<Utc>>::into).ok();
     metadata.fs_modified_at = fs_metadata.modified().map(Into::<DateTime<Utc>>::into).ok();
 

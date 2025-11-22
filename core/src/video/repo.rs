@@ -172,13 +172,11 @@ impl Repository {
                         video_path_b64,
                         video_path_lossy,
                         link_path_b64,
-                        link_path_lossy
+                        link_path_lossy,
+                        insert_ts
                     ) VALUES (
-                        ?1, ?2, ?3, ?4
-                    ) ON CONFLICT (video_path_b64) DO UPDATE SET
-                        fs_created_ts = ?1,
-                        fs_modified_ts = ?2
-                    ",
+                        ?1, ?2, ?3, ?4, CURRENT_TIMESTAMP
+                    ) ON CONFLICT(video_path_b64) DO NOTHING",
             )?;
 
             for scanned_file in vids {
@@ -223,7 +221,7 @@ impl Repository {
                         videos.stream_created_ts,
                         videos.fs_created_ts,
                         videos.fs_modified_ts,
-                        CURRENT_TIMESTAMP
+                        videos.insert_ts
                     ) AS ordering_ts,
                     duration_millis,
                     video_codec,
@@ -249,7 +247,7 @@ impl Repository {
                         videos.stream_created_ts,
                         videos.fs_created_ts,
                         videos.fs_modified_ts,
-                        CURRENT_TIMESTAMP
+                        videos.insert_ts
                     ) AS ordering_ts,
                     duration_millis,
                     video_codec,
@@ -288,9 +286,7 @@ impl Repository {
         let sandbox_path = self.library_base_dir.sandbox_path.join(&relative_path);
         let host_path = self.library_base_dir.host_path.join(&relative_path);
 
-        // FIXME add inserted_at timestamp to db to use as default
-        //let ordering_ts = row.get("ordering_ts").expect("must have ordering_ts");
-        let ordering_ts = row.get("ordering_ts").unwrap_or(Utc::now());
+        let ordering_ts = row.get("ordering_ts").expect("must have ordering_ts");
 
         let stream_duration = row
             .get("stream_duration")

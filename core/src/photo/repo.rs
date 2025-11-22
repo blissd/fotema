@@ -13,7 +13,6 @@ use super::metadata;
 use super::model::MotionPhotoVideo;
 use super::motion_photo;
 use anyhow::{Result, bail};
-use chrono::Utc;
 use rusqlite;
 use rusqlite::Row;
 use rusqlite::params;
@@ -153,13 +152,11 @@ impl Repository {
                     picture_path_b64,
                     picture_path_lossy,
                     link_path_b64,
-                    link_path_lossy
+                    link_path_lossy,
+                    insert_ts
                 ) VALUES (
-                    ?1, ?2, ?3, ?4
-                ) ON CONFLICT (picture_path_b64) DO UPDATE SET
-                    fs_created_ts = ?1,
-                    fs_modified_ts = ?2
-                ",
+                    ?1, ?2, ?3, ?4, CURRENT_TIMESTAMP
+                ) ON CONFLICT(picture_path_b64) DO NOTHING",
             )?;
 
             for scanned_file in pics {
@@ -205,7 +202,7 @@ impl Repository {
                         pictures.exif_modified_ts,
                         pictures.fs_created_ts,
                         pictures.fs_modified_ts,
-                        CURRENT_TIMESTAMP
+                        pictures.insert_ts
                       ) AS ordering_ts,
                     pictures.is_selfie
                 FROM pictures
@@ -235,7 +232,7 @@ impl Repository {
                         pictures.exif_modified_ts,
                         pictures.fs_created_ts,
                         pictures.fs_modified_ts,
-                        CURRENT_TIMESTAMP
+                        pictures.insert_ts
                       ) AS ordering_ts,
                     pictures.is_selfie
                 FROM pictures
@@ -264,7 +261,7 @@ impl Repository {
                         pictures.exif_modified_ts,
                         pictures.fs_created_ts,
                         pictures.fs_modified_ts,
-                        CURRENT_TIMESTAMP
+                        pictures.insert_ts
                       ) AS ordering_ts,
                     pictures.is_selfie
                 FROM pictures
@@ -381,9 +378,7 @@ impl Repository {
         let sandbox_path = self.library_base_dir.sandbox_path.join(&relative_path);
         let host_path = self.library_base_dir.host_path.join(&relative_path);
 
-        // FIXME add inserted_at column to db to use as default
-        //let ordering_ts = row.get("ordering_ts").expect("must have ordering_ts");
-        let ordering_ts = row.get("ordering_ts").unwrap_or(Utc::now());
+        let ordering_ts = row.get("ordering_ts").expect("must have ordering_ts");
         let is_selfie = row.get("is_selfie").ok();
 
         std::result::Result::Ok(Picture {
@@ -556,7 +551,7 @@ impl Repository {
                         pictures.exif_modified_ts,
                         pictures.fs_created_ts,
                         pictures.fs_modified_ts,
-                        CURRENT_TIMESTAMP
+                        pictures.insert_ts
                     ) AS ordering_ts
                 FROM pictures
                 LEFT OUTER JOIN pictures_face_scans USING (picture_id)
