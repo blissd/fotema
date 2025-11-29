@@ -103,54 +103,6 @@ impl FaceExtractor {
 
         let mut detectors: Vec<(Box<dyn rust_faces::FaceDetector>, String)> = vec![];
 
-        // Tweaking the target size seems to affect which faces are detected.
-        // Testing against my library, it looks like smaller numbers match bigger faces,
-        // bigger numbers smaller faces.
-        //
-        // 1280. Default. Misses larger faces.
-        // 960. Three quarters. Matches a mix of some larger, some smaller.
-        // 640. Half default. Misses a mix of some larger, some smaller.
-        // 320. Quarter default. Matches only very big faces.
-
-        /*
-                let bz_params_huge = BlazeFaceParams {
-                    score_threshold: 0.95,
-                    target_size: 160,
-                    ..BlazeFaceParams::default()
-                };
-
-                let blaze_face_huge =
-                    FaceDetectorBuilder::new(FaceDetection::BlazeFace640(bz_params_huge.clone()))
-                        .download()
-                        .build()?;
-
-                //detectors.push((blaze_face_huge, "blaze_face_640_huge".into()));
-
-                let blaze_face_huge = FaceDetectorBuilder::new(FaceDetection::BlazeFace320(bz_params_huge))
-                    .download()
-                    .build()?;
-
-                //detectors.push((blaze_face_huge, "blaze_face_320_huge".into()));
-
-                let bz_params_big = BlazeFaceParams {
-                    score_threshold: 0.95,
-                    target_size: 640,
-                    ..BlazeFaceParams::default()
-                };
-
-                let blaze_face_big =
-                    FaceDetectorBuilder::new(FaceDetection::BlazeFace640(bz_params_big.clone()))
-                        .download()
-                        .build()?;
-
-                //detectors.push((blaze_face_big, "blaze_face_640_big".into()));
-
-                let blaze_face_big = FaceDetectorBuilder::new(FaceDetection::BlazeFace320(bz_params_big))
-                    .download()
-                    .build()?;
-
-                //detectors.push((blaze_face_big, "blaze_face_320_big".into()));
-        */
         let bz_params_default = BlazeFaceParams::default();
 
         let blaze_face_default =
@@ -159,15 +111,6 @@ impl FaceExtractor {
                 .build()?;
 
         detectors.push((blaze_face_default, "blaze_face_640_default".into()));
-
-        /*
-        let blaze_face_default =
-            FaceDetectorBuilder::new(FaceDetection::BlazeFace320(bz_params_small))
-                .download()
-                .build()?;
-
-        detectors.push((blaze_face_default, "blaze_face_320_default".into()));
-        */
 
         let mtcnn_params = rust_faces::MtCnnParams::default();
 
@@ -186,7 +129,7 @@ impl FaceExtractor {
     }
 
     /// Identify faces in a photo and return a vector of paths of extracted face images.
-    pub async fn extract_faces(&self, candidate: &FaceDetectionCandidate) -> Result<Vec<Face>> {
+    pub async fn extract_faces(&mut self, candidate: &FaceDetectionCandidate) -> Result<Vec<Face>> {
         info!("Detecting faces in {:?}", candidate.host_path);
 
         let thumbnail_hash = candidate.thumbnail_hash();
@@ -201,11 +144,12 @@ impl FaceExtractor {
 
         let mut faces: Vec<(DetectedFace, String)> = vec![];
 
-        for (detector, name) in &self.detectors {
+        for i in 0..(self.detectors.len()) {
+            let (ref mut detector, ref name) = self.detectors[i];
             let result = detector.detect(image.view().into_dyn());
             if let Ok(detected_faces) = result {
                 for f in detected_faces {
-                    faces.push((f, name.into()));
+                    faces.push((f, name.to_string()));
                 }
             } else {
                 error!("Failed extracting faces with {name}: {:?}", result);

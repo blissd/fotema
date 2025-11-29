@@ -9,17 +9,17 @@
             "only-arches": [
                 "x86_64"
             ],
-            "sha256": "aa70d48b22e264b82e83f63245b51ddc9a47ae4a3a66903efaff1ba68b7b5930",
+            "sha256": "ddb1f137cd9c662df971ae84f05f5873f0181bac9fdd99b1ea4d60362be72cb3",
             "type": "archive",
-            "url": "https://github.com/microsoft/onnxruntime/releases/download/v1.20.0/onnxruntime-linux-x64-1.20.0.tgz"
+            "url": "https://github.com/microsoft/onnxruntime/releases/download/v1.23.1/onnxruntime-linux-x64-1.23.1.tgz"
         },
         {
             "only-arches": [
                 "aarch64"
             ],
-            "sha256": "b4d7c6e2c45f8edabe5d28e9bc59ec8d5a4a4af36660cda16e94b2ad85f2a52a",
+            "sha256": "263267fa063c1a86d755268f492eabbc62887542c4a9417a21d628219805061a",
             "type": "archive",
-            "url": "https://github.com/microsoft/onnxruntime/releases/download/v1.20.0/onnxruntime-linux-aarch64-1.20.0.tgz"
+            "url": "https://github.com/microsoft/onnxruntime/releases/download/v1.23.1/onnxruntime-linux-aarch64-1.23.1.tgz"
         }
     ]
 }
