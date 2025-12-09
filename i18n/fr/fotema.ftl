@@ -166,7 +166,7 @@ viewer-skip-backwards-10-seconds =
 # About Dialog
 # Translator note: add one translator per-line to get a translation
 # credit in the Fotema's "About" page.
-about-translator-credits = Irénée Thirion <irenee.thirion@e.email>
+about-translator-credits = &lt;irenee.thirion@e.email
 # Notification banner for background tasks
 # Generating thumbnails for all videos.
 banner-thumbnails-videos = Génération des vignettes des vidéos. Cela peut prendre du temps.
@@ -303,3 +303,20 @@ onboard-select-pictures =
 
         Si vous utilisiez une version plus ancienne de { -app-name } où votre bibliothèque était automatiquement détectée, sélectionnez le même répertoire pour éviter un duplicata du traitement d’images.
     .button = Sélectionner un répertoire
+prefs-albums-section = Albums
+    .description = Configurer les albums.
+prefs-albums-selfies = Selfies
+    .subtitle = Affiche un album séparé pour les selfies pris sur les appareils iOS. Redémarrez { -app-name } pour appliquer.
+prefs-albums-chronological-sort = Ordre de tri
+    .subtitle = Ordre chronologique pour les albums.
+    .ascending = Ascendant
+    .descending = Descendant
+prefs-processing-section = Traitement des photos et des vidéos
+    .description = Configurer les fonctionnalités de traitement des photos et des vidéos.
+prefs-processing-face-detection = Détection des visages
+    .subtitle = Détectez les visages et reconnaissez les personnes que vous avez nommées. Ce processus prend beaucoup de temps.
+prefs-processing-motion-photos = Photos animées
+    .subtitle = Détecter les photos animées Android et extraire les vidéos.
+progress-thumbnails-faces = Génération des vignettes des visages.
+banner-scan-library = Recherche de nouvelles photos.
+banner-face-thumbnails = Génération de vignettes faciales
