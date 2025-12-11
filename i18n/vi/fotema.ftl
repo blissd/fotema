@@ -1,14 +1,14 @@
-library-page = Thư Viện
+library-page = Thư viện
 years-album = Năm
 months-album = Tháng
 all-album = Ngày
 videos-album = Video
-selfies-album = Ảnh Selfie
-animated-album = Có Hoạt Ảnh
-folders-album = Thư Mục
-folder-album = Thư Mục
-places-page = Nơi Chốn
-people-page = Con Người
+selfies-album = Ảnh selfie
+animated-album = Có hoạt ảnh
+folders-album = Thư mục
+folder-album = Thư mục
+places-page = Địa điểm
+people-page = Con người
 people-page-status-off =
     .title = Bật nhận diện khuôn mặt?
     .description = { -app-name } có thể tự động phát hiện khuôn mặt và nhận dạng người, nhưng đây là một quá trình tốn thời gian. Bạn có muốn kích hoạt tính năng này?
@@ -35,8 +35,10 @@ month-thumbnail-label =
         [12] Tháng 12 { $year }
        *[other] { $year }
     }
-about-opensource = Dự Án Nguồn Mở
-about-translator-credits = Loc Huynh <huynhloc.contact@gmail.com>
+about-opensource = Dự án mã nguồn mở
+about-translator-credits =
+    Vietnam Linux L10n <&lt;https://github.com/linux-l10n-vi>
+    Loc Huynh <&lt;https://github.com/hthienloc>
 viewer-info-tooltip = Hiển thị thuộc tính
 viewer-faces-menu =
     .tooltip = Menu khuôn mặt
@@ -44,17 +46,17 @@ viewer-faces-menu =
     .ignore-unknown = Bỏ qua tất cả các khuôn mặt chưa biết
     .scan = Quét thêm khuôn mặt
 viewer-next =
-    .tooltip = Tiếp Theo
+    .tooltip = Tiếp theo
 viewer-previous =
-    .tooltip = Trước Đó
+    .tooltip = Lui lại
 viewer-play =
-    .tooltip = Phát/Tạm Dừng
+    .tooltip = Phát/Tạm dừng
 viewer-skip-forward-10-seconds =
-    .tooltip = Chuyển Tiếp 10 Giây
+    .tooltip = Chuyển tiếp 10 giây
 viewer-skip-backwards-10-seconds =
-    .tooltip = Tua Lùi 10 Giây
+    .tooltip = Tua lùi 10 giây
 viewer-mute =
-    .tooltip = Tắt Tiếng/Bật Tiếng
+    .tooltip = Tắt tiếng/Bật tiếng
 viewer-convert-all-description = Video này phải được chuyển đổi trước khi có thể phát. Việc này chỉ cần thực hiện một lần nhưng sẽ mất một khoảng thời gian để chuyển đổi video.
 viewer-convert-all-button = Chuyển đổi tất cả các video không tương thích
 viewer-error-failed-to-load = Không tải được
@@ -62,21 +64,21 @@ viewer-error-missing-file =
     Không thể hiển thị tệp vì nó bị thiếu:
     { $file_name }
 viewer-error-missing-path = Đường dẫn tệp không có trong cơ sở dữ liệu
-infobar-folder = Thư Mục
+infobar-folder = Thư mục
     .tooltip = Mở thư mục chứa
 -app-name = Fotema
-infobar-file-name = Tên Tệp
-infobar-file-created = Tệp Đã Được Tạo
-infobar-file-modified = Tệp Đã Được Chỉnh Sửa
-infobar-file-size = Kích Thước Tệp
-infobar-file-format = Định Dạng
-infobar-originally-created = Ban Đầu Được Tạo
-infobar-originally-modified = Sửa Đổi Ban Đầu
-infobar-video-duration = Khoảng Thời Gian
-infobar-video-container-format = Định Dạng Container
-infobar-video-codec = Video Codec
-infobar-audio-codec = Codec Âm Thanh
-infobar-dimensions = Kích Thước
+infobar-file-name = Tên tệp
+infobar-file-created = Tệp đã được tạo
+infobar-file-modified = Tệp đã được chỉnh sửa
+infobar-file-size = Kích thước tệp
+infobar-file-format = Định dạng
+infobar-originally-created = Ban đầu được tạo
+infobar-originally-modified = Sửa đổi ban đầu
+infobar-video-duration = Khoảng thời gian
+infobar-video-container-format = Định dạng container
+infobar-video-codec = Video codec
+infobar-audio-codec = Codec âm thanh
+infobar-dimensions = Kích thước
 people-set-face-thumbnail = Sử dụng làm hình thu nhỏ
 people-set-name = Đặt tên
 people-person-search =
@@ -99,12 +101,12 @@ prefs-processing-face-detection = Nhận diện khuôn mặt
 prefs-processing-motion-photos = Ảnh động
     .subtitle = Phát hiện ảnh chuyển động trên Android và trích xuất video.
 prefs-library-section =
-    .title = Thư Viện
+    .title = Thư viện
     .description =
         Cấu hình thư mục thư viện.
         Cảnh báo: việc thay đổi thư mục ảnh có thể khiến { -app-name } xử lý lại tất cả ảnh của bạn.
 prefs-library-section-pictures-dir =
-    .title = Thư Mục ảnh
+    .title = Thư mục ảnh
     .tooltip = Chọn thư mục ảnh.
 progress-metadata-photos = Xử lý metadata ảnh.
 progress-metadata-videos = Xử lý metadata video.
@@ -132,7 +134,7 @@ banner-button-stop =
     .label = Dừng lại
     .tooltip = Dừng tất cả các tác vụ chạy nền.
 banner-stopping = Đang dừng nhiệm vụ...
-primary-menu-preferences = Tùy Chọn
+primary-menu-preferences = Tùy chọn
 primary-menu-about = Giới thiệu về { -app-name }
 person-menu-rename = Đổi tên người
 person-menu-delete = Xóa người
@@ -151,5 +153,5 @@ onboard-select-pictures =
     .description =
         Vui lòng chọn thư mục nơi bạn lưu giữ thư viện ảnh của mình.
 
-        Nếu bạn đã sử dụng phiên bản cũ hơn của { -app-name } nơi thư viện ảnh của bạn được tự động phát hiện thì vui lòng chọn cùng thư mục ở đây để tránh mọi hoạt động xử lý ảnh trùng lặp.
+        Nếu bạn đã sử dụng phiên bản cũ hơn của { -app-name } nơi thư viện ảnh của bạn được tự động phát hiện, vui lòng chọn cùng thư mục ở đây để tránh mọi hoạt động xử lý ảnh trùng lặp.
     .button = Chọn thư mục
