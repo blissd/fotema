@@ -24,7 +24,7 @@ kamadak-exif = "0.6.1"
 rayon = "1.11.0"
 refinery = { version = "0.9.0", features = ["rusqlite"] }
 rusqlite = { version = "0.33.0", features = ["bundled", "chrono"] }
-rust-faces = {git = "https://github.com/blissd/fotema-rust-faces.git", branch = "feat/ort-2", features = ["viz"]}
+rust-faces = {git = "https://github.com/blissd/fotema-rust-faces.git", tag = "v2.0.0", features = ["viz"]}
 sm_motion_photo = "0.1.5"
 strum = { version = "0.27.2", features = ["derive"] }
 tempfile = "3.23.0"
