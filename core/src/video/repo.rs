@@ -177,7 +177,9 @@ impl Repository {
                         insert_ts
                     ) VALUES (
                         ?1, ?2, ?3, ?4, CURRENT_TIMESTAMP
-                    ) ON CONFLICT(video_path_b64) DO NOTHING",
+                    ) ON CONFLICT(video_path_b64) DO UPDATE SET
+                        link_path_b64 = ?3,
+                        link_path_lossy = ?4",
             )?;
 
             for scanned_file in vids {

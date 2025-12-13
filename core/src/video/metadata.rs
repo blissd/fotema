@@ -20,8 +20,12 @@ use std::fs;
 /// a bug fix or feature addition that changes the metadata produced.
 /// Each photo will be saved with a metadata scan version which will allow for
 /// easy selection of videos when there metadata can be updated.
+//
+// 1. ???
+// 2. ???
+// 3. Support video files having a picture suffix in addition to the video suffix.
 
-pub const VERSION: u32 = 2;
+pub const VERSION: u32 = 3;
 
 pub fn from_path(path: &Path) -> Result<Metadata> {
     let mut metadata = Metadata::default();
