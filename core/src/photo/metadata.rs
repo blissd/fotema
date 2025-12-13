@@ -14,7 +14,6 @@ use std::fs;
 use std::io::BufReader;
 use std::path::Path;
 use std::result::Result::Ok;
-use tracing::error;
 
 /// This version number should be incremented each time metadata scanning has
 /// a bug fix or feature addition that changes the metadata produced.

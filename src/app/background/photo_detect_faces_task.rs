@@ -105,12 +105,12 @@ impl PhotoDetectFacesTask {
         // on the main thread.
         // Also, this has the advantage of extractor being dropped after use, which means
         // the face detection models will be unloaded from memory.
-        let extractor = FaceExtractor::build(&self.faces_base_dir, self.thumbnailer.clone())?;
+        let mut extractor = FaceExtractor::build(&self.faces_base_dir, self.thumbnailer.clone())?;
 
         unprocessed
-            //.into_iter()
-            .par_iter()
-            .take_any_while(|_| !self.stop.load(Ordering::Relaxed))
+            .into_iter()
+            //.par_iter()
+            .take_while(|_| !self.stop.load(Ordering::Relaxed))
             .for_each(|candidate| {
                 let mut repo = self.people_repo.clone();
 
