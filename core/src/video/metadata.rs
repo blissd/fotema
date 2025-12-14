@@ -23,9 +23,8 @@ use std::fs;
 //
 // 1. ???
 // 2. ???
-// 3. Support video files having a picture suffix in addition to the video suffix.
 
-pub const VERSION: u32 = 3;
+pub const VERSION: u32 = 2;
 
 pub fn from_path(path: &Path) -> Result<Metadata> {
     let mut metadata = Metadata::default();
