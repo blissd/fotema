@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 pub mod database;
+pub mod file_types;
 pub mod flatpak_path;
 pub mod machine_learning;
 pub mod path_encoding;

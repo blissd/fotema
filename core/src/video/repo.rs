@@ -6,6 +6,7 @@ use super::Metadata;
 use super::metadata;
 use crate::FlatpakPathBuf;
 use crate::ScannedFile;
+use crate::file_types;
 use crate::path_encoding;
 use crate::video::model::{Video, VideoId};
 
@@ -176,7 +177,9 @@ impl Repository {
                         insert_ts
                     ) VALUES (
                         ?1, ?2, ?3, ?4, CURRENT_TIMESTAMP
-                    ) ON CONFLICT(video_path_b64) DO NOTHING",
+                    ) ON CONFLICT(video_path_b64) DO UPDATE SET
+                        link_path_b64 = ?3,
+                        link_path_lossy = ?4",
             )?;
 
             for scanned_file in vids {
@@ -186,10 +189,19 @@ impl Repository {
                     let video_path_b64 = path_encoding::to_base64(video_path);
 
                     // Path without suffix so sibling pictures and videos can be related
-                    let link_path = video_path
-                        .file_stem()
-                        .and_then(|x| x.to_str())
-                        .expect("Must exist");
+                    // Some Apple photo exports name the video component after the
+                    // picture component, so you get names like 'img_1234.heic.mp4' instead
+                    // of 'img_1234.mp4'. After removing the file suffix, check if a supported
+                    // picture suffix is now present and remove it.
+                    let link_path = match video_path.file_stem() {
+                        Some(stem) if file_types::is_supported_picture(&stem.as_ref()) => {
+                            let path: &Path = stem.as_ref();
+                            path.file_stem()
+                        }
+                        any => any,
+                    };
+
+                    let link_path = link_path.and_then(|x| x.to_str()).expect("Must exist");
 
                     let link_path = video_path.with_file_name(link_path);
                     let link_path_b64 = path_encoding::to_base64(&link_path);
