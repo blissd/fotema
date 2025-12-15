@@ -430,13 +430,9 @@ impl SimpleAsyncComponent for ViewOne {
                     } else {
                         // if a video is transcoded then the rotation transformation will
                         // already have been applied.
-                        if !is_transcoded {
-                            // Apply a CSS transformation to respect the display matrix rotation
-                            let orientation = visual
-                                .video_orientation
-                                .unwrap_or(PictureOrientation::North);
-                            self.picture.add_css_class(orientation.as_ref());
-                        }
+                        //
+                        // From GNOME 49 onwards it appears we don't have to apply
+                        // an orientation to videos.
 
                         let video_path = visual
                             .video_transcoded_path.clone()
