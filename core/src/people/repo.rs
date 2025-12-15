@@ -679,13 +679,15 @@ impl Repository {
 
         let person_name = row.get("person_name").ok();
 
-        let person = if let (Some(person_id), Some(name)) = (person_id, person_name) {
-            let small_thumbnail_path = row
-                .get("person_thumbnail_path")
-                .map(|p: String| self.data_dir_base_path.join(p))
-                .ok()
-                .expect("Must have small thumbnail path");
+        // This shouldn't be absent, but sometimes it is.
+        let person_thumbnail_path = row
+            .get("person_thumbnail_path")
+            .map(|p: String| self.data_dir_base_path.join(p))
+            .ok();
 
+        let person = if let (Some(person_id), Some(name), Some(small_thumbnail_path)) =
+            (person_id, person_name, person_thumbnail_path)
+        {
             // FIXME should this path be in database?
             let large_thumbnail_path = self
                 .cache_dir_base_path
