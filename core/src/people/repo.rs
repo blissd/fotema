@@ -679,31 +679,33 @@ impl Repository {
 
         let person_name = row.get("person_name").ok();
 
-        // This shouldn't be absent, but sometimes it is.
-        let person_thumbnail_path = row
-            .get("person_thumbnail_path")
-            .map(|p: String| self.data_dir_base_path.join(p))
-            .ok();
+        let person = if let (Some(person_id), Some(name)) = (person_id, person_name) {
+            let person_thumbnail_path = row
+                .get("person_thumbnail_path")
+                .map(|p: String| self.data_dir_base_path.join(p))
+                .ok();
 
-        let person = if let (Some(person_id), Some(name), Some(small_thumbnail_path)) =
-            (person_id, person_name, person_thumbnail_path)
-        {
-            // FIXME should this path be in database?
-            let large_thumbnail_path = self
-                .cache_dir_base_path
-                .join("face_thumbnails")
-                .join("large")
-                .join(
-                    small_thumbnail_path
-                        .file_name()
-                        .expect("Must have file name"),
-                );
+            let large_thumbnail_path = if let Some(ref small_thumbnail_path) = person_thumbnail_path
+            {
+                Some(
+                    self.cache_dir_base_path
+                        .join("face_thumbnails")
+                        .join("large")
+                        .join(
+                            small_thumbnail_path
+                                .file_name()
+                                .expect("Must have file name"),
+                        ),
+                )
+            } else {
+                None
+            };
 
             Some(model::Person {
                 person_id,
                 name,
-                small_thumbnail_path: Some(small_thumbnail_path),
-                large_thumbnail_path: Some(large_thumbnail_path),
+                small_thumbnail_path: person_thumbnail_path,
+                large_thumbnail_path: large_thumbnail_path,
             })
         } else {
             None
