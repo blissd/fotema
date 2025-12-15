@@ -117,11 +117,14 @@
   </screenshots>
 
   <releases>
-    <release version="2.4.0" date="2025-11-22">
+    <release version="2.4.0" date="2025-12-15">
       <description>
         <ul>
           <li>Library scan no longer loads file metadata if no new files found.</li>
-          <li>File metadata was not processed if EXIF metadata absent.</li>
+          <li>Support iOS live photos exported with Synctrain.</li>
+          <li>Translation updates. Thank you for everyone who contributed.</li>
+          <li>Fix: File metadata was not processed if EXIF metadata absent.</li>
+          <li>Fix: Videos not rotated correctly.</li>
         </ul>
       </description>
     </release>
