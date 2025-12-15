@@ -24,6 +24,32 @@ use fotema_core::photo::PictureId;
 use fotema_core::thumbnailify::Thumbnailer;
 
 use crate::app::components::progress_monitor::{ProgressMonitor, ProgressMonitorInput, TaskName};
+use deadpool::managed;
+
+#[derive(Debug)]
+enum PoolError { Fail }
+
+struct FaceDetectorPoolManager{
+    /// Base directory for storing photo faces
+    faces_base_dir: PathBuf,
+    thumbnailer: Thumbnailer,
+}
+
+impl managed::Manager for FaceDetectorPoolManager {
+    type Type = FaceExtractor;
+    type Error = Error;
+
+    async fn create(&self) -> Result<FaceExtractor, Error> {
+        FaceExtractor::build(&self.faces_base_dir, self.thumbnailer.clone())
+    }
+
+    async fn recycle(&self, _: &mut FaceExtractor, _: &managed::Metrics) -> managed::RecycleResult<Error> {
+        Ok(())
+    }
+}
+
+type FaceDetectorPool = managed::Pool<FaceDetectorPoolManager>;
+
 
 #[derive(Debug)]
 pub enum PhotoDetectFacesTaskInput {
@@ -105,18 +131,33 @@ impl PhotoDetectFacesTask {
         // on the main thread.
         // Also, this has the advantage of extractor being dropped after use, which means
         // the face detection models will be unloaded from memory.
-        let mut extractor = FaceExtractor::build(&self.faces_base_dir, self.thumbnailer.clone())?;
+        //let mut extractor = FaceExtractor::build(&self.faces_base_dir, self.thumbnailer.clone())?;
+
+        // Create a face detector to trigger download of face detection models.
+        // We must do this before using the object pool and parallel processing, otherwise
+        // multiple threads will try to download the same model.
+        // FIXME add a method to the face detection library to download models.
+        let _ = FaceExtractor::build(&self.faces_base_dir, self.thumbnailer.clone());
+
+        let detector_pool_manager = FaceDetectorPoolManager {
+            faces_base_dir: self.faces_base_dir.clone(),
+            thumbnailer: self.thumbnailer.clone(),
+        };
+        let detector_pool = FaceDetectorPool::builder(detector_pool_manager).build()?;
 
         unprocessed
-            .into_iter()
-            //.par_iter()
-            .take_while(|_| !self.stop.load(Ordering::Relaxed))
+            .par_iter()
+            .take_any_while(|_| !self.stop.load(Ordering::Relaxed))
             .for_each(|candidate| {
                 let mut repo = self.people_repo.clone();
 
                 // Careful! panic::catch_unwind returns Ok(Err) if the evaluated expression returns
                 // an error but doesn't panic.
-                let result = block_on(async { extractor.extract_faces(&candidate).await })
+                let result = block_on(async {
+                    // FIXME unwrap
+                    let mut detector = detector_pool.get().await.unwrap();
+                    detector.extract_faces(&candidate).await
+                    })
                     .and_then(|faces| repo.clone().add_face_scans(&candidate.picture_id, &faces));
 
                 if result.is_err() {
