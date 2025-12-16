@@ -123,6 +123,7 @@
           <li>Library scan no longer loads file metadata if no new files found.</li>
           <li>Support iOS live photos exported with Synctrain.</li>
           <li>Translation updates. Thank you for everyone who contributed.</li>
+          <li>Fix: Crash if named person doesn't have a thumbnail set.</li>
           <li>Fix: File metadata was not processed if EXIF metadata absent.</li>
           <li>Fix: Videos not rotated correctly.</li>
         </ul>
