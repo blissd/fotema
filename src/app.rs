@@ -616,7 +616,6 @@ impl SimpleAsyncComponent for App {
             ))
             .forward(sender.input_sender(), |msg| match msg {
                 ViewNavOutput::TranscodeAll => AppMsg::TranscodeAll,
-                ViewNavOutput::ScanForFaces(picture_id) => AppMsg::ScanPictureForFaces(picture_id),
             });
 
         settings_state.subscribe(view_nav.sender(), |settings| {

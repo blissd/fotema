@@ -21,7 +21,6 @@ use crate::app::SharedState;
 use crate::app::components::progress_monitor::ProgressMonitor;
 use crate::fl;
 
-use fotema_core::PictureId;
 use fotema_core::Visual;
 use fotema_core::VisualId;
 use fotema_core::people;
@@ -46,9 +45,6 @@ relm4::new_stateless_action!(
     ViewNavActionGroup,
     "ignore_unknown_faces"
 );
-
-// Scan file for faces again using the most thorough scan possible.
-relm4::new_stateless_action!(ScanForFacesAction, ViewNavActionGroup, "scan_faces");
 
 #[derive(Debug)]
 pub enum ViewNavInput {
@@ -94,9 +90,6 @@ pub enum ViewNavInput {
     /// Ignore all unknown faces for item
     IgnoreUnknownFaces,
 
-    /// Scan for more faces.
-    ScanForFaces,
-
     // Sort
     Sort(AlbumSort),
 }
@@ -104,7 +97,6 @@ pub enum ViewNavInput {
 #[derive(Debug)]
 pub enum ViewNavOutput {
     TranscodeAll,
-    ScanForFaces(PictureId),
 }
 
 pub struct ViewNav {
@@ -177,7 +169,6 @@ impl SimpleAsyncComponent for ViewNav {
             section! {
                 &fl!("viewer-faces-menu", "restore-ignored") => RestoreIgnoredFacesAction,
                 &fl!("viewer-faces-menu", "ignore-unknown") => IgnoreUnknownFacesAction,
-                &fl!("viewer-faces-menu", "scan") => ScanForFacesAction,
             }
         }
     }
@@ -414,17 +405,9 @@ impl SimpleAsyncComponent for ViewNav {
             })
         };
 
-        let scan_faces_action = {
-            let sender = sender.clone();
-            RelmAction::<ScanForFacesAction>::new_stateless(move |_| {
-                sender.input(ViewNavInput::ScanForFaces);
-            })
-        };
-
         let mut actions = RelmActionGroup::<ViewNavActionGroup>::new();
         actions.add_action(restore_action);
         actions.add_action(ignore_unknown_faces_action);
-        actions.add_action(scan_faces_action);
         actions.register_for_widget(&root);
 
         let keys = gtk::EventControllerKey::new();
@@ -766,22 +749,6 @@ impl SimpleAsyncComponent for ViewNav {
                 }
 
                 self.view_info.emit(ViewInfoInput::RefreshFaces);
-            }
-            ViewNavInput::ScanForFaces => {
-                let Some(index) = self.album_index else {
-                    return;
-                };
-
-                if index == 0 {
-                    return;
-                }
-
-                info!("Scan for more faces");
-
-                let visual = &self.album[index];
-                if let Some(picture_id) = visual.picture_id {
-                    let _ = sender.output(ViewNavOutput::ScanForFaces(picture_id));
-                }
             }
             ViewNavInput::Sort(album_sort) => {
                 self.album_sort = album_sort;
