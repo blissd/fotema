@@ -28,7 +28,7 @@ rust-faces = {git = "https://github.com/blissd/fotema-rust-faces.git", tag = "v2
 sm_motion_photo = "0.1.5"
 strum = { version = "0.27.2", features = ["derive"] }
 tempfile = "3.23.0"
-tracing = "0.1.43"
+tracing = "0.1.44"
 walkdir = "2.5.0"
 opencv = {version = "0.97.2", default-features = false, features = ["clang-runtime", "objdetect", "imgcodecs", "dnn"]}
 itertools = "0.14.0"
