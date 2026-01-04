@@ -30,9 +30,9 @@
     "name": "libshumate",
     "sources": [
         {
-            "sha256": "daadf8b700134388c7e933e0b623586aaa7f2fbe8b3a6259387513303b9876e6",
+            "sha256": "a69565c1eb5dd9ecd39268bbf1435eaa51a5b028ed0c652a0b6b9367e04c9386",
             "type": "archive",
-            "url": "https://download.gnome.org/sources/libshumate/1.5/libshumate-1.5.1.tar.xz",
+            "url": "https://download.gnome.org/sources/libshumate/1.5/libshumate-1.5.2.tar.xz",
             "x-checker-data": {
                 "name": "libshumate",
                 "type": "gnome"
