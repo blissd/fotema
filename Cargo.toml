@@ -29,7 +29,7 @@ chrono = "0.4.42"
 anyhow = "1.0.100"
 strum = { version = "0.27.2", features = ["derive"] }
 i18n-embed = { version = "0.16.0", features = ["fluent-system", "filesystem-assets", "desktop-requester"] }
-rust-embed = "8.9.0"
+rust-embed = "8.11.0"
 i18n-embed-fl = "0.10.0"
 unic-langid = "0.9.5"
 lazy_static = "1.4.0"
