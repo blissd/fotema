@@ -44,9 +44,6 @@
         "*.la",
         "*.a"
     ],
-    "cleanup-commands": [
-        "mkdir -p ${FLATPAK_DEST}/lib/ffmpeg"
-    ],
     "modules": [
         "modules/libshumate.json",
         "modules/opencv.json",
