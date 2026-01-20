@@ -34,7 +34,7 @@ opencv = {version = "0.98.1", default-features = false, features = ["clang-runti
 itertools = "0.14.0"
 reqwest = { version = "0.13.1", features = ["blocking"] }
 futures = "0.3.31"
-url = "2.5.7"
+url = "2.5.8"
 md-5 = "0.10.6"
 png = "0.18.0"
 thiserror = "2.0.18"
