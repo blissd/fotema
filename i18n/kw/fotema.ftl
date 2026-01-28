@@ -19,7 +19,7 @@ people-page-status-no-people =
     .title = Pobel kavosys vyth
     .description =
         { -app-name } mires dhe bejethow yn skeusennow nowydh pan lonchys.
-        Henwel an pobel yn agas skeusennow rag may { -app-name } gallos gul unn albom rag den pub.
+        Henwel an pobel yn dha skeusennow rag may { -app-name } gallos gul unn albom rag den pub.
 month-thumbnail-label =
     { $month ->
         [1] Genver { $year }
