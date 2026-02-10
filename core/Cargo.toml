@@ -27,7 +27,7 @@ rusqlite = { version = "0.37.0", features = ["bundled", "chrono"] }
 rust-faces = {git = "https://github.com/blissd/fotema-rust-faces.git", tag = "v2.0.1", features = ["viz"]}
 sm_motion_photo = "0.1.5"
 strum = { version = "0.27.2", features = ["derive"] }
-tempfile = "3.24.0"
+tempfile = "3.25.0"
 tracing = "0.1.44"
 walkdir = "2.5.0"
 opencv = {version = "0.98.1", default-features = false, features = ["clang-runtime", "objdetect", "imgcodecs", "dnn"]}
