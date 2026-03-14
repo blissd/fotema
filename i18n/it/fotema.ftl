@@ -56,7 +56,7 @@ month-thumbnail-label =
 about-opensource = Progetti Open Source
 # Translator note: add one translator per-line to get a translation
 # credit in the Fotema's "About" page.
-about-translator-credits = Albano Battistella <albanobattistella@gmail.com>
+about-translator-credits = Albano Battistella
 
 ## Photo/Video Viewer
 
