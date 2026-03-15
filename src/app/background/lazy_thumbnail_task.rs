@@ -21,7 +21,12 @@ use fotema_core::thumbnailify;
 use fotema_core::thumbnailify::ThumbnailSize;
 use fotema_core::photo::PhotoThumbnailer;
 use fotema_core::video::VideoThumbnailer;
+use std::sync::mpsc;
+use std::thread;
+use std::sync::mpsc::{Receiver, Sender, channel};
+use relm4::{Reducer, Reducible};
 
+type LazyThumbnailState = Arc<Reducer<
 
 #[derive(Debug)]
 pub enum LazyThumbnailTaskInput {
@@ -49,7 +54,16 @@ pub struct LazyThumbnailTask {
     thumbnails_path: PathBuf,
     photo_thumbnailer: fotema_core::photo::PhotoThumbnailer,
     video_thumbnailer: fotema_core::video::VideoThumbnailer,
+    send: mpsc::Sender<VisualId>,
+    recv: mpsc::Receiver<VisualId>,
 }
+
+impl LazyThumbnailTask {
+
+
+
+}
+
 
 impl Worker for LazyThumbnailTask {
     type Init = (
@@ -64,14 +78,21 @@ impl Worker for LazyThumbnailTask {
         (thumbnails_path, photo_thumbnailer, video_thumbnailer): Self::Init,
         _sender: ComponentSender<Self>,
     ) -> Self {
+        let (send,recv): (Sender<VisualId>, Receiver<VisualId>) = mpsc::channel();
         LazyThumbnailTask {
             thumbnails_path: thumbnails_path.into(),
             photo_thumbnailer,
             video_thumbnailer,
+            send,
+            recv,
         }
     }
 
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
-
+        match msg {
+            LazyThumbnailTaskInput::Generate(visual_id) =>{},
+            LazyThumbnailTaskInput::Cancel(visual_id)=>{},
+            LazyThumbnailTaskInput::Stop => {},
+        };
     }
 }
