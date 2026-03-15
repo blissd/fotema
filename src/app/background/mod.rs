@@ -4,6 +4,11 @@
 
 pub mod bootstrap;
 
+<<<<<<< HEAD
+=======
+pub mod lazy_thumbnail_task;
+pub mod load_library_task;
+>>>>>>> 66bb46d (WIP lazy thumbnail)
 pub mod library_scan_task;
 pub mod load_library_task;
 
