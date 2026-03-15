@@ -16,6 +16,7 @@ use tracing::{error, info};
 
 use std::panic;
 
+use fotema_core::VisualId;
 use fotema_core::thumbnailify;
 use fotema_core::thumbnailify::ThumbnailSize;
 use fotema_core::photo::PhotoThumbnailer;
@@ -44,3 +45,33 @@ pub enum LazyThumbnailTaskOutput {
 }
 
 
+pub struct LazyThumbnailTask {
+    thumbnails_path: PathBuf,
+    photo_thumbnailer: fotema_core::photo::PhotoThumbnailer,
+    video_thumbnailer: fotema_core::video::VideoThumbnailer,
+}
+
+impl Worker for LazyThumbnailTask {
+    type Init = (
+        PathBuf,
+        PhotoThumbnailer,
+        VideoThumbnailer,
+    );
+    type Input = LazyThumbnailTaskInput;
+    type Output = LazyThumbnailTaskOutput;
+
+    fn init(
+        (thumbnails_path, photo_thumbnailer, video_thumbnailer): Self::Init,
+        _sender: ComponentSender<Self>,
+    ) -> Self {
+        LazyThumbnailTask {
+            thumbnails_path: thumbnails_path.into(),
+            photo_thumbnailer,
+            video_thumbnailer,
+        }
+    }
+
+    fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
+
+    }
+}
