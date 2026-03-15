@@ -4,6 +4,10 @@
 
 pub mod bootstrap;
 
+pub mod lazy_thumbnail_notifier;
+pub mod lazy_thumbnail_task;
+pub mod lazy_thumbnail_tracker;
+
 pub mod library_scan_task;
 pub mod load_library_task;
 

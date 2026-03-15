@@ -11,8 +11,10 @@ use anyhow::*;
 use fotema_core::Visual;
 use fotema_core::video::Repository;
 use fotema_core::video::Transcoder;
+
 use tracing::{error, info};
 
+use gdt_cpus;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -129,7 +131,11 @@ impl Worker for VideoTranscodeTask {
         match msg {
             VideoTranscodeTaskInput::Start => {
                 info!("Transcoding all incompatible videos");
-
+                if let Err(err) =
+                    gdt_cpus::set_thread_priority(gdt_cpus::ThreadPriority::Background)
+                {
+                    error!("Failed to lower thread priority: {:?}", err);
+                }
                 if let Err(e) = self.transcode_all(&sender) {
                     error!("Failed to transcode photo: {}", e);
                 }

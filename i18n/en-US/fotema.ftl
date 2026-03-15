@@ -255,6 +255,12 @@ prefs-processing-face-detection = Face detection
 prefs-processing-motion-photos = Motion photos
   .subtitle = Detect Android motion photos and extract the videos.
 
+# Motion photo processing enabled or disabled.
+# Attributes:
+#   .subtitle - Description of toggle button action.
+prefs-background-thumbnails-enabled = Background thumbnail generation
+  .subtitle = Generate thumbnails in the background in addition to generating thumbnails while scrolling. Note that some features depend on thumbnails being present.
+
 prefs-library-section =
   .title = Library
   .description = Configure library directory.

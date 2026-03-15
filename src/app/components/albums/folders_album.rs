@@ -6,6 +6,9 @@ use gtk::prelude::OrientableExt;
 
 use fotema_core::thumbnailify::{ThumbnailSize, Thumbnailer};
 
+use crate::app::background::lazy_thumbnail_task::ThumbnailOutcome;
+use crate::app::background::lazy_thumbnail_tracker::LazyThumbnailTracker;
+
 use itertools::Itertools;
 
 use relm4::binding::*;
@@ -16,6 +19,7 @@ use relm4::gtk::prelude::WidgetExt;
 use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
 use relm4::*;
 
+use std::cell::RefCell;
 use std::path;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -25,7 +29,7 @@ use crate::app::ActiveView;
 use crate::app::SharedState;
 use crate::app::ViewName;
 
-use tracing::{Level, event, info};
+use tracing::{Level, event, info, trace};
 
 const NARROW_EDGE_LENGTH: i32 = 170;
 const WIDE_EDGE_LENGTH: i32 = 200;
@@ -41,6 +45,8 @@ struct PhotoGridItem {
     edge_length: I32Binding,
 
     thumbnailer: Rc<Thumbnailer>,
+
+    lazy_thumbnail_tracker: Rc<RefCell<LazyThumbnailTracker>>,
 }
 
 struct Widgets {
@@ -53,6 +59,8 @@ struct Widgets {
 #[derive(Debug)]
 pub enum FoldersAlbumInput {
     Activate,
+    /// A view has been activated
+    Activated(ViewName),
 
     // Reload photos from database
     Refresh,
@@ -67,6 +75,9 @@ pub enum FoldersAlbumInput {
     /// and have only observed this behaviour on the folders album view. As a work around, send
     /// a no-op message to trigger a view redraw.
     Noop,
+
+    // A thumbnail has been loaded.
+    ThumbnailReady(ThumbnailOutcome),
 }
 
 #[derive(Debug)]
@@ -150,11 +161,17 @@ impl RelmGridItem for PhotoGridItem {
             let img = gdk::Texture::for_pixbuf(&pb);
             widgets.picture.set_paintable(Some(&img));
             widgets.picture.set_content_fit(gtk::ContentFit::Contain);
+            self.lazy_thumbnail_tracker
+                .borrow_mut()
+                .add(&self.visual, widgets.picture.clone());
         }
     }
 
     fn unbind(&mut self, widgets: &mut Self::Widgets, _root: &mut Self::Root) {
         widgets.picture.set_filename(None::<&path::Path>);
+        self.lazy_thumbnail_tracker
+            .borrow_mut()
+            .cancel(&self.visual.visual_id);
     }
 }
 
@@ -164,11 +181,17 @@ pub struct FoldersAlbum {
     photo_grid: TypedGridView<PhotoGridItem, gtk::SingleSelection>,
     edge_length: I32Binding,
     thumbnailer: Rc<Thumbnailer>,
+    lazy_thumbnail_tracker: Rc<RefCell<LazyThumbnailTracker>>,
 }
 
 #[relm4::component(pub)]
 impl SimpleComponent for FoldersAlbum {
-    type Init = (SharedState, ActiveView, Rc<Thumbnailer>);
+    type Init = (
+        SharedState,
+        ActiveView,
+        Rc<Thumbnailer>,
+        Rc<RefCell<LazyThumbnailTracker>>,
+    );
     type Input = FoldersAlbumInput;
     type Output = FoldersAlbumOutput;
 
@@ -189,11 +212,13 @@ impl SimpleComponent for FoldersAlbum {
     }
 
     fn init(
-        (state, active_view, thumbnailer): Self::Init,
+        (state, active_view, thumbnailer, lazy_thumbnail_tracker): Self::Init,
         _root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
         let photo_grid = TypedGridView::new();
+
+        //lazy_thumbnail_tracker.borrow_mut().pause();
 
         let model = FoldersAlbum {
             state,
@@ -201,6 +226,7 @@ impl SimpleComponent for FoldersAlbum {
             photo_grid,
             edge_length: I32Binding::new(NARROW_EDGE_LENGTH),
             thumbnailer,
+            lazy_thumbnail_tracker,
         };
 
         let pictures_box = &model.photo_grid.view;
@@ -219,6 +245,16 @@ impl SimpleComponent for FoldersAlbum {
                 *self.active_view.write() = ViewName::Folders;
                 if self.photo_grid.is_empty() {
                     self.refresh();
+                }
+            }
+            FoldersAlbumInput::Activated(view_name) => {
+                if ViewName::Folders == view_name {
+                    if self.photo_grid.is_empty() {
+                        self.refresh();
+                    }
+                    self.lazy_thumbnail_tracker.borrow_mut().resume();
+                } else {
+                    self.lazy_thumbnail_tracker.borrow_mut().pause();
                 }
             }
             FoldersAlbumInput::Refresh => {
@@ -250,12 +286,18 @@ impl SimpleComponent for FoldersAlbum {
             FoldersAlbumInput::Adapt(adaptive::Layout::Wide) => {
                 self.edge_length.set_value(WIDE_EDGE_LENGTH);
             }
+            FoldersAlbumInput::ThumbnailReady(outcome) => {
+                trace!("Thumbnail ready {:?}", outcome);
+                self.lazy_thumbnail_tracker.borrow_mut().complete(outcome);
+            }
         }
     }
 }
 
 impl FoldersAlbum {
     fn refresh(&mut self) {
+        self.lazy_thumbnail_tracker.borrow_mut().clear();
+
         let all = {
             let data = self.state.read();
             data.clone()
@@ -273,6 +315,7 @@ impl FoldersAlbum {
                 visual: first.clone(),
                 edge_length: self.edge_length.clone(),
                 thumbnailer: self.thumbnailer.clone(),
+                lazy_thumbnail_tracker: self.lazy_thumbnail_tracker.clone(),
             };
             pictures.push(album);
         }

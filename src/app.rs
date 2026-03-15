@@ -25,7 +25,9 @@ use crate::config::{APP_ID, PROFILE};
 use crate::fl;
 
 use fotema_core::FlatpakPathBuf;
+use fotema_core::PhotoThumbnailer;
 use fotema_core::PictureId;
+use fotema_core::VideoThumbnailer;
 use fotema_core::VisualId;
 use fotema_core::database;
 use fotema_core::path_encoding;
@@ -34,6 +36,7 @@ use fotema_core::thumbnailify::Thumbnailer;
 
 use h3o::CellIndex;
 
+use std::cell::RefCell;
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::str::FromStr;
@@ -43,13 +46,13 @@ use anyhow::*;
 
 use strum::{AsRefStr, FromRepr};
 
-use tracing::{error, info, warn};
+use tracing::{error, info};
 
 mod components;
 
 use crate::host_path;
 
-use self::components::{
+use crate::app::components::{
     about::AboutDialog,
     albums::{
         album::{Album, AlbumInput, AlbumOutput},
@@ -68,12 +71,22 @@ use self::components::{
 
 mod background;
 
-use self::background::bootstrap::{
+use crate::app::background::bootstrap::{
     Bootstrap, BootstrapInput, BootstrapOutput, MediaType, TaskName, ThumbnailType,
 };
 
-use self::components::progress_monitor::ProgressMonitor;
-use self::components::progress_panel::ProgressPanel;
+use crate::app::background::lazy_thumbnail_notifier::{
+    LazyThumbnailNotifier, LazyThumbnailNotifierInput,
+};
+
+use crate::app::background::lazy_thumbnail_tracker::LazyThumbnailTracker;
+
+use crate::app::background::lazy_thumbnail_task::{
+    LazyThumbnailTask, LazyThumbnailTaskInput, LazyThumbnailTaskOutput, ThumbnailOutcome,
+};
+
+use crate::app::components::progress_monitor::ProgressMonitor;
+use crate::app::components::progress_panel::ProgressPanel;
 
 /// Name of a view that can be displayed
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq, AsRefStr)]
@@ -168,6 +181,10 @@ pub struct Settings {
     /// Base path of pictures directory inside Flatpak sandbox.
     /// Will be under `/run/users/<uid>/docs/<doc-id>/...`
     pub library_base_dir: FlatpakPathBuf,
+
+    /// Background thumbnail generation enabled?
+    /// This is in addition to lazy/on-demand thumbnail generation
+    pub background_thumbnails_enabled: bool,
 }
 
 /// Active settings
@@ -241,6 +258,10 @@ pub(super) struct App {
     banner: adw::Banner,
 
     settings_state: SettingsState,
+    active_view: ActiveView,
+
+    lazy_thumbnail_task: WorkerController<LazyThumbnailTask>,
+    lazy_thumbnail_notifier: LazyThumbnailNotifier,
 }
 
 #[derive(Debug)]
@@ -301,6 +322,9 @@ pub(super) enum AppMsg {
 
     /// Onboarding process is complete and user has selected the picture base directory
     OnboardDone(PathBuf),
+
+    /// A lazily generated thumbnail is ready
+    ThumbnailReady(ThumbnailOutcome),
 }
 
 relm4::new_action_group!(pub(super) WindowActionGroup, "win");
@@ -575,13 +599,6 @@ impl SimpleAsyncComponent for App {
         let cache_dir = glib::user_cache_dir().join(APP_ID);
         let _ = std::fs::create_dir_all(&cache_dir);
 
-        // WARN duplicate thumbnail path calculation in bootstrap.rs
-        let thumbnail_dir = glib::user_cache_dir()
-            .join(APP_ID) // Remove to use standard XDG thumbnail path
-            .join("thumbnails");
-
-        let thumbnailer = Rc::new(Thumbnailer::build(&thumbnail_dir));
-
         let db_path = data_dir.join("pictures.sqlite");
 
         let con = database::setup(&db_path).expect("Must be able to open database");
@@ -592,6 +609,17 @@ impl SimpleAsyncComponent for App {
         let state = SharedState::new(relm4::SharedState::new());
         let active_view = ActiveView::new(relm4::SharedState::new());
         let adaptive_layout = Arc::new(adaptive::LayoutState::new());
+
+        // WARN duplicate thumbnail path calculation in bootstrap.rs
+        let thumbnail_dir = glib::user_cache_dir()
+            .join(APP_ID) // Remove to use standard XDG thumbnail path
+            .join("thumbnails");
+
+        let thumbnailer = Thumbnailer::build(&thumbnail_dir);
+        let photo_thumbnailer = PhotoThumbnailer::build(thumbnailer.clone()).unwrap();
+        let video_thumbnailer = VideoThumbnailer::build(thumbnailer.clone()).unwrap();
+
+        let lazy_thumbnail_notifier: LazyThumbnailNotifier = Arc::new(Reducer::new());
 
         let settings_state = SettingsState::new(relm4::SharedState::new());
         match App::load_settings().await {
@@ -604,6 +632,25 @@ impl SimpleAsyncComponent for App {
 
         settings_state.subscribe(sender.input_sender(), |settings| {
             AppMsg::SettingsChanged(settings.clone())
+        });
+
+        let lazy_thumbnail_task = LazyThumbnailTask::builder()
+            .detach_worker((
+                con.clone(),
+                photo_thumbnailer.clone(),
+                video_thumbnailer.clone(),
+                state.clone(),
+            ))
+            .forward(sender.input_sender(), |msg| match msg {
+                LazyThumbnailTaskOutput::Done(outcome) => AppMsg::ThumbnailReady(outcome),
+            });
+
+        settings_state.subscribe(lazy_thumbnail_task.sender(), |settings| {
+            LazyThumbnailTaskInput::Configure(settings.library_base_dir.clone())
+        });
+
+        state.subscribe(lazy_thumbnail_task.sender(), |_| {
+            LazyThumbnailTaskInput::Refresh
         });
 
         let bootstrap_progress_monitor: Reducer<ProgressMonitor> = Reducer::new();
@@ -635,12 +682,16 @@ impl SimpleAsyncComponent for App {
 
         let onboard_view = adw::ToolbarView::new();
 
+        let thumbnailer = Rc::new(thumbnailer);
+
         let library = Library::builder()
             .launch((
                 state.clone(),
                 active_view.clone(),
                 adaptive_layout.clone(),
                 thumbnailer.clone(),
+                lazy_thumbnail_task.sender().clone(),
+                lazy_thumbnail_notifier.clone(),
             ))
             .forward(sender.input_sender(), |msg| match msg {
                 LibraryOutput::View(id) => AppMsg::View(id, AlbumFilter::All),
@@ -665,6 +716,10 @@ impl SimpleAsyncComponent for App {
             ViewNavInput::Sort(settings.album_sort)
         });
 
+        let lazy_thumbnail_tracker = Rc::new(RefCell::new(LazyThumbnailTracker::new(
+            thumbnailer.clone(),
+            lazy_thumbnail_task.sender().clone(),
+        )));
         let selfies_page = Album::builder()
             .launch((
                 state.clone(),
@@ -672,6 +727,7 @@ impl SimpleAsyncComponent for App {
                 ViewName::Selfies,
                 AlbumFilter::Selfies,
                 thumbnailer.clone(),
+                lazy_thumbnail_tracker.clone(),
             ))
             .forward(sender.input_sender(), |msg| match msg {
                 AlbumOutput::Selected(id, filter) => AppMsg::View(id, filter),
@@ -679,9 +735,19 @@ impl SimpleAsyncComponent for App {
             });
 
         state.subscribe(selfies_page.sender(), |_| AlbumInput::Refresh);
+        active_view.subscribe(selfies_page.sender(), |view_name| {
+            AlbumInput::Activated(*view_name)
+        });
+
         adaptive_layout.subscribe(selfies_page.sender(), |layout| AlbumInput::Adapt(*layout));
         settings_state.subscribe(selfies_page.sender(), |settings| {
             AlbumInput::Sort(settings.album_sort)
+        });
+        lazy_thumbnail_notifier.subscribe_optional(selfies_page.sender(), |notifier| {
+            notifier
+                .outcome
+                .clone()
+                .map(|outcome| AlbumInput::ThumbnailReady(outcome))
         });
 
         let show_selfies = AppWidgets::show_selfies();
@@ -693,16 +759,26 @@ impl SimpleAsyncComponent for App {
                 ViewName::Animated,
                 AlbumFilter::Motion,
                 thumbnailer.clone(),
+                lazy_thumbnail_tracker.clone(),
             ))
             .forward(sender.input_sender(), |msg| match msg {
                 AlbumOutput::Selected(id, filter) => AppMsg::View(id, filter),
                 AlbumOutput::ScrollOffset(_) => AppMsg::Ignore,
             });
 
+        active_view.subscribe(motion_page.sender(), |view_name| {
+            AlbumInput::Activated(*view_name)
+        });
         state.subscribe(motion_page.sender(), |_| AlbumInput::Refresh);
         adaptive_layout.subscribe(motion_page.sender(), |layout| AlbumInput::Adapt(*layout));
         settings_state.subscribe(motion_page.sender(), |settings| {
             AlbumInput::Sort(settings.album_sort)
+        });
+        lazy_thumbnail_notifier.subscribe_optional(motion_page.sender(), |notifier| {
+            notifier
+                .outcome
+                .clone()
+                .map(|outcome| AlbumInput::ThumbnailReady(outcome))
         });
 
         let videos_page = Album::builder()
@@ -712,16 +788,26 @@ impl SimpleAsyncComponent for App {
                 ViewName::Videos,
                 AlbumFilter::Videos,
                 thumbnailer.clone(),
+                lazy_thumbnail_tracker.clone(),
             ))
             .forward(sender.input_sender(), |msg| match msg {
                 AlbumOutput::Selected(id, filter) => AppMsg::View(id, filter),
                 AlbumOutput::ScrollOffset(_) => AppMsg::Ignore,
             });
 
+        active_view.subscribe(videos_page.sender(), |view_name| {
+            AlbumInput::Activated(*view_name)
+        });
         state.subscribe(videos_page.sender(), |_| AlbumInput::Refresh);
         adaptive_layout.subscribe(videos_page.sender(), |layout| AlbumInput::Adapt(*layout));
         settings_state.subscribe(videos_page.sender(), |settings| {
             AlbumInput::Sort(settings.album_sort)
+        });
+        lazy_thumbnail_notifier.subscribe_optional(videos_page.sender(), |notifier| {
+            notifier
+                .outcome
+                .clone()
+                .map(|outcome| AlbumInput::ThumbnailReady(outcome))
         });
 
         let people_page = PeopleAlbum::builder()
@@ -745,6 +831,7 @@ impl SimpleAsyncComponent for App {
                 people_repo.clone(),
                 active_view.clone(),
                 thumbnailer.clone(),
+                lazy_thumbnail_tracker.clone(),
             ))
             .forward(sender.input_sender(), |msg| match msg {
                 PersonAlbumOutput::Selected(id, filter) => AppMsg::View(id, filter),
@@ -777,14 +864,29 @@ impl SimpleAsyncComponent for App {
         });
 
         let folders_album = FoldersAlbum::builder()
-            .launch((state.clone(), active_view.clone(), thumbnailer.clone()))
+            .launch((
+                state.clone(),
+                active_view.clone(),
+                thumbnailer.clone(),
+                lazy_thumbnail_tracker.clone(),
+            ))
             .forward(sender.input_sender(), |msg| match msg {
                 FoldersAlbumOutput::FolderSelected(path) => AppMsg::ViewFolder(path),
             });
 
         state.subscribe(folders_album.sender(), |_| FoldersAlbumInput::Refresh);
+
         adaptive_layout.subscribe(folders_album.sender(), |layout| {
             FoldersAlbumInput::Adapt(*layout)
+        });
+        active_view.subscribe(folders_album.sender(), |view_name| {
+            FoldersAlbumInput::Activated(*view_name)
+        });
+        lazy_thumbnail_notifier.subscribe_optional(folders_album.sender(), |notifier| {
+            notifier
+                .outcome
+                .clone()
+                .map(|outcome| FoldersAlbumInput::ThumbnailReady(outcome))
         });
 
         let folder_album = Album::builder()
@@ -794,6 +896,7 @@ impl SimpleAsyncComponent for App {
                 ViewName::Folder,
                 AlbumFilter::None,
                 thumbnailer.clone(),
+                lazy_thumbnail_tracker.clone(),
             ))
             .forward(sender.input_sender(), |msg| match msg {
                 AlbumOutput::Selected(id, filter) => AppMsg::View(id, filter),
@@ -804,6 +907,15 @@ impl SimpleAsyncComponent for App {
         adaptive_layout.subscribe(folder_album.sender(), |layout| AlbumInput::Adapt(*layout));
         settings_state.subscribe(folder_album.sender(), |settings| {
             AlbumInput::Sort(settings.album_sort)
+        });
+        active_view.subscribe(folder_album.sender(), |view_name| {
+            AlbumInput::Activated(*view_name)
+        });
+        lazy_thumbnail_notifier.subscribe_optional(folder_album.sender(), |notifier| {
+            notifier
+                .outcome
+                .clone()
+                .map(|outcome| AlbumInput::ThumbnailReady(outcome))
         });
 
         let about_dialog = AboutDialog::builder().launch(root.clone()).detach();
@@ -865,6 +977,10 @@ impl SimpleAsyncComponent for App {
             banner: banner.clone(),
 
             settings_state: settings_state.clone(),
+            active_view,
+
+            lazy_thumbnail_task,
+            lazy_thumbnail_notifier,
         };
 
         let widgets = view_output!();
@@ -901,6 +1017,8 @@ impl SimpleAsyncComponent for App {
         if is_onboarding_complete {
             model.picture_navigation_view.set_visible(true);
             model.onboard_view.set_visible(false);
+
+            // Start background processes
             sender.input(AppMsg::OnboardDone(
                 settings.library_base_dir.sandbox_path.clone(),
             ));
@@ -966,8 +1084,14 @@ impl SimpleAsyncComponent for App {
                     self.header_bar.set_title_widget(title.as_ref());
                 }
 
-                // figure out which view to activate
-                match child_name {
+                *self.active_view.write() = child_name;
+
+                if child_name == ViewName::Library {
+                    self.library.emit(LibraryInput::Activate);
+                }
+
+                //*self.active_view.write() = child_name;
+                /*match child_name {
                     ViewName::Library | ViewName::All | ViewName::Month | ViewName::Year => {
                         // Note that we'll only won't get All, Month, and Year activations
                         // here, they are handled in the Library view. However, we must handle
@@ -983,7 +1107,7 @@ impl SimpleAsyncComponent for App {
                     ViewName::Person => self.person_album.emit(PersonAlbumInput::Activate),
                     ViewName::Places => self.places_page.emit(PlacesAlbumInput::Activate),
                     ViewName::Nothing => warn!("Nothing activated... which should not happen"),
-                }
+                }*/
             }
             AppMsg::View(visual_id, filter) => {
                 // Send message to show image
@@ -1132,11 +1256,25 @@ impl SimpleAsyncComponent for App {
                     .unwrap_or(FlatpakPathBuf::build(&library_base_dir, &library_base_dir));
                 *self.settings_state.write() = settings.clone();
 
+                // Start background processes
                 self.bootstrap
                     .emit(BootstrapInput::Configure(settings.library_base_dir.clone()));
+
+                // Start lazy thumbnail task
+                self.lazy_thumbnail_task
+                    .emit(LazyThumbnailTaskInput::Configure(
+                        settings.library_base_dir.clone(),
+                    ));
+
                 self.picture_navigation_view.set_visible(true);
                 self.onboard_view.set_visible(false);
+
+                // The All view is the default view
+                *self.active_view.write() = ViewName::All;
             }
+            AppMsg::ThumbnailReady(outcome) => self
+                .lazy_thumbnail_notifier
+                .emit(LazyThumbnailNotifierInput::ThumbnailReady(outcome)),
         }
     }
 
@@ -1169,6 +1307,7 @@ impl App {
                 .unwrap_or(AlbumSort::Ascending),
             is_onboarding_complete: gio_settings.boolean("onboarding-complete"),
             library_base_dir,
+            background_thumbnails_enabled: gio_settings.boolean("background-thumbnails-enabled"),
         })
     }
 
@@ -1184,6 +1323,7 @@ impl App {
             "pictures-base-dir-b64",
             &path_encoding::to_base64(&settings.library_base_dir.sandbox_path),
         )?;
+        //gio_settings.set_boolean("onboarding-complete", settings.is_onboarding_complete)?;
         Ok(())
     }
 }

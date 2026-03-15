@@ -769,6 +769,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "crossbeam-channel"
+version = "0.5.17"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "98b0cc327b5bc766e7fda9c9260cc0fa81b43a8e240440422dff70788e3f9ef1"
+dependencies = [
+ "crossbeam-utils",
+]
+
+[[package]]
 name = "crossbeam-deque"
 version = "0.8.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1317,9 +1326,11 @@ dependencies = [
  "anyhow",
  "ashpd",
  "chrono",
+ "crossbeam-channel",
  "deadpool",
  "fotema_core",
  "futures",
+ "gdt-cpus",
  "gettext-rs",
  "glycin",
  "h3o",
@@ -1330,6 +1341,7 @@ dependencies = [
  "lazy_static",
  "libshumate",
  "libshumate-sys",
+ "priority-queue",
  "rayon",
  "regex",
  "relm4",
@@ -1604,6 +1616,18 @@ dependencies = [
  "glib-sys",
  "libc",
  "system-deps 9.0.0",
+]
+
+[[package]]
+name = "gdt-cpus"
+version = "0.2606.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f60f6baf9eb03f64b3b2c0ab79160b535c7460f12252e9965a4a67e22c518c27"
+dependencies = [
+ "bitflags 2.13.2",
+ "libc",
+ "raw-cpuid",
+ "windows",
 ]
 
 [[package]]
@@ -3872,6 +3896,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dc0d895b311e3af9902528fbb8f928688abbd95872819320517cc24ca6b2bd08"
 dependencies = [
  "num-integer",
+]
+
+[[package]]
+name = "priority-queue"
+version = "2.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "93980406f12d9f8140ed5abe7155acb10bb1e69ea55c88960b9c2f117445ef96"
+dependencies = [
+ "equivalent",
+ "indexmap",
+ "serde",
 ]
 
 [[package]]

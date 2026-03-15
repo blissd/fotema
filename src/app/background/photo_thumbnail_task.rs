@@ -12,6 +12,9 @@ use std::path::{Path, PathBuf};
 use std::result::Result::Ok;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::thread;
+
+use gdt_cpus;
 use tracing::{error, info};
 
 use std::panic;
@@ -39,8 +42,11 @@ pub enum PhotoThumbnailTaskOutput {
 }
 
 pub struct PhotoThumbnailTask {
-    // Stop flag
+    // Stop button pressed?
     stop: Arc<AtomicBool>,
+
+    // Background thumbnail generation enabled?
+    enabled: Arc<AtomicBool>,
 
     thumbnails_path: PathBuf,
     thumbnailer: fotema_core::photo::PhotoThumbnailer,
@@ -54,6 +60,7 @@ pub struct PhotoThumbnailTask {
 impl PhotoThumbnailTask {
     fn enrich(
         stop: Arc<AtomicBool>,
+        enabled: Arc<AtomicBool>,
         repo: fotema_core::photo::Repository,
         thumbnails_path: &Path,
         thumbnailer: PhotoThumbnailer,
@@ -97,12 +104,12 @@ impl PhotoThumbnailTask {
             count,
         ));
 
-        // One thread per CPU core... makes my laptop sluggish and hot... also likes memory.
-        // Might need to consider constraining number of CPUs to use less memory or to
-        // keep the computer more response while thumbnail generation is going on.
         unprocessed
-            .par_iter()
-            .take_any_while(|_| !stop.load(Ordering::Relaxed))
+            //.par_iter()
+            //.take_any_while(|_| !stop.load(Ordering::Relaxed))
+            .into_iter()
+            .take_while(|_| !stop.load(Ordering::Relaxed))
+            .take_while(|_| enabled.load(Ordering::Relaxed))
             .for_each(|pic| {
                 // Careful! panic::catch_unwind returns Ok(Err) if the evaluated expression returns
                 // an error but doesn't panic.
@@ -147,6 +154,7 @@ impl PhotoThumbnailTask {
 impl Worker for PhotoThumbnailTask {
     type Init = (
         Arc<AtomicBool>,
+        Arc<AtomicBool>,
         PathBuf,
         PhotoThumbnailer,
         fotema_core::photo::Repository,
@@ -156,11 +164,12 @@ impl Worker for PhotoThumbnailTask {
     type Output = PhotoThumbnailTaskOutput;
 
     fn init(
-        (stop, thumbnails_path, thumbnailer, repo, progress_monitor): Self::Init,
+        (stop, enabled, thumbnails_path, thumbnailer, repo, progress_monitor): Self::Init,
         _sender: ComponentSender<Self>,
     ) -> Self {
         PhotoThumbnailTask {
             stop,
+            enabled,
             thumbnails_path: thumbnails_path.into(),
             thumbnailer,
             repo,
@@ -173,15 +182,23 @@ impl Worker for PhotoThumbnailTask {
             PhotoThumbnailTaskInput::Start => {
                 info!("Generating photo thumbnails...");
                 let stop = self.stop.clone();
+                let enabled = self.enabled.clone();
                 let repo = self.repo.clone();
                 let thumbnails_path = self.thumbnails_path.clone();
                 let thumbnailer = self.thumbnailer.clone();
                 let progress_monitor = self.progress_monitor.clone();
 
                 // Avoid runtime panic from calling block_on
-                rayon::spawn(move || {
+                thread::spawn(move || {
+                    if let Err(err) =
+                        gdt_cpus::set_thread_priority(gdt_cpus::ThreadPriority::Background)
+                    {
+                        error!("Failed to lower thread priority: {:?}", err);
+                    }
+
                     if let Err(e) = PhotoThumbnailTask::enrich(
                         stop,
+                        enabled,
                         repo,
                         &thumbnails_path,
                         thumbnailer,

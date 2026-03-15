@@ -105,8 +105,7 @@ impl Thumbnailer {
         quality: ThumbnailQuality,
         src_image: DynamicImage,
     ) -> Result<(), ThumbnailError> {
-        generate_thumbnail(&self.thumbnails_path, path, size, quality, src_image)?;
-        Ok(())
+        generate_thumbnail(&self.thumbnails_path, path, size, quality, src_image)
     }
 
     pub fn write_failed_thumbnail(&self, path: &FlatpakPathBuf) -> Result<(), ThumbnailError> {
@@ -128,7 +127,7 @@ pub fn generate_thumbnail(
     size: ThumbnailSize,
     quality: ThumbnailQuality,
     src_image: DynamicImage,
-) -> Result<DynamicImage, ThumbnailError> {
+) -> Result<(), ThumbnailError> {
     // info!("Generating thumbnail for hostpath: {:?}", host_path);
 
     // `canonicalize()` will fail if `host_path` does not exist... which means
@@ -167,7 +166,7 @@ pub fn generate_thumbnail(
             thumb_path
         );
         // FIXME load and return existing thumbnail image
-        return Ok(src_image);
+        return Ok(());
     }
     // Prepare a temporary file in the same directory as the final thumbnail.
     // Using `tempfile_in` ensures that the temp file is on the same filesystem
@@ -249,19 +248,5 @@ pub fn generate_thumbnail(
 
     named_temp.persist(&thumb_path)?;
 
-    fast_image_to_dynamic(&dst_image)
-}
-
-fn fast_image_to_dynamic(img: &Image) -> Result<DynamicImage, ThumbnailError> {
-    let width = img.width();
-    let height = img.height();
-    let pixels = img.buffer();
-
-    // Create ImageBuffer<u8, &[u8]> by wrapping the slice
-    // Then convert to owned buffer
-    let buffer = ImageBuffer::<Rgba<u8>, Vec<u8>>::from_raw(width, height, pixels.to_vec()).ok_or(
-        io::Error::new(io::ErrorKind::Other, "Failed to create ImageBuffer"),
-    )?;
-
-    Ok(DynamicImage::ImageRgba8(buffer))
+    Ok(())
 }

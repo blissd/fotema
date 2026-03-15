@@ -19,17 +19,20 @@ use fotema_core::Year;
 use fotema_core::YearMonth;
 use fotema_core::thumbnailify::{ThumbnailSize, Thumbnailer};
 
+use std::cell::RefCell;
 use std::path;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use tracing::info;
+use tracing::{info, trace};
 
 use crate::adaptive;
 use crate::app::ActiveView;
 use crate::app::AlbumSort;
 use crate::app::SharedState;
 use crate::app::ViewName;
+use crate::app::background::lazy_thumbnail_task::ThumbnailOutcome;
+use crate::app::background::lazy_thumbnail_tracker::LazyThumbnailTracker;
 use crate::fl;
 
 use tracing::{Level, event};
@@ -44,6 +47,7 @@ struct PhotoGridItem {
     // Length of thumbnail edge to allow for resizing when layout changes.
     edge_length: I32Binding,
     thumbnailer: Rc<Thumbnailer>,
+    lazy_thumbnail_tracker: Rc<RefCell<LazyThumbnailTracker>>,
 }
 
 struct Widgets {
@@ -56,6 +60,8 @@ struct Widgets {
 #[derive(Debug)]
 pub enum MonthsAlbumInput {
     Activate,
+
+    Activated(ViewName),
 
     /// A month has been selected in the grid view
     MonthSelected(u32), // WARN this is an index into a Vec, not a month
@@ -70,6 +76,9 @@ pub enum MonthsAlbumInput {
     Adapt(adaptive::Layout),
 
     Sort(AlbumSort),
+
+    // A thumbnail has been loaded.
+    ThumbnailReady(ThumbnailOutcome),
 }
 
 #[derive(Debug)]
@@ -168,11 +177,18 @@ impl RelmGridItem for PhotoGridItem {
             let img = gdk::Texture::for_pixbuf(&pb);
             widgets.picture.set_paintable(Some(&img));
             widgets.picture.set_content_fit(gtk::ContentFit::Contain);
+
+            self.lazy_thumbnail_tracker
+                .borrow_mut()
+                .add(&self.visual, widgets.picture.clone());
         }
     }
 
     fn unbind(&mut self, widgets: &mut Self::Widgets, _root: &mut Self::Root) {
         widgets.picture.set_filename(None::<&path::Path>);
+        self.lazy_thumbnail_tracker
+            .borrow_mut()
+            .cancel(&self.visual.visual_id);
     }
 }
 
@@ -183,11 +199,17 @@ pub struct MonthsAlbum {
     edge_length: I32Binding,
     sort: AlbumSort,
     thumbnailer: Rc<Thumbnailer>,
+    lazy_thumbnail_tracker: Rc<RefCell<LazyThumbnailTracker>>,
 }
 
 #[relm4::component(pub)]
 impl SimpleComponent for MonthsAlbum {
-    type Init = (SharedState, ActiveView, Rc<Thumbnailer>);
+    type Init = (
+        SharedState,
+        ActiveView,
+        Rc<Thumbnailer>,
+        Rc<RefCell<LazyThumbnailTracker>>,
+    );
     type Input = MonthsAlbumInput;
     type Output = MonthsAlbumOutput;
 
@@ -208,11 +230,13 @@ impl SimpleComponent for MonthsAlbum {
     }
 
     fn init(
-        (state, active_view, thumbnailer): Self::Init,
+        (state, active_view, thumbnailer, lazy_thumbnail_tracker): Self::Init,
         _root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
         let photo_grid = TypedGridView::new();
+
+        lazy_thumbnail_tracker.borrow_mut().pause();
 
         let model = MonthsAlbum {
             state,
@@ -221,6 +245,7 @@ impl SimpleComponent for MonthsAlbum {
             edge_length: I32Binding::new(NARROW_EDGE_LENGTH),
             sort: AlbumSort::default(),
             thumbnailer,
+            lazy_thumbnail_tracker,
         };
 
         let photo_grid_view = &model.photo_grid.view;
@@ -235,6 +260,16 @@ impl SimpleComponent for MonthsAlbum {
                 *self.active_view.write() = ViewName::Month;
                 if self.photo_grid.is_empty() {
                     self.refresh();
+                }
+            }
+            MonthsAlbumInput::Activated(view_name) => {
+                if ViewName::Month == view_name {
+                    if self.photo_grid.is_empty() {
+                        self.refresh();
+                    }
+                    self.lazy_thumbnail_tracker.borrow_mut().resume();
+                } else {
+                    self.lazy_thumbnail_tracker.borrow_mut().pause();
                 }
             }
             MonthsAlbumInput::Refresh => {
@@ -276,12 +311,18 @@ impl SimpleComponent for MonthsAlbum {
                     sender.input(MonthsAlbumInput::Refresh);
                 }
             }
+            MonthsAlbumInput::ThumbnailReady(outcome) => {
+                trace!("Thumbnail ready {:?}", outcome);
+                self.lazy_thumbnail_tracker.borrow_mut().complete(outcome);
+            }
         }
     }
 }
 
 impl MonthsAlbum {
     fn refresh(&mut self) {
+        self.lazy_thumbnail_tracker.borrow_mut().clear();
+
         let mut all_pictures = {
             let data = self.state.read();
             data.iter()
@@ -290,6 +331,7 @@ impl MonthsAlbum {
                     visual: visual.clone(),
                     edge_length: self.edge_length.clone(),
                     thumbnailer: self.thumbnailer.clone(),
+                    lazy_thumbnail_tracker: self.lazy_thumbnail_tracker.clone(),
                 })
                 .collect::<Vec<PhotoGridItem>>()
         };

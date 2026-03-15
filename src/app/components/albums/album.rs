@@ -15,6 +15,7 @@ use relm4::gtk::prelude::AdjustmentExt;
 use relm4::gtk::prelude::*;
 use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
 use relm4::*;
+use std::cell::RefCell;
 use std::path::Path;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -25,8 +26,10 @@ use crate::app::ActiveView;
 use crate::app::SharedState;
 use crate::app::ViewName;
 use crate::app::adaptive;
+use crate::app::background::lazy_thumbnail_task::ThumbnailOutcome;
+use crate::app::background::lazy_thumbnail_tracker::LazyThumbnailTracker;
 
-use tracing::{debug, info};
+use tracing::{debug, info, trace};
 
 const NARROW_EDGE_LENGTH: i32 = 112;
 const WIDE_EDGE_LENGTH: i32 = 200;
@@ -35,6 +38,9 @@ const WIDE_EDGE_LENGTH: i32 = 200;
 pub enum AlbumInput {
     /// Album is visible
     Activate,
+
+    /// A view has been activated
+    Activated(ViewName),
 
     // State has been updated
     Refresh,
@@ -62,6 +68,9 @@ pub enum AlbumInput {
 
     // Scroll to top of photo grid, regardless of sort order
     ScrollToTop,
+
+    // A thumbnail has been loaded.
+    ThumbnailReady(ThumbnailOutcome),
 }
 
 #[derive(Debug)]
@@ -81,6 +90,8 @@ struct PhotoGridItem {
     edge_length: I32Binding,
 
     thumbnailer: Rc<Thumbnailer>,
+
+    lazy_thumbnail_tracker: Rc<RefCell<LazyThumbnailTracker>>,
 }
 
 struct PhotoGridItemWidgets {
@@ -186,7 +197,6 @@ impl RelmGridItem for PhotoGridItem {
 
         if thumbnail_path.is_some() {
             widgets.picture.set_filename(thumbnail_path);
-
             widgets.picture.set_content_fit(gtk::ContentFit::Cover);
         } else {
             let pb = gdk_pixbuf::Pixbuf::from_resource_at_scale(
@@ -199,6 +209,10 @@ impl RelmGridItem for PhotoGridItem {
             let img = gdk::Texture::for_pixbuf(&pb);
             widgets.picture.set_paintable(Some(&img));
             widgets.picture.set_content_fit(gtk::ContentFit::Contain);
+
+            self.lazy_thumbnail_tracker
+                .borrow_mut()
+                .add(&self.visual, widgets.picture.clone());
         }
 
         if self.visual.is_motion_photo() {
@@ -238,6 +252,10 @@ impl RelmGridItem for PhotoGridItem {
         widgets.status_overlay.set_visible(false);
         widgets.duration_overlay.set_visible(false);
         widgets.duration_label.set_label("");
+
+        self.lazy_thumbnail_tracker
+            .borrow_mut()
+            .cancel(&self.visual.visual_id);
     }
 }
 
@@ -250,6 +268,7 @@ pub struct Album {
     sort: AlbumSort,
     edge_length: I32Binding,
     thumbnailer: Rc<Thumbnailer>,
+    lazy_thumbnail_tracker: Rc<RefCell<LazyThumbnailTracker>>,
 }
 
 #[relm4::component(pub)]
@@ -260,6 +279,7 @@ impl SimpleComponent for Album {
         ViewName,
         AlbumFilter,
         Rc<Thumbnailer>,
+        Rc<RefCell<LazyThumbnailTracker>>,
     );
     type Input = AlbumInput;
     type Output = AlbumOutput;
@@ -290,14 +310,16 @@ impl SimpleComponent for Album {
     }
 
     fn init(
-        (state, active_view, view_name, filter, thumbnailer): Self::Init,
+        (state, active_view, view_name, filter, thumbnailer, lazy_thumbnail_tracker): Self::Init,
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
         let photo_grid = TypedGridView::new();
         let grid_view = &photo_grid.view.clone();
 
-        let mut model = Album {
+        lazy_thumbnail_tracker.borrow_mut().pause();
+
+        let model = Album {
             state,
             active_view,
             view_name,
@@ -306,9 +328,8 @@ impl SimpleComponent for Album {
             sort: AlbumSort::default(),
             edge_length: I32Binding::new(NARROW_EDGE_LENGTH),
             thumbnailer,
+            lazy_thumbnail_tracker,
         };
-
-        model.update_filter();
 
         let widgets = view_output!();
         ComponentParts { model, widgets }
@@ -322,6 +343,16 @@ impl SimpleComponent for Album {
                     self.refresh();
                 }
             }
+            AlbumInput::Activated(view_name) => {
+                if self.view_name == view_name {
+                    if self.photo_grid.is_empty() {
+                        self.refresh();
+                    }
+                    self.lazy_thumbnail_tracker.borrow_mut().resume();
+                } else {
+                    self.lazy_thumbnail_tracker.borrow_mut().pause();
+                }
+            }
             AlbumInput::Refresh => {
                 if *self.active_view.read() == self.view_name {
                     info!("{:?} view is active so refreshing", self.view_name);
@@ -333,8 +364,7 @@ impl SimpleComponent for Album {
             }
             AlbumInput::Filter(filter) => {
                 self.filter = filter;
-                self.update_filter();
-                //self.scroll();
+                self.refresh();
             }
             AlbumInput::Sort(sort) => {
                 if self.sort != sort {
@@ -378,19 +408,28 @@ impl SimpleComponent for Album {
             AlbumInput::ScrollOffset(offset) => {
                 let _ = sender.output(AlbumOutput::ScrollOffset(offset));
             }
+            AlbumInput::ThumbnailReady(outcome) => {
+                trace!("{:?}: Thumbnail ready {:?}", self.view_name, outcome);
+                self.lazy_thumbnail_tracker.borrow_mut().complete(outcome);
+            }
         }
     }
 }
 
 impl Album {
     fn refresh(&mut self) {
+        self.lazy_thumbnail_tracker.borrow_mut().clear();
+
+        let filter = Rc::new(self.filter.clone());
         let mut all = {
             let data = self.state.read();
             data.iter()
+                .filter(|visual| filter.filter(&visual))
                 .map(|visual| PhotoGridItem {
                     visual: visual.clone(),
                     edge_length: self.edge_length.clone(),
                     thumbnailer: self.thumbnailer.clone(),
+                    lazy_thumbnail_tracker: self.lazy_thumbnail_tracker.clone(),
                 })
                 .collect::<Vec<PhotoGridItem>>()
         };
@@ -405,15 +444,8 @@ impl Album {
 
         info!("{} items added to album", self.photo_grid.len());
 
-        // NOTE person album will in effect overide scrolling to the end
+        // NOTE person album will in effect override scrolling to the end
         // by sending a ScrollToTop command.
         self.sort.scroll_to_end(&mut self.photo_grid);
-    }
-
-    fn update_filter(&mut self) {
-        self.photo_grid.clear_filters();
-        let filter = self.filter.clone();
-        self.photo_grid
-            .add_filter(move |item| filter.clone().filter(&item.visual));
     }
 }

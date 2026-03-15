@@ -35,24 +35,13 @@ impl AlbumSort {
             return;
         }
 
-        // We must scroll to a valid index... but we can't get the index of the
-        // last item if filters are enabled. So as a workaround disable filters,
-        // scroll to end, and then enable filters.
-
-        for i in 0..(grid.filters_len()) {
-            grid.set_filter_status(i, false);
-        }
-
         let index = match self {
             AlbumSort::Ascending => grid.len() - 1,
             AlbumSort::Descending => 0,
         };
 
-        grid.view
-            .scroll_to(index, gtk::ListScrollFlags::SELECT, None);
-
-        for i in 0..(grid.filters_len()) {
-            grid.set_filter_status(i, true);
-        }
+        // WARN changing the scroll flags to something other than NONE.
+        // makes this scroll (usually) be inoperable.
+        grid.view.scroll_to(index, gtk::ListScrollFlags::NONE, None);
     }
 }
