@@ -36,5 +36,5 @@ reqwest = { version = "0.13.1", features = ["blocking"] }
 futures = "0.3.32"
 url = "2.5.7"
 md-5 = "0.10.6"
-png = "0.18.0"
+png = "0.18.1"
 thiserror = "2.0.18"
