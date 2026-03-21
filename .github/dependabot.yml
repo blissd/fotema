@@ -5,11 +5,22 @@
 version: 2
 updates:
   - package-ecosystem: "cargo"
+    commit-message:
+      prefix: "chore(deps): "
     directory: "/"
     schedule:
       interval: "daily"
 
   - package-ecosystem: "github-actions"
+    commit-message:
+      prefix: "chore(deps): "
+    directory: "/"
+    schedule:
+      interval: "daily"
+
+  - package-ecosystem: "pre-commit"
+    commit-message:
+      prefix: "chore(deps): "
     directory: "/"
     schedule:
       interval: "daily"
