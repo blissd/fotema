@@ -14,4 +14,6 @@ jobs:
     steps:
     - uses: actions/checkout@v6
     - uses: actions/setup-python@v6
+    - name: Create src/config.rs for rustfmt
+      run: touch src/config.rs
     - uses: pre-commit/action@v3.0.1
