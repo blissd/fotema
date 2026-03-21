@@ -14,7 +14,7 @@ anyhow = "1.0.101"
 base64 = "0.22.1"
 chrono = "0.4.44"
 fast_image_resize = { version = "6.0.0", features = ["image"] }
-ffmpeg-next = "8.0.0"
+ffmpeg-next = "8.1.0"
 gdk4 = "0.10.3"
 gio = "0.21.5"
 glycin = { version = "3.0.7", features = ["gdk4"] }
