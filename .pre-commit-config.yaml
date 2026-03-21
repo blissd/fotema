@@ -11,9 +11,9 @@ repos:
       #- id: check-json
       #- id: check-toml
       #- id: check-xml
-      #- id: check-merge-conflict
+      - id: check-merge-conflict
       - id: end-of-file-fixer
-      #- id: mixed-line-ending
+      - id: mixed-line-ending
       #- id: trailing-whitespace
       #- id: pretty-format-json
       #  exclude: app.fotema.Fotema.Devel.json$
