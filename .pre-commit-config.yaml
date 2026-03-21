@@ -1,7 +1,11 @@
-# SPDX-FileCopyrightText: © 2024 David Bliss
+# SPDX-FileCopyrightText: © 2024-2026 David Bliss
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 
+minimum_pre_commit_version: 3.3.0
+default_install_hook_types:
+  - pre-commit
+  - commit-msg
 exclude: ".sql$"
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -36,3 +40,11 @@ repos:
     rev: v1.7.11
     hooks:
       - id: actionlint
+        name: actionlint
+
+  - repo: https://github.com/compilerla/conventional-pre-commit
+    rev: v4.4.0
+    hooks:
+      - id: conventional-pre-commit
+        name: conventional-commits
+        stages: [commit-msg]
