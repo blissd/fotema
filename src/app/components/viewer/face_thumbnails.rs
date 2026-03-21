@@ -405,4 +405,3 @@ impl SimpleAsyncComponent for FaceThumbnails {
         }
     }
 }
-

@@ -25,4 +25,3 @@ used in XGD thumbnail paths.
 When generating a thumbnail the host path (the path outside of the sandbox)
 must be used when generating the URI when deriving the MD5 hash, but the
 sandbox path must be used reading the file size, modification date, and so on.
-

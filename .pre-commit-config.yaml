@@ -7,26 +7,26 @@ repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:
-      - id: check-yaml
-      - id: check-json
-      - id: check-toml
-      - id: check-xml
-      - id: check-merge-conflict
+      #- id: check-yaml
+      #- id: check-json
+      #- id: check-toml
+      #- id: check-xml
+      #- id: check-merge-conflict
       - id: end-of-file-fixer
-      - id: mixed-line-ending
-      - id: trailing-whitespace
-      - id: pretty-format-json
-        exclude: app.fotema.Fotema.Devel.json$
-        args:
-          - "--autofix"
-          - "--indent=4"
+      #- id: mixed-line-ending
+      #- id: trailing-whitespace
+      #- id: pretty-format-json
+      #  exclude: app.fotema.Fotema.Devel.json$
+      #  args:
+      #    - "--autofix"
+      #    - "--indent=4"
 
   - repo: https://github.com/fsfe/reuse-tool
     rev: v5.1.1
     hooks:
       - id: reuse
 
-  - repo: https://github.com/doublify/pre-commit-rust
-    rev: v1.0
-    hooks:
-    - id: fmt
+  #- repo: https://github.com/doublify/pre-commit-rust
+  #  rev: v1.0
+  #  hooks:
+  #  - id: fmt

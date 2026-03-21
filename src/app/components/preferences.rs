@@ -295,4 +295,3 @@ impl SimpleAsyncComponent for PreferencesDialog {
         }
     }
 }
-

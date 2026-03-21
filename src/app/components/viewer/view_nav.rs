@@ -781,4 +781,3 @@ impl ViewNav {
                 .is_some_and(|index| index != self.album.len() - 1)
     }
 }
-
