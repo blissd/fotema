@@ -16,10 +16,10 @@ repos:
       - id: mixed-line-ending
       - id: trailing-whitespace
       - id: pretty-format-json
-      #  exclude: app.fotema.Fotema.Devel.json$
-      #  args:
-      #    - "--autofix"
-      #    - "--indent=4"
+        exclude: app.fotema.Fotema.Devel.json$
+        args:
+          - "--autofix"
+          - "--indent=4"
 
   - repo: https://github.com/fsfe/reuse-tool
     rev: v5.1.1
