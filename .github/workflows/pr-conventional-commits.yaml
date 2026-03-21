@@ -11,8 +11,6 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
-    permissions:
-      issues: write
     steps:
       - name: PR title conventional commit check
         uses:  ytanikin/pr-conventional-commits@1.5.2
