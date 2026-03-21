@@ -2,14 +2,14 @@
 #
 # SPDX-License-Identifier: CC0-1.0
 
-name: REUSE Compliance Check
+name: PR checks
 
 on: [push, pull_request]
 
 jobs:
-  test:
+  check:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v6
-    - name: REUSE Compliance Check
+    - name: REUSE compliance check
       uses: fsfe/reuse-action@v6

@@ -30,3 +30,9 @@ repos:
     rev: v1.0
     hooks:
     - id: fmt
+      name: rustfmt
+
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.7.11
+    hooks:
+      - id: actionlint

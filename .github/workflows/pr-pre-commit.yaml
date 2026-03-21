@@ -1,0 +1,15 @@
+# SPDX-FileCopyrightText: © 2026 David Bliss
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+name: PR pre-commit
+
+on: [push, pull_request]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v6
+    - uses: actions/setup-python@v6
+    - uses: pre-commit/action@v3.0.1
