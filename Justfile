@@ -46,6 +46,7 @@ dist:
 
 # Install Fedora development dependencies
 setup:
+    uv tool install pre-commit
     uv tool install --force reuse
     sudo dnf install -y libavformat-free-devel
     sudo dnf install -y libavfilter-free-devel

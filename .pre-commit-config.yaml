@@ -20,10 +20,12 @@ repos:
         args:
           - "--autofix"
           - "--indent=4"
+
   - repo: https://github.com/fsfe/reuse-tool
     rev: v5.1.1
     hooks:
       - id: reuse
+
   - repo: https://github.com/doublify/pre-commit-rust
     rev: v1.0
     hooks:
