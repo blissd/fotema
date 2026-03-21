@@ -14,7 +14,7 @@ repos:
       - id: check-merge-conflict
       - id: end-of-file-fixer
       - id: mixed-line-ending
-      #- id: trailing-whitespace
+      - id: trailing-whitespace
       #- id: pretty-format-json
       #  exclude: app.fotema.Fotema.Devel.json$
       #  args:
