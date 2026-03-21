@@ -16,10 +16,10 @@ use tracing::{error, info};
 
 use fotema_core::thumbnailify;
 use fotema_core::thumbnailify::ThumbnailSize;
-use fotema_core::video::{Repository, VideoThumbnailer, Video};
+use fotema_core::video::{Repository, Video, VideoThumbnailer};
 
 use crate::app::components::progress_monitor::{
-    ThumbnailType, ProgressMonitor, ProgressMonitorInput, TaskName,
+    ProgressMonitor, ProgressMonitorInput, TaskName, ThumbnailType,
 };
 
 #[derive(Debug)]
@@ -101,8 +101,7 @@ impl VideoThumbnailTask {
             .for_each(|vid| {
                 // Careful! panic::catch_unwind returns Ok(Err) if the evaluated expression returns
                 // an error but doesn't panic.
-                let result =
-                    panic::catch_unwind(|| thumbnailer.thumbnail(&vid.path));
+                let result = panic::catch_unwind(|| thumbnailer.thumbnail(&vid.path));
 
                 // If we got an err, then there was a panic.
                 // If we got Ok(Err(e)) there wasn't a panic, but we still failed.

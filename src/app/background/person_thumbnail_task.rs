@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use anyhow::*;
+use fotema_core::FlatpakPathBuf;
+use fotema_core::people::model::DetectedFace;
 use futures::executor::block_on;
 use rayon::prelude::*;
 use relm4::Reducer;
@@ -12,14 +14,11 @@ use std::result::Result::Ok;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use tracing::{error, info};
-use fotema_core::FlatpakPathBuf;
-use fotema_core::people::model::DetectedFace;
 
 use fotema_core::people::PersonThumbnailer;
 
-
 use crate::app::components::progress_monitor::{
-    ThumbnailType, ProgressMonitor, ProgressMonitorInput, TaskName,
+    ProgressMonitor, ProgressMonitorInput, TaskName, ThumbnailType,
 };
 
 #[derive(Debug)]

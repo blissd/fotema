@@ -4,8 +4,8 @@
 
 use anyhow::Result;
 use relm4::Worker;
-use relm4::prelude::*;
 use relm4::gtk::glib;
+use relm4::prelude::*;
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -32,14 +32,11 @@ pub struct TidyTask {
 
 impl TidyTask {
     fn tidy(&self, sender: &ComponentSender<TidyTask>) -> Result<()> {
-
-        let _= sender.output(TidyTaskOutput::Started);
+        let _ = sender.output(TidyTaskOutput::Started);
 
         // TODO remove me after 2026-01-01
         // Delete legacy thumbnail directory
-        let legacy_dir = glib::user_cache_dir()
-            .join(APP_ID)
-            .join("photo_thumbnails");
+        let legacy_dir = glib::user_cache_dir().join(APP_ID).join("photo_thumbnails");
 
         if legacy_dir.exists() {
             std::fs::remove_dir_all(legacy_dir)?;
@@ -47,9 +44,7 @@ impl TidyTask {
 
         // TODO remove me after 2026-01-01
         // Delete legacy thumbnail directory
-        let legacy_dir = glib::user_cache_dir()
-            .join(APP_ID)
-            .join("video_thumbnails");
+        let legacy_dir = glib::user_cache_dir().join(APP_ID).join("video_thumbnails");
 
         if legacy_dir.exists() {
             std::fs::remove_dir_all(legacy_dir)?;
@@ -57,15 +52,13 @@ impl TidyTask {
 
         // TODO remove me after 2026-01-01
         // Delete legacy video transcode directory
-        let legacy_dir = glib::user_cache_dir()
-            .join(APP_ID)
-            .join("video_transcodes");
+        let legacy_dir = glib::user_cache_dir().join(APP_ID).join("video_transcodes");
 
         if legacy_dir.exists() {
             std::fs::remove_dir_all(legacy_dir)?;
         }
 
-        let _= sender.output(TidyTaskOutput::Completed);
+        let _ = sender.output(TidyTaskOutput::Completed);
 
         Ok(())
     }
@@ -82,7 +75,7 @@ impl Worker for TidyTask {
 
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         if self.stop.load(Ordering::Relaxed) {
-            let _= sender.output(TidyTaskOutput::Completed);
+            let _ = sender.output(TidyTaskOutput::Completed);
             return;
         }
 

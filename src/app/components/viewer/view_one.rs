@@ -3,10 +3,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use chrono::TimeDelta;
+use fotema_core::FlatpakPathBuf;
 use fotema_core::Visual;
 use fotema_core::VisualId;
 use fotema_core::visual::model::PictureOrientation;
-use fotema_core::FlatpakPathBuf;
 
 use glycin;
 use relm4::adw::gdk;
@@ -435,7 +435,8 @@ impl SimpleAsyncComponent for ViewOne {
                         // an orientation to videos.
 
                         let video_path = visual
-                            .video_transcoded_path.clone()
+                            .video_transcoded_path
+                            .clone()
                             .filter(|x| x.exists())
                             .or_else(|| visual.video_path.clone().map(|p| p.sandbox_path))
                             .filter(|x| x.exists())

@@ -2,13 +2,13 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+use fotema_core::photo::Repository as PhotoRepository;
+use fotema_core::video::Repository as VideoRepository;
+use fotema_core::{ScannedFile, Scanner};
+use itertools::{Either, Itertools};
 use relm4::Worker;
 use relm4::prelude::*;
 use tracing::{error, info};
-use fotema_core::{Scanner, ScannedFile};
-use fotema_core::photo::Repository as PhotoRepository;
-use fotema_core::video::Repository as VideoRepository;
-use itertools::{Itertools, Either};
 
 #[derive(Debug)]
 pub enum LibraryScanTaskInput {
@@ -33,7 +33,11 @@ impl Worker for LibraryScanTask {
     type Output = LibraryScanTaskOutput;
 
     fn init((scan, photo_repo, video_repo): Self::Init, _sender: ComponentSender<Self>) -> Self {
-        Self { scan, photo_repo, video_repo }
+        Self {
+            scan,
+            photo_repo,
+            video_repo,
+        }
     }
 
     fn update(&mut self, msg: LibraryScanTaskInput, sender: ComponentSender<Self>) {
@@ -60,14 +64,20 @@ impl LibraryScanTask {
 
         let result = self.scan.scan_all().map_err(|e| e.to_string())?;
 
-        let (photos, videos) = result.into_iter().partition_map(|scanned_file|
-            match scanned_file {
-                f @ ScannedFile::Photo(_) => Either::Left(f),
-                f @ ScannedFile::Video(_) => Either::Right(f),
-            });
+        let (photos, videos) =
+            result
+                .into_iter()
+                .partition_map(|scanned_file| match scanned_file {
+                    f @ ScannedFile::Photo(_) => Either::Left(f),
+                    f @ ScannedFile::Video(_) => Either::Right(f),
+                });
 
-        self.photo_repo.add_all(&photos).map_err(|e| e.to_string())?;
-        self.video_repo.add_all(&videos).map_err(|e| e.to_string())?;
+        self.photo_repo
+            .add_all(&photos)
+            .map_err(|e| e.to_string())?;
+        self.video_repo
+            .add_all(&videos)
+            .map_err(|e| e.to_string())?;
 
         info!(
             "Scanned {} photos and {} videos in {} seconds.",

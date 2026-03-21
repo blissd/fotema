@@ -3,11 +3,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use super::face_thumbnails::{FaceThumbnails, FaceThumbnailsInput};
+use fotema_core::FlatpakPathBuf;
 /// Properties view for a photo.
 ///Inspired by how Loupe displays its property view.
 use fotema_core::VisualId;
 use fotema_core::people;
-use fotema_core::FlatpakPathBuf;
 
 use gtk::prelude::OrientableExt;
 
@@ -463,7 +463,6 @@ const FALLBACK: &str = "–";
 
 impl ViewInfo {
     fn update_file_details(&mut self, vis: Arc<fotema_core::visual::Visual>) -> Result<(), String> {
-
         self.path = Some(vis.path().clone());
 
         Self::update_row(&self.folder, vis.folder_name());
@@ -520,7 +519,10 @@ impl ViewInfo {
 
         let has_image_details = [
             Self::update_row(&self.image_size, Some(image_size)),
-            Self::update_row(&self.image_format, image_details.info_format_name().as_ref()),
+            Self::update_row(
+                &self.image_format,
+                image_details.info_format_name().as_ref(),
+            ),
             Self::update_row(
                 &self.image_file_size,
                 Some(format_size(fs_file_size_bytes, DECIMAL)),

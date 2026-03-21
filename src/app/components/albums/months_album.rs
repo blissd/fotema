@@ -15,13 +15,13 @@ use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
 use relm4::*;
 
 use fotema_core;
-use fotema_core::thumbnailify::{Thumbnailer, ThumbnailSize};
 use fotema_core::Year;
 use fotema_core::YearMonth;
+use fotema_core::thumbnailify::{ThumbnailSize, Thumbnailer};
 
 use std::path;
-use std::sync::Arc;
 use std::rc::Rc;
+use std::sync::Arc;
 
 use tracing::info;
 
@@ -150,13 +150,12 @@ impl RelmGridItem for PhotoGridItem {
             ThumbnailSize::Large
         };
 
-        let thumbnail_path = self.thumbnailer
+        let thumbnail_path = self
+            .thumbnailer
             .nearest_thumbnail(&self.visual.thumbnail_hash(), thumbnail_size);
 
         if thumbnail_path.is_some() {
-            widgets
-                .picture
-                .set_filename(thumbnail_path);
+            widgets.picture.set_filename(thumbnail_path);
             widgets.picture.set_content_fit(gtk::ContentFit::Cover);
         } else {
             let pb = gdk_pixbuf::Pixbuf::from_resource_at_scale(
@@ -256,9 +255,7 @@ impl SimpleComponent for MonthsAlbum {
             }
             MonthsAlbumInput::GoToYear(year) => {
                 event!(Level::INFO, "Showing for year: {}", year);
-                let index_opt = self
-                    .photo_grid
-                    .find(|p| p.visual.year_month().year == year);
+                let index_opt = self.photo_grid.find(|p| p.visual.year_month().year == year);
                 event!(Level::DEBUG, "Found: {:?}", index_opt);
                 if let Some(index) = index_opt {
                     let flags = gtk::ListScrollFlags::SELECT;
@@ -292,7 +289,7 @@ impl MonthsAlbum {
                 .map(|visual| PhotoGridItem {
                     visual: visual.clone(),
                     edge_length: self.edge_length.clone(),
-                    thumbnailer: self.thumbnailer.clone()
+                    thumbnailer: self.thumbnailer.clone(),
                 })
                 .collect::<Vec<PhotoGridItem>>()
         };

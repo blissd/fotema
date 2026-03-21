@@ -33,16 +33,14 @@ pub struct MigrateTask {
 
 impl MigrateTask {
     fn migrate(&mut self, sender: &ComponentSender<MigrateTask>) -> Result<()> {
+        let _ = sender.output(MigrateTaskOutput::Started);
 
-        let _= sender.output(MigrateTaskOutput::Started);
+        let _ = self.migrate.migrate().map_err(|e| {
+            error!("Failed migration: {:?}", e);
+            e
+        });
 
-        let _ = self.migrate.migrate()
-            .map_err(|e| {
-                error!("Failed migration: {:?}", e);
-                e
-            });
-
-        let _= sender.output(MigrateTaskOutput::Completed);
+        let _ = sender.output(MigrateTaskOutput::Completed);
 
         Ok(())
     }
@@ -59,7 +57,7 @@ impl Worker for MigrateTask {
 
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         if self.stop.load(Ordering::Relaxed) {
-            let _= sender.output(MigrateTaskOutput::Completed);
+            let _ = sender.output(MigrateTaskOutput::Completed);
             return;
         }
 

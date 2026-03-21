@@ -27,9 +27,11 @@ use crate::app::components::progress_monitor::{ProgressMonitor, ProgressMonitorI
 use deadpool::managed;
 
 #[derive(Debug)]
-enum PoolError { Fail }
+enum PoolError {
+    Fail,
+}
 
-struct FaceDetectorPoolManager{
+struct FaceDetectorPoolManager {
     /// Base directory for storing photo faces
     faces_base_dir: PathBuf,
     thumbnailer: Thumbnailer,
@@ -43,13 +45,16 @@ impl managed::Manager for FaceDetectorPoolManager {
         FaceExtractor::build(&self.faces_base_dir, self.thumbnailer.clone())
     }
 
-    async fn recycle(&self, _: &mut FaceExtractor, _: &managed::Metrics) -> managed::RecycleResult<Error> {
+    async fn recycle(
+        &self,
+        _: &mut FaceExtractor,
+        _: &managed::Metrics,
+    ) -> managed::RecycleResult<Error> {
         Ok(())
     }
 }
 
 type FaceDetectorPool = managed::Pool<FaceDetectorPoolManager>;
-
 
 #[derive(Debug)]
 pub enum PhotoDetectFacesTaskInput {
@@ -157,8 +162,8 @@ impl PhotoDetectFacesTask {
                     // FIXME unwrap
                     let mut detector = detector_pool.get().await.unwrap();
                     detector.extract_faces(&candidate).await
-                    })
-                    .and_then(|faces| repo.clone().add_face_scans(&candidate.picture_id, &faces));
+                })
+                .and_then(|faces| repo.clone().add_face_scans(&candidate.picture_id, &faces));
 
                 if result.is_err() {
                     error!(

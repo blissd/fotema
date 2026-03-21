@@ -7,8 +7,7 @@ use relm4::gtk;
 use relm4::prelude::*;
 
 use relm4::{
-    Component, ComponentController, Controller,
-    WorkerController,
+    Component, ComponentController, Controller, WorkerController,
     actions::{RelmAction, RelmActionGroup},
     adw,
     component::{AsyncComponent, AsyncComponentController},
@@ -25,20 +24,20 @@ use crate::adaptive;
 use crate::config::{APP_ID, PROFILE};
 use crate::fl;
 
+use fotema_core::FlatpakPathBuf;
 use fotema_core::PictureId;
 use fotema_core::VisualId;
 use fotema_core::database;
 use fotema_core::path_encoding;
 use fotema_core::people;
 use fotema_core::thumbnailify::Thumbnailer;
-use fotema_core::FlatpakPathBuf;
 
 use h3o::CellIndex;
 
 use std::path::PathBuf;
+use std::rc::Rc;
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
-use std::rc::Rc;
 
 use anyhow::*;
 
@@ -70,7 +69,7 @@ use self::components::{
 mod background;
 
 use self::background::bootstrap::{
-    Bootstrap, BootstrapInput, BootstrapOutput, MediaType, ThumbnailType, TaskName,
+    Bootstrap, BootstrapInput, BootstrapOutput, MediaType, TaskName, ThumbnailType,
 };
 
 use self::components::progress_monitor::ProgressMonitor;
@@ -598,7 +597,12 @@ impl SimpleAsyncComponent for App {
         let onboard_view = adw::ToolbarView::new();
 
         let library = Library::builder()
-            .launch((state.clone(), active_view.clone(), adaptive_layout.clone(), thumbnailer.clone()))
+            .launch((
+                state.clone(),
+                active_view.clone(),
+                adaptive_layout.clone(),
+                thumbnailer.clone(),
+            ))
             .forward(sender.input_sender(), |msg| match msg {
                 LibraryOutput::View(id) => AppMsg::View(id, AlbumFilter::All),
             });
@@ -697,7 +701,12 @@ impl SimpleAsyncComponent for App {
         });
 
         let person_album = PersonAlbum::builder()
-            .launch((state.clone(), people_repo.clone(), active_view.clone(), thumbnailer.clone()))
+            .launch((
+                state.clone(),
+                people_repo.clone(),
+                active_view.clone(),
+                thumbnailer.clone(),
+            ))
             .forward(sender.input_sender(), |msg| match msg {
                 PersonAlbumOutput::Selected(id, filter) => AppMsg::View(id, filter),
                 PersonAlbumOutput::Deleted => AppMsg::PersonDeleted,
@@ -764,7 +773,7 @@ impl SimpleAsyncComponent for App {
             .launch((settings_state.clone(), root.clone()))
             .forward(sender.input_sender(), |msg| match msg {
                 PreferencesOutput::EnableFaceDetection => AppMsg::ScanPicturesForFaces,
-                PreferencesOutput::ProcessMotionPhotos=> AppMsg::ProcessMotionPhotos,
+                PreferencesOutput::ProcessMotionPhotos => AppMsg::ProcessMotionPhotos,
             });
 
         let picture_navigation_view = adw::NavigationView::builder().build();
@@ -853,7 +862,9 @@ impl SimpleAsyncComponent for App {
         if is_onboarding_complete {
             model.picture_navigation_view.set_visible(true);
             model.onboard_view.set_visible(false);
-            sender.input(AppMsg::OnboardDone(settings.library_base_dir.sandbox_path.clone()));
+            sender.input(AppMsg::OnboardDone(
+                settings.library_base_dir.sandbox_path.clone(),
+            ));
         } else {
             model.picture_navigation_view.set_visible(false);
             model.onboard_view.set_visible(true);
@@ -1077,11 +1088,13 @@ impl SimpleAsyncComponent for App {
             AppMsg::OnboardDone(library_base_dir) => {
                 let mut settings = self.settings_state.read().clone();
                 settings.is_onboarding_complete = true;
-                settings.library_base_dir = host_path::host_path(&library_base_dir).await
+                settings.library_base_dir = host_path::host_path(&library_base_dir)
+                    .await
                     .unwrap_or(FlatpakPathBuf::build(&library_base_dir, &library_base_dir));
                 *self.settings_state.write() = settings.clone();
 
-                self.bootstrap.emit(BootstrapInput::Configure(settings.library_base_dir.clone()));
+                self.bootstrap
+                    .emit(BootstrapInput::Configure(settings.library_base_dir.clone()));
                 self.picture_navigation_view.set_visible(true);
                 self.onboard_view.set_visible(false);
             }
@@ -1099,10 +1112,11 @@ impl App {
 
         let gio_settings = gio::Settings::new(APP_ID);
 
-        let pic_base_dir: PathBuf =  path_encoding::from_base64(
-                &gio_settings.string("pictures-base-dir-b64").into())?;
+        let pic_base_dir: PathBuf =
+            path_encoding::from_base64(&gio_settings.string("pictures-base-dir-b64").into())?;
 
-        let library_base_dir = host_path::host_path(&pic_base_dir).await
+        let library_base_dir = host_path::host_path(&pic_base_dir)
+            .await
             .unwrap_or(FlatpakPathBuf::build(&pic_base_dir, &pic_base_dir));
 
         Ok(Settings {

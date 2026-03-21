@@ -4,8 +4,8 @@
 
 pub mod bootstrap;
 
-pub mod load_library_task;
 pub mod library_scan_task;
+pub mod load_library_task;
 
 pub mod person_thumbnail_task;
 
@@ -21,5 +21,5 @@ pub mod video_enrich_task;
 pub mod video_thumbnail_task;
 pub mod video_transcode_task;
 
-pub mod tidy_task;
 pub mod migrate_task;
+pub mod tidy_task;

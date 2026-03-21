@@ -9,7 +9,7 @@ use relm4::*;
 
 use std::sync::Arc;
 
-use super::progress_monitor::{MediaType, ThumbnailType, ProgressMonitor, TaskName};
+use super::progress_monitor::{MediaType, ProgressMonitor, TaskName, ThumbnailType};
 use crate::fl;
 
 #[derive(Debug)]

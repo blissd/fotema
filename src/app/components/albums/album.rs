@@ -4,7 +4,7 @@
 
 use fotema_core::VisualId;
 use fotema_core::YearMonth;
-use fotema_core::thumbnailify::{Thumbnailer, ThumbnailSize};
+use fotema_core::thumbnailify::{ThumbnailSize, Thumbnailer};
 
 use gtk::prelude::OrientableExt;
 use relm4::binding::*;
@@ -16,8 +16,8 @@ use relm4::gtk::prelude::*;
 use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
 use relm4::*;
 use std::path::Path;
-use std::sync::Arc;
 use std::rc::Rc;
+use std::sync::Arc;
 
 use super::album_filter::AlbumFilter;
 use super::album_sort::AlbumSort;
@@ -180,13 +180,12 @@ impl RelmGridItem for PhotoGridItem {
             ThumbnailSize::Large
         };
 
-        let thumbnail_path = self.thumbnailer
+        let thumbnail_path = self
+            .thumbnailer
             .nearest_thumbnail(&self.visual.thumbnail_hash(), thumbnail_size);
 
         if thumbnail_path.is_some() {
-            widgets
-                .picture
-                .set_filename(thumbnail_path);
+            widgets.picture.set_filename(thumbnail_path);
 
             widgets.picture.set_content_fit(gtk::ContentFit::Cover);
         } else {
@@ -255,7 +254,13 @@ pub struct Album {
 
 #[relm4::component(pub)]
 impl SimpleComponent for Album {
-    type Init = (SharedState, ActiveView, ViewName, AlbumFilter, Rc<Thumbnailer>);
+    type Init = (
+        SharedState,
+        ActiveView,
+        ViewName,
+        AlbumFilter,
+        Rc<Thumbnailer>,
+    );
     type Input = AlbumInput;
     type Output = AlbumOutput;
 

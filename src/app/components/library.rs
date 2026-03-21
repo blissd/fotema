@@ -6,9 +6,9 @@ use fotema_core::{VisualId, YearMonth};
 
 use relm4::adw;
 use relm4::*;
+use std::rc::Rc;
 use std::str::FromStr;
 use std::sync::Arc;
-use std::rc::Rc;
 use strum::EnumString;
 use strum::IntoStaticStr;
 
@@ -75,7 +75,12 @@ enum LibraryViewName {
 
 #[relm4::component(pub)]
 impl SimpleComponent for Library {
-    type Init = (SharedState, ActiveView, Arc<adaptive::LayoutState>, Rc<Thumbnailer>);
+    type Init = (
+        SharedState,
+        ActiveView,
+        Arc<adaptive::LayoutState>,
+        Rc<Thumbnailer>,
+    );
     type Input = LibraryInput;
     type Output = LibraryOutput;
 

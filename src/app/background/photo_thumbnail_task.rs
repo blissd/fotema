@@ -16,12 +16,12 @@ use tracing::{error, info};
 
 use std::panic;
 
+use fotema_core::photo::thumbnailer::PhotoThumbnailer;
 use fotema_core::thumbnailify;
 use fotema_core::thumbnailify::ThumbnailSize;
-use fotema_core::photo::thumbnailer::PhotoThumbnailer;
 
 use crate::app::components::progress_monitor::{
-    ThumbnailType, ProgressMonitor, ProgressMonitorInput, TaskName,
+    ProgressMonitor, ProgressMonitorInput, TaskName, ThumbnailType,
 };
 
 #[derive(Debug)]

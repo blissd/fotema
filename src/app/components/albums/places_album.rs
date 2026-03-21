@@ -21,8 +21,8 @@ use crate::app::ActiveView;
 use crate::app::SharedState;
 use crate::app::ViewName;
 
+use fotema_core::thumbnailify::{ThumbnailSize, Thumbnailer};
 use fotema_core::{Visual, VisualId};
-use fotema_core::thumbnailify::{Thumbnailer, ThumbnailSize};
 
 use h3o;
 use h3o::CellIndex;
@@ -32,8 +32,8 @@ use shumate::MAP_SOURCE_OSM_MAPNIK;
 use shumate::prelude::*;
 
 use std::collections::HashMap;
-use std::sync::Arc;
 use std::rc::Rc;
+use std::sync::Arc;
 
 const NARROW_EDGE_LENGTH: i32 = 64; // ThumbnailSize::Small
 const WIDE_EDGE_LENGTH: i32 = 128; // ThumbnailSize::Normal
@@ -411,7 +411,8 @@ impl PlacesAlbum {
         count: Option<usize>,
         sender: &ComponentSender<PlacesAlbum>,
     ) -> gtk::AspectFrame {
-        let thumbnail_path = self.thumbnailer
+        let thumbnail_path = self
+            .thumbnailer
             .nearest_thumbnail(&visual.thumbnail_hash(), ThumbnailSize::Normal);
 
         let picture = if let Some(thumbnail_path) = thumbnail_path {
@@ -432,7 +433,7 @@ impl PlacesAlbum {
             picture
         };
 
-       let hclamp = adw::Clamp::builder()
+        let hclamp = adw::Clamp::builder()
             .maximum_size(WIDE_EDGE_LENGTH)
             .child(&picture)
             .orientation(gtk::Orientation::Horizontal)
@@ -467,9 +468,7 @@ impl PlacesAlbum {
 
             label_frame.set_margin_all(4);
 
-            let overlay = gtk::Overlay::builder()
-                .child(&vclamp)
-                .build();
+            let overlay = gtk::Overlay::builder().child(&vclamp).build();
 
             overlay.add_overlay(&label_frame);
 

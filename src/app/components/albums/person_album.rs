@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-
 use gtk::prelude::OrientableExt;
 use relm4::actions::{RelmAction, RelmActionGroup};
 use relm4::adw;
@@ -24,8 +23,8 @@ use crate::app::components::albums::{
 
 use crate::fl;
 
-use fotema_core::VisualId;
 use fotema_core::PictureId;
+use fotema_core::VisualId;
 use fotema_core::people;
 use fotema_core::thumbnailify::Thumbnailer;
 
@@ -228,7 +227,8 @@ impl SimpleComponent for PersonAlbum {
             PersonAlbumInput::View(person) => {
                 info!("Viewing album for person: {}", person.person_id);
 
-                let thumbnail_path = person.large_thumbnail_path
+                let thumbnail_path = person
+                    .large_thumbnail_path
                     .as_ref()
                     .filter(|p| p.exists())
                     .or(person.small_thumbnail_path.as_ref());

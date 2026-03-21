@@ -66,16 +66,12 @@ pub enum PreferencesInput {
 /// Should probably make this consistent or draw a clear line between what updates when.
 #[derive(Debug)]
 pub enum PreferencesOutput {
-
     /// Start face detection right now.
     EnableFaceDetection,
 
     /// Process motion photos right now.
     ProcessMotionPhotos,
 }
-
-
-
 
 #[relm4::component(pub async)]
 impl SimpleAsyncComponent for PreferencesDialog {
@@ -274,13 +270,20 @@ impl SimpleAsyncComponent for PreferencesDialog {
                                         "User has chosen picture library at: {:?}",
                                         library_base_dir
                                     );
-                                    if self.settings.library_base_dir.sandbox_path != library_base_dir {
+                                    if self.settings.library_base_dir.sandbox_path
+                                        != library_base_dir
+                                    {
                                         info!(
                                             "New pictures base director is: {:?}",
                                             library_base_dir
                                         );
-                                        self.settings.library_base_dir = host_path::host_path(&library_base_dir)
-                                            .await.unwrap_or(FlatpakPathBuf::build(&library_base_dir, &library_base_dir));
+                                        self.settings.library_base_dir =
+                                            host_path::host_path(&library_base_dir)
+                                                .await
+                                                .unwrap_or(FlatpakPathBuf::build(
+                                                    &library_base_dir,
+                                                    &library_base_dir,
+                                                ));
                                         *self.settings_state.write() = self.settings.clone();
                                     }
                                 }

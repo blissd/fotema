@@ -2,13 +2,13 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use relm4::*;
+use gtk::prelude::OrientableExt;
 use relm4::actions::{RelmAction, RelmActionGroup};
 use relm4::adw::{self, prelude::*};
 use relm4::gtk::{self, gdk, gio};
 use relm4::prelude::*;
 use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
-use gtk::prelude::OrientableExt;
+use relm4::*;
 
 use crate::fl;
 use fotema_core::FaceId;
@@ -21,7 +21,6 @@ use super::person_select::{PersonSelect, PersonSelectInput, PersonSelectOutput};
 use tracing::{debug, error, info};
 
 use std::path::PathBuf;
-
 
 // Face thumbnails generated at this size in face_extractor.rs
 const AVATAR_SIZE: i32 = 64;
@@ -60,50 +59,48 @@ pub struct FaceGridItemWidgets {
     is_bound: bool,
 }
 
-
 impl RelmGridItem for FaceGridItem {
     type Root = gtk::AspectFrame;
     type Widgets = FaceGridItemWidgets;
 
     fn setup(_item: &gtk::ListItem) -> (Self::Root, Self::Widgets) {
-
         relm4::view! {
-            root = gtk::AspectFrame {
-                    add_css_class: "face-thumbnail-overlay",
-                    gtk::Overlay {
+        root = gtk::AspectFrame {
+                add_css_class: "face-thumbnail-overlay",
+                gtk::Overlay {
 
-                        #[name(face_icon)]
-                        add_overlay = &gtk::Frame {
-                            set_valign: gtk::Align::End,
-                            set_halign: gtk::Align::End,
-                            add_css_class: "face-thumbnail-label-frame",
-
-                            #[wrap(Some)]
-                            set_child = &gtk::Image {
-                                set_width_request: 16,
-                                set_height_request: 16,
-
-                                //#[wrap(Some)]
-                                set_icon_name: Some("reaction-add-symbolic"),
-                            },
-                        },
+                    #[name(face_icon)]
+                    add_overlay = &gtk::Frame {
+                        set_valign: gtk::Align::End,
+                        set_halign: gtk::Align::End,
+                        add_css_class: "face-thumbnail-label-frame",
 
                         #[wrap(Some)]
-                        set_child = &gtk::Frame {
-                            add_css_class: "face-small",
-                            #[name(container)]
-                            gtk::Box {
-                                set_orientation: gtk::Orientation::Vertical,
+                        set_child = &gtk::Image {
+                            set_width_request: 16,
+                            set_height_request: 16,
 
-                                #[name(avatar)]
-                                adw::Avatar {
-                                    set_size: AVATAR_SIZE,
-                                },
-                            }
+                            //#[wrap(Some)]
+                            set_icon_name: Some("reaction-add-symbolic"),
+                        },
+                    },
+
+                    #[wrap(Some)]
+                    set_child = &gtk::Frame {
+                        add_css_class: "face-small",
+                        #[name(container)]
+                        gtk::Box {
+                            set_orientation: gtk::Orientation::Vertical,
+
+                            #[name(avatar)]
+                            adw::Avatar {
+                                set_size: AVATAR_SIZE,
+                            },
                         }
                     }
                 }
             }
+        }
 
         let widgets = FaceGridItemWidgets {
             avatar,
@@ -116,7 +113,6 @@ impl RelmGridItem for FaceGridItem {
     }
 
     fn bind(&mut self, widgets: &mut Self::Widgets, root: &mut Self::Root) {
-
         let mut group = RelmActionGroup::<FaceActionGroup>::new();
 
         let menu_model = gio::Menu::new();
@@ -139,10 +135,7 @@ impl RelmGridItem for FaceGridItem {
                 let person_id = person.person_id;
                 let face_id = self.face.face_id;
                 RelmAction::new_stateless(move |_| {
-                    sender.input(FaceThumbnailsInput::SetThumbnail(
-                        person_id,
-                        face_id,
-                    ));
+                    sender.input(FaceThumbnailsInput::SetThumbnail(person_id, face_id));
                 })
             };
             group.add_action(set_thumbnail);
@@ -154,10 +147,7 @@ impl RelmGridItem for FaceGridItem {
                     Some("face.thumbnail"),
                 ),
                 gio::MenuItem::new(
-                    Some(&fl!(
-                        "people-not-this-person",
-                        name = person.name.clone()
-                    )),
+                    Some(&fl!("people-not-this-person", name = person.name.clone())),
                     Some("face.not_person"),
                 ),
             ];
@@ -187,14 +177,8 @@ impl RelmGridItem for FaceGridItem {
             group.add_action(not_a_face);
 
             let menu_items = vec![
-                gio::MenuItem::new(
-                    Some(&fl!("people-set-name")),
-                    Some("face.set_person"),
-                ),
-                gio::MenuItem::new(
-                    Some(&fl!("people-face-ignore")),
-                    Some("face.ignore"),
-                ),
+                gio::MenuItem::new(Some(&fl!("people-set-name")), Some("face.set_person")),
+                gio::MenuItem::new(Some(&fl!("people-face-ignore")), Some("face.ignore")),
             ];
 
             (menu_items, Some(self.face.thumbnail_path.clone()))
@@ -221,9 +205,11 @@ impl RelmGridItem for FaceGridItem {
 
         widgets.avatar.add_controller(click);
 
-        let thumbnail_path = self.person.as_ref()
+        let thumbnail_path = self
+            .person
+            .as_ref()
             .and_then(|p| p.small_thumbnail_path.as_ref())
-            .unwrap_or_else( || &self.face.thumbnail_path);
+            .unwrap_or_else(|| &self.face.thumbnail_path);
 
         let img = gdk::Texture::from_filename(thumbnail_path).ok();
         widgets.avatar.set_custom_image(img.as_ref());
@@ -295,8 +281,7 @@ impl SimpleAsyncComponent for FaceThumbnails {
         root: Self::Root,
         sender: AsyncComponentSender<Self>,
     ) -> AsyncComponentParts<Self> {
-
-        let face_grid: TypedGridView<FaceGridItem, gtk::SingleSelection>  = TypedGridView::new();
+        let face_grid: TypedGridView<FaceGridItem, gtk::SingleSelection> = TypedGridView::new();
         let grid_view = &face_grid.view.clone();
 
         let widgets = view_output!();

@@ -4,7 +4,7 @@
 
 use gtk::prelude::OrientableExt;
 
-use fotema_core::thumbnailify::{Thumbnailer, ThumbnailSize};
+use fotema_core::thumbnailify::{ThumbnailSize, Thumbnailer};
 
 use itertools::Itertools;
 
@@ -17,8 +17,8 @@ use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
 use relm4::*;
 
 use std::path;
-use std::sync::Arc;
 use std::rc::Rc;
+use std::sync::Arc;
 
 use crate::adaptive;
 use crate::app::ActiveView;
@@ -132,13 +132,12 @@ impl RelmGridItem for PhotoGridItem {
             ThumbnailSize::Large
         };
 
-        let thumbnail_path = self.thumbnailer
+        let thumbnail_path = self
+            .thumbnailer
             .nearest_thumbnail(&self.visual.thumbnail_hash(), thumbnail_size);
 
         if thumbnail_path.is_some() {
-            widgets
-                .picture
-                .set_filename(thumbnail_path);
+            widgets.picture.set_filename(thumbnail_path);
             widgets.picture.set_content_fit(gtk::ContentFit::Cover);
         } else {
             let pb = gdk_pixbuf::Pixbuf::from_resource_at_scale(

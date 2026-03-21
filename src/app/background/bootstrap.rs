@@ -7,16 +7,16 @@ use relm4::{
 
 use crate::app::Settings;
 use crate::config::APP_ID;
+use fotema_core::FlatpakPathBuf;
 use fotema_core::PictureId;
+use fotema_core::Scanner;
 use fotema_core::database;
 use fotema_core::people;
+use fotema_core::people::migrate::Migrate;
 use fotema_core::photo;
 use fotema_core::thumbnailify::Thumbnailer;
 use fotema_core::video;
 use fotema_core::visual;
-use fotema_core::Scanner;
-use fotema_core::FlatpakPathBuf;
-use fotema_core::people::migrate::Migrate;
 
 use std::result::Result::Ok;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -30,9 +30,12 @@ use tracing::{error, info, warn};
 use anyhow;
 
 use super::{
-    load_library_task::{LoadLibraryTask, LoadLibraryTaskInput, LoadLibraryTaskOutput},
     library_scan_task::{LibraryScanTask, LibraryScanTaskInput, LibraryScanTaskOutput},
-    person_thumbnail_task::{PersonThumbnailTask, PersonThumbnailTaskInput, PersonThumbnailTaskOutput},
+    load_library_task::{LoadLibraryTask, LoadLibraryTaskInput, LoadLibraryTaskOutput},
+    migrate_task::{MigrateTask, MigrateTaskInput, MigrateTaskOutput},
+    person_thumbnail_task::{
+        PersonThumbnailTask, PersonThumbnailTaskInput, PersonThumbnailTaskOutput,
+    },
     photo_clean_task::{PhotoCleanTask, PhotoCleanTaskInput, PhotoCleanTaskOutput},
     photo_detect_faces_task::{
         PhotoDetectFacesTask, PhotoDetectFacesTaskInput, PhotoDetectFacesTaskOutput,
@@ -45,13 +48,11 @@ use super::{
         PhotoRecognizeFacesTask, PhotoRecognizeFacesTaskInput, PhotoRecognizeFacesTaskOutput,
     },
     photo_thumbnail_task::{PhotoThumbnailTask, PhotoThumbnailTaskInput, PhotoThumbnailTaskOutput},
+    tidy_task::{TidyTask, TidyTaskInput, TidyTaskOutput},
     video_clean_task::{VideoCleanTask, VideoCleanTaskInput, VideoCleanTaskOutput},
     video_enrich_task::{VideoEnrichTask, VideoEnrichTaskInput, VideoEnrichTaskOutput},
     video_thumbnail_task::{VideoThumbnailTask, VideoThumbnailTaskInput, VideoThumbnailTaskOutput},
     video_transcode_task::{VideoTranscodeTask, VideoTranscodeTaskInput, VideoTranscodeTaskOutput},
-
-    tidy_task::{TidyTask, TidyTaskInput, TidyTaskOutput},
-    migrate_task::{MigrateTask, MigrateTaskInput, MigrateTaskOutput},
 };
 
 use crate::app::FaceDetectionMode;
@@ -378,7 +379,9 @@ impl Controllers {
 
     fn add_task_video_transcode(&mut self) {
         let sender = self.video_transcode_task.sender().clone();
-        self.enqueue(Box::new(move || sender.emit(VideoTranscodeTaskInput::Start)));
+        self.enqueue(Box::new(move || {
+            sender.emit(VideoTranscodeTaskInput::Start)
+        }));
     }
 
     fn add_task_load_library(&mut self, bootstrap_sender: Sender<BootstrapInput>) {
@@ -463,38 +466,23 @@ impl Bootstrap {
 
         let thumbnailer = Thumbnailer::build(&thumbnail_dir);
 
-        let photo_repo = photo::Repository::open(
-            library_base_dir,
-            &cache_dir,
-            &data_dir,
-            self.con.clone(),
-        )?;
+        let photo_repo =
+            photo::Repository::open(library_base_dir, &cache_dir, &data_dir, self.con.clone())?;
 
         let photo_thumbnailer = photo::PhotoThumbnailer::build(thumbnailer.clone())?;
 
         let scanner = Scanner::build(&library_base_dir.sandbox_path)?;
 
-        let video_repo = video::Repository::open(
-            library_base_dir,
-            &cache_dir,
-            &data_dir,
-            self.con.clone(),
-        )?;
+        let video_repo =
+            video::Repository::open(library_base_dir, &cache_dir, &data_dir, self.con.clone())?;
 
         let video_thumbnailer = video::VideoThumbnailer::build(thumbnailer.clone())?;
 
         let motion_photo_extractor = photo::MotionPhotoExtractor::build(&cache_dir)?;
 
-        let visual_repo = visual::Repository::open(
-            library_base_dir,
-            &cache_dir,
-            self.con.clone(),
-        )?;
+        let visual_repo = visual::Repository::open(library_base_dir, &cache_dir, self.con.clone())?;
 
-        let people_repo = people::Repository::open(
-            &cache_dir,
-            &data_dir,
-            self.con.clone())?;
+        let people_repo = people::Repository::open(&cache_dir, &data_dir, self.con.clone())?;
 
         let stop = Arc::new(AtomicBool::new(false));
 
@@ -509,9 +497,7 @@ impl Bootstrap {
         let library_scan_task = LibraryScanTask::builder()
             .detach_worker((scanner, photo_repo.clone(), video_repo.clone()))
             .forward(sender.input_sender(), |msg| match msg {
-                LibraryScanTaskOutput::Started => {
-                    BootstrapInput::TaskStarted(TaskName::Scan)
-                }
+                LibraryScanTaskOutput::Started => BootstrapInput::TaskStarted(TaskName::Scan),
                 LibraryScanTaskOutput::Completed => {
                     BootstrapInput::TaskCompleted(TaskName::Scan, None)
                 }
@@ -606,7 +592,9 @@ impl Bootstrap {
                 self.progress_monitor.clone(),
             ))
             .forward(sender.input_sender(), |msg| match msg {
-                VideoTranscodeTaskOutput::Started => BootstrapInput::TaskStarted(TaskName::Transcode),
+                VideoTranscodeTaskOutput::Started => {
+                    BootstrapInput::TaskStarted(TaskName::Transcode)
+                }
                 VideoTranscodeTaskOutput::Completed => {
                     BootstrapInput::TaskCompleted(TaskName::Transcode, None)
                 }
@@ -668,25 +656,22 @@ impl Bootstrap {
                 }
             });
 
-        let tidy_task = TidyTask::builder()
-            .detach_worker(stop.clone())
-            .forward(sender.input_sender(), |msg| match msg {
-                TidyTaskOutput::Started => {
-                    BootstrapInput::TaskStarted(TaskName::Tidy)
-                }
-                TidyTaskOutput::Completed => {
-                    BootstrapInput::TaskCompleted(TaskName::Tidy, None)
-                }
-            });
+        let tidy_task =
+            TidyTask::builder()
+                .detach_worker(stop.clone())
+                .forward(sender.input_sender(), |msg| match msg {
+                    TidyTaskOutput::Started => BootstrapInput::TaskStarted(TaskName::Tidy),
+                    TidyTaskOutput::Completed => {
+                        BootstrapInput::TaskCompleted(TaskName::Tidy, None)
+                    }
+                });
 
         let migrate = Migrate::build(people_repo, &data_dir, library_base_dir.clone());
 
         let migrate_task = MigrateTask::builder()
             .detach_worker((stop.clone(), migrate))
             .forward(sender.input_sender(), |msg| match msg {
-                MigrateTaskOutput::Started => {
-                    BootstrapInput::TaskStarted(TaskName::Migrate)
-                }
+                MigrateTaskOutput::Started => BootstrapInput::TaskStarted(TaskName::Migrate),
                 MigrateTaskOutput::Completed => {
                     BootstrapInput::TaskCompleted(TaskName::Migrate, None)
                 }
@@ -695,14 +680,20 @@ impl Bootstrap {
         let person_thumbnailer = people::PersonThumbnailer::build(thumbnailer.clone(), &cache_dir);
 
         let person_thumbnail_task = PersonThumbnailTask::builder()
-            .detach_worker((stop.clone(), person_thumbnailer, photo_repo.clone(), self.progress_monitor.clone()))
+            .detach_worker((
+                stop.clone(),
+                person_thumbnailer,
+                photo_repo.clone(),
+                self.progress_monitor.clone(),
+            ))
             .forward(sender.input_sender(), |msg| match msg {
                 PersonThumbnailTaskOutput::Started => {
                     BootstrapInput::TaskStarted(TaskName::Thumbnail(ThumbnailType::Face))
                 }
-                PersonThumbnailTaskOutput::Completed(count) => {
-                    BootstrapInput::TaskCompleted(TaskName::Thumbnail(ThumbnailType::Face), Some(count))
-                }
+                PersonThumbnailTaskOutput::Completed(count) => BootstrapInput::TaskCompleted(
+                    TaskName::Thumbnail(ThumbnailType::Face),
+                    Some(count),
+                ),
             });
 
         let mut controllers = Controllers {
@@ -802,10 +793,7 @@ impl Worker for Bootstrap {
                     library_base_dir
                 );
 
-                match self.build_controllers(
-                    &library_base_dir,
-                    &sender,
-                ) {
+                match self.build_controllers(&library_base_dir, &sender) {
                     Ok(controllers) => {
                         self.library_base_dir = Some(library_base_dir);
                         self.controllers = Some(controllers);
@@ -835,9 +823,7 @@ impl Worker for Bootstrap {
                         sender.input(BootstrapInput::Stop);
                     } else {
                         self.controllers = None;
-                        sender.input(BootstrapInput::Configure(
-                            settings.library_base_dir.clone(),
-                        ));
+                        sender.input(BootstrapInput::Configure(settings.library_base_dir.clone()));
                     }
                 }
             }
@@ -847,9 +833,7 @@ impl Worker for Bootstrap {
                 // Now that tasks are shutdown, it is safe to reconfigure with
                 // the new directory.
                 let settings = self.settings_state.read();
-                sender.input(BootstrapInput::Configure(
-                    settings.library_base_dir.clone(),
-                ));
+                sender.input(BootstrapInput::Configure(settings.library_base_dir.clone()));
             }
             BootstrapInput::TaskCompleted(TaskName::LoadLibrary, _)
                 if self.controllers.is_some() =>
