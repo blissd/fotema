@@ -139,11 +139,14 @@ impl Worker for LazyThumbnailTask {
                     .entry(visual_id.clone())
                     .and_modify(|counter| *counter -= 1);
                 if let Some(0) = pending.get(&visual_id) {
-                    info!("Removed entry");
+                    info!("Cancelled entry");
                     pending.remove(&visual_id);
                 }
             }
-            LazyThumbnailTaskInput::Stop => {}
+            LazyThumbnailTaskInput::Stop => {
+                let mut pending = self.pending.write().unwrap();
+                pending.clear();
+            }
         };
     }
 }
