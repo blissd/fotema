@@ -28,6 +28,7 @@ use fotema_core::video::VideoThumbnailer;
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender, channel};
 use std::thread;
+use tracing::info;
 
 #[derive(Debug)]
 pub enum LazyThumbnailTaskInput {
@@ -69,23 +70,28 @@ pub struct LazyThumbnailTask {
 
 impl LazyThumbnailTask {
     pub fn run(&self) {
-        let maybe_visual_id: Option<VisualId> = {
-            let mut pending = self.pending.read().unwrap();
-            pending.keys().nth(0).cloned()
-        };
-        // get visual
-        // generate thumbnail
-        // remove from self.pending
+        loop {
+            let maybe_visual_id: Option<VisualId> = {
+                let pending = self.pending.read().unwrap();
+                pending.keys().nth(0).cloned()
+            };
 
-        if let Some(visual_id) = maybe_visual_id {
-            // remove from self.pending
-            {
-                let mut pending = self.pending.write().unwrap();
-                pending.remove(&visual_id);
+            if let Some(visual_id) = maybe_visual_id {
+                // TODO get visual
+
+                // TODO generate thumbnail
+
+                // remove from self.pending
+                {
+                    let mut pending = self.pending.write().unwrap();
+                    pending.remove(&visual_id);
+                }
+                // emit completed event
+                self.lazy_thumbnail_monitor
+                    .emit(LazyThumbnailMonitorInput::Completed(visual_id));
+            } else {
+                return;
             }
-            // emit completed event
-            self.lazy_thumbnail_monitor
-                .emit(LazyThumbnailMonitorInput::Completed(visual_id));
         }
     }
 }
@@ -127,7 +133,16 @@ impl Worker for LazyThumbnailTask {
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
             LazyThumbnailTaskInput::Generate(visual_id) => {}
-            LazyThumbnailTaskInput::Cancel(visual_id) => {}
+            LazyThumbnailTaskInput::Cancel(visual_id) => {
+                let mut pending = self.pending.write().unwrap();
+                pending
+                    .entry(visual_id.clone())
+                    .and_modify(|counter| *counter -= 1);
+                if let Some(0) = pending.get(&visual_id) {
+                    info!("Removed entry");
+                    pending.remove(&visual_id);
+                }
+            }
             LazyThumbnailTaskInput::Stop => {}
         };
     }
