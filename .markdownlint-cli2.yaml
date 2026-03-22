@@ -1,0 +1,14 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/DavidAnson/markdownlint-cli2/refs/heads/main/schema/markdownlint-cli2-config-schema.json
+#
+# SPDX-FileCopyrightText: © 2026 David Bliss
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# See https://github.com/DavidAnson/markdownlint-cli2/blob/main/test/markdownlint-cli2-yaml-example/.markdownlint-cli2.yaml
+
+config:
+  # Modern editors can wrap lines
+  line-length: false
+
+  # Some badges require inline HTML :-(
+  no-inline-html: false
