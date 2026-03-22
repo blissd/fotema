@@ -41,7 +41,7 @@ use std::sync::{Arc, Mutex};
 
 use anyhow::*;
 
-use strum::{AsRefStr, EnumString, FromRepr, IntoStaticStr};
+use strum::{AsRefStr, FromRepr};
 
 use tracing::{error, info, warn};
 
@@ -76,7 +76,7 @@ use self::components::progress_monitor::ProgressMonitor;
 use self::components::progress_panel::ProgressPanel;
 
 /// Name of a view that can be displayed
-#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, EnumString, IntoStaticStr)]
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, AsRefStr)]
 pub enum ViewName {
     #[default]
     Nothing, // no view
@@ -94,7 +94,32 @@ pub enum ViewName {
     Selfies,
 }
 
-#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, EnumString, AsRefStr, FromRepr)]
+// FIXME Strum 0.28 changes to EnumString have defeated me :-(
+// Please figure out how to go back to using EnumString!
+impl FromStr for ViewName {
+    type Err = strum::ParseError;
+
+    fn from_str(s: &str) -> ::core::result::Result<ViewName, Self::Err> {
+        match s {
+            "Nothing" => ::core::result::Result::Ok(ViewName::Nothing),
+            "Library" => ::core::result::Result::Ok(ViewName::Library),
+            "All" => ::core::result::Result::Ok(ViewName::All),
+            "Month" => ::core::result::Result::Ok(ViewName::Month),
+            "Year" => ::core::result::Result::Ok(ViewName::Year),
+            "Videos" => ::core::result::Result::Ok(ViewName::Videos),
+            "Animated" => ::core::result::Result::Ok(ViewName::Animated),
+            "Folders" => ::core::result::Result::Ok(ViewName::Folders),
+            "Folder" => ::core::result::Result::Ok(ViewName::Folder),
+            "People" => ::core::result::Result::Ok(ViewName::People),
+            "Person" => ::core::result::Result::Ok(ViewName::Person),
+            "Places" => ::core::result::Result::Ok(ViewName::Places),
+            "Selfies" => ::core::result::Result::Ok(ViewName::Selfies),
+            _ => ::core::result::Result::Err(::strum::ParseError::VariantNotFound),
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, AsRefStr, FromRepr)]
 #[repr(u32)]
 pub enum FaceDetectionMode {
     /// Disable face detection and person recognition.
@@ -103,6 +128,20 @@ pub enum FaceDetectionMode {
 
     // Enable
     On,
+}
+
+// FIXME Strum 0.28 changes to EnumString have defeated me :-(
+// Please figure out how to go back to using EnumString!
+impl FromStr for FaceDetectionMode {
+    type Err = strum::ParseError;
+
+    fn from_str(s: &str) -> ::core::result::Result<FaceDetectionMode, Self::Err> {
+        match s {
+            "Off" => ::core::result::Result::Ok(FaceDetectionMode::Off),
+            "On" => ::core::result::Result::Ok(FaceDetectionMode::On),
+            _ => ::core::result::Result::Err(::strum::ParseError::VariantNotFound),
+        }
+    }
 }
 
 /// Settings the user can change in the preferences dialog.
@@ -403,7 +442,7 @@ impl SimpleAsyncComponent for App {
                                             },
                                         } -> {
                                             set_title: &fl!("library-page"),
-                                            set_name: ViewName::Library.into(),
+                                            set_name: ViewName::Library.as_ref(),
 
                                             // NOTE gtk::StackSidebar doesn't show icon :-/
                                             set_icon_name: "image-alt-symbolic",
@@ -414,7 +453,7 @@ impl SimpleAsyncComponent for App {
                                             container_add: model.videos_page.widget(),
                                         } -> {
                                             set_title: &fl!("videos-album"),
-                                            set_name: ViewName::Videos.into(),
+                                            set_name: ViewName::Videos.as_ref(),
                                             // NOTE gtk::StackSidebar doesn't show icon :-/
                                             set_icon_name: "video-reel-symbolic",
                                         },
@@ -424,7 +463,7 @@ impl SimpleAsyncComponent for App {
                                             container_add: model.motion_page.widget(),
                                         } -> {
                                             set_title: &fl!("animated-album"),
-                                            set_name: ViewName::Animated.into(),
+                                            set_name: ViewName::Animated.as_ref(),
                                             // NOTE gtk::StackSidebar doesn't show icon :-/
                                             set_icon_name: "sonar-symbolic",
                                         },
@@ -434,7 +473,7 @@ impl SimpleAsyncComponent for App {
                                             container_add: model.people_page.widget(),
                                         } -> {
                                             set_title: &fl!("people-page"),
-                                            set_name: ViewName::People.into(),
+                                            set_name: ViewName::People.as_ref(),
                                         },
 
                                         add_child = &gtk::Box {
@@ -442,7 +481,7 @@ impl SimpleAsyncComponent for App {
                                             container_add: model.places_page.widget(),
                                         } -> {
                                             set_title: &fl!("places-page"),
-                                            set_name: ViewName::Places.into(),
+                                            set_name: ViewName::Places.as_ref(),
                                         },
 
                                         add_child = &gtk::Box {
@@ -451,7 +490,7 @@ impl SimpleAsyncComponent for App {
                                         } -> {
                                             set_visible: model.show_selfies,
                                             set_title: &fl!("selfies-album"),
-                                            set_name: ViewName::Selfies.into(),
+                                            set_name: ViewName::Selfies.as_ref(),
                                             // NOTE gtk::StackSidebar doesn't show icon :-/
                                             set_icon_name: "sentiment-very-satisfied-symbolic",
                                         },
@@ -466,7 +505,7 @@ impl SimpleAsyncComponent for App {
                                             },
                                         } -> {
                                             set_title: &fl!("folders-album"),
-                                            set_name: ViewName::Folders.into(),
+                                            set_name: ViewName::Folders.as_ref(),
                                             // NOTE gtk::StackSidebar doesn't show icon :-/
                                             set_icon_name: "folder-symbolic",
                                         },

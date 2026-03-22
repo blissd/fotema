@@ -9,8 +9,8 @@ use relm4::*;
 use std::rc::Rc;
 use std::str::FromStr;
 use std::sync::Arc;
+use strum::AsRefStr;
 use strum::EnumString;
-use strum::IntoStaticStr;
 
 use crate::app::ActiveView;
 use crate::app::SharedState;
@@ -65,7 +65,7 @@ pub struct Library {
     years_album: Controller<YearsAlbum>,
 }
 
-#[derive(Debug, Eq, PartialEq, EnumString, IntoStaticStr)]
+#[derive(Debug, Eq, PartialEq, EnumString, AsRefStr)]
 enum LibraryViewName {
     Nothing, // no active child when first created
     All,
@@ -86,9 +86,9 @@ impl SimpleComponent for Library {
 
     view! {
         adw::ViewStack {
-            add_titled_with_icon[Some(LibraryViewName::All.into()), &fl!("all-album"), "today-symbolic"] = all_album.widget(),
-            add_titled_with_icon[Some(LibraryViewName::Month.into()), &fl!("months-album"), "month-symbolic"] = months_album.widget(),
-            add_titled_with_icon[Some(LibraryViewName::Year.into()), &fl!("years-album"), "year-symbolic"] = years_album.widget(),
+            add_titled_with_icon[Some(LibraryViewName::All.as_ref()), &fl!("all-album"), "today-symbolic"] = all_album.widget(),
+            add_titled_with_icon[Some(LibraryViewName::Month.as_ref()), &fl!("months-album"), "month-symbolic"] = months_album.widget(),
+            add_titled_with_icon[Some(LibraryViewName::Year.as_ref()), &fl!("years-album"), "year-symbolic"] = years_album.widget(),
             connect_visible_child_notify => LibraryInput::Activate,
         },
     }
@@ -170,14 +170,14 @@ impl SimpleComponent for Library {
             LibraryInput::GoToMonth(ym) => {
                 // Display all photos view.
                 self.stack
-                    .set_visible_child_name(LibraryViewName::All.into());
+                    .set_visible_child_name(LibraryViewName::All.as_ref());
                 self.all_album.emit(AlbumInput::Activate);
                 self.all_album.emit(AlbumInput::GoToMonth(ym));
             }
             LibraryInput::GoToYear(year) => {
                 // Display month photos view.
                 self.stack
-                    .set_visible_child_name(LibraryViewName::Month.into());
+                    .set_visible_child_name(LibraryViewName::Month.as_ref());
                 self.months_album.emit(MonthsAlbumInput::Activate);
                 self.months_album.emit(MonthsAlbumInput::GoToYear(year));
             }
