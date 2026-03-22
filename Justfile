@@ -48,6 +48,9 @@ dist:
 setup:
     uv tool install pre-commit
     uv tool install --force reuse
+
+# Install dependencies
+install-deps:
     sudo dnf install -y libavformat-free-devel
     sudo dnf install -y libavfilter-free-devel
     sudo dnf install -y libavdevice-free-devel
@@ -57,4 +60,5 @@ setup:
     sudo dnf install -y libshumate-devel
     sudo dnf install -y openssl-devel
     sudo dnf install -y opencv-core
+    sudo dnf install -y opencv-devel
     sudo dnf install -y vcpkg
