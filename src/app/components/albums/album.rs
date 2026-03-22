@@ -405,7 +405,7 @@ impl Album {
 
         info!("{} items added to album", self.photo_grid.len());
 
-        // NOTE person album will in effect overide scrolling to the end
+        // NOTE person album will in effect override scrolling to the end
         // by sending a ScrollToTop command.
         self.sort.scroll_to_end(&mut self.photo_grid);
     }

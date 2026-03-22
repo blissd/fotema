@@ -28,8 +28,10 @@ impl Reducible for LazyThumbnailMonitor {
 
     fn reduce(&mut self, input: Self::Input) -> bool {
         match input {
-            LazyThumbnailMonitorInput::Completed(visual_id) => self.completed = Some(visual_id),
+            LazyThumbnailMonitorInput::Completed(visual_id) => {
+                self.completed = Some(visual_id);
+                return true; // subscribers only notified if 'true' is returned
+            }
         }
-        true // subscribers only notified if 'true' is returned
     }
 }
