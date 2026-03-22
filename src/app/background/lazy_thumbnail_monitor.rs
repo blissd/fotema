@@ -6,7 +6,7 @@ use fotema_core::VisualId;
 use relm4::{Reducer, Reducible};
 use std::sync::Arc;
 
-pub type LazyThumbnailState = Arc<Reducer<LazyThumbnailMonitor>>;
+pub type LazyThumbnailMonitor = Arc<Reducer<LazyThumbnailReducible>>;
 
 #[derive(Debug)]
 pub enum LazyThumbnailMonitorInput {
@@ -14,12 +14,12 @@ pub enum LazyThumbnailMonitorInput {
 }
 
 /// Exposes completed lazy thumbnail loads to subscribers.
-pub struct LazyThumbnailMonitor {
+pub struct LazyThumbnailReducible {
     // A thumbnail has been generated for photo or video.
     pub completed: Option<VisualId>,
 }
 
-impl Reducible for LazyThumbnailMonitor {
+impl Reducible for LazyThumbnailReducible {
     type Input = LazyThumbnailMonitorInput;
 
     fn init() -> Self {

@@ -18,7 +18,7 @@ use std::panic;
 
 use crate::app::SharedState;
 use crate::app::background::lazy_thumbnail_monitor::{
-    LazyThumbnailMonitorInput, LazyThumbnailState,
+    LazyThumbnailMonitor, LazyThumbnailMonitorInput,
 };
 use fotema_core::VisualId;
 use fotema_core::photo::PhotoThumbnailer;
@@ -64,7 +64,7 @@ pub struct LazyThumbnailTask {
     // Map value is count of thumbnail requests.
     pending: Arc<RwLock<HashMap<VisualId, u32>>>,
 
-    lazy_thumbnail_state: LazyThumbnailState,
+    lazy_thumbnail_monitor: LazyThumbnailMonitor,
 }
 
 impl LazyThumbnailTask {
@@ -84,7 +84,7 @@ impl LazyThumbnailTask {
                 pending.remove(&visual_id);
             }
             // emit completed event
-            self.lazy_thumbnail_state
+            self.lazy_thumbnail_monitor
                 .emit(LazyThumbnailMonitorInput::Completed(visual_id));
         }
     }
@@ -96,13 +96,19 @@ impl Worker for LazyThumbnailTask {
         PhotoThumbnailer,
         VideoThumbnailer,
         SharedState,
-        LazyThumbnailState,
+        LazyThumbnailMonitor,
     );
     type Input = LazyThumbnailTaskInput;
     type Output = LazyThumbnailTaskOutput;
 
     fn init(
-        (thumbnails_path, photo_thumbnailer, video_thumbnailer, shared_state, lazy_thumbnail_state): Self::Init,
+        (
+            thumbnails_path,
+            photo_thumbnailer,
+            video_thumbnailer,
+            shared_state,
+            lazy_thumbnail_monitor,
+        ): Self::Init,
         _sender: ComponentSender<Self>,
     ) -> Self {
         let (send, recv): (Sender<VisualId>, Receiver<VisualId>) = mpsc::channel();
@@ -114,7 +120,7 @@ impl Worker for LazyThumbnailTask {
             recv,
             shared_state,
             pending: Arc::new(RwLock::new(HashMap::new())),
-            lazy_thumbnail_state,
+            lazy_thumbnail_monitor,
         }
     }
 
