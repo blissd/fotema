@@ -8,14 +8,18 @@ use rayon::prelude::*;
 use relm4::Worker;
 use relm4::prelude::*;
 use relm4::{Reducer, Reducible};
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::result::Result::Ok;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, RwLock};
 
 use std::panic;
 
 use crate::app::SharedState;
+use crate::app::background::lazy_thumbnail_monitor::{
+    LazyThumbnailMonitorInput, LazyThumbnailState,
+};
 use fotema_core::VisualId;
 use fotema_core::photo::PhotoThumbnailer;
 use fotema_core::thumbnailify;
@@ -55,17 +59,50 @@ pub struct LazyThumbnailTask {
 
     // Loaded visuals
     shared_state: SharedState,
+
+    // Visuals pending thumbnail generation
+    // Map value is count of thumbnail requests.
+    pending: Arc<RwLock<HashMap<VisualId, u32>>>,
+
+    lazy_thumbnail_state: LazyThumbnailState,
 }
 
-impl LazyThumbnailTask {}
+impl LazyThumbnailTask {
+    pub fn run(&self) {
+        let maybe_visual_id: Option<VisualId> = {
+            let mut pending = self.pending.read().unwrap();
+            pending.keys().nth(0).cloned()
+        };
+        // get visual
+        // generate thumbnail
+        // remove from self.pending
+
+        if let Some(visual_id) = maybe_visual_id {
+            // remove from self.pending
+            {
+                let mut pending = self.pending.write().unwrap();
+                pending.remove(&visual_id);
+            }
+            // emit completed event
+            self.lazy_thumbnail_state
+                .emit(LazyThumbnailMonitorInput::Completed(visual_id));
+        }
+    }
+}
 
 impl Worker for LazyThumbnailTask {
-    type Init = (PathBuf, PhotoThumbnailer, VideoThumbnailer, SharedState);
+    type Init = (
+        PathBuf,
+        PhotoThumbnailer,
+        VideoThumbnailer,
+        SharedState,
+        LazyThumbnailState,
+    );
     type Input = LazyThumbnailTaskInput;
     type Output = LazyThumbnailTaskOutput;
 
     fn init(
-        (thumbnails_path, photo_thumbnailer, video_thumbnailer, shared_state): Self::Init,
+        (thumbnails_path, photo_thumbnailer, video_thumbnailer, shared_state, lazy_thumbnail_state): Self::Init,
         _sender: ComponentSender<Self>,
     ) -> Self {
         let (send, recv): (Sender<VisualId>, Receiver<VisualId>) = mpsc::channel();
@@ -76,6 +113,8 @@ impl Worker for LazyThumbnailTask {
             send,
             recv,
             shared_state,
+            pending: Arc::new(RwLock::new(HashMap::new())),
+            lazy_thumbnail_state,
         }
     }
 

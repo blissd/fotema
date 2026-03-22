@@ -6,7 +6,7 @@ use fotema_core::VisualId;
 use relm4::{Reducer, Reducible};
 use std::sync::Arc;
 
-type LazyThumbnailState = Arc<Reducer<LazyThumbnailMonitor>>;
+pub type LazyThumbnailState = Arc<Reducer<LazyThumbnailMonitor>>;
 
 #[derive(Debug)]
 pub enum LazyThumbnailMonitorInput {

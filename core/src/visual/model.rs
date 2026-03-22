@@ -17,7 +17,7 @@ use h3o::LatLng;
 pub use crate::photo::model::Orientation as PictureOrientation;
 
 /// Database ID of a visual item
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct VisualId(String);
 
 impl VisualId {
