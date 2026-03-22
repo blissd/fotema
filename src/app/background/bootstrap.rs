@@ -735,10 +735,10 @@ impl Bootstrap {
         // If loaded library is currently empty, then refresh now that the photo and video scans
         // are complete. Note: should do this after enriching because otherwise Fotema won't
         // have processed the orientation metadata and will display pictures incorrectly.
-        controllers.add_task_load_library(sender.input_sender().clone());
+        //controllers.add_task_load_library(sender.input_sender().clone());
 
-        controllers.add_task_photo_thumbnail();
-        controllers.add_task_video_thumbnail();
+        //controllers.add_task_photo_thumbnail();
+        //controllers.add_task_video_thumbnail();
         controllers.add_task_photo_clean();
         controllers.add_task_video_clean();
         controllers.add_task_photo_extract_motion();
@@ -747,7 +747,7 @@ impl Bootstrap {
 
         controllers.add_task_tidy();
 
-        controllers.add_task_load_library(sender.input_sender().clone());
+        //controllers.add_task_load_library(sender.input_sender().clone());
 
         controllers.add_task_person_thumbnails();
 
