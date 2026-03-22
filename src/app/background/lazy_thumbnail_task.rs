@@ -5,9 +5,9 @@
 use anyhow::*;
 use futures::executor::block_on;
 use rayon::prelude::*;
-use relm4::Reducer;
 use relm4::Worker;
 use relm4::prelude::*;
+use relm4::{Reducer, Reducible};
 use std::path::{Path, PathBuf};
 use std::result::Result::Ok;
 use std::sync::Arc;
@@ -17,16 +17,13 @@ use tracing::{error, info};
 use std::panic;
 
 use fotema_core::VisualId;
+use fotema_core::photo::PhotoThumbnailer;
 use fotema_core::thumbnailify;
 use fotema_core::thumbnailify::ThumbnailSize;
-use fotema_core::photo::PhotoThumbnailer;
 use fotema_core::video::VideoThumbnailer;
 use std::sync::mpsc;
-use std::thread;
 use std::sync::mpsc::{Receiver, Sender, channel};
-use relm4::{Reducer, Reducible};
-
-type LazyThumbnailState = Arc<Reducer<
+use std::thread;
 
 #[derive(Debug)]
 pub enum LazyThumbnailTaskInput {
@@ -37,7 +34,7 @@ pub enum LazyThumbnailTaskInput {
     Cancel(VisualId),
 
     // Stop all thumbnail generation
-    Stop
+    Stop,
 }
 
 #[derive(Debug)]
@@ -49,7 +46,6 @@ pub enum LazyThumbnailTaskOutput {
     Done(VisualId, PathBuf),
 }
 
-
 pub struct LazyThumbnailTask {
     thumbnails_path: PathBuf,
     photo_thumbnailer: fotema_core::photo::PhotoThumbnailer,
@@ -58,19 +54,10 @@ pub struct LazyThumbnailTask {
     recv: mpsc::Receiver<VisualId>,
 }
 
-impl LazyThumbnailTask {
-
-
-
-}
-
+impl LazyThumbnailTask {}
 
 impl Worker for LazyThumbnailTask {
-    type Init = (
-        PathBuf,
-        PhotoThumbnailer,
-        VideoThumbnailer,
-    );
+    type Init = (PathBuf, PhotoThumbnailer, VideoThumbnailer);
     type Input = LazyThumbnailTaskInput;
     type Output = LazyThumbnailTaskOutput;
 
@@ -78,7 +65,7 @@ impl Worker for LazyThumbnailTask {
         (thumbnails_path, photo_thumbnailer, video_thumbnailer): Self::Init,
         _sender: ComponentSender<Self>,
     ) -> Self {
-        let (send,recv): (Sender<VisualId>, Receiver<VisualId>) = mpsc::channel();
+        let (send, recv): (Sender<VisualId>, Receiver<VisualId>) = mpsc::channel();
         LazyThumbnailTask {
             thumbnails_path: thumbnails_path.into(),
             photo_thumbnailer,
@@ -90,9 +77,9 @@ impl Worker for LazyThumbnailTask {
 
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
-            LazyThumbnailTaskInput::Generate(visual_id) =>{},
-            LazyThumbnailTaskInput::Cancel(visual_id)=>{},
-            LazyThumbnailTaskInput::Stop => {},
+            LazyThumbnailTaskInput::Generate(visual_id) => {}
+            LazyThumbnailTaskInput::Cancel(visual_id) => {}
+            LazyThumbnailTaskInput::Stop => {}
         };
     }
 }
