@@ -7,12 +7,13 @@ name: PR title conventional commits
 on:
   pull_request:
     types: [opened, synchronize, reopened, edited]
-    branches-ignore:
-      - 'dependabot/**'
 
 jobs:
   check:
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      issues: write
     steps:
       - name: PR title conventional commit check
         uses:  ytanikin/pr-conventional-commits@1.5.2
