@@ -11,7 +11,9 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
-    if: github.actor != 'dependabot[bot]'
+    permissions:
+      pull-requests: write
+      issues: write
     steps:
       - name: PR title conventional commit check
         uses:  ytanikin/pr-conventional-commits@1.5.2
