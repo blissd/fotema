@@ -47,7 +47,7 @@ dist:
 # Install Fedora development dependencies
 setup:
     uv tool install pre-commit
-    uv tool install --force reuse
+    uv tool install reuse
 
 # Install dependencies
 install-deps:
