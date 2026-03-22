@@ -18,26 +18,26 @@ Naming format should be `v[major].[minor].[patch]`, such as `v1.15.0`.
 
 To cut a new release to be published to Flathub perform the following steps:
 
-1. Create a new release tag for the Git repository.  Example:
+Create a new release tag for the Git repository.  Example:
 
 ```shell
 git tag -a -m "Release with new feature" v1.15.0
 git push origin v1.15.0
 ```
 
-2. To publish to Flathub the Flatpak manifest for Fotema must be updated to reference the new release. In the Flathub owned repository [app.fotema.Fotema](https://github.com/flathub/app.fotema.Fotema) edit the [app.fotema.Fotema.json](https://github.com/flathub/app.fotema.Fotema/blob/master/app.fotema.Fotema.json) manifest file to add the release tag and the Git commit hash for the tag. Example:
+To publish to Flathub the Flatpak manifest for Fotema must be updated to reference the new release. In the Flathub owned repository [app.fotema.Fotema](https://github.com/flathub/app.fotema.Fotema) edit the [app.fotema.Fotema.json](https://github.com/flathub/app.fotema.Fotema/blob/master/app.fotema.Fotema.json) manifest file to add the release tag and the Git commit hash for the tag. Example:
 
 ```json
 {
-"sources": [
-  {
-    "type": "git",
-    "url": "https://github.com/blissd/fotema.git",
-    "tag": "v1.15.0",
-    "commit": "9ecfc1092b096908768a1a44fa0c12cae55b7ee8"
-  },
-  "cargo-sources.json"
-]
+  "sources": [
+    {
+      "type": "git",
+      "url": "https://github.com/blissd/fotema.git",
+      "tag": "v1.15.0",
+      "commit": "9ecfc1092b096908768a1a44fa0c12cae55b7ee8"
+    },
+    "cargo-sources.json"
+  ]
 }
 ```
 

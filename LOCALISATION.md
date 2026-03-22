@@ -36,8 +36,8 @@ identifiers you can temporarily change the default local by editing the
 Any missing or invalid message identifier will show up as compilation errors:
 
 ```shell
-$ sed -i 's/en-US/fr/' i18n.toml
-$ just devel
+sed -i 's/en-US/fr/' i18n.toml
+just devel
 ```
 
 ## Running Flatpak With A Different Locale

@@ -47,3 +47,10 @@ repos:
       - id: conventional-pre-commit
         name: conventional-commits
         stages: [commit-msg]
+
+  - repo: https://github.com/DavidAnson/markdownlint-cli2
+    rev: v0.22.0
+    hooks:
+    - id: markdownlint-cli2
+      args:
+        - --fix

@@ -32,9 +32,9 @@ cache [cleanup policies](https://davejansen.com/increase-thumbnail-cache-in-ubun
 
 Fotema generates and uses the following thumbnail sizes:
 
-| Size    | Dimension | Use |
-|---------|-----------|--------------------|
-| Small   | 64  | Narrow view on map album. |
-| Normal  | 128 | Wide view on map album. Narrow view on other albums. |
-| Large   | 256 | Wide view on albums. |
-| X-Large | 512 | Input image for face detection. |
+| Size    | Dimension | Use                                                  |
+|---------|-----------|------------------------------------------------------|
+| Small   | 64        | Narrow view on map album.                            |
+| Normal  | 128       | Wide view on map album. Narrow view on other albums. |
+| Large   | 256       | Wide view on albums.                                 |
+| X-Large | 512       | Input image for face detection.                      |
