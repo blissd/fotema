@@ -38,7 +38,7 @@ libshumate-sys = "0.7.0"
 h3o = "0.9.3"
 ashpd = { version = "0.12.1", default-features = false, features = ["gtk4", "async-std"] }
 regex = "1.12.2"
-deadpool = "0.12.3"
+deadpool = "0.13.0"
 
 [dependencies.shumate]
 package = "libshumate"
