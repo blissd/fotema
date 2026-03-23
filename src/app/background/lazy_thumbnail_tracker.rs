@@ -11,51 +11,22 @@ use std::rc::Rc;
 use std::sync::Arc;
 use tracing::info;
 
-pub type LazyThumbnailMonitor = Arc<Reducer<LazyThumbnailReducible>>;
-
-#[derive(Debug)]
-pub enum LazyThumbnailMonitorInput {
-    ThumbnailReady(VisualId),
-}
-
-/// Exposes completed lazy thumbnail loads to subscribers.
-pub struct LazyThumbnailReducible {
-    // A thumbnail has been generated for photo or video.
-    pub visual_id: Option<VisualId>,
-}
-
-impl Reducible for LazyThumbnailReducible {
-    type Input = LazyThumbnailMonitorInput;
-
-    fn init() -> Self {
-        Self { visual_id: None }
-    }
-
-    fn reduce(&mut self, input: Self::Input) -> bool {
-        match input {
-            LazyThumbnailMonitorInput::ThumbnailReady(visual_id) => {
-                self.visual_id = Some(visual_id);
-                return true; // subscribers only notified if 'true' is returned
-            }
-        }
-    }
-}
-
 #[derive(Debug)]
 struct PendingThumbnail {
     picture: gtk::Picture,
     thumbnail_hash: String,
 }
 
+/// Tracks the state of a lazy thumbnail generation request.
 #[derive(Debug)]
-pub struct PendingThumbnails {
+pub struct LazyThumbnailTracker {
     // Visual waiting for a thumbnail.
     pending: HashMap<VisualId, PendingThumbnail>,
 
     thumbnailer: Rc<Thumbnailer>,
 }
 
-impl PendingThumbnails {
+impl LazyThumbnailTracker {
     pub fn new(thumbnailer: Rc<Thumbnailer>) -> Self {
         Self {
             pending: HashMap::new(),

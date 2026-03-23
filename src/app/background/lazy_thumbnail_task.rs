@@ -13,8 +13,8 @@ use std::sync::{Arc, RwLock};
 use std::panic;
 
 use crate::app::SharedState;
-use crate::app::background::lazy_thumbnail_monitor::{
-    LazyThumbnailMonitor, LazyThumbnailMonitorInput,
+use crate::app::background::lazy_thumbnail_notifier::{
+    LazyThumbnailNotifier, LazyThumbnailNotifierInput,
 };
 use fotema_core::Visual;
 use fotema_core::VisualId;
@@ -57,7 +57,7 @@ pub struct LazyThumbnailTask {
     // Map value is count of thumbnail requests.
     pending: Arc<RwLock<HashMap<VisualId, u32>>>,
 
-    lazy_thumbnail_monitor: LazyThumbnailMonitor,
+    lazy_thumbnail_notifier: LazyThumbnailNotifier,
 }
 
 impl LazyThumbnailTask {
@@ -75,7 +75,7 @@ impl Worker for LazyThumbnailTask {
         VideoThumbnailer,
         fotema_core::video::Repository,
         SharedState,
-        LazyThumbnailMonitor,
+        LazyThumbnailNotifier,
     );
     type Input = LazyThumbnailTaskInput;
     type Output = LazyThumbnailTaskOutput;
@@ -87,7 +87,7 @@ impl Worker for LazyThumbnailTask {
             video_thumbnailer,
             video_repo,
             shared_state,
-            lazy_thumbnail_monitor,
+            lazy_thumbnail_notifier,
         ): Self::Init,
         sender: ComponentSender<Self>,
     ) -> Self {
@@ -114,7 +114,7 @@ impl Worker for LazyThumbnailTask {
             runner: runner,
             send,
             pending: Arc::new(RwLock::new(HashMap::new())),
-            lazy_thumbnail_monitor,
+            lazy_thumbnail_notifier,
         }
     }
 

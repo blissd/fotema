@@ -74,9 +74,11 @@ use self::background::bootstrap::{
     Bootstrap, BootstrapInput, BootstrapOutput, MediaType, TaskName, ThumbnailType,
 };
 
-use self::background::lazy_thumbnail_monitor::{
-    LazyThumbnailMonitor, LazyThumbnailMonitorInput, PendingThumbnails,
+use self::background::lazy_thumbnail_notifier::{
+    LazyThumbnailNotifier, LazyThumbnailNotifierInput,
 };
+
+use self::background::lazy_thumbnail_tracker::LazyThumbnailTracker;
 
 use self::background::lazy_thumbnail_task::{
     LazyThumbnailTask, LazyThumbnailTaskInput, LazyThumbnailTaskOutput,
@@ -252,7 +254,7 @@ pub(super) struct App {
 
     settings_state: SettingsState,
 
-    lazy_thumbnail_monitor: LazyThumbnailMonitor,
+    lazy_thumbnail_notifier: LazyThumbnailNotifier,
 }
 
 #[derive(Debug)]
@@ -623,7 +625,7 @@ impl SimpleAsyncComponent for App {
                 let video_repo =
                     fotema_core::video::Repository::open(library_base_dir, &cache_dir, &data_dir, con.clone()).unwrap();
         */
-        let lazy_thumbnail_monitor: LazyThumbnailMonitor = Arc::new(Reducer::new());
+        let lazy_thumbnail_notifier: LazyThumbnailNotifier = Arc::new(Reducer::new());
 
         /*let lazy_thumbnail_task = LazyThumbnailTask::builder()
         .detach_worker((
@@ -834,8 +836,8 @@ impl SimpleAsyncComponent for App {
             FoldersAlbumInput::Adapt(*layout)
         });
 
-        lazy_thumbnail_monitor.subscribe_optional(folders_album.sender(), |monitor| {
-            monitor
+        lazy_thumbnail_notifier.subscribe_optional(folders_album.sender(), |notifier| {
+            notifier
                 .visual_id
                 .clone()
                 .map(|visual_id| FoldersAlbumInput::ThumbnailReady(visual_id))
@@ -919,7 +921,7 @@ impl SimpleAsyncComponent for App {
             banner: banner.clone(),
 
             settings_state: settings_state.clone(),
-            lazy_thumbnail_monitor,
+            lazy_thumbnail_notifier,
         };
 
         let widgets = view_output!();
@@ -1193,8 +1195,8 @@ impl SimpleAsyncComponent for App {
                 self.onboard_view.set_visible(false);
             }
             AppMsg::ThumbnailReady(visual_id) => self
-                .lazy_thumbnail_monitor
-                .emit(LazyThumbnailMonitorInput::ThumbnailReady(visual_id)),
+                .lazy_thumbnail_notifier
+                .emit(LazyThumbnailNotifierInput::ThumbnailReady(visual_id)),
         }
     }
 
