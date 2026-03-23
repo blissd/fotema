@@ -72,6 +72,10 @@ use self::background::bootstrap::{
     Bootstrap, BootstrapInput, BootstrapOutput, MediaType, TaskName, ThumbnailType,
 };
 
+use self::background::lazy_thumbnail_monitor::{
+    LazyThumbnailMonitor, LazyThumbnailMonitorInput, PendingThumbnails,
+};
+
 use self::components::progress_monitor::ProgressMonitor;
 use self::components::progress_panel::ProgressPanel;
 
@@ -241,6 +245,8 @@ pub(super) struct App {
     banner: adw::Banner,
 
     settings_state: SettingsState,
+
+    lazy_thumbnail_monitor: LazyThumbnailMonitor,
 }
 
 #[derive(Debug)]
@@ -592,6 +598,7 @@ impl SimpleAsyncComponent for App {
         let state = SharedState::new(relm4::SharedState::new());
         let active_view = ActiveView::new(relm4::SharedState::new());
         let adaptive_layout = Arc::new(adaptive::LayoutState::new());
+        let lazy_thumbnail_monitor: LazyThumbnailMonitor = Arc::new(Reducer::new());
 
         let settings_state = SettingsState::new(relm4::SharedState::new());
         match App::load_settings().await {
@@ -865,6 +872,7 @@ impl SimpleAsyncComponent for App {
             banner: banner.clone(),
 
             settings_state: settings_state.clone(),
+            lazy_thumbnail_monitor,
         };
 
         let widgets = view_output!();

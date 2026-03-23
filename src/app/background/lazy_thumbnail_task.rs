@@ -2,16 +2,12 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use anyhow::*;
 use futures::executor::block_on;
 use rayon::prelude::*;
 use relm4::Worker;
 use relm4::prelude::*;
-use relm4::{Reducer, Reducible};
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
 use std::result::Result::Ok;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock};
 
 use std::panic;
@@ -39,6 +35,9 @@ pub enum LazyThumbnailTaskInput {
     // Cancel a thumbnail request.
     Cancel(VisualId),
 
+    // Thumbnail generated.
+    Done(VisualId),
+
     // Stop all thumbnail generation
     Stop,
 }
@@ -49,24 +48,13 @@ pub enum LazyThumbnailTaskOutput {
     Started,
 
     // Thumbnail generation has completed
-    Done(VisualId, PathBuf),
+    Done(VisualId),
 }
 
 pub struct LazyThumbnailTask {
-    photo_thumbnailer: fotema_core::photo::PhotoThumbnailer,
-    photo_repo: fotema_core::photo::Repository,
-
-    video_thumbnailer: fotema_core::video::VideoThumbnailer,
-    video_repo: fotema_core::video::Repository,
+    runner: Runner,
 
     send: mpsc::Sender<VisualId>,
-    recv: mpsc::Receiver<VisualId>,
-
-    // Loaded visuals
-    shared_state: SharedState,
-
-    // Loaded visuals keyed by VisualId
-    visuals: Arc<RwLock<HashMap<VisualId, Arc<Visual>>>>,
 
     // Visuals pending thumbnail generation
     // Map value is count of thumbnail requests.
@@ -76,47 +64,142 @@ pub struct LazyThumbnailTask {
 }
 
 impl LazyThumbnailTask {
-    pub fn run(&self) {
-        loop {
-            let maybe_visual_id: Option<VisualId> = {
-                let pending = self.pending.read().unwrap();
-                pending.keys().nth(0).cloned()
-            };
+    fn process_next(&self) {
+        let pending = self.pending.read().unwrap();
+        if let Some(visual_id) = pending.keys().nth(0).cloned() {
+            let _ = self.send.send(visual_id);
+        }
+    }
+}
 
-            if let Some(visual_id) = maybe_visual_id {
-                // get visual
-                let maybe_visual: Option<Arc<Visual>> = {
-                    let visuals = self.visuals.read().unwrap();
-                    visuals.get(&visual_id).cloned()
-                };
+impl Worker for LazyThumbnailTask {
+    type Init = (
+        PhotoThumbnailer,
+        fotema_core::photo::Repository,
+        VideoThumbnailer,
+        fotema_core::video::Repository,
+        SharedState,
+        LazyThumbnailMonitor,
+    );
+    type Input = LazyThumbnailTaskInput;
+    type Output = LazyThumbnailTaskOutput;
 
-                // generate thumbnail
-                if let Some(visual) = maybe_visual {
-                    if visual.picture_path.is_some() && visual.picture_id.is_some() {
-                        self.generate_photo_thumbnail(&visual);
-                    }
-                    if visual.video_path.is_some() && visual.video_id.is_some() {
-                        self.generate_video_thumbnail(&visual);
-                    } else {
-                        info!(
-                            "Ignoring visual {:?} because no picture or video path.",
-                            visual_id
-                        );
-                    }
+    fn init(
+        (
+            photo_thumbnailer,
+            photo_repo,
+            video_thumbnailer,
+            video_repo,
+            shared_state,
+            lazy_thumbnail_monitor,
+        ): Self::Init,
+        sender: ComponentSender<Self>,
+    ) -> Self {
+        let (send, recv): (Sender<VisualId>, Receiver<VisualId>) = mpsc::channel();
+
+        let runner = Runner {
+            recv,
+            sender: sender.input_sender().clone(),
+            shared_state,
+            visuals: Arc::new(RwLock::new(HashMap::new())),
+            photo_thumbnailer,
+            photo_repo,
+            video_thumbnailer,
+            video_repo,
+        };
+
+        LazyThumbnailTask {
+            runner,
+            send,
+            pending: Arc::new(RwLock::new(HashMap::new())),
+            lazy_thumbnail_monitor,
+        }
+    }
+
+    fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
+        match msg {
+            LazyThumbnailTaskInput::Generate(visual_id) => {
+                let mut pending = self.pending.write().unwrap();
+                pending
+                    .entry(visual_id.clone())
+                    .and_modify(|counter| *counter += 1)
+                    .or_insert(1);
+
+                if pending.len() == 1 {
+                    self.process_next();
                 }
-
-                // remove from self.pending
-                {
-                    let mut pending = self.pending.write().unwrap();
+            }
+            LazyThumbnailTaskInput::Done(visual_id) => {
+                let mut pending = self.pending.write().unwrap();
+                pending.remove(&visual_id);
+                self.process_next();
+            }
+            LazyThumbnailTaskInput::Cancel(visual_id) => {
+                let mut pending = self.pending.write().unwrap();
+                pending
+                    .entry(visual_id.clone())
+                    .and_modify(|counter| *counter -= 1);
+                if let Some(0) = pending.get(&visual_id) {
+                    info!("Cancelled entry");
                     pending.remove(&visual_id);
                 }
-                // emit completed event
-                self.lazy_thumbnail_monitor
-                    .emit(LazyThumbnailMonitorInput::Completed(visual_id));
-            } else {
-                // No more thumbnails to generate.
-                return;
             }
+            LazyThumbnailTaskInput::Stop => {
+                let mut pending = self.pending.write().unwrap();
+                pending.clear();
+            }
+        };
+    }
+}
+
+// Thumbnail generator.
+// Receives message.
+// Generates thumbnail.
+// Sends response.
+struct Runner {
+    // Receives VisualId of visuals to generate thumbnails for.
+    recv: mpsc::Receiver<VisualId>,
+
+    // Send response back to worker task.
+    sender: relm4::Sender<LazyThumbnailTaskInput>,
+
+    // Loaded visuals
+    shared_state: SharedState,
+    visuals: Arc<RwLock<HashMap<VisualId, Arc<Visual>>>>,
+
+    photo_thumbnailer: fotema_core::photo::PhotoThumbnailer,
+    photo_repo: fotema_core::photo::Repository,
+
+    video_thumbnailer: fotema_core::video::VideoThumbnailer,
+    video_repo: fotema_core::video::Repository,
+}
+
+impl Runner {
+    // Run forever generating thumbnails.
+    pub fn run(&self) {
+        while let Ok(visual_id) = self.recv.recv() {
+            // get visual
+            let maybe_visual: Option<Arc<Visual>> = {
+                let visuals = self.visuals.read().unwrap();
+                visuals.get(&visual_id).cloned()
+            };
+
+            // generate thumbnail
+            if let Some(visual) = maybe_visual {
+                if visual.picture_path.is_some() && visual.picture_id.is_some() {
+                    self.generate_photo_thumbnail(&visual);
+                }
+                if visual.video_path.is_some() && visual.video_id.is_some() {
+                    self.generate_video_thumbnail(&visual);
+                } else {
+                    info!(
+                        "Ignoring visual {:?} because no picture or video path.",
+                        visual_id
+                    );
+                }
+            }
+
+            let _ = self.sender.send(LazyThumbnailTaskInput::Done(visual_id));
         }
     }
 
@@ -187,64 +270,5 @@ impl LazyThumbnailTask {
         data.iter().for_each(|v| {
             visuals.insert(v.visual_id.clone(), v.clone());
         });
-    }
-}
-
-impl Worker for LazyThumbnailTask {
-    type Init = (
-        PhotoThumbnailer,
-        fotema_core::photo::Repository,
-        VideoThumbnailer,
-        fotema_core::video::Repository,
-        SharedState,
-        LazyThumbnailMonitor,
-    );
-    type Input = LazyThumbnailTaskInput;
-    type Output = LazyThumbnailTaskOutput;
-
-    fn init(
-        (
-            photo_thumbnailer,
-            photo_repo,
-            video_thumbnailer,
-            video_repo,
-            shared_state,
-            lazy_thumbnail_monitor,
-        ): Self::Init,
-        _sender: ComponentSender<Self>,
-    ) -> Self {
-        let (send, recv): (Sender<VisualId>, Receiver<VisualId>) = mpsc::channel();
-        LazyThumbnailTask {
-            photo_thumbnailer,
-            photo_repo,
-            video_thumbnailer,
-            video_repo,
-            send,
-            recv,
-            shared_state,
-            visuals: Arc::new(RwLock::new(HashMap::new())),
-            pending: Arc::new(RwLock::new(HashMap::new())),
-            lazy_thumbnail_monitor,
-        }
-    }
-
-    fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
-        match msg {
-            LazyThumbnailTaskInput::Generate(visual_id) => {}
-            LazyThumbnailTaskInput::Cancel(visual_id) => {
-                let mut pending = self.pending.write().unwrap();
-                pending
-                    .entry(visual_id.clone())
-                    .and_modify(|counter| *counter -= 1);
-                if let Some(0) = pending.get(&visual_id) {
-                    info!("Cancelled entry");
-                    pending.remove(&visual_id);
-                }
-            }
-            LazyThumbnailTaskInput::Stop => {
-                let mut pending = self.pending.write().unwrap();
-                pending.clear();
-            }
-        };
     }
 }
