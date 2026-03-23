@@ -7,7 +7,7 @@ use gtk::prelude::OrientableExt;
 use fotema_core::VisualId;
 use fotema_core::thumbnailify::{ThumbnailSize, Thumbnailer};
 
-use crate::app::background::lazy_thumbnail_monitor::PendingThumbnails;
+use crate::app::background::lazy_thumbnail_tracker::LazyThumbnailTracker;
 
 use itertools::Itertools;
 
@@ -46,7 +46,7 @@ struct PhotoGridItem {
 
     thumbnailer: Rc<Thumbnailer>,
 
-    pending_thumbnails: Rc<RefCell<PendingThumbnails>>,
+    lazy_thumbnail_tracker: Rc<RefCell<LazyThumbnailTracker>>,
 }
 
 struct Widgets {
@@ -159,7 +159,7 @@ impl RelmGridItem for PhotoGridItem {
             let img = gdk::Texture::for_pixbuf(&pb);
             widgets.picture.set_paintable(Some(&img));
             widgets.picture.set_content_fit(gtk::ContentFit::Contain);
-            self.pending_thumbnails
+            self.lazy_thumbnail_tracker
                 .borrow_mut()
                 .add(&self.visual, widgets.picture.clone());
         }
@@ -167,7 +167,7 @@ impl RelmGridItem for PhotoGridItem {
 
     fn unbind(&mut self, widgets: &mut Self::Widgets, _root: &mut Self::Root) {
         widgets.picture.set_filename(None::<&path::Path>);
-        self.pending_thumbnails
+        self.lazy_thumbnail_tracker
             .borrow_mut()
             .cancel(&self.visual.visual_id);
     }
@@ -179,7 +179,7 @@ pub struct FoldersAlbum {
     photo_grid: TypedGridView<PhotoGridItem, gtk::SingleSelection>,
     edge_length: I32Binding,
     thumbnailer: Rc<Thumbnailer>,
-    pending_thumbnails: Rc<RefCell<PendingThumbnails>>,
+    lazy_thumbnail_tracker: Rc<RefCell<LazyThumbnailTracker>>,
 }
 
 #[relm4::component(pub)]
@@ -217,7 +217,7 @@ impl SimpleComponent for FoldersAlbum {
             photo_grid,
             edge_length: I32Binding::new(NARROW_EDGE_LENGTH),
             thumbnailer: thumbnailer.clone(),
-            pending_thumbnails: Rc::new(RefCell::new(PendingThumbnails::new(thumbnailer))),
+            lazy_thumbnail_tracker: Rc::new(RefCell::new(LazyThumbnailTracker::new(thumbnailer))),
         };
 
         let pictures_box = &model.photo_grid.view;
@@ -268,7 +268,10 @@ impl SimpleComponent for FoldersAlbum {
                 self.edge_length.set_value(WIDE_EDGE_LENGTH);
             }
             FoldersAlbumInput::ThumbnailReady(visual_id) => {
-                info!("Thumbnail ready {:?}", visual_id)
+                info!("Thumbnail ready {:?}", visual_id);
+                self.lazy_thumbnail_tracker
+                    .borrow_mut()
+                    .complete(&visual_id);
             }
         }
     }
@@ -293,7 +296,7 @@ impl FoldersAlbum {
                 visual: first.clone(),
                 edge_length: self.edge_length.clone(),
                 thumbnailer: self.thumbnailer.clone(),
-                pending_thumbnails: self.pending_thumbnails.clone(),
+                lazy_thumbnail_tracker: self.lazy_thumbnail_tracker.clone(),
             };
             pictures.push(album);
         }
