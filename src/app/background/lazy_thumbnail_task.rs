@@ -14,21 +14,17 @@ use std::sync::{Arc, Mutex, RwLock};
 use std::panic;
 
 use crate::app::SharedState;
-use crate::app::background::lazy_thumbnail_notifier::{
-    LazyThumbnailNotifier, LazyThumbnailNotifierInput,
-};
+use crate::app::background::lazy_thumbnail_notifier::LazyThumbnailNotifier;
 use crate::config::APP_ID;
 use fotema_core::FlatpakPathBuf;
 use fotema_core::Visual;
 use fotema_core::VisualId;
 use fotema_core::database;
 use fotema_core::photo::PhotoThumbnailer;
-use fotema_core::thumbnailify;
-use fotema_core::thumbnailify::ThumbnailSize;
 use fotema_core::video::VideoThumbnailer;
 
 use std::sync::mpsc;
-use std::sync::mpsc::{Receiver, Sender, channel};
+use std::sync::mpsc::{Receiver, Sender};
 use std::thread;
 use tracing::{error, info};
 

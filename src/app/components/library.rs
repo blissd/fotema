@@ -6,6 +6,7 @@ use fotema_core::{VisualId, YearMonth};
 
 use relm4::adw;
 use relm4::*;
+use std::cell::RefCell;
 use std::rc::Rc;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -23,6 +24,10 @@ use super::albums::album_filter::AlbumFilter;
 use super::albums::album_sort::AlbumSort;
 use super::albums::months_album::{MonthsAlbum, MonthsAlbumInput, MonthsAlbumOutput};
 use super::albums::years_album::{YearsAlbum, YearsAlbumInput, YearsAlbumOutput};
+
+use crate::app::background::lazy_thumbnail_notifier::LazyThumbnailNotifier;
+use crate::app::background::lazy_thumbnail_task::LazyThumbnailTaskInput;
+use crate::app::background::lazy_thumbnail_tracker::LazyThumbnailTracker;
 
 use fotema_core::thumbnailify::Thumbnailer;
 
@@ -63,6 +68,8 @@ pub struct Library {
     months_album: Controller<MonthsAlbum>,
 
     years_album: Controller<YearsAlbum>,
+
+    lazy_thumbnail_task_sender: Sender<LazyThumbnailTaskInput>,
 }
 
 #[derive(Debug, Eq, PartialEq, EnumString, AsRefStr)]
@@ -80,6 +87,8 @@ impl SimpleComponent for Library {
         ActiveView,
         Arc<adaptive::LayoutState>,
         Rc<Thumbnailer>,
+        Sender<LazyThumbnailTaskInput>,
+        LazyThumbnailNotifier,
     );
     type Input = LibraryInput;
     type Output = LibraryOutput;
@@ -94,10 +103,21 @@ impl SimpleComponent for Library {
     }
 
     fn init(
-        (state, active_view, layout_state, thumbnailer): Self::Init,
+        (
+            state,
+            active_view,
+            layout_state,
+            thumbnailer,
+            lazy_thumbnail_task_sender,
+            lazy_thumbnail_notifier,
+        ): Self::Init,
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
+        let lazy_thumbnail_tracker = Rc::new(RefCell::new(LazyThumbnailTracker::new(
+            thumbnailer.clone(),
+            lazy_thumbnail_task_sender.clone(),
+        )));
         let all_album = Album::builder()
             .launch((
                 state.clone(),
@@ -105,6 +125,7 @@ impl SimpleComponent for Library {
                 ViewName::All,
                 AlbumFilter::All,
                 thumbnailer.clone(),
+                lazy_thumbnail_tracker,
             ))
             .forward(sender.input_sender(), |msg| match msg {
                 AlbumOutput::Selected(id, _) => LibraryInput::View(id),
@@ -113,9 +134,24 @@ impl SimpleComponent for Library {
 
         state.subscribe(all_album.sender(), |_| AlbumInput::Refresh);
         layout_state.subscribe(all_album.sender(), |layout| AlbumInput::Adapt(*layout));
+        lazy_thumbnail_notifier.subscribe_optional(all_album.sender(), |notifier| {
+            notifier
+                .visual_id
+                .clone()
+                .map(|visual_id| AlbumInput::ThumbnailReady(visual_id))
+        });
 
+        let lazy_thumbnail_tracker = Rc::new(RefCell::new(LazyThumbnailTracker::new(
+            thumbnailer.clone(),
+            lazy_thumbnail_task_sender.clone(),
+        )));
         let months_album = MonthsAlbum::builder()
-            .launch((state.clone(), active_view.clone(), thumbnailer.clone()))
+            .launch((
+                state.clone(),
+                active_view.clone(),
+                thumbnailer.clone(),
+                lazy_thumbnail_tracker,
+            ))
             .forward(sender.input_sender(), |msg| match msg {
                 MonthsAlbumOutput::MonthSelected(ym) => LibraryInput::GoToMonth(ym),
             });
@@ -124,7 +160,17 @@ impl SimpleComponent for Library {
         layout_state.subscribe(months_album.sender(), |layout| {
             MonthsAlbumInput::Adapt(*layout)
         });
+        lazy_thumbnail_notifier.subscribe_optional(months_album.sender(), |notifier| {
+            notifier
+                .visual_id
+                .clone()
+                .map(|visual_id| MonthsAlbumInput::ThumbnailReady(visual_id))
+        });
 
+        let lazy_thumbnail_tracker = Rc::new(RefCell::new(LazyThumbnailTracker::new(
+            thumbnailer.clone(),
+            lazy_thumbnail_task_sender.clone(),
+        )));
         let years_album = YearsAlbum::builder()
             .launch((state.clone(), active_view.clone(), thumbnailer))
             .forward(sender.input_sender(), |msg| match msg {
@@ -143,6 +189,7 @@ impl SimpleComponent for Library {
             all_album,
             months_album,
             years_album,
+            lazy_thumbnail_task_sender,
         };
 
         ComponentParts { model, widgets }

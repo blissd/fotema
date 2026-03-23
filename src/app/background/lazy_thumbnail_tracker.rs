@@ -5,11 +5,10 @@
 use crate::app::background::lazy_thumbnail_task::LazyThumbnailTaskInput;
 use fotema_core::thumbnailify::{ThumbnailSize, Thumbnailer};
 use fotema_core::{Visual, VisualId};
+use relm4::Sender;
 use relm4::gtk;
-use relm4::{Reducer, Reducible, Sender};
 use std::collections::HashMap;
 use std::rc::Rc;
-use std::sync::Arc;
 use tracing::info;
 
 #[derive(Debug)]
