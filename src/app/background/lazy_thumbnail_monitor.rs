@@ -9,42 +9,45 @@ use relm4::{Reducer, Reducible};
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::Arc;
+use tracing::info;
 
 pub type LazyThumbnailMonitor = Arc<Reducer<LazyThumbnailReducible>>;
 
 #[derive(Debug)]
 pub enum LazyThumbnailMonitorInput {
-    Completed(VisualId),
+    ThumbnailReady(VisualId),
 }
 
 /// Exposes completed lazy thumbnail loads to subscribers.
 pub struct LazyThumbnailReducible {
     // A thumbnail has been generated for photo or video.
-    pub completed: Option<VisualId>,
+    pub visual_id: Option<VisualId>,
 }
 
 impl Reducible for LazyThumbnailReducible {
     type Input = LazyThumbnailMonitorInput;
 
     fn init() -> Self {
-        Self { completed: None }
+        Self { visual_id: None }
     }
 
     fn reduce(&mut self, input: Self::Input) -> bool {
         match input {
-            LazyThumbnailMonitorInput::Completed(visual_id) => {
-                self.completed = Some(visual_id);
+            LazyThumbnailMonitorInput::ThumbnailReady(visual_id) => {
+                self.visual_id = Some(visual_id);
                 return true; // subscribers only notified if 'true' is returned
             }
         }
     }
 }
 
+#[derive(Debug)]
 struct PendingThumbnail {
     picture: gtk::Picture,
     thumbnail_hash: String,
 }
 
+#[derive(Debug)]
 pub struct PendingThumbnails {
     // Visual waiting for a thumbnail.
     pending: HashMap<VisualId, PendingThumbnail>,
@@ -53,7 +56,15 @@ pub struct PendingThumbnails {
 }
 
 impl PendingThumbnails {
+    pub fn new(thumbnailer: Rc<Thumbnailer>) -> Self {
+        Self {
+            pending: HashMap::new(),
+            thumbnailer,
+        }
+    }
+
     pub fn add(&mut self, visual: &Visual, picture: gtk::Picture) {
+        info!("Adding {:?}", visual.visual_id);
         let pending = PendingThumbnail {
             picture,
             thumbnail_hash: visual.thumbnail_hash(),
@@ -63,6 +74,7 @@ impl PendingThumbnails {
 
     // A thumbnail has been generated
     pub fn complete(&mut self, visual_id: &VisualId) {
+        info!("Completing {:?}", visual_id);
         if let Some(pending) = self.pending.remove(visual_id) {
             // FIXME should respect window width
             let thumbnail_size = ThumbnailSize::Large;
@@ -78,6 +90,7 @@ impl PendingThumbnails {
     }
 
     pub fn cancel(&mut self, visual_id: &VisualId) {
+        info!("Cancelling {:?}", visual_id);
         self.pending.remove(visual_id);
     }
 }

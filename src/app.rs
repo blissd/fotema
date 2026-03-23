@@ -25,7 +25,9 @@ use crate::config::{APP_ID, PROFILE};
 use crate::fl;
 
 use fotema_core::FlatpakPathBuf;
+use fotema_core::PhotoThumbnailer;
 use fotema_core::PictureId;
+use fotema_core::VideoThumbnailer;
 use fotema_core::VisualId;
 use fotema_core::database;
 use fotema_core::path_encoding;
@@ -74,6 +76,10 @@ use self::background::bootstrap::{
 
 use self::background::lazy_thumbnail_monitor::{
     LazyThumbnailMonitor, LazyThumbnailMonitorInput, PendingThumbnails,
+};
+
+use self::background::lazy_thumbnail_task::{
+    LazyThumbnailTask, LazyThumbnailTaskInput, LazyThumbnailTaskOutput,
 };
 
 use self::components::progress_monitor::ProgressMonitor;
@@ -307,6 +313,9 @@ pub(super) enum AppMsg {
 
     /// Onboarding process is complete and user has selected the picture base directory
     OnboardDone(PathBuf),
+
+    /// A lazily generated thumbnail is ready
+    ThumbnailReady(VisualId),
 }
 
 relm4::new_action_group!(pub(super) WindowActionGroup, "win");
@@ -598,7 +607,37 @@ impl SimpleAsyncComponent for App {
         let state = SharedState::new(relm4::SharedState::new());
         let active_view = ActiveView::new(relm4::SharedState::new());
         let adaptive_layout = Arc::new(adaptive::LayoutState::new());
+        /*
+                // TODO also create these thumbnailers in bootstrap.rs :-(
+                let photo_thumbnailer = PhotoThumbnailer::build(*thumbnailer.clone()).unwrap();
+                let video_thumbnailer = VideoThumbnailer::build(*thumbnailer.clone()).unwrap();
+
+                // FIXME oh no.
+                let library_base_dir = PathBuf::from("/var/home/david/Pictures");
+
+                // FIXME cannot stay here because will not be updated when library path changes.
+                let photo_repo =
+                    fotema_core::photo::Repository::open(library_base_dir, &cache_dir, &data_dir, con.clone()).unwrap();
+
+                // FIXME cannot stay here because will not be updated when library path changes.
+                let video_repo =
+                    fotema_core::video::Repository::open(library_base_dir, &cache_dir, &data_dir, con.clone()).unwrap();
+        */
         let lazy_thumbnail_monitor: LazyThumbnailMonitor = Arc::new(Reducer::new());
+
+        /*let lazy_thumbnail_task = LazyThumbnailTask::builder()
+        .detach_worker((
+            photo_thumbnailer.clone(),
+            photo_repo.clone(),
+            video_thumbnailer.clone(),
+            video_repo.clone(),
+            state.clone(),
+            lazy_thumbnail_monitor.clone(),
+        ))
+        .forward(sender.input_sender(), |msg| match msg {
+            LazyThumbnailTaskOutput::ThumbnailReady(visual_id) => AppMsg::ThumbnailReady(visual_id),
+        });
+        */
 
         let settings_state = SettingsState::new(relm4::SharedState::new());
         match App::load_settings().await {
@@ -790,8 +829,16 @@ impl SimpleAsyncComponent for App {
             });
 
         state.subscribe(folders_album.sender(), |_| FoldersAlbumInput::Refresh);
+
         adaptive_layout.subscribe(folders_album.sender(), |layout| {
             FoldersAlbumInput::Adapt(*layout)
+        });
+
+        lazy_thumbnail_monitor.subscribe_optional(folders_album.sender(), |monitor| {
+            monitor
+                .visual_id
+                .clone()
+                .map(|visual_id| FoldersAlbumInput::ThumbnailReady(visual_id))
         });
 
         let folder_album = Album::builder()
@@ -1145,6 +1192,9 @@ impl SimpleAsyncComponent for App {
                 self.picture_navigation_view.set_visible(true);
                 self.onboard_view.set_visible(false);
             }
+            AppMsg::ThumbnailReady(visual_id) => self
+                .lazy_thumbnail_monitor
+                .emit(LazyThumbnailMonitorInput::ThumbnailReady(visual_id)),
         }
     }
 

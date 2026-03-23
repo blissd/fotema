@@ -44,11 +44,8 @@ pub enum LazyThumbnailTaskInput {
 
 #[derive(Debug)]
 pub enum LazyThumbnailTaskOutput {
-    // Thumbnail generation has started.
-    Started,
-
     // Thumbnail generation has completed
-    Done(VisualId),
+    ThumbnailReady(VisualId),
 }
 
 pub struct LazyThumbnailTask {
@@ -138,6 +135,7 @@ impl Worker for LazyThumbnailTask {
                 let mut pending = self.pending.write().unwrap();
                 pending.remove(&visual_id);
                 self.process_next(&(*pending));
+                let _ = sender.output(LazyThumbnailTaskOutput::ThumbnailReady(visual_id));
             }
             LazyThumbnailTaskInput::Cancel(visual_id) => {
                 let mut pending = self.pending.write().unwrap();
