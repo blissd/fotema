@@ -52,7 +52,7 @@ pub enum LazyThumbnailTaskOutput {
 }
 
 pub struct LazyThumbnailTask {
-    runner: Runner,
+    runner: Arc<Runner>,
 
     send: mpsc::Sender<VisualId>,
 
@@ -64,8 +64,7 @@ pub struct LazyThumbnailTask {
 }
 
 impl LazyThumbnailTask {
-    fn process_next(&self) {
-        let pending = self.pending.read().unwrap();
+    fn process_next(&self, pending: &HashMap<VisualId, u32>) {
         if let Some(visual_id) = pending.keys().nth(0).cloned() {
             let _ = self.send.send(visual_id);
         }
@@ -97,8 +96,7 @@ impl Worker for LazyThumbnailTask {
     ) -> Self {
         let (send, recv): (Sender<VisualId>, Receiver<VisualId>) = mpsc::channel();
 
-        let runner = Runner {
-            recv,
+        let runner = Arc::new(Runner {
             sender: sender.input_sender().clone(),
             shared_state,
             visuals: Arc::new(RwLock::new(HashMap::new())),
@@ -106,10 +104,17 @@ impl Worker for LazyThumbnailTask {
             photo_repo,
             video_thumbnailer,
             video_repo,
-        };
+        });
+
+        {
+            let runner = runner.clone();
+            thread::spawn(move || {
+                runner.run(recv);
+            });
+        }
 
         LazyThumbnailTask {
-            runner,
+            runner: runner,
             send,
             pending: Arc::new(RwLock::new(HashMap::new())),
             lazy_thumbnail_monitor,
@@ -126,13 +131,13 @@ impl Worker for LazyThumbnailTask {
                     .or_insert(1);
 
                 if pending.len() == 1 {
-                    self.process_next();
+                    self.process_next(&(*pending));
                 }
             }
             LazyThumbnailTaskInput::Done(visual_id) => {
                 let mut pending = self.pending.write().unwrap();
                 pending.remove(&visual_id);
-                self.process_next();
+                self.process_next(&(*pending));
             }
             LazyThumbnailTaskInput::Cancel(visual_id) => {
                 let mut pending = self.pending.write().unwrap();
@@ -157,9 +162,6 @@ impl Worker for LazyThumbnailTask {
 // Generates thumbnail.
 // Sends response.
 struct Runner {
-    // Receives VisualId of visuals to generate thumbnails for.
-    recv: mpsc::Receiver<VisualId>,
-
     // Send response back to worker task.
     sender: relm4::Sender<LazyThumbnailTaskInput>,
 
@@ -176,8 +178,8 @@ struct Runner {
 
 impl Runner {
     // Run forever generating thumbnails.
-    pub fn run(&self) {
-        while let Ok(visual_id) = self.recv.recv() {
+    pub fn run(&self, recv: Receiver<VisualId>) {
+        while let Ok(visual_id) = recv.recv() {
             // get visual
             let maybe_visual: Option<Arc<Visual>> = {
                 let visuals = self.visuals.read().unwrap();
