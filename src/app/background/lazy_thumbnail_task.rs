@@ -29,7 +29,7 @@ use fotema_core::video::VideoThumbnailer;
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender, channel};
 use std::thread;
-use tracing::info;
+use tracing::{error, info};
 
 #[derive(Debug)]
 pub enum LazyThumbnailTaskInput {
@@ -54,7 +54,11 @@ pub enum LazyThumbnailTaskOutput {
 
 pub struct LazyThumbnailTask {
     photo_thumbnailer: fotema_core::photo::PhotoThumbnailer,
+    photo_repo: fotema_core::photo::Repository,
+
     video_thumbnailer: fotema_core::video::VideoThumbnailer,
+    video_repo: fotema_core::video::Repository,
+
     send: mpsc::Sender<VisualId>,
     recv: mpsc::Receiver<VisualId>,
 
@@ -80,9 +84,26 @@ impl LazyThumbnailTask {
             };
 
             if let Some(visual_id) = maybe_visual_id {
-                // TODO get visual
+                // get visual
+                let maybe_visual: Option<Arc<Visual>> = {
+                    let visuals = self.visuals.read().unwrap();
+                    visuals.get(&visual_id).cloned()
+                };
 
-                // TODO generate thumbnail
+                // generate thumbnail
+                if let Some(visual) = maybe_visual {
+                    if visual.picture_path.is_some() && visual.picture_id.is_some() {
+                        self.generate_photo_thumbnail(&visual);
+                    }
+                    if visual.video_path.is_some() && visual.video_id.is_some() {
+                        self.generate_video_thumbnail(&visual);
+                    } else {
+                        info!(
+                            "Ignoring visual {:?} because no picture or video path.",
+                            visual_id
+                        );
+                    }
+                }
 
                 // remove from self.pending
                 {
@@ -93,11 +114,70 @@ impl LazyThumbnailTask {
                 self.lazy_thumbnail_monitor
                     .emit(LazyThumbnailMonitorInput::Completed(visual_id));
             } else {
+                // No more thumbnails to generate.
                 return;
             }
         }
     }
 
+    // FIXME this is a copy-and-paste from photo_thumbnail_task.rs
+    fn generate_photo_thumbnail(&self, visual: &Arc<Visual>) {
+        let Some(ref path) = visual.picture_path else {
+            todo!()
+        };
+        let Some(ref picture_id) = visual.picture_id else {
+            todo!()
+        };
+
+        // Careful! panic::catch_unwind returns Ok(Err) if the evaluated expression returns
+        // an error but doesn't panic.
+        let result = panic::catch_unwind(|| {
+            block_on(async { self.photo_thumbnailer.thumbnail(&path).await })
+        });
+
+        // If we got an err, then there was a panic.
+        // If we got Ok(Err(e)) there wasn't a panic, but we still failed.
+        if let Ok(Err(e)) = result {
+            error!(
+                "Failed generate or add thumbnail: {:?}: Photo path: {:?}",
+                e.root_cause(),
+                path
+            );
+            let _ = self.photo_repo.clone().mark_broken(&picture_id);
+        } else if result.is_err() {
+            error!("Panicked generate or add thumbnail: Photo path: {:?}", path);
+            let _ = self.photo_repo.clone().mark_broken(&picture_id);
+        }
+    }
+
+    fn generate_video_thumbnail(&self, visual: &Arc<Visual>) {
+        let Some(ref path) = visual.video_path else {
+            todo!()
+        };
+        let Some(ref video_id) = visual.video_id else {
+            todo!()
+        };
+
+        // Careful! panic::catch_unwind returns Ok(Err) if the evaluated expression returns
+        // an error but doesn't panic.
+        let result = panic::catch_unwind(|| self.video_thumbnailer.thumbnail(&path));
+
+        // If we got an err, then there was a panic.
+        // If we got Ok(Err(e)) there wasn't a panic, but we still failed.
+        if let Ok(Err(e)) = result {
+            error!(
+                "Failed generate or add thumbnail: {:?}: Video path: {:?}",
+                e.root_cause(),
+                path
+            );
+            let _ = self.video_repo.clone().mark_broken(&video_id);
+        } else if result.is_err() {
+            error!("Panicked generate or add thumbnail: Video path: {:?}", path);
+            let _ = self.video_repo.clone().mark_broken(&video_id);
+        }
+    }
+
+    // Visuals shared state has been updated so rebuild map of VisualId -> Visual.
     fn refresh(&self) {
         let data = self.shared_state.read();
 
@@ -112,7 +192,9 @@ impl LazyThumbnailTask {
 impl Worker for LazyThumbnailTask {
     type Init = (
         PhotoThumbnailer,
+        fotema_core::photo::Repository,
         VideoThumbnailer,
+        fotema_core::video::Repository,
         SharedState,
         LazyThumbnailMonitor,
     );
@@ -120,13 +202,22 @@ impl Worker for LazyThumbnailTask {
     type Output = LazyThumbnailTaskOutput;
 
     fn init(
-        (photo_thumbnailer, video_thumbnailer, shared_state, lazy_thumbnail_monitor): Self::Init,
+        (
+            photo_thumbnailer,
+            photo_repo,
+            video_thumbnailer,
+            video_repo,
+            shared_state,
+            lazy_thumbnail_monitor,
+        ): Self::Init,
         _sender: ComponentSender<Self>,
     ) -> Self {
         let (send, recv): (Sender<VisualId>, Receiver<VisualId>) = mpsc::channel();
         LazyThumbnailTask {
             photo_thumbnailer,
+            photo_repo,
             video_thumbnailer,
+            video_repo,
             send,
             recv,
             shared_state,
