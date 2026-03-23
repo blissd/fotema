@@ -5,10 +5,11 @@
 use futures::executor::block_on;
 use rayon::prelude::*;
 use relm4::Worker;
+use relm4::gtk::glib;
 use relm4::prelude::*;
 use std::collections::HashMap;
 use std::result::Result::Ok;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Mutex, RwLock};
 
 use std::panic;
 
@@ -16,12 +17,16 @@ use crate::app::SharedState;
 use crate::app::background::lazy_thumbnail_notifier::{
     LazyThumbnailNotifier, LazyThumbnailNotifierInput,
 };
+use crate::config::APP_ID;
+use fotema_core::FlatpakPathBuf;
 use fotema_core::Visual;
 use fotema_core::VisualId;
+use fotema_core::database;
 use fotema_core::photo::PhotoThumbnailer;
 use fotema_core::thumbnailify;
 use fotema_core::thumbnailify::ThumbnailSize;
 use fotema_core::video::VideoThumbnailer;
+
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender, channel};
 use std::thread;
@@ -29,6 +34,9 @@ use tracing::{error, info};
 
 #[derive(Debug)]
 pub enum LazyThumbnailTaskInput {
+    // Configure library base directory.
+    Configure(FlatpakPathBuf),
+
     // Request a thumbnail is generated for a visual item
     Generate(VisualId),
 
@@ -49,7 +57,11 @@ pub enum LazyThumbnailTaskOutput {
 }
 
 pub struct LazyThumbnailTask {
-    runner: Arc<Runner>,
+    con: Arc<Mutex<database::Connection>>,
+
+    shared_state: SharedState,
+
+    runner: Option<Arc<Runner>>,
 
     send: mpsc::Sender<VisualId>,
 
@@ -58,10 +70,16 @@ pub struct LazyThumbnailTask {
     pending: Arc<RwLock<HashMap<VisualId, u32>>>,
 
     lazy_thumbnail_notifier: LazyThumbnailNotifier,
+    photo_thumbnailer: PhotoThumbnailer,
+    video_thumbnailer: VideoThumbnailer,
 }
 
 impl LazyThumbnailTask {
     fn process_next(&self, pending: &HashMap<VisualId, u32>) {
+        if self.runner.is_none() {
+            return;
+        }
+
         if let Some(visual_id) = pending.keys().nth(0).cloned() {
             let _ = self.send.send(visual_id);
         }
@@ -70,10 +88,9 @@ impl LazyThumbnailTask {
 
 impl Worker for LazyThumbnailTask {
     type Init = (
+        Arc<Mutex<database::Connection>>,
         PhotoThumbnailer,
-        fotema_core::photo::Repository,
         VideoThumbnailer,
-        fotema_core::video::Repository,
         SharedState,
         LazyThumbnailNotifier,
     );
@@ -82,44 +99,81 @@ impl Worker for LazyThumbnailTask {
 
     fn init(
         (
+            con,
             photo_thumbnailer,
-            photo_repo,
             video_thumbnailer,
-            video_repo,
             shared_state,
             lazy_thumbnail_notifier,
         ): Self::Init,
         sender: ComponentSender<Self>,
     ) -> Self {
-        let (send, recv): (Sender<VisualId>, Receiver<VisualId>) = mpsc::channel();
-
-        let runner = Arc::new(Runner {
-            sender: sender.input_sender().clone(),
-            shared_state,
-            visuals: Arc::new(RwLock::new(HashMap::new())),
-            photo_thumbnailer,
-            photo_repo,
-            video_thumbnailer,
-            video_repo,
-        });
-
-        {
-            let runner = runner.clone();
-            thread::spawn(move || {
-                runner.run(recv);
-            });
-        }
+        // Unused. Will be replaced when library base directory configured.
+        let (send, _recv): (Sender<VisualId>, Receiver<VisualId>) = mpsc::channel();
 
         LazyThumbnailTask {
-            runner: runner,
+            con,
+            shared_state,
             send,
             pending: Arc::new(RwLock::new(HashMap::new())),
             lazy_thumbnail_notifier,
+            photo_thumbnailer,
+            video_thumbnailer,
+            runner: None,
         }
     }
 
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
+            LazyThumbnailTaskInput::Configure(library_base_dir) => {
+                info!("Configuring library base directory: {:?}", library_base_dir);
+                let mut pending = self.pending.write().unwrap();
+                pending.clear();
+
+                let (send, recv): (Sender<VisualId>, Receiver<VisualId>) = mpsc::channel();
+                self.send = send; // should drop and hangup on previous send channel.
+
+                // TODO this is in many locations
+                let data_dir = glib::user_data_dir().join(APP_ID);
+                let _ = std::fs::create_dir_all(&data_dir);
+
+                let cache_dir = glib::user_cache_dir().join(APP_ID);
+                let _ = std::fs::create_dir_all(&cache_dir);
+
+                let photo_repo = fotema_core::photo::Repository::open(
+                    &library_base_dir,
+                    &cache_dir,
+                    &data_dir,
+                    self.con.clone(),
+                )
+                .unwrap();
+
+                let video_repo = fotema_core::video::Repository::open(
+                    &library_base_dir,
+                    &cache_dir,
+                    &data_dir,
+                    self.con.clone(),
+                )
+                .unwrap();
+
+                let runner = Arc::new(Runner {
+                    sender: sender.input_sender().clone(),
+                    shared_state: self.shared_state.clone(),
+                    visuals: Arc::new(RwLock::new(HashMap::new())),
+                    photo_thumbnailer: self.photo_thumbnailer.clone(),
+                    photo_repo,
+                    video_thumbnailer: self.video_thumbnailer.clone(),
+                    video_repo,
+                });
+
+                {
+                    let runner = runner.clone();
+                    thread::spawn(move || {
+                        runner.run(recv);
+                    });
+                }
+
+                self.runner = Some(runner);
+            }
             LazyThumbnailTaskInput::Generate(visual_id) => {
                 let mut pending = self.pending.write().unwrap();
                 pending

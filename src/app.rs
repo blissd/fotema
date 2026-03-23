@@ -254,6 +254,7 @@ pub(super) struct App {
 
     settings_state: SettingsState,
 
+    lazy_thumbnail_task: WorkerController<LazyThumbnailTask>,
     lazy_thumbnail_notifier: LazyThumbnailNotifier,
 }
 
@@ -592,13 +593,6 @@ impl SimpleAsyncComponent for App {
         let cache_dir = glib::user_cache_dir().join(APP_ID);
         let _ = std::fs::create_dir_all(&cache_dir);
 
-        // WARN duplicate thumbnail path calculation in bootstrap.rs
-        let thumbnail_dir = glib::user_cache_dir()
-            .join(APP_ID) // Remove to use standard XDG thumbnail path
-            .join("thumbnails");
-
-        let thumbnailer = Rc::new(Thumbnailer::build(&thumbnail_dir));
-
         let db_path = data_dir.join("pictures.sqlite");
 
         let con = database::setup(&db_path).expect("Must be able to open database");
@@ -609,37 +603,17 @@ impl SimpleAsyncComponent for App {
         let state = SharedState::new(relm4::SharedState::new());
         let active_view = ActiveView::new(relm4::SharedState::new());
         let adaptive_layout = Arc::new(adaptive::LayoutState::new());
-        /*
-                // TODO also create these thumbnailers in bootstrap.rs :-(
-                let photo_thumbnailer = PhotoThumbnailer::build(*thumbnailer.clone()).unwrap();
-                let video_thumbnailer = VideoThumbnailer::build(*thumbnailer.clone()).unwrap();
 
-                // FIXME oh no.
-                let library_base_dir = PathBuf::from("/var/home/david/Pictures");
+        // WARN duplicate thumbnail path calculation in bootstrap.rs
+        let thumbnail_dir = glib::user_cache_dir()
+            .join(APP_ID) // Remove to use standard XDG thumbnail path
+            .join("thumbnails");
 
-                // FIXME cannot stay here because will not be updated when library path changes.
-                let photo_repo =
-                    fotema_core::photo::Repository::open(library_base_dir, &cache_dir, &data_dir, con.clone()).unwrap();
+        let thumbnailer = Thumbnailer::build(&thumbnail_dir);
+        let photo_thumbnailer = PhotoThumbnailer::build(thumbnailer.clone()).unwrap();
+        let video_thumbnailer = VideoThumbnailer::build(thumbnailer.clone()).unwrap();
 
-                // FIXME cannot stay here because will not be updated when library path changes.
-                let video_repo =
-                    fotema_core::video::Repository::open(library_base_dir, &cache_dir, &data_dir, con.clone()).unwrap();
-        */
         let lazy_thumbnail_notifier: LazyThumbnailNotifier = Arc::new(Reducer::new());
-
-        /*let lazy_thumbnail_task = LazyThumbnailTask::builder()
-        .detach_worker((
-            photo_thumbnailer.clone(),
-            photo_repo.clone(),
-            video_thumbnailer.clone(),
-            video_repo.clone(),
-            state.clone(),
-            lazy_thumbnail_monitor.clone(),
-        ))
-        .forward(sender.input_sender(), |msg| match msg {
-            LazyThumbnailTaskOutput::ThumbnailReady(visual_id) => AppMsg::ThumbnailReady(visual_id),
-        });
-        */
 
         let settings_state = SettingsState::new(relm4::SharedState::new());
         match App::load_settings().await {
@@ -652,6 +626,24 @@ impl SimpleAsyncComponent for App {
 
         settings_state.subscribe(sender.input_sender(), |settings| {
             AppMsg::SettingsChanged(settings.clone())
+        });
+
+        let lazy_thumbnail_task = LazyThumbnailTask::builder()
+            .detach_worker((
+                con.clone(),
+                photo_thumbnailer.clone(),
+                video_thumbnailer.clone(),
+                state.clone(),
+                lazy_thumbnail_notifier.clone(),
+            ))
+            .forward(sender.input_sender(), |msg| match msg {
+                LazyThumbnailTaskOutput::ThumbnailReady(visual_id) => {
+                    AppMsg::ThumbnailReady(visual_id)
+                }
+            });
+
+        settings_state.subscribe(lazy_thumbnail_task.sender(), |settings| {
+            LazyThumbnailTaskInput::Configure(settings.library_base_dir.clone())
         });
 
         let bootstrap_progress_monitor: Reducer<ProgressMonitor> = Reducer::new();
@@ -682,6 +674,8 @@ impl SimpleAsyncComponent for App {
                 });
 
         let onboard_view = adw::ToolbarView::new();
+
+        let thumbnailer = Rc::new(thumbnailer);
 
         let library = Library::builder()
             .launch((
@@ -921,6 +915,8 @@ impl SimpleAsyncComponent for App {
             banner: banner.clone(),
 
             settings_state: settings_state.clone(),
+
+            lazy_thumbnail_task,
             lazy_thumbnail_notifier,
         };
 
@@ -958,6 +954,8 @@ impl SimpleAsyncComponent for App {
         if is_onboarding_complete {
             model.picture_navigation_view.set_visible(true);
             model.onboard_view.set_visible(false);
+
+            // Start background processes
             sender.input(AppMsg::OnboardDone(
                 settings.library_base_dir.sandbox_path.clone(),
             ));
@@ -1189,8 +1187,16 @@ impl SimpleAsyncComponent for App {
                     .unwrap_or(FlatpakPathBuf::build(&library_base_dir, &library_base_dir));
                 *self.settings_state.write() = settings.clone();
 
+                // Start background processes
                 self.bootstrap
                     .emit(BootstrapInput::Configure(settings.library_base_dir.clone()));
+
+                // Start lazy thumbnail task
+                self.lazy_thumbnail_task
+                    .emit(LazyThumbnailTaskInput::Configure(
+                        settings.library_base_dir.clone(),
+                    ));
+
                 self.picture_navigation_view.set_visible(true);
                 self.onboard_view.set_visible(false);
             }
