@@ -36,6 +36,7 @@ use fotema_core::thumbnailify::Thumbnailer;
 
 use h3o::CellIndex;
 
+use std::cell::RefCell;
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::str::FromStr;
@@ -646,6 +647,10 @@ impl SimpleAsyncComponent for App {
             LazyThumbnailTaskInput::Configure(settings.library_base_dir.clone())
         });
 
+        state.subscribe(lazy_thumbnail_task.sender(), |_| {
+            LazyThumbnailTaskInput::Refresh
+        });
+
         let bootstrap_progress_monitor: Reducer<ProgressMonitor> = Reducer::new();
         let bootstrap_progress_monitor = Arc::new(bootstrap_progress_monitor);
 
@@ -818,8 +823,17 @@ impl SimpleAsyncComponent for App {
             PlacesAlbumInput::Adapt(*layout)
         });
 
+        let lazy_thumbnail_tracker = Rc::new(RefCell::new(LazyThumbnailTracker::new(
+            thumbnailer.clone(),
+            lazy_thumbnail_task.sender().clone(),
+        )));
         let folders_album = FoldersAlbum::builder()
-            .launch((state.clone(), active_view.clone(), thumbnailer.clone()))
+            .launch((
+                state.clone(),
+                active_view.clone(),
+                thumbnailer.clone(),
+                lazy_thumbnail_tracker,
+            ))
             .forward(sender.input_sender(), |msg| match msg {
                 FoldersAlbumOutput::FolderSelected(path) => AppMsg::ViewFolder(path),
             });

@@ -184,7 +184,12 @@ pub struct FoldersAlbum {
 
 #[relm4::component(pub)]
 impl SimpleComponent for FoldersAlbum {
-    type Init = (SharedState, ActiveView, Rc<Thumbnailer>);
+    type Init = (
+        SharedState,
+        ActiveView,
+        Rc<Thumbnailer>,
+        Rc<RefCell<LazyThumbnailTracker>>,
+    );
     type Input = FoldersAlbumInput;
     type Output = FoldersAlbumOutput;
 
@@ -205,7 +210,7 @@ impl SimpleComponent for FoldersAlbum {
     }
 
     fn init(
-        (state, active_view, thumbnailer): Self::Init,
+        (state, active_view, thumbnailer, lazy_thumbnail_tracker): Self::Init,
         _root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
@@ -216,8 +221,8 @@ impl SimpleComponent for FoldersAlbum {
             active_view,
             photo_grid,
             edge_length: I32Binding::new(NARROW_EDGE_LENGTH),
-            thumbnailer: thumbnailer.clone(),
-            lazy_thumbnail_tracker: Rc::new(RefCell::new(LazyThumbnailTracker::new(thumbnailer))),
+            thumbnailer,
+            lazy_thumbnail_tracker,
         };
 
         let pictures_box = &model.photo_grid.view;

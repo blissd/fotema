@@ -2,10 +2,11 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+use crate::app::background::lazy_thumbnail_task::LazyThumbnailTaskInput;
 use fotema_core::thumbnailify::{ThumbnailSize, Thumbnailer};
 use fotema_core::{Visual, VisualId};
 use relm4::gtk;
-use relm4::{Reducer, Reducible};
+use relm4::{Reducer, Reducible, Sender};
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -23,13 +24,17 @@ pub struct LazyThumbnailTracker {
     // Visual waiting for a thumbnail.
     pending: HashMap<VisualId, PendingThumbnail>,
 
+    // Send messages to lazy thumbnail task
+    sender: Sender<LazyThumbnailTaskInput>,
+
     thumbnailer: Rc<Thumbnailer>,
 }
 
 impl LazyThumbnailTracker {
-    pub fn new(thumbnailer: Rc<Thumbnailer>) -> Self {
+    pub fn new(thumbnailer: Rc<Thumbnailer>, sender: Sender<LazyThumbnailTaskInput>) -> Self {
         Self {
             pending: HashMap::new(),
+            sender,
             thumbnailer,
         }
     }
@@ -41,6 +46,8 @@ impl LazyThumbnailTracker {
             thumbnail_hash: visual.thumbnail_hash(),
         };
         self.pending.insert(visual.visual_id.clone(), pending);
+        self.sender
+            .emit(LazyThumbnailTaskInput::Generate(visual.visual_id.clone()));
     }
 
     // A thumbnail has been generated
@@ -63,5 +70,7 @@ impl LazyThumbnailTracker {
     pub fn cancel(&mut self, visual_id: &VisualId) {
         info!("Cancelling {:?}", visual_id);
         self.pending.remove(visual_id);
+        self.sender
+            .emit(LazyThumbnailTaskInput::Cancel(visual_id.clone()));
     }
 }
