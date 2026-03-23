@@ -688,6 +688,8 @@ impl SimpleAsyncComponent for App {
                 active_view.clone(),
                 adaptive_layout.clone(),
                 thumbnailer.clone(),
+                lazy_thumbnail_task.sender().clone(),
+                lazy_thumbnail_notifier.clone(),
             ))
             .forward(sender.input_sender(), |msg| match msg {
                 LibraryOutput::View(id) => AppMsg::View(id, AlbumFilter::All),
@@ -712,6 +714,10 @@ impl SimpleAsyncComponent for App {
             ViewNavInput::Sort(settings.album_sort)
         });
 
+        let lazy_thumbnail_tracker = Rc::new(RefCell::new(LazyThumbnailTracker::new(
+            thumbnailer.clone(),
+            lazy_thumbnail_task.sender().clone(),
+        )));
         let selfies_page = Album::builder()
             .launch((
                 state.clone(),
@@ -719,6 +725,7 @@ impl SimpleAsyncComponent for App {
                 ViewName::Selfies,
                 AlbumFilter::Selfies,
                 thumbnailer.clone(),
+                lazy_thumbnail_tracker,
             ))
             .forward(sender.input_sender(), |msg| match msg {
                 AlbumOutput::Selected(id, filter) => AppMsg::View(id, filter),
@@ -730,9 +737,19 @@ impl SimpleAsyncComponent for App {
         settings_state.subscribe(selfies_page.sender(), |settings| {
             AlbumInput::Sort(settings.album_sort)
         });
+        lazy_thumbnail_notifier.subscribe_optional(selfies_page.sender(), |notifier| {
+            notifier
+                .visual_id
+                .clone()
+                .map(|visual_id| AlbumInput::ThumbnailReady(visual_id))
+        });
 
         let show_selfies = AppWidgets::show_selfies();
 
+        let lazy_thumbnail_tracker = Rc::new(RefCell::new(LazyThumbnailTracker::new(
+            thumbnailer.clone(),
+            lazy_thumbnail_task.sender().clone(),
+        )));
         let motion_page = Album::builder()
             .launch((
                 state.clone(),
@@ -740,6 +757,7 @@ impl SimpleAsyncComponent for App {
                 ViewName::Animated,
                 AlbumFilter::Motion,
                 thumbnailer.clone(),
+                lazy_thumbnail_tracker,
             ))
             .forward(sender.input_sender(), |msg| match msg {
                 AlbumOutput::Selected(id, filter) => AppMsg::View(id, filter),
@@ -751,7 +769,17 @@ impl SimpleAsyncComponent for App {
         settings_state.subscribe(motion_page.sender(), |settings| {
             AlbumInput::Sort(settings.album_sort)
         });
+        lazy_thumbnail_notifier.subscribe_optional(motion_page.sender(), |notifier| {
+            notifier
+                .visual_id
+                .clone()
+                .map(|visual_id| AlbumInput::ThumbnailReady(visual_id))
+        });
 
+        let lazy_thumbnail_tracker = Rc::new(RefCell::new(LazyThumbnailTracker::new(
+            thumbnailer.clone(),
+            lazy_thumbnail_task.sender().clone(),
+        )));
         let videos_page = Album::builder()
             .launch((
                 state.clone(),
@@ -759,6 +787,7 @@ impl SimpleAsyncComponent for App {
                 ViewName::Videos,
                 AlbumFilter::Videos,
                 thumbnailer.clone(),
+                lazy_thumbnail_tracker,
             ))
             .forward(sender.input_sender(), |msg| match msg {
                 AlbumOutput::Selected(id, filter) => AppMsg::View(id, filter),
@@ -769,6 +798,12 @@ impl SimpleAsyncComponent for App {
         adaptive_layout.subscribe(videos_page.sender(), |layout| AlbumInput::Adapt(*layout));
         settings_state.subscribe(videos_page.sender(), |settings| {
             AlbumInput::Sort(settings.album_sort)
+        });
+        lazy_thumbnail_notifier.subscribe_optional(videos_page.sender(), |notifier| {
+            notifier
+                .visual_id
+                .clone()
+                .map(|visual_id| AlbumInput::ThumbnailReady(visual_id))
         });
 
         let people_page = PeopleAlbum::builder()
@@ -786,12 +821,17 @@ impl SimpleAsyncComponent for App {
             PeopleAlbumInput::Adapt(*layout)
         });
 
+        let lazy_thumbnail_tracker = Rc::new(RefCell::new(LazyThumbnailTracker::new(
+            thumbnailer.clone(),
+            lazy_thumbnail_task.sender().clone(),
+        )));
         let person_album = PersonAlbum::builder()
             .launch((
                 state.clone(),
                 people_repo.clone(),
                 active_view.clone(),
                 thumbnailer.clone(),
+                lazy_thumbnail_tracker,
             ))
             .forward(sender.input_sender(), |msg| match msg {
                 PersonAlbumOutput::Selected(id, filter) => AppMsg::View(id, filter),
@@ -851,6 +891,10 @@ impl SimpleAsyncComponent for App {
                 .map(|visual_id| FoldersAlbumInput::ThumbnailReady(visual_id))
         });
 
+        let lazy_thumbnail_tracker = Rc::new(RefCell::new(LazyThumbnailTracker::new(
+            thumbnailer.clone(),
+            lazy_thumbnail_task.sender().clone(),
+        )));
         let folder_album = Album::builder()
             .launch((
                 state.clone(),
@@ -858,6 +902,7 @@ impl SimpleAsyncComponent for App {
                 ViewName::Folder,
                 AlbumFilter::None,
                 thumbnailer.clone(),
+                lazy_thumbnail_tracker,
             ))
             .forward(sender.input_sender(), |msg| match msg {
                 AlbumOutput::Selected(id, filter) => AppMsg::View(id, filter),
@@ -868,6 +913,12 @@ impl SimpleAsyncComponent for App {
         adaptive_layout.subscribe(folder_album.sender(), |layout| AlbumInput::Adapt(*layout));
         settings_state.subscribe(folder_album.sender(), |settings| {
             AlbumInput::Sort(settings.album_sort)
+        });
+        lazy_thumbnail_notifier.subscribe_optional(folder_album.sender(), |notifier| {
+            notifier
+                .visual_id
+                .clone()
+                .map(|visual_id| AlbumInput::ThumbnailReady(visual_id))
         });
 
         let about_dialog = AboutDialog::builder().launch(root.clone()).detach();

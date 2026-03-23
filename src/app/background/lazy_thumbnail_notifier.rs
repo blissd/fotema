@@ -2,14 +2,9 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use fotema_core::thumbnailify::{ThumbnailSize, Thumbnailer};
-use fotema_core::{Visual, VisualId};
-use relm4::gtk;
+use fotema_core::VisualId;
 use relm4::{Reducer, Reducible};
-use std::collections::HashMap;
-use std::rc::Rc;
 use std::sync::Arc;
-use tracing::info;
 
 // Notifies subscribers that thumbnails are ready.
 pub type LazyThumbnailNotifier = Arc<Reducer<LazyThumbnailReducible>>;

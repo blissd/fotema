@@ -23,6 +23,7 @@ use crate::app::components::albums::{
 
 use crate::fl;
 
+use crate::app::background::lazy_thumbnail_tracker::LazyThumbnailTracker;
 use fotema_core::PictureId;
 use fotema_core::VisualId;
 use fotema_core::people;
@@ -30,6 +31,7 @@ use fotema_core::thumbnailify::Thumbnailer;
 
 use tracing::{error, info};
 
+use std::cell::RefCell;
 use std::rc::Rc;
 
 const NARROW_EDGE_LENGTH: i32 = 50;
@@ -103,7 +105,13 @@ pub struct PersonAlbum {
 
 #[relm4::component(pub)]
 impl SimpleComponent for PersonAlbum {
-    type Init = (SharedState, people::Repository, ActiveView, Rc<Thumbnailer>);
+    type Init = (
+        SharedState,
+        people::Repository,
+        ActiveView,
+        Rc<Thumbnailer>,
+        Rc<RefCell<LazyThumbnailTracker>>,
+    );
     type Input = PersonAlbumInput;
     type Output = PersonAlbumOutput;
 
@@ -147,7 +155,7 @@ impl SimpleComponent for PersonAlbum {
     }
 
     fn init(
-        (state, repo, active_view, thumbnailer): Self::Init,
+        (state, repo, active_view, thumbnailer, lazy_thumbnail_tracker): Self::Init,
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
@@ -163,6 +171,7 @@ impl SimpleComponent for PersonAlbum {
                 ViewName::Person,
                 AlbumFilter::None,
                 thumbnailer,
+                lazy_thumbnail_tracker,
             ))
             .forward(sender.input_sender(), |msg| match msg {
                 AlbumOutput::Selected(id, _) => PersonAlbumInput::Selected(id),
