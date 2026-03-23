@@ -37,6 +37,9 @@ pub enum LazyThumbnailTaskInput {
     // Configure library base directory.
     Configure(FlatpakPathBuf),
 
+    // Refresh visuals
+    Refresh,
+
     // Request a thumbnail is generated for a visual item
     Generate(VisualId),
 
@@ -175,6 +178,7 @@ impl Worker for LazyThumbnailTask {
                 self.runner = Some(runner);
             }
             LazyThumbnailTaskInput::Generate(visual_id) => {
+                info!("Generate {:?}", visual_id);
                 let mut pending = self.pending.write().unwrap();
                 pending
                     .entry(visual_id.clone())
@@ -204,6 +208,11 @@ impl Worker for LazyThumbnailTask {
             LazyThumbnailTaskInput::Stop => {
                 let mut pending = self.pending.write().unwrap();
                 pending.clear();
+            }
+            LazyThumbnailTaskInput::Refresh => {
+                if let Some(ref runner) = self.runner {
+                    runner.refresh();
+                }
             }
         };
     }
