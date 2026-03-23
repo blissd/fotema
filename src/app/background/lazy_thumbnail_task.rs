@@ -150,6 +150,7 @@ impl LazyThumbnailTask {
         }
     }
 
+    // FIXME this is a copy-and-paste from video_thumbnail_task.rs
     fn generate_video_thumbnail(&self, visual: &Arc<Visual>) {
         let Some(ref path) = visual.video_path else {
             todo!()
