@@ -20,6 +20,7 @@ use crate::app::SharedState;
 use crate::app::background::lazy_thumbnail_monitor::{
     LazyThumbnailMonitor, LazyThumbnailMonitorInput,
 };
+use fotema_core::Visual;
 use fotema_core::VisualId;
 use fotema_core::photo::PhotoThumbnailer;
 use fotema_core::thumbnailify;
@@ -52,7 +53,6 @@ pub enum LazyThumbnailTaskOutput {
 }
 
 pub struct LazyThumbnailTask {
-    thumbnails_path: PathBuf,
     photo_thumbnailer: fotema_core::photo::PhotoThumbnailer,
     video_thumbnailer: fotema_core::video::VideoThumbnailer,
     send: mpsc::Sender<VisualId>,
@@ -60,6 +60,9 @@ pub struct LazyThumbnailTask {
 
     // Loaded visuals
     shared_state: SharedState,
+
+    // Loaded visuals keyed by VisualId
+    visuals: Arc<RwLock<HashMap<VisualId, Arc<Visual>>>>,
 
     // Visuals pending thumbnail generation
     // Map value is count of thumbnail requests.
@@ -94,11 +97,20 @@ impl LazyThumbnailTask {
             }
         }
     }
+
+    fn refresh(&self) {
+        let data = self.shared_state.read();
+
+        let mut visuals = self.visuals.write().unwrap();
+        visuals.clear();
+        data.iter().for_each(|v| {
+            visuals.insert(v.visual_id.clone(), v.clone());
+        });
+    }
 }
 
 impl Worker for LazyThumbnailTask {
     type Init = (
-        PathBuf,
         PhotoThumbnailer,
         VideoThumbnailer,
         SharedState,
@@ -108,23 +120,17 @@ impl Worker for LazyThumbnailTask {
     type Output = LazyThumbnailTaskOutput;
 
     fn init(
-        (
-            thumbnails_path,
-            photo_thumbnailer,
-            video_thumbnailer,
-            shared_state,
-            lazy_thumbnail_monitor,
-        ): Self::Init,
+        (photo_thumbnailer, video_thumbnailer, shared_state, lazy_thumbnail_monitor): Self::Init,
         _sender: ComponentSender<Self>,
     ) -> Self {
         let (send, recv): (Sender<VisualId>, Receiver<VisualId>) = mpsc::channel();
         LazyThumbnailTask {
-            thumbnails_path: thumbnails_path.into(),
             photo_thumbnailer,
             video_thumbnailer,
             send,
             recv,
             shared_state,
+            visuals: Arc::new(RwLock::new(HashMap::new())),
             pending: Arc::new(RwLock::new(HashMap::new())),
             lazy_thumbnail_monitor,
         }
