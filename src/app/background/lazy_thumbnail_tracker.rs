@@ -27,6 +27,11 @@ pub struct LazyThumbnailTracker {
     sender: Sender<LazyThumbnailTaskInput>,
 
     thumbnailer: Rc<Thumbnailer>,
+
+    // Thumbnails are only generated for the active album view.
+    // When a view is deactivated, thumbnail generation should pause.
+    // On activation, thumbnail generation resumes.
+    is_active: bool,
 }
 
 impl LazyThumbnailTracker {
@@ -35,6 +40,7 @@ impl LazyThumbnailTracker {
             pending: HashMap::new(),
             sender,
             thumbnailer,
+            is_active: false,
         }
     }
 
@@ -78,6 +84,30 @@ impl LazyThumbnailTracker {
             self.sender
                 .emit(LazyThumbnailTaskInput::Cancel(visual_id.clone()));
         }
+    }
+
+    pub fn pause(&mut self) {
+        if !self.is_active {
+            return;
+        }
+        info!("Pausing {:?} thumbnails", self.pending.len());
+        self.is_active = false;
+        self.pending.keys().for_each(|visual_id| {
+            self.sender
+                .emit(LazyThumbnailTaskInput::Cancel(visual_id.clone()));
+        });
+    }
+
+    pub fn resume(&mut self) {
+        if self.is_active {
+            return;
+        }
+        info!("Resuming {:?} thumbnails", self.pending.len());
+        self.is_active = true;
+        self.pending.keys().for_each(|visual_id| {
+            self.sender
+                .emit(LazyThumbnailTaskInput::Cancel(visual_id.clone()));
+        });
     }
 
     pub fn clear(&mut self) {

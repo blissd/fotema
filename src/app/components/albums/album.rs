@@ -38,6 +38,9 @@ pub enum AlbumInput {
     /// Album is visible
     Activate,
 
+    /// A view has been activated
+    Activated(ViewName),
+
     // State has been updated
     Refresh,
 
@@ -313,7 +316,7 @@ impl SimpleComponent for Album {
         let photo_grid = TypedGridView::new();
         let grid_view = &photo_grid.view.clone();
 
-        let mut model = Album {
+        let model = Album {
             state,
             active_view,
             view_name,
@@ -335,6 +338,16 @@ impl SimpleComponent for Album {
                 *self.active_view.write() = self.view_name;
                 if self.photo_grid.is_empty() {
                     self.refresh();
+                }
+            }
+            AlbumInput::Activated(view_name) => {
+                if self.view_name == view_name {
+                    self.lazy_thumbnail_tracker.borrow_mut().resume();
+                    if self.photo_grid.is_empty() {
+                        self.refresh();
+                    }
+                } else {
+                    self.lazy_thumbnail_tracker.borrow_mut().pause();
                 }
             }
             AlbumInput::Refresh => {

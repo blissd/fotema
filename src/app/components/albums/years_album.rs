@@ -19,6 +19,7 @@ use relm4::gtk::prelude::WidgetExt;
 use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
 use relm4::*;
 
+use std::cell::RefCell;
 use std::path;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -30,6 +31,8 @@ use crate::app::ActiveView;
 use crate::app::AlbumSort;
 use crate::app::SharedState;
 use crate::app::ViewName;
+use crate::app::background::lazy_thumbnail_tracker::LazyThumbnailTracker;
+use fotema_core::VisualId;
 
 const NARROW_EDGE_LENGTH: i32 = 170;
 const WIDE_EDGE_LENGTH: i32 = 200;
@@ -41,10 +44,13 @@ struct PhotoGridItem {
     // Length of thumbnail edge to allow for resizing when layout changes.
     edge_length: I32Binding,
     thumbnailer: Rc<Thumbnailer>,
+    lazy_thumbnail_tracker: Rc<RefCell<LazyThumbnailTracker>>,
 }
 #[derive(Debug)]
 pub enum YearsAlbumInput {
     Activate,
+
+    Activated(ViewName),
 
     /// User has selected year in grid view
     YearSelected(u32), // WARN this is an index into an Vec, not a year.
@@ -56,6 +62,9 @@ pub enum YearsAlbumInput {
     Adapt(adaptive::Layout),
 
     Sort(AlbumSort),
+
+    // A thumbnail has been loaded.
+    ThumbnailReady(VisualId),
 }
 
 #[derive(Debug)]
@@ -155,11 +164,18 @@ impl RelmGridItem for PhotoGridItem {
             let img = gdk::Texture::for_pixbuf(&pb);
             widgets.picture.set_paintable(Some(&img));
             widgets.picture.set_content_fit(gtk::ContentFit::Cover);
+
+            self.lazy_thumbnail_tracker
+                .borrow_mut()
+                .add(&self.visual, widgets.picture.clone());
         }
     }
 
     fn unbind(&mut self, widgets: &mut Self::Widgets, _root: &mut Self::Root) {
         widgets.picture.set_filename(None::<&path::Path>);
+        self.lazy_thumbnail_tracker
+            .borrow_mut()
+            .cancel(&self.visual.visual_id);
     }
 }
 
@@ -170,11 +186,17 @@ pub struct YearsAlbum {
     edge_length: I32Binding,
     sort: AlbumSort,
     thumbnailer: Rc<Thumbnailer>,
+    lazy_thumbnail_tracker: Rc<RefCell<LazyThumbnailTracker>>,
 }
 
 #[relm4::component(pub)]
 impl SimpleComponent for YearsAlbum {
-    type Init = (SharedState, ActiveView, Rc<Thumbnailer>);
+    type Init = (
+        SharedState,
+        ActiveView,
+        Rc<Thumbnailer>,
+        Rc<RefCell<LazyThumbnailTracker>>,
+    );
     type Input = YearsAlbumInput;
     type Output = YearsAlbumOutput;
 
@@ -198,7 +220,7 @@ impl SimpleComponent for YearsAlbum {
     }
 
     fn init(
-        (state, active_view, thumbnailer): Self::Init,
+        (state, active_view, thumbnailer, lazy_thumbnail_tracker): Self::Init,
         _root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
@@ -211,6 +233,7 @@ impl SimpleComponent for YearsAlbum {
             edge_length: I32Binding::new(NARROW_EDGE_LENGTH),
             sort: AlbumSort::default(),
             thumbnailer,
+            lazy_thumbnail_tracker,
         };
 
         let photo_grid_view = &model.photo_grid.view;
@@ -225,6 +248,16 @@ impl SimpleComponent for YearsAlbum {
                 *self.active_view.write() = ViewName::Year;
                 if self.photo_grid.is_empty() {
                     self.refresh();
+                }
+            }
+            YearsAlbumInput::Activated(view_name) => {
+                if ViewName::Year == view_name {
+                    self.lazy_thumbnail_tracker.borrow_mut().resume();
+                    if self.photo_grid.is_empty() {
+                        self.refresh();
+                    }
+                } else {
+                    self.lazy_thumbnail_tracker.borrow_mut().pause();
                 }
             }
             YearsAlbumInput::Refresh => {
@@ -255,12 +288,20 @@ impl SimpleComponent for YearsAlbum {
                     sender.input(YearsAlbumInput::Refresh);
                 }
             }
+            YearsAlbumInput::ThumbnailReady(visual_id) => {
+                info!("Thumbnail ready {:?}", visual_id);
+                self.lazy_thumbnail_tracker
+                    .borrow_mut()
+                    .complete(&visual_id);
+            }
         }
     }
 }
 
 impl YearsAlbum {
     fn refresh(&mut self) {
+        self.lazy_thumbnail_tracker.borrow_mut().clear();
+
         let mut all_pictures = {
             let data = self.state.read();
             data.iter()
@@ -269,6 +310,7 @@ impl YearsAlbum {
                     visual: visual.clone(),
                     edge_length: self.edge_length.clone(),
                     thumbnailer: self.thumbnailer.clone(),
+                    lazy_thumbnail_tracker: self.lazy_thumbnail_tracker.clone(),
                 })
                 .collect::<Vec<PhotoGridItem>>()
         };
