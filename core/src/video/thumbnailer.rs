@@ -6,8 +6,8 @@ use crate::FlatpakPathBuf;
 use crate::thumbnailify;
 
 use anyhow::*;
-use image::{ImageBuffer, ImageReader, Rgb, RgbImage};
-use std::path::{Path, PathBuf};
+use image::{ImageBuffer, ImageFormat, ImageReader, RgbImage};
+use std::path::Path;
 use std::result::Result::Ok;
 use tempfile;
 
@@ -79,7 +79,8 @@ impl VideoThumbnailer {
                         println!("decoded frame");
                         let mut rgb_frame = Video::empty();
                         scaler.run(&decoded, &mut rgb_frame)?;
-                        Self::convert_ppm_to_png(&rgb_frame, temporary_png_file.path());
+                        Self::convert_rgb_to_png(&rgb_frame, temporary_png_file.path())
+                            .map_err(|_| ffmpeg::Error::Unknown)?;
                         frame_index += 1;
                     }
                     Ok(())
@@ -103,29 +104,15 @@ impl VideoThumbnailer {
         Ok(())
     }
 
-    /// See https://github.com/lopossumi/Rust-Output-Image/blob/master/src/main.rs
-    /// See https://netpbm.sourceforge.net/doc/ppm.html
-    fn convert_ppm_to_png(frame: &Video, png_path: &Path) {
+    fn convert_rgb_to_png(frame: &Video, png_path: &Path) -> Result<()> {
         let image_width = frame.width();
         let image_height = frame.height();
+        let frame_bytes: Vec<u8> = frame.data(0).to_vec();
 
-        let mut buffer: RgbImage = ImageBuffer::new(image_width, image_height);
+        let buffer: RgbImage = ImageBuffer::from_raw(image_width, image_height, frame_bytes)
+            .expect("Video frame to image");
 
-        for (x, y, pixel) in buffer.enumerate_pixels_mut() {
-            let r = x as f64 / (image_width - 1) as f64;
-            let g = y as f64 / (image_height - 1) as f64;
-            let b = 0.25;
-
-            let ir = (255.999 * r) as u8;
-            let ig = (255.999 * g) as u8;
-            let ib = (255.999 * b) as u8;
-
-            *pixel = Rgb([ir, ig, ib]);
-        }
-
-        match buffer.save(png_path) {
-            Err(e) => eprintln!("Error writing file: {}", e),
-            Ok(()) => println!("Done."),
-        };
+        buffer.save_with_format(png_path, ImageFormat::Png)?;
+        Ok(())
     }
 }

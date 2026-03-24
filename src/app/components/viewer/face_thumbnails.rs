@@ -8,7 +8,6 @@ use relm4::adw::{self, prelude::*};
 use relm4::gtk::{self, gdk, gio};
 use relm4::prelude::*;
 use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
-use relm4::*;
 
 use crate::fl;
 use fotema_core::FaceId;
@@ -120,7 +119,7 @@ impl RelmGridItem for FaceGridItem {
         // Only show face icon on unknown faces
         widgets.face_icon.set_visible(!self.person.is_some());
 
-        let (menu_items, thumbnail_path) = if let Some(person) = self.person.as_ref() {
+        let (menu_items, _thumbnail_path) = if let Some(person) = self.person.as_ref() {
             let not_person: RelmAction<FaceNotPersonAction> = {
                 let sender = self.sender.clone();
                 let face_id = self.face.face_id;
