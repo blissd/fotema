@@ -193,7 +193,6 @@ impl RelmGridItem for PhotoGridItem {
 
         if thumbnail_path.is_some() {
             widgets.picture.set_filename(thumbnail_path);
-
             widgets.picture.set_content_fit(gtk::ContentFit::Cover);
         } else {
             let pb = gdk_pixbuf::Pixbuf::from_resource_at_scale(

@@ -23,8 +23,8 @@ use fotema_core::database;
 use fotema_core::photo::PhotoThumbnailer;
 use fotema_core::video::VideoThumbnailer;
 
-use std::sync::mpsc;
-use std::sync::mpsc::{Receiver, Sender};
+use crossbeam_channel::{Receiver, Sender, bounded, unbounded};
+
 use std::thread;
 use tracing::{error, info};
 
@@ -62,26 +62,46 @@ pub struct LazyThumbnailTask {
 
     runner: Option<Arc<Runner>>,
 
-    send: mpsc::Sender<VisualId>,
+    send: Sender<VisualId>,
 
     // Visuals pending thumbnail generation
-    // Map value is count of thumbnail requests.
     pending: Arc<RwLock<HashMap<VisualId, u32>>>,
 
     lazy_thumbnail_notifier: LazyThumbnailNotifier,
     photo_thumbnailer: PhotoThumbnailer,
     video_thumbnailer: VideoThumbnailer,
+    inflight: usize,
+    parallelism: usize,
 }
 
 impl LazyThumbnailTask {
-    fn process_next(&self, pending: &HashMap<VisualId, u32>) {
+    fn process_next(&self) -> usize {
         if self.runner.is_none() {
-            return;
+            return 0;
         }
 
-        if let Some(visual_id) = pending.keys().nth(0).cloned() {
-            let _ = self.send.send(visual_id);
+        let mut keys: Vec<VisualId> = vec![];
+        {
+            let pending = self.pending.read().unwrap();
+            let count = self.parallelism - self.send.len();
+            let count = usize::min(count, pending.len());
+            pending
+                .keys()
+                .take(count)
+                .for_each(|v| keys.push(v.clone()));
         }
+
+        info!("Submitting {} keys", keys.len());
+        let submitted_count = keys.len();
+
+        let mut pending = self.pending.write().unwrap();
+        for visual_id in keys.into_iter() {
+            pending.remove(&visual_id);
+            self.send.send(visual_id.clone());
+        }
+
+        info!("Thumbnails remaining: {}", pending.len());
+        return submitted_count;
     }
 }
 
@@ -107,7 +127,15 @@ impl Worker for LazyThumbnailTask {
         sender: ComponentSender<Self>,
     ) -> Self {
         // Unused. Will be replaced when library base directory configured.
-        let (send, _recv): (Sender<VisualId>, Receiver<VisualId>) = mpsc::channel();
+        let (send, _recv): (Sender<VisualId>, Receiver<VisualId>) = unbounded();
+
+        let parallelism: usize = thread::available_parallelism()
+            .map(|n| n.get())
+            .unwrap_or(1);
+        info!("Available parallelism: {:?}", parallelism);
+
+        let parallelism = usize::max(1, parallelism / 2);
+        info!("Lazy thumbnail parallelism: {:?}", parallelism);
 
         LazyThumbnailTask {
             con,
@@ -118,6 +146,8 @@ impl Worker for LazyThumbnailTask {
             photo_thumbnailer,
             video_thumbnailer,
             runner: None,
+            inflight: 0,
+            parallelism,
         }
     }
 
@@ -128,7 +158,8 @@ impl Worker for LazyThumbnailTask {
                 let mut pending = self.pending.write().unwrap();
                 pending.clear();
 
-                let (send, recv): (Sender<VisualId>, Receiver<VisualId>) = mpsc::channel();
+                let (send, recv): (Sender<VisualId>, Receiver<VisualId>) =
+                    bounded(self.parallelism);
                 self.send = send; // should drop and hangup on previous send channel.
 
                 // TODO this is in many locations
@@ -164,8 +195,9 @@ impl Worker for LazyThumbnailTask {
                     video_repo,
                 });
 
-                {
+                for n in 1..self.parallelism {
                     let runner = runner.clone();
+                    let recv = recv.clone();
                     thread::spawn(move || {
                         runner.run(recv);
                     });
@@ -175,21 +207,28 @@ impl Worker for LazyThumbnailTask {
             }
             LazyThumbnailTaskInput::Generate(visual_id) => {
                 info!("Generate {:?}", visual_id);
-                let mut pending = self.pending.write().unwrap();
-                pending
-                    .entry(visual_id.clone())
-                    .and_modify(|counter| *counter += 1)
-                    .or_insert(1);
-
-                if pending.len() == 1 {
-                    self.process_next(&(*pending));
+                {
+                    let mut pending = &mut self.pending.write().unwrap();
+                    pending
+                        .entry(visual_id.clone())
+                        .and_modify(|counter| *counter += 1)
+                        .or_insert(1);
                 }
+
+                let submitted = self.process_next();
+                //self.inflight += submitted;
             }
             LazyThumbnailTaskInput::Done(visual_id) => {
-                let mut pending = self.pending.write().unwrap();
-                pending.remove(&visual_id);
-                self.process_next(&(*pending));
+                info!("Done");
+                //self.inflight -= 1;
+                {
+                    let mut pending = self.pending.write().unwrap();
+                    pending.remove(&visual_id);
+                    info!("Thumbnails remaining: {}", pending.len());
+                }
                 let _ = sender.output(LazyThumbnailTaskOutput::ThumbnailReady(visual_id));
+                let submitted = self.process_next();
+                self.inflight += submitted;
             }
             LazyThumbnailTaskInput::Cancel(visual_id) => {
                 let mut pending = self.pending.write().unwrap();
@@ -204,6 +243,7 @@ impl Worker for LazyThumbnailTask {
             LazyThumbnailTaskInput::Stop => {
                 let mut pending = self.pending.write().unwrap();
                 pending.clear();
+                self.inflight = 0;
             }
             LazyThumbnailTaskInput::Refresh => {
                 if let Some(ref runner) = self.runner {

@@ -39,6 +39,9 @@ impl LazyThumbnailTracker {
     }
 
     pub fn add(&mut self, visual: &Visual, picture: gtk::Picture) {
+        if self.pending.contains_key(&visual.visual_id) {
+            return;
+        }
         info!("Adding {:?}", visual.visual_id);
         let pending = PendingThumbnail {
             picture,
@@ -67,9 +70,10 @@ impl LazyThumbnailTracker {
     }
 
     pub fn cancel(&mut self, visual_id: &VisualId) {
-        info!("Cancelling {:?}", visual_id);
-        self.pending.remove(visual_id);
-        self.sender
-            .emit(LazyThumbnailTaskInput::Cancel(visual_id.clone()));
+        if self.pending.remove(visual_id).is_some() {
+            info!("Cancelling {:?}", visual_id);
+            self.sender
+                .emit(LazyThumbnailTaskInput::Cancel(visual_id.clone()));
+        }
     }
 }
