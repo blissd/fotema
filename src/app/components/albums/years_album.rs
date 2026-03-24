@@ -252,10 +252,10 @@ impl SimpleComponent for YearsAlbum {
             }
             YearsAlbumInput::Activated(view_name) => {
                 if ViewName::Year == view_name {
-                    self.lazy_thumbnail_tracker.borrow_mut().resume();
                     if self.photo_grid.is_empty() {
                         self.refresh();
                     }
+                    self.lazy_thumbnail_tracker.borrow_mut().resume();
                 } else {
                     self.lazy_thumbnail_tracker.borrow_mut().pause();
                 }

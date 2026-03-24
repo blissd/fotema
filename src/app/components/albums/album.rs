@@ -342,10 +342,10 @@ impl SimpleComponent for Album {
             }
             AlbumInput::Activated(view_name) => {
                 if self.view_name == view_name {
-                    self.lazy_thumbnail_tracker.borrow_mut().resume();
                     if self.photo_grid.is_empty() {
                         self.refresh();
                     }
+                    self.lazy_thumbnail_tracker.borrow_mut().resume();
                 } else {
                     self.lazy_thumbnail_tracker.borrow_mut().pause();
                 }

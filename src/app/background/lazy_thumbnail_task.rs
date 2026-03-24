@@ -47,6 +47,12 @@ pub enum LazyThumbnailTaskInput {
     // Thumbnail generated.
     Done(VisualId),
 
+    /// Batch cancel
+    Pause(Vec<VisualId>),
+
+    /// Batch add
+    Resume(Vec<(VisualId, DateTime<Utc>)>),
+
     // Stop all thumbnail generation
     Stop,
 }
@@ -119,6 +125,30 @@ impl LazyThumbnailTask {
             count,
             self.pending.len()
         );
+    }
+
+    fn add(&mut self, visual_id: VisualId, ordering_ts: DateTime<Utc>) {
+        let count = self
+            .pending
+            .entry(visual_id.clone())
+            .and_modify(|counter| *counter += 1)
+            .or_insert(1);
+
+        if *count == 1 {
+            self.pending_ordered.push(OrderedVisualId {
+                visual_id: visual_id.clone(),
+                ordering_ts,
+            });
+        }
+    }
+
+    fn cancel(&mut self, visual_id: VisualId) {
+        if let Some(count) = self.pending.get_mut(&visual_id) {
+            *count -= 1;
+            if *count == 0 {
+                self.pending.remove(&visual_id);
+            }
+        }
     }
 }
 
@@ -222,20 +252,8 @@ impl Worker for LazyThumbnailTask {
                 self.runner = Some(runner);
             }
             LazyThumbnailTaskInput::Generate(visual_id, ordering_ts) => {
-                info!("Generate {:?}", visual_id);
-                let count = self
-                    .pending
-                    .entry(visual_id.clone())
-                    .and_modify(|counter| *counter += 1)
-                    .or_insert(1);
-
-                if *count == 1 {
-                    self.pending_ordered.push(OrderedVisualId {
-                        visual_id: visual_id.clone(),
-                        ordering_ts,
-                    });
-                }
-
+                info!("Add lazy thumbnail request {:?}", visual_id);
+                self.add(visual_id, ordering_ts);
                 self.process_next();
             }
             LazyThumbnailTaskInput::Done(visual_id) => {
@@ -249,13 +267,28 @@ impl Worker for LazyThumbnailTask {
                 self.process_next();
             }
             LazyThumbnailTaskInput::Cancel(visual_id) => {
-                if let Some(count) = self.pending.get_mut(&visual_id) {
-                    *count -= 1;
-                    if *count == 0 {
-                        info!("Cancelled lazy thumbnail: {:?}", visual_id);
-                        self.pending.remove(&visual_id);
-                    }
+                info!("Cancelled lazy thumbnail request: {:?}", visual_id);
+                self.cancel(visual_id);
+            }
+            LazyThumbnailTaskInput::Pause(visual_ids) => {
+                let before_count = self.pending.len();
+                for visual_id in visual_ids {
+                    self.cancel(visual_id);
                 }
+                info!(
+                    "Paused {} lazy thumbnails",
+                    before_count - self.pending.len()
+                );
+            }
+            LazyThumbnailTaskInput::Resume(visual_ids_and_ordering_ts) => {
+                let before_count = self.pending.len();
+                for (visual_id, ordering_ts) in visual_ids_and_ordering_ts {
+                    self.add(visual_id, ordering_ts);
+                }
+                info!(
+                    "Resumed {} lazy thumbnails",
+                    self.pending.len() - before_count
+                );
             }
             LazyThumbnailTaskInput::Stop => {
                 self.pending.clear();
