@@ -43,19 +43,19 @@ pub enum AlbumFilter {
 }
 
 impl AlbumFilter {
-    pub fn filter(self, v: &Visual) -> bool {
+    pub fn filter(&self, v: &Visual) -> bool {
         match self {
             AlbumFilter::None => false,
-            AlbumFilter::One(visual_id) => v.visual_id == visual_id,
+            AlbumFilter::One(visual_id) => v.visual_id == visual_id.clone(),
             AlbumFilter::All => true,
-            AlbumFilter::Folder(path) => v.parent_path == path,
+            AlbumFilter::Folder(path) => v.parent_path == path.clone(),
             AlbumFilter::Motion => v.is_motion_photo(),
             AlbumFilter::Selfies => v.is_selfie(),
             AlbumFilter::Videos => v.is_video_only() && !v.is_motion_photo(),
             AlbumFilter::GeographicArea(cell_index) => {
                 if let Some(location) = v.location {
                     let cell = location.to_cell(cell_index.resolution());
-                    cell == cell_index
+                    cell == cell_index.clone()
                 } else {
                     false
                 }
