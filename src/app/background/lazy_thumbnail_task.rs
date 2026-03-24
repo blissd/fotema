@@ -16,7 +16,6 @@ use std::sync::{Arc, Mutex, RwLock};
 use chrono::*;
 
 use crate::app::SharedState;
-use crate::app::background::lazy_thumbnail_notifier::LazyThumbnailNotifier;
 use crate::config::APP_ID;
 use fotema_core::FlatpakPathBuf;
 use fotema_core::Visual;
@@ -94,7 +93,6 @@ pub struct LazyThumbnailTask {
     pending: HashMap<VisualId, u32>,
     pending_ordered: BinaryHeap<OrderedVisualId>,
 
-    lazy_thumbnail_notifier: LazyThumbnailNotifier,
     photo_thumbnailer: PhotoThumbnailer,
     video_thumbnailer: VideoThumbnailer,
     parallelism: usize,
@@ -121,8 +119,8 @@ impl LazyThumbnailTask {
         }
 
         info!(
-            "Submitting {} thumbnails. {} remaining",
-            count,
+            "Submitting {} lazy thumbnails for processing. {} lazy thumbnail requests remaining",
+            count - remaining,
             self.pending.len()
         );
     }
@@ -158,20 +156,13 @@ impl Worker for LazyThumbnailTask {
         PhotoThumbnailer,
         VideoThumbnailer,
         SharedState,
-        LazyThumbnailNotifier,
     );
     type Input = LazyThumbnailTaskInput;
     type Output = LazyThumbnailTaskOutput;
 
     fn init(
-        (
-            con,
-            photo_thumbnailer,
-            video_thumbnailer,
-            shared_state,
-            lazy_thumbnail_notifier,
-        ): Self::Init,
-        sender: ComponentSender<Self>,
+        (con, photo_thumbnailer, video_thumbnailer, shared_state): Self::Init,
+        _sender: ComponentSender<Self>,
     ) -> Self {
         // Unused. Will be replaced when library base directory configured.
         let (send, _recv): (Sender<VisualId>, Receiver<VisualId>) = unbounded();
@@ -190,7 +181,6 @@ impl Worker for LazyThumbnailTask {
             send,
             pending: HashMap::new(),
             pending_ordered: BinaryHeap::new(),
-            lazy_thumbnail_notifier,
             photo_thumbnailer,
             video_thumbnailer,
             runner: None,
@@ -241,7 +231,7 @@ impl Worker for LazyThumbnailTask {
                     video_repo,
                 });
 
-                for n in 1..self.parallelism {
+                for _ in 1..self.parallelism {
                     let runner = runner.clone();
                     let recv = recv.clone();
                     thread::spawn(move || {
