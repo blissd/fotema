@@ -65,7 +65,7 @@ pub struct LazyThumbnailTask {
     send: Sender<VisualId>,
 
     // Visuals pending thumbnail generation
-    pending: Arc<RwLock<HashMap<VisualId, u32>>>,
+    pending: HashMap<VisualId, u32>,
 
     lazy_thumbnail_notifier: LazyThumbnailNotifier,
     photo_thumbnailer: PhotoThumbnailer,
@@ -74,32 +74,28 @@ pub struct LazyThumbnailTask {
 }
 
 impl LazyThumbnailTask {
-    fn process_next(&self) -> usize {
+    fn process_next(&mut self) -> usize {
         if self.runner.is_none() {
             return 0;
         }
 
         let mut keys: Vec<VisualId> = vec![];
-        {
-            let pending = self.pending.read().unwrap();
-            let count = self.parallelism - self.send.len();
-            let count = usize::min(count, pending.len());
-            pending
-                .keys()
-                .take(count)
-                .for_each(|v| keys.push(v.clone()));
-        }
+        let count = self.parallelism - self.send.len();
+        let count = usize::min(count, self.pending.len());
+        self.pending
+            .keys()
+            .take(count)
+            .for_each(|v| keys.push(v.clone()));
 
         info!("Submitting {} keys", keys.len());
         let submitted_count = keys.len();
 
-        let mut pending = self.pending.write().unwrap();
         for visual_id in keys.into_iter() {
-            pending.remove(&visual_id);
+            self.pending.remove(&visual_id);
             let _ = self.send.send(visual_id.clone());
         }
 
-        info!("Thumbnails remaining: {}", pending.len());
+        info!("Thumbnails remaining: {}", self.pending.len());
         return submitted_count;
     }
 }
@@ -140,7 +136,7 @@ impl Worker for LazyThumbnailTask {
             con,
             shared_state,
             send,
-            pending: Arc::new(RwLock::new(HashMap::new())),
+            pending: HashMap::new(),
             lazy_thumbnail_notifier,
             photo_thumbnailer,
             video_thumbnailer,
@@ -153,8 +149,7 @@ impl Worker for LazyThumbnailTask {
         match msg {
             LazyThumbnailTaskInput::Configure(library_base_dir) => {
                 info!("Configuring library base directory: {:?}", library_base_dir);
-                let mut pending = self.pending.write().unwrap();
-                pending.clear();
+                self.pending.clear();
 
                 let (send, recv): (Sender<VisualId>, Receiver<VisualId>) =
                     bounded(self.parallelism);
@@ -205,13 +200,10 @@ impl Worker for LazyThumbnailTask {
             }
             LazyThumbnailTaskInput::Generate(visual_id) => {
                 info!("Generate {:?}", visual_id);
-                {
-                    let mut pending = &mut self.pending.write().unwrap();
-                    pending
-                        .entry(visual_id.clone())
-                        .and_modify(|counter| *counter += 1)
-                        .or_insert(1);
-                }
+                self.pending
+                    .entry(visual_id.clone())
+                    .and_modify(|counter| *counter += 1)
+                    .or_insert(1);
 
                 if !self.send.is_full() {
                     let _ = self.send.send(visual_id);
@@ -220,31 +212,26 @@ impl Worker for LazyThumbnailTask {
                 self.process_next();
             }
             LazyThumbnailTaskInput::Done(visual_id) => {
-                {
-                    let mut pending = self.pending.write().unwrap();
-                    pending.remove(&visual_id);
-                    info!(
-                        "Done: {:?}. Thumbnails remaining: {}",
-                        visual_id,
-                        pending.len()
-                    );
-                }
+                self.pending.remove(&visual_id);
+                info!(
+                    "Done: {:?}. Thumbnails remaining: {}",
+                    visual_id,
+                    self.pending.len()
+                );
                 let _ = sender.output(LazyThumbnailTaskOutput::ThumbnailReady(visual_id));
                 let submitted = self.process_next();
             }
             LazyThumbnailTaskInput::Cancel(visual_id) => {
-                let mut pending = self.pending.write().unwrap();
-                pending
+                self.pending
                     .entry(visual_id.clone())
                     .and_modify(|counter| *counter -= 1);
-                if let Some(0) = pending.get(&visual_id) {
+                if let Some(0) = self.pending.get(&visual_id) {
                     info!("Cancelled entry");
-                    pending.remove(&visual_id);
+                    self.pending.remove(&visual_id);
                 }
             }
             LazyThumbnailTaskInput::Stop => {
-                let mut pending = self.pending.write().unwrap();
-                pending.clear();
+                self.pending.clear();
             }
             LazyThumbnailTaskInput::Refresh => {
                 if let Some(ref runner) = self.runner {
