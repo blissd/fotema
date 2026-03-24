@@ -274,7 +274,6 @@ impl SimpleComponent for MonthsAlbum {
                 if *self.active_view.read() == ViewName::Month {
                     info!("Month view is active so refreshing");
                     self.refresh();
-                    sender.input(MonthsAlbumInput::Scroll);
                 } else {
                     info!("Month is inactive so clearing");
                     self.photo_grid.clear();
