@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use crate::app::background::lazy_thumbnail_task::LazyThumbnailTaskInput;
+use chrono::*;
 use fotema_core::thumbnailify::{ThumbnailSize, Thumbnailer};
 use fotema_core::{Visual, VisualId};
 use relm4::Sender;
@@ -15,6 +16,7 @@ use tracing::info;
 struct PendingThumbnail {
     picture: gtk::Picture,
     thumbnail_hash: String,
+    ordering_ts: DateTime<Utc>,
 }
 
 /// Tracks the state of a lazy thumbnail generation request.
@@ -52,6 +54,7 @@ impl LazyThumbnailTracker {
         let pending = PendingThumbnail {
             picture,
             thumbnail_hash: visual.thumbnail_hash(),
+            ordering_ts: visual.ordering_ts.clone(),
         };
         self.pending.insert(visual.visual_id.clone(), pending);
         self.sender.emit(LazyThumbnailTaskInput::Generate(
@@ -93,12 +96,15 @@ impl LazyThumbnailTracker {
         if !self.is_active {
             return;
         }
-        info!("Pausing {:?} thumbnails", self.pending.len());
         self.is_active = false;
-        self.pending.keys().for_each(|visual_id| {
-            self.sender
-                .emit(LazyThumbnailTaskInput::Cancel(visual_id.clone()));
-        });
+        info!("Pausing {:?} thumbnails", self.pending.len());
+        let visual_ids = self
+            .pending
+            .keys()
+            .map(|v| v.clone())
+            .collect::<Vec<VisualId>>();
+
+        self.sender.emit(LazyThumbnailTaskInput::Pause(visual_ids));
     }
 
     pub fn resume(&mut self) {
@@ -107,10 +113,13 @@ impl LazyThumbnailTracker {
         }
         info!("Resuming {:?} thumbnails", self.pending.len());
         self.is_active = true;
-        self.pending.keys().for_each(|visual_id| {
-            self.sender
-                .emit(LazyThumbnailTaskInput::Cancel(visual_id.clone()));
-        });
+        let tuples = self
+            .pending
+            .iter()
+            .map(|(k, v)| (k.clone(), v.ordering_ts.clone()))
+            .collect::<Vec<(VisualId, DateTime<Utc>)>>();
+
+        self.sender.emit(LazyThumbnailTaskInput::Resume(tuples));
     }
 
     pub fn clear(&mut self) {

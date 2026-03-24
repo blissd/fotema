@@ -636,7 +636,6 @@ impl SimpleAsyncComponent for App {
                 photo_thumbnailer.clone(),
                 video_thumbnailer.clone(),
                 state.clone(),
-                lazy_thumbnail_notifier.clone(),
             ))
             .forward(sender.input_sender(), |msg| match msg {
                 LazyThumbnailTaskOutput::ThumbnailReady(visual_id) => {
