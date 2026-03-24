@@ -46,7 +46,7 @@ use anyhow::*;
 
 use strum::{AsRefStr, FromRepr};
 
-use tracing::{error, info, warn};
+use tracing::{error, info};
 
 mod components;
 
@@ -254,6 +254,7 @@ pub(super) struct App {
     banner: adw::Banner,
 
     settings_state: SettingsState,
+    active_view: ActiveView,
 
     lazy_thumbnail_task: WorkerController<LazyThumbnailTask>,
     lazy_thumbnail_notifier: LazyThumbnailNotifier,
@@ -733,6 +734,10 @@ impl SimpleAsyncComponent for App {
             });
 
         state.subscribe(selfies_page.sender(), |_| AlbumInput::Refresh);
+        active_view.subscribe(selfies_page.sender(), |view_name| {
+            AlbumInput::Activated(*view_name)
+        });
+
         adaptive_layout.subscribe(selfies_page.sender(), |layout| AlbumInput::Adapt(*layout));
         settings_state.subscribe(selfies_page.sender(), |settings| {
             AlbumInput::Sort(settings.album_sort)
@@ -764,6 +769,9 @@ impl SimpleAsyncComponent for App {
                 AlbumOutput::ScrollOffset(_) => AppMsg::Ignore,
             });
 
+        active_view.subscribe(motion_page.sender(), |view_name| {
+            AlbumInput::Activated(*view_name)
+        });
         state.subscribe(motion_page.sender(), |_| AlbumInput::Refresh);
         adaptive_layout.subscribe(motion_page.sender(), |layout| AlbumInput::Adapt(*layout));
         settings_state.subscribe(motion_page.sender(), |settings| {
@@ -794,6 +802,9 @@ impl SimpleAsyncComponent for App {
                 AlbumOutput::ScrollOffset(_) => AppMsg::Ignore,
             });
 
+        active_view.subscribe(videos_page.sender(), |view_name| {
+            AlbumInput::Activated(*view_name)
+        });
         state.subscribe(videos_page.sender(), |_| AlbumInput::Refresh);
         adaptive_layout.subscribe(videos_page.sender(), |layout| AlbumInput::Adapt(*layout));
         settings_state.subscribe(videos_page.sender(), |settings| {
@@ -980,6 +991,7 @@ impl SimpleAsyncComponent for App {
             banner: banner.clone(),
 
             settings_state: settings_state.clone(),
+            active_view,
 
             lazy_thumbnail_task,
             lazy_thumbnail_notifier,
@@ -1087,7 +1099,8 @@ impl SimpleAsyncComponent for App {
                 }
 
                 // figure out which view to activate
-                match child_name {
+                *self.active_view.write() = child_name;
+                /*match child_name {
                     ViewName::Library | ViewName::All | ViewName::Month | ViewName::Year => {
                         // Note that we'll only won't get All, Month, and Year activations
                         // here, they are handled in the Library view. However, we must handle
@@ -1103,7 +1116,7 @@ impl SimpleAsyncComponent for App {
                     ViewName::Person => self.person_album.emit(PersonAlbumInput::Activate),
                     ViewName::Places => self.places_page.emit(PlacesAlbumInput::Activate),
                     ViewName::Nothing => warn!("Nothing activated... which should not happen"),
-                }
+                }*/
             }
             AppMsg::View(visual_id, filter) => {
                 // Send message to show image
@@ -1264,6 +1277,9 @@ impl SimpleAsyncComponent for App {
 
                 self.picture_navigation_view.set_visible(true);
                 self.onboard_view.set_visible(false);
+
+                // The All view is the default view
+                *self.active_view.write() = ViewName::All;
             }
             AppMsg::ThumbnailReady(visual_id) => self
                 .lazy_thumbnail_notifier

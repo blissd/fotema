@@ -61,6 +61,8 @@ struct Widgets {
 pub enum MonthsAlbumInput {
     Activate,
 
+    Activated(ViewName),
+
     /// A month has been selected in the grid view
     MonthSelected(u32), // WARN this is an index into a Vec, not a month
 
@@ -256,6 +258,16 @@ impl SimpleComponent for MonthsAlbum {
                 *self.active_view.write() = ViewName::Month;
                 if self.photo_grid.is_empty() {
                     self.refresh();
+                }
+            }
+            MonthsAlbumInput::Activated(view_name) => {
+                if ViewName::Month == view_name {
+                    self.lazy_thumbnail_tracker.borrow_mut().resume();
+                    if self.photo_grid.is_empty() {
+                        self.refresh();
+                    }
+                } else {
+                    self.lazy_thumbnail_tracker.borrow_mut().pause();
                 }
             }
             MonthsAlbumInput::Refresh => {

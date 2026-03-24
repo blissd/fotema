@@ -223,15 +223,18 @@ impl Worker for LazyThumbnailTask {
             }
             LazyThumbnailTaskInput::Generate(visual_id, ordering_ts) => {
                 info!("Generate {:?}", visual_id);
-                self.pending
+                let count = self
+                    .pending
                     .entry(visual_id.clone())
                     .and_modify(|counter| *counter += 1)
                     .or_insert(1);
 
-                self.pending_ordered.push(OrderedVisualId {
-                    visual_id: visual_id.clone(),
-                    ordering_ts,
-                });
+                if *count == 1 {
+                    self.pending_ordered.push(OrderedVisualId {
+                        visual_id: visual_id.clone(),
+                        ordering_ts,
+                    });
+                }
 
                 self.process_next();
             }
@@ -243,15 +246,15 @@ impl Worker for LazyThumbnailTask {
                     self.pending.len()
                 );
                 let _ = sender.output(LazyThumbnailTaskOutput::ThumbnailReady(visual_id));
-                let submitted = self.process_next();
+                self.process_next();
             }
             LazyThumbnailTaskInput::Cancel(visual_id) => {
-                self.pending
-                    .entry(visual_id.clone())
-                    .and_modify(|counter| *counter -= 1);
-                if let Some(0) = self.pending.get(&visual_id) {
-                    info!("Cancelled entry");
-                    self.pending.remove(&visual_id);
+                if let Some(count) = self.pending.get_mut(&visual_id) {
+                    *count -= 1;
+                    if *count == 0 {
+                        info!("Cancelled lazy thumbnail: {:?}", visual_id);
+                        self.pending.remove(&visual_id);
+                    }
                 }
             }
             LazyThumbnailTaskInput::Stop => {

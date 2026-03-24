@@ -41,6 +41,8 @@ pub enum LibraryInput {
     // Library view is activated
     Activate,
 
+    Activated(ViewName),
+
     // Reload photos from database
     //Refresh,
 
@@ -132,6 +134,9 @@ impl SimpleComponent for Library {
                 AlbumOutput::ScrollOffset(_) => LibraryInput::Ignore,
             });
 
+        active_view.subscribe(all_album.sender(), |view_name| {
+            AlbumInput::Activated(*view_name)
+        });
         state.subscribe(all_album.sender(), |_| AlbumInput::Refresh);
         layout_state.subscribe(all_album.sender(), |layout| AlbumInput::Adapt(*layout));
         lazy_thumbnail_notifier.subscribe_optional(all_album.sender(), |notifier| {
@@ -156,6 +161,9 @@ impl SimpleComponent for Library {
                 MonthsAlbumOutput::MonthSelected(ym) => LibraryInput::GoToMonth(ym),
             });
 
+        active_view.subscribe(months_album.sender(), |view_name| {
+            MonthsAlbumInput::Activated(*view_name)
+        });
         state.subscribe(months_album.sender(), |_| MonthsAlbumInput::Refresh);
         layout_state.subscribe(months_album.sender(), |layout| {
             MonthsAlbumInput::Adapt(*layout)
@@ -172,14 +180,28 @@ impl SimpleComponent for Library {
             lazy_thumbnail_task_sender.clone(),
         )));
         let years_album = YearsAlbum::builder()
-            .launch((state.clone(), active_view.clone(), thumbnailer))
+            .launch((
+                state.clone(),
+                active_view.clone(),
+                thumbnailer,
+                lazy_thumbnail_tracker,
+            ))
             .forward(sender.input_sender(), |msg| match msg {
                 YearsAlbumOutput::YearSelected(year) => LibraryInput::GoToYear(year),
             });
 
+        active_view.subscribe(years_album.sender(), |view_name| {
+            YearsAlbumInput::Activated(*view_name)
+        });
         state.subscribe(years_album.sender(), |_| YearsAlbumInput::Refresh);
         layout_state.subscribe(years_album.sender(), |layout| {
             YearsAlbumInput::Adapt(*layout)
+        });
+        lazy_thumbnail_notifier.subscribe_optional(years_album.sender(), |notifier| {
+            notifier
+                .visual_id
+                .clone()
+                .map(|visual_id| YearsAlbumInput::ThumbnailReady(visual_id))
         });
 
         let widgets = view_output!();
@@ -214,6 +236,7 @@ impl SimpleComponent for Library {
                     LibraryViewName::Nothing => error!("Nothing activated for library view :-/"),
                 }
             }
+            LibraryInput::Activated(view_name) => {}
             LibraryInput::GoToMonth(ym) => {
                 // Display all photos view.
                 self.stack
