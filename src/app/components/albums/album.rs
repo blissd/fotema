@@ -325,8 +325,6 @@ impl SimpleComponent for Album {
             lazy_thumbnail_tracker,
         };
 
-        model.update_filter();
-
         let widgets = view_output!();
         ComponentParts { model, widgets }
     }
@@ -350,8 +348,7 @@ impl SimpleComponent for Album {
             }
             AlbumInput::Filter(filter) => {
                 self.filter = filter;
-                self.update_filter();
-                //self.scroll();
+                self.refresh();
             }
             AlbumInput::Sort(sort) => {
                 if self.sort != sort {
@@ -408,10 +405,11 @@ impl SimpleComponent for Album {
 impl Album {
     fn refresh(&mut self) {
         self.lazy_thumbnail_tracker.borrow_mut().clear();
-
+        let filter = Rc::new(self.filter.clone());
         let mut all = {
             let data = self.state.read();
             data.iter()
+                .filter(|visual| filter.filter(&visual))
                 .map(|visual| PhotoGridItem {
                     visual: visual.clone(),
                     edge_length: self.edge_length.clone(),
@@ -434,12 +432,5 @@ impl Album {
         // NOTE person album will in effect override scrolling to the end
         // by sending a ScrollToTop command.
         self.sort.scroll_to_end(&mut self.photo_grid);
-    }
-
-    fn update_filter(&mut self) {
-        self.photo_grid.clear_filters();
-        let filter = self.filter.clone();
-        self.photo_grid
-            .add_filter(move |item| filter.clone().filter(&item.visual));
     }
 }

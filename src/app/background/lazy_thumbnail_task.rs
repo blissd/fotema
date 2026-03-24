@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use futures::executor::block_on;
-use rayon::prelude::*;
 use relm4::Worker;
 use relm4::gtk::glib;
 use relm4::prelude::*;
