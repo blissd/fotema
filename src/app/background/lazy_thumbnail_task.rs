@@ -70,7 +70,6 @@ pub struct LazyThumbnailTask {
     lazy_thumbnail_notifier: LazyThumbnailNotifier,
     photo_thumbnailer: PhotoThumbnailer,
     video_thumbnailer: VideoThumbnailer,
-    inflight: usize,
     parallelism: usize,
 }
 
@@ -97,7 +96,7 @@ impl LazyThumbnailTask {
         let mut pending = self.pending.write().unwrap();
         for visual_id in keys.into_iter() {
             pending.remove(&visual_id);
-            self.send.send(visual_id.clone());
+            let _ = self.send.send(visual_id.clone());
         }
 
         info!("Thumbnails remaining: {}", pending.len());
@@ -146,7 +145,6 @@ impl Worker for LazyThumbnailTask {
             photo_thumbnailer,
             video_thumbnailer,
             runner: None,
-            inflight: 0,
             parallelism,
         }
     }
@@ -216,23 +214,23 @@ impl Worker for LazyThumbnailTask {
                 }
 
                 if !self.send.is_full() {
-                    self.send.send(visual_id);
+                    let _ = self.send.send(visual_id);
                     return;
                 }
-                let submitted = self.process_next();
-                //self.inflight += submitted;
+                self.process_next();
             }
             LazyThumbnailTaskInput::Done(visual_id) => {
-                info!("Done");
-                //self.inflight -= 1;
                 {
                     let mut pending = self.pending.write().unwrap();
                     pending.remove(&visual_id);
-                    info!("Thumbnails remaining: {}", pending.len());
+                    info!(
+                        "Done: {:?}. Thumbnails remaining: {}",
+                        visual_id,
+                        pending.len()
+                    );
                 }
                 let _ = sender.output(LazyThumbnailTaskOutput::ThumbnailReady(visual_id));
                 let submitted = self.process_next();
-                self.inflight += submitted;
             }
             LazyThumbnailTaskInput::Cancel(visual_id) => {
                 let mut pending = self.pending.write().unwrap();
@@ -247,7 +245,6 @@ impl Worker for LazyThumbnailTask {
             LazyThumbnailTaskInput::Stop => {
                 let mut pending = self.pending.write().unwrap();
                 pending.clear();
-                self.inflight = 0;
             }
             LazyThumbnailTaskInput::Refresh => {
                 if let Some(ref runner) = self.runner {
