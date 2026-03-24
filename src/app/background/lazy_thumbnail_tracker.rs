@@ -54,8 +54,9 @@ impl LazyThumbnailTracker {
 
     // A thumbnail has been generated
     pub fn complete(&mut self, visual_id: &VisualId) {
-        info!("Completing {:?}", visual_id);
         if let Some(pending) = self.pending.remove(visual_id) {
+            info!("Completing {:?}", visual_id);
+
             // FIXME should respect window width
             let thumbnail_size = ThumbnailSize::Large;
             let thumbnail_path = self
@@ -75,5 +76,9 @@ impl LazyThumbnailTracker {
             self.sender
                 .emit(LazyThumbnailTaskInput::Cancel(visual_id.clone()));
         }
+    }
+
+    pub fn clear(&mut self) {
+        self.pending.clear();
     }
 }

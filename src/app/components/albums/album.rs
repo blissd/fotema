@@ -407,6 +407,8 @@ impl SimpleComponent for Album {
 
 impl Album {
     fn refresh(&mut self) {
+        self.lazy_thumbnail_tracker.borrow_mut().clear();
+
         let mut all = {
             let data = self.state.read();
             data.iter()

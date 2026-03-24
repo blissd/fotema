@@ -309,6 +309,8 @@ impl SimpleComponent for MonthsAlbum {
 
 impl MonthsAlbum {
     fn refresh(&mut self) {
+        self.lazy_thumbnail_tracker.borrow_mut().clear();
+
         let mut all_pictures = {
             let data = self.state.read();
             data.iter()
