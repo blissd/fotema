@@ -215,6 +215,10 @@ impl Worker for LazyThumbnailTask {
                         .or_insert(1);
                 }
 
+                if !self.send.is_full() {
+                    self.send.send(visual_id);
+                    return;
+                }
                 let submitted = self.process_next();
                 //self.inflight += submitted;
             }

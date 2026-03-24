@@ -284,6 +284,8 @@ impl SimpleComponent for FoldersAlbum {
 
 impl FoldersAlbum {
     fn refresh(&mut self) {
+        self.lazy_thumbnail_tracker.borrow_mut().clear();
+
         let all = {
             let data = self.state.read();
             data.clone()
