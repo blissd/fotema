@@ -28,7 +28,7 @@ use crate::app::ViewName;
 use crate::app::adaptive;
 use crate::app::background::lazy_thumbnail_tracker::LazyThumbnailTracker;
 
-use tracing::{debug, info};
+use tracing::{debug, info, trace};
 
 const NARROW_EDGE_LENGTH: i32 = 112;
 const WIDE_EDGE_LENGTH: i32 = 200;
@@ -406,7 +406,7 @@ impl SimpleComponent for Album {
                 let _ = sender.output(AlbumOutput::ScrollOffset(offset));
             }
             AlbumInput::ThumbnailReady(visual_id) => {
-                info!("Thumbnail ready {:?}", visual_id);
+                trace!("Thumbnail ready {:?}", visual_id);
                 self.lazy_thumbnail_tracker
                     .borrow_mut()
                     .complete(&visual_id);

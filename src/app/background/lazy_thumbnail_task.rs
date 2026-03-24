@@ -8,7 +8,7 @@ use relm4::gtk::glib;
 use relm4::prelude::*;
 use std::cmp::{Ord, Ordering};
 use std::collections::BinaryHeap;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::panic;
 use std::result::Result::Ok;
 use std::sync::{Arc, Mutex, RwLock};
@@ -51,6 +51,9 @@ pub enum LazyThumbnailTaskInput {
 
     /// Batch add
     Resume(Vec<(VisualId, DateTime<Utc>)>),
+
+    ///
+    BatchUpdate(HashSet<(VisualId, DateTime<Utc>)>, HashSet<VisualId>),
 
     // Stop all thumbnail generation
     Stop,
@@ -121,7 +124,7 @@ impl LazyThumbnailTask {
         info!(
             "Submitting {} lazy thumbnails for processing. {} lazy thumbnail requests remaining",
             count - remaining,
-            self.pending.len()
+            self.pending_ordered.len()
         );
     }
 
@@ -287,6 +290,24 @@ impl Worker for LazyThumbnailTask {
                 if let Some(ref runner) = self.runner {
                     runner.refresh();
                 }
+            }
+            LazyThumbnailTaskInput::BatchUpdate(add, cancel) => {
+                if add.is_empty() && cancel.is_empty() {
+                    return;
+                }
+
+                info!("BatchUpdate(add={}, cancel={})", add.len(), cancel.len());
+
+                for visual_id in &cancel {
+                    self.cancel(visual_id.clone());
+                }
+
+                for (visual_id, ordering_ts) in add {
+                    if !cancel.contains(&visual_id) {
+                        self.add(visual_id, ordering_ts);
+                    }
+                }
+                self.process_next();
             }
         };
     }

@@ -25,7 +25,7 @@ use std::path;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use tracing::info;
+use tracing::{info, trace};
 
 use crate::adaptive;
 use crate::app::ActiveView;
@@ -274,6 +274,7 @@ impl SimpleComponent for MonthsAlbum {
                 if *self.active_view.read() == ViewName::Month {
                     info!("Month view is active so refreshing");
                     self.refresh();
+                    sender.input(MonthsAlbumInput::Scroll);
                 } else {
                     info!("Month is inactive so clearing");
                     self.photo_grid.clear();
@@ -310,7 +311,7 @@ impl SimpleComponent for MonthsAlbum {
                 }
             }
             MonthsAlbumInput::ThumbnailReady(visual_id) => {
-                info!("Thumbnail ready {:?}", visual_id);
+                trace!("Thumbnail ready {:?}", visual_id);
                 self.lazy_thumbnail_tracker
                     .borrow_mut()
                     .complete(&visual_id);

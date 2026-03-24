@@ -7,6 +7,7 @@ use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
 use strum::AsRefStr;
 use strum::EnumString;
 use strum::FromRepr;
+use tracing::info;
 
 // Sort album
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, EnumString, AsRefStr, FromRepr)]
@@ -40,7 +41,8 @@ impl AlbumSort {
             AlbumSort::Descending => 0,
         };
 
-        grid.view
-            .scroll_to(index, gtk::ListScrollFlags::SELECT, None);
+        // WARN changing the scroll flags to something other than NONE.
+        // makes this scroll (usually) be inoperable.
+        grid.view.scroll_to(index, gtk::ListScrollFlags::NONE, None);
     }
 }
