@@ -7,11 +7,14 @@ use rayon::prelude::*;
 use relm4::Worker;
 use relm4::gtk::glib;
 use relm4::prelude::*;
+use std::cmp::{Ord, Ordering};
+use std::collections::BinaryHeap;
 use std::collections::HashMap;
+use std::panic;
 use std::result::Result::Ok;
 use std::sync::{Arc, Mutex, RwLock};
 
-use std::panic;
+use chrono::*;
 
 use crate::app::SharedState;
 use crate::app::background::lazy_thumbnail_notifier::LazyThumbnailNotifier;
@@ -37,7 +40,7 @@ pub enum LazyThumbnailTaskInput {
     Refresh,
 
     // Request a thumbnail is generated for a visual item
-    Generate(VisualId),
+    Generate(VisualId, DateTime<Utc>),
 
     // Cancel a thumbnail request.
     Cancel(VisualId),
@@ -55,6 +58,24 @@ pub enum LazyThumbnailTaskOutput {
     ThumbnailReady(VisualId),
 }
 
+#[derive(PartialEq, Eq)]
+struct OrderedVisualId {
+    visual_id: VisualId,
+    ordering_ts: DateTime<Utc>,
+}
+
+impl Ord for OrderedVisualId {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.ordering_ts.cmp(&other.ordering_ts)
+    }
+}
+
+impl PartialOrd for OrderedVisualId {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
 pub struct LazyThumbnailTask {
     con: Arc<Mutex<database::Connection>>,
 
@@ -66,6 +87,7 @@ pub struct LazyThumbnailTask {
 
     // Visuals pending thumbnail generation
     pending: HashMap<VisualId, u32>,
+    pending_ordered: BinaryHeap<OrderedVisualId>,
 
     lazy_thumbnail_notifier: LazyThumbnailNotifier,
     photo_thumbnailer: PhotoThumbnailer,
@@ -74,29 +96,30 @@ pub struct LazyThumbnailTask {
 }
 
 impl LazyThumbnailTask {
-    fn process_next(&mut self) -> usize {
+    fn process_next(&mut self) {
         if self.runner.is_none() {
-            return 0;
+            return;
         }
 
-        let mut keys: Vec<VisualId> = vec![];
         let count = self.parallelism - self.send.len();
-        let count = usize::min(count, self.pending.len());
-        self.pending
-            .keys()
-            .take(count)
-            .for_each(|v| keys.push(v.clone()));
+        let mut remaining = count;
 
-        info!("Submitting {} keys", keys.len());
-        let submitted_count = keys.len();
-
-        for visual_id in keys.into_iter() {
-            self.pending.remove(&visual_id);
-            let _ = self.send.send(visual_id.clone());
+        while remaining > 0 && !self.pending_ordered.is_empty() {
+            if let Some(visual) = self.pending_ordered.pop() {
+                // If a thumbnail has been cancelled an entry
+                // will be in pending_ordered but not in pending.
+                if self.pending.remove(&visual.visual_id).is_some() {
+                    remaining -= 1;
+                    let _ = self.send.send(visual.visual_id);
+                }
+            }
         }
 
-        info!("Thumbnails remaining: {}", self.pending.len());
-        return submitted_count;
+        info!(
+            "Submitting {} thumbnails. {} remaining",
+            count,
+            self.pending.len()
+        );
     }
 }
 
@@ -137,6 +160,7 @@ impl Worker for LazyThumbnailTask {
             shared_state,
             send,
             pending: HashMap::new(),
+            pending_ordered: BinaryHeap::new(),
             lazy_thumbnail_notifier,
             photo_thumbnailer,
             video_thumbnailer,
@@ -198,17 +222,18 @@ impl Worker for LazyThumbnailTask {
 
                 self.runner = Some(runner);
             }
-            LazyThumbnailTaskInput::Generate(visual_id) => {
+            LazyThumbnailTaskInput::Generate(visual_id, ordering_ts) => {
                 info!("Generate {:?}", visual_id);
                 self.pending
                     .entry(visual_id.clone())
                     .and_modify(|counter| *counter += 1)
                     .or_insert(1);
 
-                if !self.send.is_full() {
-                    let _ = self.send.send(visual_id);
-                    return;
-                }
+                self.pending_ordered.push(OrderedVisualId {
+                    visual_id: visual_id.clone(),
+                    ordering_ts,
+                });
+
                 self.process_next();
             }
             LazyThumbnailTaskInput::Done(visual_id) => {

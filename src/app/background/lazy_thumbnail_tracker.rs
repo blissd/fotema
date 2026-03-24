@@ -48,8 +48,10 @@ impl LazyThumbnailTracker {
             thumbnail_hash: visual.thumbnail_hash(),
         };
         self.pending.insert(visual.visual_id.clone(), pending);
-        self.sender
-            .emit(LazyThumbnailTaskInput::Generate(visual.visual_id.clone()));
+        self.sender.emit(LazyThumbnailTaskInput::Generate(
+            visual.visual_id.clone(),
+            visual.ordering_ts.clone(),
+        ));
     }
 
     // A thumbnail has been generated
