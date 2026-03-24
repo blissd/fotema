@@ -80,9 +80,12 @@ impl LazyThumbnailTracker {
 
     pub fn cancel(&mut self, visual_id: &VisualId) {
         if self.pending.remove(visual_id).is_some() {
-            info!("Cancelling {:?}", visual_id);
-            self.sender
-                .emit(LazyThumbnailTaskInput::Cancel(visual_id.clone()));
+            // if not active, then cancellation previously sent
+            if self.is_active {
+                info!("Cancelling {:?}", visual_id);
+                self.sender
+                    .emit(LazyThumbnailTaskInput::Cancel(visual_id.clone()));
+            }
         }
     }
 
@@ -111,6 +114,7 @@ impl LazyThumbnailTracker {
     }
 
     pub fn clear(&mut self) {
+        self.pause();
         self.pending.clear();
     }
 }
