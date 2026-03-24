@@ -39,6 +39,7 @@ h3o = "0.9.3"
 ashpd = { version = "0.13.10", default-features = false, features = ["async-io", "documents", "file_chooser", "gtk4"] }
 regex = "1.12.2"
 deadpool = "0.13.0"
+crossbeam-channel = "0.5"
 
 [dependencies.shumate]
 package = "libshumate"
