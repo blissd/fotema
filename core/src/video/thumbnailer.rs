@@ -121,7 +121,6 @@ impl VideoThumbnailer {
         let buffer: RgbImage = ImageBuffer::from_raw(image_width, image_height, frame_bytes)
             .expect("Video frame to image");
 
-        println!("rotation = {}", rotation);
         let buffer = match rotation {
             90.0 => imageops::rotate90(&buffer),
             180.0 | -180.0 => imageops::rotate180(&buffer),

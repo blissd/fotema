@@ -8,11 +8,12 @@ use chrono::prelude::*;
 use chrono::{DateTime, TimeDelta};
 
 use ffmpeg_next as ffmpeg;
+//use ffmpeg_next::frame::side_data::Type as SideDataType;
+use crate::video::display_matrix::av_display_rotation_get;
+use ffmpeg_next::packet::side_data::Type as SideDataType;
 
 use std::path::Path;
 use std::result::Result::Ok;
-
-use std::process::Command;
 
 use std::fs;
 
@@ -69,33 +70,22 @@ pub fn from_path(path: &Path) -> Result<Metadata> {
             metadata.height = Some(video.height() as u64);
         }
 
-        // We need the video frame side data to get the video rotation information.
-        //
-        // FIXME I can't figure out how to extract the rotation from the side data
-        // using the ffmpeg_next API, so I've had to resort to running ffprobe.
-        // Running ffprobe is slow, so if someone can figure out how to extract
-        // the rotation data with the ffmpeg_next API then I'll remove this.
-        // PRs welcome :-)
+        let display_matrix = stream
+            .side_data()
+            .find(|item| item.kind() == SideDataType::DisplayMatrix);
+        let rotation = if let Some(display_matrix) = display_matrix {
+            av_display_rotation_get(display_matrix.data())
+        } else {
+            f64::NAN
+        };
 
-        // See https://stackoverflow.com/questions/70920024/extract-rotation-data-with-ffprobe-5-and-newer
-        let output = Command::new("ffprobe")
-            .arg("-loglevel")
-            .arg("error")
-            .arg("-select_streams")
-            .arg("v:0")
-            .arg("-show_entries")
-            .arg("stream_side_data=rotation")
-            .arg("-of")
-            .arg("default=nw=1:nk=1")
-            .arg(path.as_os_str())
-            .output();
-
-        let rotation = output
-            .ok()
-            .and_then(|out| String::from_utf8(out.stdout).ok())
-            .and_then(|x| x.trim().parse::<i32>().ok());
-
-        metadata.rotation = rotation;
+        if !f64::is_nan(rotation) {
+            metadata.rotation = Some(rotation as i32);
+            println!(
+                "rotation f64={}, metadata.rotation={:?}",
+                rotation, metadata.rotation
+            );
+        }
     }
 
     if let Some(stream) = context.streams().best(ffmpeg::media::Type::Audio) {
