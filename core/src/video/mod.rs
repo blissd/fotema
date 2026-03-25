@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+pub mod display_matrix;
+
 pub mod metadata;
 pub mod model;
 pub mod repo;
