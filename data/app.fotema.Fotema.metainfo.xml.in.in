@@ -118,6 +118,13 @@
   </screenshots>
 
   <releases>
+    <release version="2.5.0" date="2026-03-25">
+      <description>
+        <ul>
+          <li>More efficient video processing.</li>
+        </ul>
+      </description>
+    </release>
     <release version="2.4.2" date="2026-03-19">
       <description>
         <ul>
