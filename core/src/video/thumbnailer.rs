@@ -4,8 +4,10 @@
 
 use crate::FlatpakPathBuf;
 use crate::thumbnailify;
+use crate::video::display_matrix::av_display_rotation_get;
 
 use anyhow::*;
+use image::imageops;
 use image::{ImageBuffer, ImageFormat, ImageReader, RgbImage};
 use std::path::Path;
 use std::result::Result::Ok;
@@ -16,6 +18,7 @@ use ffmpeg::media::Type;
 use ffmpeg::software::scaling::{context::Context, flag::Flags};
 use ffmpeg::util::frame::video::Video;
 use ffmpeg_next as ffmpeg;
+use ffmpeg_next::frame::side_data::Type as SideDataType;
 
 /// Thumbnail operations for videos.
 #[derive(Debug, Clone)]
@@ -69,25 +72,31 @@ impl VideoThumbnailer {
                 Flags::BILINEAR,
             )?;
 
-            let mut frame_index = 0;
-
             // Lambda for decoding video
             let mut receive_and_process_decoded_frames =
                 |decoder: &mut ffmpeg::decoder::Video| -> Result<(), ffmpeg::Error> {
                     let mut decoded = Video::empty();
                     if decoder.receive_frame(&mut decoded).is_ok() {
-                        println!("decoded frame");
+                        // MatrixData contains rotation.
+                        let display_matrix = decoded.side_data(SideDataType::DisplayMatrix);
+                        let rotation = if let Some(display_matrix) = display_matrix {
+                            av_display_rotation_get(display_matrix.data())
+                        } else {
+                            f64::NAN
+                        };
+
                         let mut rgb_frame = Video::empty();
                         scaler.run(&decoded, &mut rgb_frame)?;
-                        Self::convert_rgb_to_png(&rgb_frame, temporary_png_file.path())
+                        Self::convert_rgb_to_png(&rgb_frame, rotation, temporary_png_file.path())
                             .map_err(|_| ffmpeg::Error::Unknown)?;
-                        frame_index += 1;
                     }
                     Ok(())
                 };
 
             for (stream, packet) in ictx.packets() {
                 if stream.index() == video_stream_index {
+                    // Note to self: can also get side data and display matrix
+                    // from packet side data.
                     decoder.send_packet(&packet)?;
                     receive_and_process_decoded_frames(&mut decoder)?;
                     break;
@@ -104,13 +113,21 @@ impl VideoThumbnailer {
         Ok(())
     }
 
-    fn convert_rgb_to_png(frame: &Video, png_path: &Path) -> Result<()> {
+    fn convert_rgb_to_png(frame: &Video, rotation: f64, png_path: &Path) -> Result<()> {
         let image_width = frame.width();
         let image_height = frame.height();
         let frame_bytes: Vec<u8> = frame.data(0).to_vec();
 
         let buffer: RgbImage = ImageBuffer::from_raw(image_width, image_height, frame_bytes)
             .expect("Video frame to image");
+
+        println!("rotation = {}", rotation);
+        let buffer = match rotation {
+            90.0 => imageops::rotate90(&buffer),
+            180.0 | -180.0 => imageops::rotate180(&buffer),
+            -90.0 => imageops::rotate270(&buffer),
+            _ => buffer,
+        };
 
         buffer.save_with_format(png_path, ImageFormat::Png)?;
         Ok(())
