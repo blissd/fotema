@@ -1,4 +1,5 @@
-// SPDX-FileCopyrightText: © 2024 David Bliss
+// SPDX-FileCopyrightText: © 2026 David Bliss
+// SPDX-FileCopyrightText: © 2014 Vittorio Giovara <vittorio.giovara@gmail.com>
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
