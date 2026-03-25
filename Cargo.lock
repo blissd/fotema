@@ -1321,6 +1321,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "ashpd",
+ "byteorder",
  "chrono",
  "deadpool",
  "fotema_core",
