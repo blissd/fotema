@@ -59,6 +59,8 @@ struct Widgets {
 #[derive(Debug)]
 pub enum FoldersAlbumInput {
     Activate,
+    /// A view has been activated
+    Activated(ViewName),
 
     // Reload photos from database
     Refresh,
@@ -216,6 +218,8 @@ impl SimpleComponent for FoldersAlbum {
     ) -> ComponentParts<Self> {
         let photo_grid = TypedGridView::new();
 
+        //lazy_thumbnail_tracker.borrow_mut().pause();
+
         let model = FoldersAlbum {
             state,
             active_view,
@@ -241,6 +245,16 @@ impl SimpleComponent for FoldersAlbum {
                 *self.active_view.write() = ViewName::Folders;
                 if self.photo_grid.is_empty() {
                     self.refresh();
+                }
+            }
+            FoldersAlbumInput::Activated(view_name) => {
+                if ViewName::Folders == view_name {
+                    if self.photo_grid.is_empty() {
+                        self.refresh();
+                    }
+                    self.lazy_thumbnail_tracker.borrow_mut().resume();
+                } else {
+                    self.lazy_thumbnail_tracker.borrow_mut().pause();
                 }
             }
             FoldersAlbumInput::Refresh => {

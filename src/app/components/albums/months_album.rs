@@ -236,6 +236,8 @@ impl SimpleComponent for MonthsAlbum {
     ) -> ComponentParts<Self> {
         let photo_grid = TypedGridView::new();
 
+        lazy_thumbnail_tracker.borrow_mut().pause();
+
         let model = MonthsAlbum {
             state,
             active_view,

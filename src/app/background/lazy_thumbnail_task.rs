@@ -25,6 +25,7 @@ use fotema_core::photo::PhotoThumbnailer;
 use fotema_core::video::VideoThumbnailer;
 
 use crossbeam_channel::{Receiver, Sender, bounded, unbounded};
+use priority_queue::PriorityQueue;
 
 use std::thread;
 use tracing::{error, info};
@@ -94,7 +95,7 @@ pub struct LazyThumbnailTask {
 
     // Visuals pending thumbnail generation
     pending: HashMap<VisualId, u32>,
-    pending_ordered: BinaryHeap<OrderedVisualId>,
+    pending_ordered: PriorityQueue<VisualId, DateTime<Utc>>,
 
     photo_thumbnailer: PhotoThumbnailer,
     video_thumbnailer: VideoThumbnailer,
@@ -110,15 +111,11 @@ impl LazyThumbnailTask {
         let count = self.parallelism - self.send.len();
         let mut remaining = count;
 
-        while remaining > 0 && !self.pending_ordered.is_empty() {
-            if let Some(visual) = self.pending_ordered.pop() {
-                // If a thumbnail has been cancelled an entry
-                // will be in pending_ordered but not in pending.
-                if self.pending.remove(&visual.visual_id).is_some() {
-                    remaining -= 1;
-                    let _ = self.send.send(visual.visual_id);
-                }
-            }
+        while let Some((visual_id, _)) = self.pending_ordered.pop()
+            && remaining > 0
+        {
+            remaining -= 1;
+            let _ = self.send.send(visual_id);
         }
 
         info!(
@@ -135,19 +132,14 @@ impl LazyThumbnailTask {
             .and_modify(|counter| *counter += 1)
             .or_insert(1);
 
-        if *count == 1 {
-            self.pending_ordered.push(OrderedVisualId {
-                visual_id: visual_id.clone(),
-                ordering_ts,
-            });
-        }
+        self.pending_ordered.push(visual_id, ordering_ts);
     }
 
     fn cancel(&mut self, visual_id: VisualId) {
         if let Some(count) = self.pending.get_mut(&visual_id) {
             *count -= 1;
             if *count == 0 {
-                self.pending.remove(&visual_id);
+                self.pending_ordered.remove(&visual_id);
             }
         }
     }
@@ -183,7 +175,7 @@ impl Worker for LazyThumbnailTask {
             shared_state,
             send,
             pending: HashMap::new(),
-            pending_ordered: BinaryHeap::new(),
+            pending_ordered: PriorityQueue::new(),
             photo_thumbnailer,
             video_thumbnailer,
             runner: None,
@@ -199,7 +191,7 @@ impl Worker for LazyThumbnailTask {
 
                 let (send, recv): (Sender<VisualId>, Receiver<VisualId>) =
                     bounded(self.parallelism);
-                self.send = send; // should drop and hangup on previous send channel.
+                self.send = send; // should drop and hang-up on previous send channel.
 
                 // TODO this is in many locations
                 let data_dir = glib::user_data_dir().join(APP_ID);
@@ -274,6 +266,8 @@ impl Worker for LazyThumbnailTask {
                 );
             }
             LazyThumbnailTaskInput::Resume(visual_ids_and_ordering_ts) => {
+                self.pending.clear();
+                self.pending_ordered.clear();
                 let before_count = self.pending.len();
                 for (visual_id, ordering_ts) in visual_ids_and_ordering_ts {
                     self.add(visual_id, ordering_ts);
