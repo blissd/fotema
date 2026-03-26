@@ -893,7 +893,9 @@ impl SimpleAsyncComponent for App {
         adaptive_layout.subscribe(folders_album.sender(), |layout| {
             FoldersAlbumInput::Adapt(*layout)
         });
-
+        active_view.subscribe(folders_album.sender(), |view_name| {
+            FoldersAlbumInput::Activated(*view_name)
+        });
         lazy_thumbnail_notifier.subscribe_optional(folders_album.sender(), |notifier| {
             notifier
                 .visual_id
@@ -923,6 +925,9 @@ impl SimpleAsyncComponent for App {
         adaptive_layout.subscribe(folder_album.sender(), |layout| AlbumInput::Adapt(*layout));
         settings_state.subscribe(folder_album.sender(), |settings| {
             AlbumInput::Sort(settings.album_sort)
+        });
+        active_view.subscribe(folder_album.sender(), |view_name| {
+            AlbumInput::Activated(*view_name)
         });
         lazy_thumbnail_notifier.subscribe_optional(folder_album.sender(), |notifier| {
             notifier

@@ -226,6 +226,8 @@ impl SimpleComponent for YearsAlbum {
     ) -> ComponentParts<Self> {
         let photo_grid = TypedGridView::new();
 
+        lazy_thumbnail_tracker.borrow_mut().pause();
+
         let model = YearsAlbum {
             state,
             active_view,

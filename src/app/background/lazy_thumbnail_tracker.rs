@@ -158,13 +158,14 @@ impl LazyThumbnailTracker {
         self.is_active = false;
         info!("Pausing {:?} thumbnails", self.pending.len());
 
-        let visual_ids = self
-            .pending
-            .keys()
-            .map(|v| v.clone())
-            .collect::<Vec<VisualId>>();
+        /* let visual_ids = self
+                .pending
+                .keys()
+                .map(|v| v.clone())
+                .collect::<Vec<VisualId>>();
 
-        self.sender.emit(LazyThumbnailTaskInput::Pause(visual_ids));
+            self.sender.emit(LazyThumbnailTaskInput::Pause(visual_ids));
+        */
     }
 
     pub fn resume(&mut self) {

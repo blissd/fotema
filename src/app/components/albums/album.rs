@@ -316,6 +316,8 @@ impl SimpleComponent for Album {
         let photo_grid = TypedGridView::new();
         let grid_view = &photo_grid.view.clone();
 
+        lazy_thumbnail_tracker.borrow_mut().pause();
+
         let model = Album {
             state,
             active_view,
