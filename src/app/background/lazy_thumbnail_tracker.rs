@@ -91,15 +91,17 @@ impl LazyThumbnailTracker {
     }
 
     pub fn add(&mut self, visual: &Visual, picture: gtk::Picture) {
-        if self.pending.contains_key(&visual.visual_id) {
+        /* if self.pending.contains_key(&visual.visual_id) {
             return;
-        }
+        }*/
+
         //info!("Adding {:?}", visual.visual_id);
         let pending_thumbnail = PendingThumbnail {
             picture,
             thumbnail_hash: visual.thumbnail_hash(),
             ordering_ts: visual.ordering_ts.clone(),
         };
+
         self.pending
             .insert(visual.visual_id.clone(), pending_thumbnail);
 
@@ -115,7 +117,7 @@ impl LazyThumbnailTracker {
     // A thumbnail has been generated
     pub fn complete(&mut self, visual_id: &VisualId) {
         if let Some(pending_thumbnail) = self.pending.remove(visual_id) {
-            info!("Completing {:?}", visual_id);
+            info!("{} more thumbnails expected.", self.pending.len());
 
             // FIXME should respect window width
             let thumbnail_size = ThumbnailSize::Large;
@@ -136,6 +138,9 @@ impl LazyThumbnailTracker {
         if self.pending.remove(visual_id).is_some() {
             // if not active, then cancellation previously sent
             if self.is_active {
+                self.sender
+                    .emit(LazyThumbnailTaskInput::Cancel(visual_id.clone()));
+                /*
                 let tuples = self
                     .pending
                     .iter()
@@ -143,6 +148,7 @@ impl LazyThumbnailTracker {
                     .collect::<Vec<(VisualId, DateTime<Utc>)>>();
 
                 self.sender.emit(LazyThumbnailTaskInput::Resume(tuples));
+                */
             }
         }
     }
