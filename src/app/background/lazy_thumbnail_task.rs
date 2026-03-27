@@ -111,14 +111,15 @@ impl LazyThumbnailTask {
         let count = self.parallelism - self.send.len();
         let mut submitted = 0;
 
-        while let Some((visual_id, ordering_ts)) = self.pending_ordered.pop()
-            && !self.send.is_full()
-            && submitted < self.parallelism
-        {
-            self.inflight += 1;
-            submitted += 1;
-            if self.send.send(visual_id.clone()).is_err() {
-                error!("Failed send");
+        while !self.send.is_full() && submitted < self.parallelism {
+            if let Some((visual_id, ordering_ts)) = self.pending_ordered.pop() {
+                self.inflight += 1;
+                submitted += 1;
+                if self.send.send(visual_id.clone()).is_err() {
+                    error!("Failed send");
+                    break;
+                }
+            } else {
                 break;
             }
         }
