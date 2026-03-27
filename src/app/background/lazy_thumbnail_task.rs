@@ -323,13 +323,12 @@ impl Runner {
             if let Some(visual) = maybe_visual {
                 if visual.picture_path.is_some() && visual.picture_id.is_some() {
                     self.generate_photo_thumbnail(&visual);
-                }
-                if visual.video_path.is_some() && visual.video_id.is_some() {
+                } else if visual.video_path.is_some() && visual.video_id.is_some() {
                     self.generate_video_thumbnail(&visual);
                 } else {
                     error!(
-                        "Ignoring visual {:?} because no picture or video path.",
-                        visual_id
+                        "Ignoring visual {:?} because no picture or video path. {:?}",
+                        visual_id, visual
                     );
                 }
             }
