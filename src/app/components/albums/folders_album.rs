@@ -29,7 +29,7 @@ use crate::app::ActiveView;
 use crate::app::SharedState;
 use crate::app::ViewName;
 
-use tracing::{Level, event, info};
+use tracing::{Level, event, info, trace};
 
 const NARROW_EDGE_LENGTH: i32 = 170;
 const WIDE_EDGE_LENGTH: i32 = 200;
@@ -287,7 +287,7 @@ impl SimpleComponent for FoldersAlbum {
                 self.edge_length.set_value(WIDE_EDGE_LENGTH);
             }
             FoldersAlbumInput::ThumbnailReady(visual_id) => {
-                info!("Thumbnail ready {:?}", visual_id);
+                trace!("Thumbnail ready {:?}", visual_id);
                 self.lazy_thumbnail_tracker
                     .borrow_mut()
                     .complete(&visual_id);
