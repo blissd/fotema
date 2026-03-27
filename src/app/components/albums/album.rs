@@ -408,7 +408,7 @@ impl SimpleComponent for Album {
                 let _ = sender.output(AlbumOutput::ScrollOffset(offset));
             }
             AlbumInput::ThumbnailReady(visual_id) => {
-                trace!("Thumbnail ready {:?}", visual_id);
+                trace!("{:?}: Thumbnail ready {:?}", self.view_name, visual_id);
                 self.lazy_thumbnail_tracker
                     .borrow_mut()
                     .complete(&visual_id);

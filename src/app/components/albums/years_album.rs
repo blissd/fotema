@@ -24,7 +24,7 @@ use std::path;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use tracing::info;
+use tracing::{info, trace};
 
 use crate::adaptive;
 use crate::app::ActiveView;
@@ -291,7 +291,7 @@ impl SimpleComponent for YearsAlbum {
                 }
             }
             YearsAlbumInput::ThumbnailReady(visual_id) => {
-                info!("Thumbnail ready {:?}", visual_id);
+                trace!("Thumbnail ready {:?}", visual_id);
                 self.lazy_thumbnail_tracker
                     .borrow_mut()
                     .complete(&visual_id);

@@ -28,7 +28,7 @@ use crossbeam_channel::{Receiver, Sender, bounded, unbounded};
 use priority_queue::PriorityQueue;
 
 use std::thread;
-use tracing::{error, info};
+use tracing::{error, info, trace};
 
 #[derive(Debug)]
 pub enum LazyThumbnailTaskInput {
@@ -54,7 +54,7 @@ pub enum LazyThumbnailTaskInput {
     Resume(Vec<(VisualId, DateTime<Utc>)>),
 
     ///
-    BatchUpdate(HashSet<(VisualId, DateTime<Utc>)>, HashSet<VisualId>),
+    BatchUpdate(HashMap<VisualId, DateTime<Utc>>, HashSet<VisualId>),
 
     // Stop all thumbnail generation
     Stop,
@@ -94,12 +94,12 @@ pub struct LazyThumbnailTask {
     send: Sender<VisualId>,
 
     // Visuals pending thumbnail generation
-    pending: HashMap<VisualId, u32>,
     pending_ordered: PriorityQueue<VisualId, DateTime<Utc>>,
 
     photo_thumbnailer: PhotoThumbnailer,
     video_thumbnailer: VideoThumbnailer,
     parallelism: usize,
+    inflight: u32,
 }
 
 impl LazyThumbnailTask {
@@ -114,34 +114,25 @@ impl LazyThumbnailTask {
         while let Some((visual_id, _)) = self.pending_ordered.pop()
             && remaining > 0
         {
+            self.inflight += 1;
             remaining -= 1;
             let _ = self.send.send(visual_id);
         }
 
         info!(
-            "Submitting {} lazy thumbnails for processing. {} lazy thumbnail requests remaining",
+            "{} inflight. submitted {}. {} remaining.",
+            self.inflight,
             count - remaining,
             self.pending_ordered.len()
         );
     }
 
     fn add(&mut self, visual_id: VisualId, ordering_ts: DateTime<Utc>) {
-        let count = self
-            .pending
-            .entry(visual_id.clone())
-            .and_modify(|counter| *counter += 1)
-            .or_insert(1);
-
         self.pending_ordered.push(visual_id, ordering_ts);
     }
 
     fn cancel(&mut self, visual_id: VisualId) {
-        if let Some(count) = self.pending.get_mut(&visual_id) {
-            *count -= 1;
-            if *count == 0 {
-                self.pending_ordered.remove(&visual_id);
-            }
-        }
+        self.pending_ordered.remove(&visual_id);
     }
 }
 
@@ -174,12 +165,12 @@ impl Worker for LazyThumbnailTask {
             con,
             shared_state,
             send,
-            pending: HashMap::new(),
             pending_ordered: PriorityQueue::new(),
             photo_thumbnailer,
             video_thumbnailer,
             runner: None,
             parallelism,
+            inflight: 0,
         }
     }
 
@@ -187,7 +178,7 @@ impl Worker for LazyThumbnailTask {
         match msg {
             LazyThumbnailTaskInput::Configure(library_base_dir) => {
                 info!("Configuring library base directory: {:?}", library_base_dir);
-                self.pending.clear();
+                self.pending_ordered.clear();
 
                 let (send, recv): (Sender<VisualId>, Receiver<VisualId>) =
                     bounded(self.parallelism);
@@ -237,48 +228,42 @@ impl Worker for LazyThumbnailTask {
                 self.runner = Some(runner);
             }
             LazyThumbnailTaskInput::Generate(visual_id, ordering_ts) => {
-                info!("Add lazy thumbnail request {:?}", visual_id);
+                info!("Generate lazy thumbnail request: {:?}", visual_id);
                 self.add(visual_id, ordering_ts);
                 self.process_next();
             }
             LazyThumbnailTaskInput::Done(visual_id) => {
-                self.pending.remove(&visual_id);
-                info!(
-                    "Done: {:?}. Thumbnails remaining: {}",
-                    visual_id,
-                    self.pending.len()
-                );
+                trace!("Thumbnails remaining: {}", self.pending_ordered.len());
+                if self.inflight > 0 {
+                    self.inflight -= 1;
+                }
+                self.pending_ordered.remove(&visual_id);
                 let _ = sender.output(LazyThumbnailTaskOutput::ThumbnailReady(visual_id));
                 self.process_next();
             }
             LazyThumbnailTaskInput::Cancel(visual_id) => {
-                info!("Cancelled lazy thumbnail request: {:?}", visual_id);
+                info!("Cancelled lazy thumbnail: {:?}", visual_id);
                 self.cancel(visual_id);
             }
             LazyThumbnailTaskInput::Pause(visual_ids) => {
-                let before_count = self.pending.len();
+                info!("Pausing {} lazy thumbnails", visual_ids.len());
                 for visual_id in visual_ids {
                     self.cancel(visual_id);
                 }
-                info!(
-                    "Paused {} lazy thumbnails",
-                    before_count - self.pending.len()
-                );
             }
             LazyThumbnailTaskInput::Resume(visual_ids_and_ordering_ts) => {
-                self.pending.clear();
+                info!(
+                    "Resuming {} lazy thumbnails",
+                    visual_ids_and_ordering_ts.len()
+                );
                 self.pending_ordered.clear();
-                let before_count = self.pending.len();
                 for (visual_id, ordering_ts) in visual_ids_and_ordering_ts {
                     self.add(visual_id, ordering_ts);
                 }
-                info!(
-                    "Resumed {} lazy thumbnails",
-                    self.pending.len() - before_count
-                );
+                self.process_next();
             }
             LazyThumbnailTaskInput::Stop => {
-                self.pending.clear();
+                self.pending_ordered.clear();
             }
             LazyThumbnailTaskInput::Refresh => {
                 if let Some(ref runner) = self.runner {
@@ -297,9 +282,7 @@ impl Worker for LazyThumbnailTask {
                 }
 
                 for (visual_id, ordering_ts) in add {
-                    if !cancel.contains(&visual_id) {
-                        self.add(visual_id, ordering_ts);
-                    }
+                    self.add(visual_id, ordering_ts);
                 }
                 self.process_next();
             }
@@ -344,7 +327,7 @@ impl Runner {
                 if visual.video_path.is_some() && visual.video_id.is_some() {
                     self.generate_video_thumbnail(&visual);
                 } else {
-                    info!(
+                    error!(
                         "Ignoring visual {:?} because no picture or video path.",
                         visual_id
                     );
@@ -353,6 +336,7 @@ impl Runner {
 
             let _ = self.sender.send(LazyThumbnailTaskInput::Done(visual_id));
         }
+        info!("Lazy thumbnail runner stopping.");
     }
 
     // FIXME this is a copy-and-paste from photo_thumbnail_task.rs

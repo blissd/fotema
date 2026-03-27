@@ -27,6 +27,7 @@ struct PendingThumbnail {
 pub struct LazyThumbnailTracker {
     // Visual waiting for a thumbnail.
     pending: HashMap<VisualId, PendingThumbnail>,
+    unsent: Arc<Mutex<HashMap<VisualId, DateTime<Utc>>>>,
 
     // Send messages to lazy thumbnail task
     sender: relm4::Sender<LazyThumbnailTaskInput>,
@@ -34,11 +35,6 @@ pub struct LazyThumbnailTracker {
     /// Ticker to trigger batch operations
     /// This is to more efficiently send requests to the lazy thumbnail task.
     ticker: crossbeam_channel::Receiver<Instant>,
-
-    /// Items waiting to be sent in a batch.
-    /// Many individual message sends cause Fotema to hang.
-    add_buffer: Arc<Mutex<HashSet<(VisualId, DateTime<Utc>)>>>,
-    cancel_buffer: Arc<Mutex<HashSet<VisualId>>>,
 
     thumbnailer: Rc<Thumbnailer>,
 
@@ -50,16 +46,14 @@ pub struct LazyThumbnailTracker {
 
 impl LazyThumbnailTracker {
     pub fn new(thumbnailer: Rc<Thumbnailer>, sender: Sender<LazyThumbnailTaskInput>) -> Self {
-        let add_buffer = Arc::new(Mutex::new(HashSet::new()));
-        let cancel_buffer = Arc::new(Mutex::new(HashSet::new()));
         let ticker = crossbeam_channel::tick(Duration::from_millis(1000));
 
+        let unsent = Arc::new(Mutex::new(HashMap::<VisualId, DateTime<Utc>>::new()));
+        /*
         {
             let ticker = ticker.clone();
-            let add_buffer = add_buffer.clone();
-            let cancel_buffer = cancel_buffer.clone();
+            let unsent = unsent.clone();
             let sender = sender.clone();
-
             thread::spawn(move || {
                 loop {
                     let Ok(_tick) = ticker.recv() else {
@@ -68,28 +62,29 @@ impl LazyThumbnailTracker {
                     };
                     trace!("Tick");
 
-                    let mut add_buffer = add_buffer.lock().unwrap();
-                    let mut cancel_buffer = cancel_buffer.lock().unwrap();
+                    let mut unsent = unsent.lock().unwrap();
 
-                    sender.emit(LazyThumbnailTaskInput::BatchUpdate(
-                        add_buffer.clone(),
-                        cancel_buffer.clone(),
-                    ));
+                    if !unsent.is_empty() {
+                        let tuples = (*unsent)
+                            .iter()
+                            .map(|(k, v)| (k.clone(), v.clone()))
+                            .collect::<Vec<(VisualId, DateTime<Utc>)>>();
 
-                    (*add_buffer).clear();
-                    (*cancel_buffer).clear();
+                        sender.emit(LazyThumbnailTaskInput::Resume(tuples));
+
+                        (*unsent).clear();
+                    }
                 }
             });
-        }
+        }*/
 
         let tracker = Self {
             pending: HashMap::new(),
+            unsent: unsent.clone(),
             sender,
             thumbnailer,
             is_active: false,
             ticker,
-            add_buffer: add_buffer,
-            cancel_buffer: cancel_buffer,
         };
 
         tracker
@@ -108,13 +103,13 @@ impl LazyThumbnailTracker {
         self.pending
             .insert(visual.visual_id.clone(), pending_thumbnail);
 
-        let mut add_buffer = self.add_buffer.lock().unwrap();
-        (*add_buffer).insert((visual.visual_id.clone(), visual.ordering_ts.clone()));
+        let tuples = self
+            .pending
+            .iter()
+            .map(|(k, v)| (k.clone(), v.ordering_ts.clone()))
+            .collect::<Vec<(VisualId, DateTime<Utc>)>>();
 
-        /*self.sender.emit(LazyThumbnailTaskInput::Generate(
-            visual.visual_id.clone(),
-            visual.ordering_ts.clone(),
-        ));*/
+        self.sender.emit(LazyThumbnailTaskInput::Resume(tuples));
     }
 
     // A thumbnail has been generated
@@ -141,12 +136,13 @@ impl LazyThumbnailTracker {
         if self.pending.remove(visual_id).is_some() {
             // if not active, then cancellation previously sent
             if self.is_active {
-                //info!("Cancelling {:?}", visual_id);
+                let tuples = self
+                    .pending
+                    .iter()
+                    .map(|(k, v)| (k.clone(), v.ordering_ts.clone()))
+                    .collect::<Vec<(VisualId, DateTime<Utc>)>>();
 
-                let mut cancel_buffer = self.cancel_buffer.lock().unwrap();
-                (*cancel_buffer).insert(visual_id.clone());
-                //self.sender
-                //    .emit(LazyThumbnailTaskInput::Cancel(visual_id.clone()));
+                self.sender.emit(LazyThumbnailTaskInput::Resume(tuples));
             }
         }
     }
@@ -156,20 +152,10 @@ impl LazyThumbnailTracker {
             return;
         }
         self.is_active = false;
-        info!("Pausing {:?} thumbnails", self.pending.len());
-
-        /* let visual_ids = self
-                .pending
-                .keys()
-                .map(|v| v.clone())
-                .collect::<Vec<VisualId>>();
-
-            self.sender.emit(LazyThumbnailTaskInput::Pause(visual_ids));
-        */
     }
 
     pub fn resume(&mut self) {
-        if self.is_active {
+        if self.is_active || self.pending.is_empty() {
             return;
         }
 
