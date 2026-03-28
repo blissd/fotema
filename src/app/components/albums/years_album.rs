@@ -31,8 +31,8 @@ use crate::app::ActiveView;
 use crate::app::AlbumSort;
 use crate::app::SharedState;
 use crate::app::ViewName;
+use crate::app::background::lazy_thumbnail_task::ThumbnailOutcome;
 use crate::app::background::lazy_thumbnail_tracker::LazyThumbnailTracker;
-use fotema_core::VisualId;
 
 const NARROW_EDGE_LENGTH: i32 = 170;
 const WIDE_EDGE_LENGTH: i32 = 200;
@@ -64,7 +64,7 @@ pub enum YearsAlbumInput {
     Sort(AlbumSort),
 
     // A thumbnail has been loaded.
-    ThumbnailReady(VisualId),
+    ThumbnailReady(ThumbnailOutcome),
 }
 
 #[derive(Debug)]
@@ -290,11 +290,9 @@ impl SimpleComponent for YearsAlbum {
                     sender.input(YearsAlbumInput::Refresh);
                 }
             }
-            YearsAlbumInput::ThumbnailReady(visual_id) => {
-                trace!("Thumbnail ready {:?}", visual_id);
-                self.lazy_thumbnail_tracker
-                    .borrow_mut()
-                    .complete(&visual_id);
+            YearsAlbumInput::ThumbnailReady(outcome) => {
+                trace!("Thumbnail ready {:?}", outcome);
+                self.lazy_thumbnail_tracker.borrow_mut().complete(outcome);
             }
         }
     }

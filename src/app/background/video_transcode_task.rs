@@ -17,7 +17,6 @@ use tracing::{error, info};
 use gdt_cpus;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::thread;
 
 use crate::app::components::progress_monitor::{ProgressMonitor, ProgressMonitorInput, TaskName};
 

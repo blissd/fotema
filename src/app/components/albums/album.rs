@@ -26,6 +26,7 @@ use crate::app::ActiveView;
 use crate::app::SharedState;
 use crate::app::ViewName;
 use crate::app::adaptive;
+use crate::app::background::lazy_thumbnail_task::ThumbnailOutcome;
 use crate::app::background::lazy_thumbnail_tracker::LazyThumbnailTracker;
 
 use tracing::{debug, info, trace};
@@ -69,7 +70,7 @@ pub enum AlbumInput {
     ScrollToTop,
 
     // A thumbnail has been loaded.
-    ThumbnailReady(VisualId),
+    ThumbnailReady(ThumbnailOutcome),
 }
 
 #[derive(Debug)]
@@ -407,11 +408,9 @@ impl SimpleComponent for Album {
             AlbumInput::ScrollOffset(offset) => {
                 let _ = sender.output(AlbumOutput::ScrollOffset(offset));
             }
-            AlbumInput::ThumbnailReady(visual_id) => {
-                trace!("{:?}: Thumbnail ready {:?}", self.view_name, visual_id);
-                self.lazy_thumbnail_tracker
-                    .borrow_mut()
-                    .complete(&visual_id);
+            AlbumInput::ThumbnailReady(outcome) => {
+                trace!("{:?}: Thumbnail ready {:?}", self.view_name, outcome);
+                self.lazy_thumbnail_tracker.borrow_mut().complete(outcome);
             }
         }
     }

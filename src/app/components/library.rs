@@ -128,9 +128,9 @@ impl SimpleComponent for Library {
         layout_state.subscribe(all_album.sender(), |layout| AlbumInput::Adapt(*layout));
         lazy_thumbnail_notifier.subscribe_optional(all_album.sender(), |notifier| {
             notifier
-                .visual_id
+                .outcome
                 .clone()
-                .map(|visual_id| AlbumInput::ThumbnailReady(visual_id))
+                .map(|outcome| AlbumInput::ThumbnailReady(outcome))
         });
 
         let lazy_thumbnail_tracker = Rc::new(RefCell::new(LazyThumbnailTracker::new(
@@ -157,9 +157,9 @@ impl SimpleComponent for Library {
         });
         lazy_thumbnail_notifier.subscribe_optional(months_album.sender(), |notifier| {
             notifier
-                .visual_id
+                .outcome
                 .clone()
-                .map(|visual_id| MonthsAlbumInput::ThumbnailReady(visual_id))
+                .map(|outcome| MonthsAlbumInput::ThumbnailReady(outcome))
         });
 
         let lazy_thumbnail_tracker = Rc::new(RefCell::new(LazyThumbnailTracker::new(
@@ -186,9 +186,9 @@ impl SimpleComponent for Library {
         });
         lazy_thumbnail_notifier.subscribe_optional(years_album.sender(), |notifier| {
             notifier
-                .visual_id
+                .outcome
                 .clone()
-                .map(|visual_id| YearsAlbumInput::ThumbnailReady(visual_id))
+                .map(|outcome| YearsAlbumInput::ThumbnailReady(outcome))
         });
 
         let widgets = view_output!();

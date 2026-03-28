@@ -3,11 +3,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use crate::app::background::lazy_thumbnail_task::LazyThumbnailTaskInput;
+use crate::app::background::lazy_thumbnail_task::ThumbnailOutcome;
 use chrono::*;
 use fotema_core::thumbnailify::{ThumbnailSize, Thumbnailer};
 use fotema_core::{Visual, VisualId};
 use relm4::Sender;
 use relm4::gtk;
+use relm4::gtk::gdk;
+use relm4::gtk::gdk_pixbuf;
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
@@ -114,23 +117,45 @@ impl LazyThumbnailTracker {
     }
 
     // A thumbnail has been generated
-    pub fn complete(&mut self, visual_id: &VisualId) {
-        if let Some(pending_thumbnail) = self.pending.remove(visual_id) {
-            info!("{} more thumbnails expected.", self.pending.len());
+    pub fn complete(&mut self, outcome: ThumbnailOutcome) {
+        match outcome {
+            ThumbnailOutcome::Successful(visual_id) => {
+                if let Some(pending_thumbnail) = self.pending.remove(&visual_id) {
+                    info!("{} more thumbnails expected.", self.pending.len());
 
-            // FIXME should respect window width
-            let thumbnail_size = ThumbnailSize::Large;
-            let thumbnail_path = self
-                .thumbnailer
-                .nearest_thumbnail(&pending_thumbnail.thumbnail_hash, thumbnail_size);
+                    // FIXME should respect window width
+                    let thumbnail_size = ThumbnailSize::Large;
+                    let thumbnail_path = self
+                        .thumbnailer
+                        .nearest_thumbnail(&pending_thumbnail.thumbnail_hash, thumbnail_size);
 
-            if thumbnail_path.is_some() {
-                pending_thumbnail.picture.set_filename(thumbnail_path);
-                pending_thumbnail
-                    .picture
-                    .set_content_fit(gtk::ContentFit::Cover);
+                    if thumbnail_path.is_some() {
+                        pending_thumbnail.picture.set_filename(thumbnail_path);
+                        pending_thumbnail
+                            .picture
+                            .set_content_fit(gtk::ContentFit::Cover);
+                    }
+                }
             }
-        }
+            ThumbnailOutcome::Failed(visual_id) => {
+                if let Some(pending_thumbnail) = self.pending.remove(&visual_id) {
+                    info!("FAILED. {} more thumbnails expected.", self.pending.len());
+
+                    let pb = gdk_pixbuf::Pixbuf::from_resource_at_scale(
+                        "/app/fotema/Fotema/icons/scalable/actions/error-outline-symbolic.svg",
+                        200,
+                        200,
+                        true,
+                    )
+                    .unwrap();
+                    let img = gdk::Texture::for_pixbuf(&pb);
+                    pending_thumbnail.picture.set_paintable(Some(&img));
+                    pending_thumbnail
+                        .picture
+                        .set_content_fit(gtk::ContentFit::Contain);
+                }
+            }
+        };
     }
 
     pub fn cancel(&mut self, visual_id: &VisualId) {

@@ -30,6 +30,12 @@ use priority_queue::PriorityQueue;
 use std::thread;
 use tracing::{error, info, trace};
 
+#[derive(Clone, Debug)]
+pub enum ThumbnailOutcome {
+    Successful(VisualId),
+    Failed(VisualId),
+}
+
 #[derive(Debug)]
 pub enum LazyThumbnailTaskInput {
     // Configure library base directory.
@@ -44,8 +50,8 @@ pub enum LazyThumbnailTaskInput {
     // Cancel a thumbnail request.
     Cancel(VisualId),
 
-    // Thumbnail generated.
-    Done(VisualId),
+    // Thumbnail generated... or not.
+    Done(ThumbnailOutcome),
 
     /// Batch cancel
     Pause(Vec<VisualId>),
@@ -62,8 +68,8 @@ pub enum LazyThumbnailTaskInput {
 
 #[derive(Debug)]
 pub enum LazyThumbnailTaskOutput {
-    // Thumbnail generation has completed
-    ThumbnailReady(VisualId),
+    // Thumbnail generated... or not.
+    Done(ThumbnailOutcome),
 }
 
 #[derive(PartialEq, Eq)]
@@ -241,12 +247,12 @@ impl Worker for LazyThumbnailTask {
                 self.add(visual_id, ordering_ts);
                 self.process_next();
             }
-            LazyThumbnailTaskInput::Done(visual_id) => {
+            LazyThumbnailTaskInput::Done(outcome) => {
                 trace!("Thumbnails remaining: {}", self.pending_ordered.len());
                 if self.inflight > 0 {
                     self.inflight -= 1;
                 }
-                let _ = sender.output(LazyThumbnailTaskOutput::ThumbnailReady(visual_id));
+                let _ = sender.output(LazyThumbnailTaskOutput::Done(outcome));
                 self.process_next();
             }
             LazyThumbnailTaskInput::Cancel(visual_id) => {
@@ -328,26 +334,29 @@ impl Runner {
             };
 
             // generate thumbnail
-            if let Some(visual) = maybe_visual {
+            let outcome = if let Some(visual) = maybe_visual {
                 if visual.picture_path.is_some() && visual.picture_id.is_some() {
-                    self.generate_photo_thumbnail(&visual);
+                    self.generate_photo_thumbnail(&visual)
                 } else if visual.video_path.is_some() && visual.video_id.is_some() {
-                    self.generate_video_thumbnail(&visual);
+                    self.generate_video_thumbnail(&visual)
                 } else {
                     error!(
                         "Ignoring visual {:?} because no picture or video path. {:?}",
                         visual_id, visual
                     );
+                    ThumbnailOutcome::Failed(visual_id)
                 }
-            }
+            } else {
+                ThumbnailOutcome::Failed(visual_id)
+            };
 
-            let _ = self.sender.send(LazyThumbnailTaskInput::Done(visual_id));
+            let _ = self.sender.send(LazyThumbnailTaskInput::Done(outcome));
         }
         info!("Lazy thumbnail runner stopping.");
     }
 
     // FIXME this is a copy-and-paste from photo_thumbnail_task.rs
-    fn generate_photo_thumbnail(&self, visual: &Arc<Visual>) {
+    fn generate_photo_thumbnail(&self, visual: &Arc<Visual>) -> ThumbnailOutcome {
         let Some(ref path) = visual.picture_path else {
             todo!()
         };
@@ -370,14 +379,18 @@ impl Runner {
                 path
             );
             let _ = self.photo_repo.clone().mark_broken(&picture_id);
+            ThumbnailOutcome::Failed(visual.visual_id.clone())
         } else if result.is_err() {
             error!("Panicked generate or add thumbnail: Photo path: {:?}", path);
             let _ = self.photo_repo.clone().mark_broken(&picture_id);
+            ThumbnailOutcome::Failed(visual.visual_id.clone())
+        } else {
+            ThumbnailOutcome::Successful(visual.visual_id.clone())
         }
     }
 
     // FIXME this is a copy-and-paste from video_thumbnail_task.rs
-    fn generate_video_thumbnail(&self, visual: &Arc<Visual>) {
+    fn generate_video_thumbnail(&self, visual: &Arc<Visual>) -> ThumbnailOutcome {
         let Some(ref path) = visual.video_path else {
             todo!()
         };
@@ -398,9 +411,13 @@ impl Runner {
                 path
             );
             let _ = self.video_repo.clone().mark_broken(&video_id);
+            ThumbnailOutcome::Failed(visual.visual_id.clone())
         } else if result.is_err() {
             error!("Panicked generate or add thumbnail: Video path: {:?}", path);
             let _ = self.video_repo.clone().mark_broken(&video_id);
+            ThumbnailOutcome::Failed(visual.visual_id.clone())
+        } else {
+            ThumbnailOutcome::Successful(visual.visual_id.clone())
         }
     }
 

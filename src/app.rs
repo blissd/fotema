@@ -52,7 +52,7 @@ mod components;
 
 use crate::host_path;
 
-use self::components::{
+use crate::app::components::{
     about::AboutDialog,
     albums::{
         album::{Album, AlbumInput, AlbumOutput},
@@ -71,22 +71,22 @@ use self::components::{
 
 mod background;
 
-use self::background::bootstrap::{
+use crate::app::background::bootstrap::{
     Bootstrap, BootstrapInput, BootstrapOutput, MediaType, TaskName, ThumbnailType,
 };
 
-use self::background::lazy_thumbnail_notifier::{
+use crate::app::background::lazy_thumbnail_notifier::{
     LazyThumbnailNotifier, LazyThumbnailNotifierInput,
 };
 
-use self::background::lazy_thumbnail_tracker::LazyThumbnailTracker;
+use crate::app::background::lazy_thumbnail_tracker::LazyThumbnailTracker;
 
-use self::background::lazy_thumbnail_task::{
-    LazyThumbnailTask, LazyThumbnailTaskInput, LazyThumbnailTaskOutput,
+use crate::app::background::lazy_thumbnail_task::{
+    LazyThumbnailTask, LazyThumbnailTaskInput, LazyThumbnailTaskOutput, ThumbnailOutcome,
 };
 
-use self::components::progress_monitor::ProgressMonitor;
-use self::components::progress_panel::ProgressPanel;
+use crate::app::components::progress_monitor::ProgressMonitor;
+use crate::app::components::progress_panel::ProgressPanel;
 
 /// Name of a view that can be displayed
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq, AsRefStr)]
@@ -320,7 +320,7 @@ pub(super) enum AppMsg {
     OnboardDone(PathBuf),
 
     /// A lazily generated thumbnail is ready
-    ThumbnailReady(VisualId),
+    ThumbnailReady(ThumbnailOutcome),
 }
 
 relm4::new_action_group!(pub(super) WindowActionGroup, "win");
@@ -638,9 +638,7 @@ impl SimpleAsyncComponent for App {
                 state.clone(),
             ))
             .forward(sender.input_sender(), |msg| match msg {
-                LazyThumbnailTaskOutput::ThumbnailReady(visual_id) => {
-                    AppMsg::ThumbnailReady(visual_id)
-                }
+                LazyThumbnailTaskOutput::Done(outcome) => AppMsg::ThumbnailReady(outcome),
             });
 
         settings_state.subscribe(lazy_thumbnail_task.sender(), |settings| {
@@ -743,9 +741,9 @@ impl SimpleAsyncComponent for App {
         });
         lazy_thumbnail_notifier.subscribe_optional(selfies_page.sender(), |notifier| {
             notifier
-                .visual_id
+                .outcome
                 .clone()
-                .map(|visual_id| AlbumInput::ThumbnailReady(visual_id))
+                .map(|outcome| AlbumInput::ThumbnailReady(outcome))
         });
 
         let show_selfies = AppWidgets::show_selfies();
@@ -778,9 +776,9 @@ impl SimpleAsyncComponent for App {
         });
         lazy_thumbnail_notifier.subscribe_optional(motion_page.sender(), |notifier| {
             notifier
-                .visual_id
+                .outcome
                 .clone()
-                .map(|visual_id| AlbumInput::ThumbnailReady(visual_id))
+                .map(|outcome| AlbumInput::ThumbnailReady(outcome))
         });
 
         let lazy_thumbnail_tracker = Rc::new(RefCell::new(LazyThumbnailTracker::new(
@@ -811,9 +809,9 @@ impl SimpleAsyncComponent for App {
         });
         lazy_thumbnail_notifier.subscribe_optional(videos_page.sender(), |notifier| {
             notifier
-                .visual_id
+                .outcome
                 .clone()
-                .map(|visual_id| AlbumInput::ThumbnailReady(visual_id))
+                .map(|outcome| AlbumInput::ThumbnailReady(outcome))
         });
 
         let people_page = PeopleAlbum::builder()
@@ -898,9 +896,9 @@ impl SimpleAsyncComponent for App {
         });
         lazy_thumbnail_notifier.subscribe_optional(folders_album.sender(), |notifier| {
             notifier
-                .visual_id
+                .outcome
                 .clone()
-                .map(|visual_id| FoldersAlbumInput::ThumbnailReady(visual_id))
+                .map(|outcome| FoldersAlbumInput::ThumbnailReady(outcome))
         });
 
         let lazy_thumbnail_tracker = Rc::new(RefCell::new(LazyThumbnailTracker::new(
@@ -931,9 +929,9 @@ impl SimpleAsyncComponent for App {
         });
         lazy_thumbnail_notifier.subscribe_optional(folder_album.sender(), |notifier| {
             notifier
-                .visual_id
+                .outcome
                 .clone()
-                .map(|visual_id| AlbumInput::ThumbnailReady(visual_id))
+                .map(|outcome| AlbumInput::ThumbnailReady(outcome))
         });
 
         let about_dialog = AboutDialog::builder().launch(root.clone()).detach();
@@ -1290,9 +1288,9 @@ impl SimpleAsyncComponent for App {
                 // The All view is the default view
                 *self.active_view.write() = ViewName::All;
             }
-            AppMsg::ThumbnailReady(visual_id) => self
+            AppMsg::ThumbnailReady(outcome) => self
                 .lazy_thumbnail_notifier
-                .emit(LazyThumbnailNotifierInput::ThumbnailReady(visual_id)),
+                .emit(LazyThumbnailNotifierInput::ThumbnailReady(outcome)),
         }
     }
 
