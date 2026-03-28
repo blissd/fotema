@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+use crate::FlatpakPathBuf;
 use crate::photo::model::PictureId;
 use crate::thumbnailify;
 use chrono::{DateTime, Utc};
@@ -12,15 +13,12 @@ use std::path::PathBuf;
 #[derive(Debug, Clone)]
 pub struct FaceDetectionCandidate {
     pub picture_id: PictureId,
-
-    // FIXME replace both with a single FlatpakPathBuf
-    pub host_path: PathBuf,
-    pub sandbox_path: PathBuf,
+    pub path: FlatpakPathBuf,
 }
 
 impl FaceDetectionCandidate {
     pub fn thumbnail_hash(&self) -> String {
-        thumbnailify::compute_hash_for_path(&self.host_path)
+        thumbnailify::compute_hash_for_path(&self.path.host_path)
     }
 }
 

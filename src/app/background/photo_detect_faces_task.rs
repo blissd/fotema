@@ -103,7 +103,7 @@ impl PhotoDetectFacesTask {
             .photo_repo
             .find_face_detection_candidates()?
             .into_iter()
-            .filter(|candidate| candidate.sandbox_path.exists())
+            .filter(|candidate| candidate.path.sandbox_path.exists())
             .collect();
 
         self.detect(sender, unprocessed)
@@ -168,7 +168,7 @@ impl PhotoDetectFacesTask {
                 if result.is_err() {
                     error!(
                         "Failed detecting faces: Photo path: {:?}. Error: {:?}",
-                        candidate.sandbox_path, result
+                        candidate.path.sandbox_path, result
                     );
                     let _ = repo.mark_face_scan_broken(&candidate.picture_id);
                 }

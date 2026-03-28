@@ -130,7 +130,7 @@ impl FaceExtractor {
 
     /// Identify faces in a photo and return a vector of paths of extracted face images.
     pub async fn extract_faces(&mut self, candidate: &FaceDetectionCandidate) -> Result<Vec<Face>> {
-        info!("Detecting faces in {:?}", candidate.host_path);
+        info!("Detecting faces in {:?}", candidate.path.host_path);
 
         let thumbnail_hash = candidate.thumbnail_hash();
 

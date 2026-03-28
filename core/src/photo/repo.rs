@@ -615,8 +615,10 @@ impl Repository {
 
         Ok(FaceDetectionCandidate {
             picture_id,
-            host_path: host_path.expect("Must have host path"),
-            sandbox_path: sandbox_path.expect("Must have sandbox path"),
+            path: FlatpakPathBuf::build(
+                host_path.expect("Must have host path"),
+                sandbox_path.expect("Must have sandbox path"),
+            ),
         })
     }
 }
