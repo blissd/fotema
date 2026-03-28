@@ -1341,6 +1341,7 @@ dependencies = [
  "deadpool",
  "fotema_core",
  "futures",
+ "gdt-cpus",
  "gettext-rs",
  "glycin",
  "h3o",
@@ -1625,6 +1626,18 @@ dependencies = [
  "glib-sys",
  "libc",
  "system-deps",
+]
+
+[[package]]
+name = "gdt-cpus"
+version = "0.2606.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f60f6baf9eb03f64b3b2c0ab79160b535c7460f12252e9965a4a67e22c518c27"
+dependencies = [
+ "bitflags 2.13.1",
+ "libc",
+ "raw-cpuid",
+ "windows",
 ]
 
 [[package]]
