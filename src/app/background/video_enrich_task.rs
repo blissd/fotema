@@ -13,6 +13,9 @@ use tracing::{error, info};
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::thread;
+
+use gdt_cpus;
 
 use crate::app::components::progress_monitor::{
     MediaType, ProgressMonitor, ProgressMonitorInput, TaskName,
@@ -121,7 +124,13 @@ impl Worker for VideoEnrichTask {
                 let progress_monitor = self.progress_monitor.clone();
 
                 // Avoid runtime panic from calling block_on
-                rayon::spawn(move || {
+                thread::spawn(move || {
+                    if let Err(err) =
+                        gdt_cpus::set_thread_priority(gdt_cpus::ThreadPriority::Lowest)
+                    {
+                        error!("Failed to lower thread priority: {:?}", err);
+                    }
+
                     if let Err(e) = VideoEnrichTask::enrich(stop, repo, progress_monitor, &sender) {
                         error!("Failed to enrich videos: {}", e);
                     }

@@ -13,8 +13,6 @@ use std::panic;
 use std::result::Result::Ok;
 use std::sync::{Arc, Mutex, RwLock};
 
-use gdt_cpus;
-
 use chrono::*;
 
 use crate::app::SharedState;
@@ -27,6 +25,7 @@ use fotema_core::photo::PhotoThumbnailer;
 use fotema_core::video::VideoThumbnailer;
 
 use crossbeam_channel::{Receiver, Sender, bounded, unbounded};
+use gdt_cpus;
 use priority_queue::PriorityQueue;
 
 use std::thread;
