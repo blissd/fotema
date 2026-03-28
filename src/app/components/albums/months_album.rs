@@ -15,7 +15,6 @@ use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
 use relm4::*;
 
 use fotema_core;
-use fotema_core::VisualId;
 use fotema_core::Year;
 use fotema_core::YearMonth;
 use fotema_core::thumbnailify::{ThumbnailSize, Thumbnailer};
@@ -32,6 +31,7 @@ use crate::app::ActiveView;
 use crate::app::AlbumSort;
 use crate::app::SharedState;
 use crate::app::ViewName;
+use crate::app::background::lazy_thumbnail_task::ThumbnailOutcome;
 use crate::app::background::lazy_thumbnail_tracker::LazyThumbnailTracker;
 use crate::fl;
 
@@ -78,7 +78,7 @@ pub enum MonthsAlbumInput {
     Sort(AlbumSort),
 
     // A thumbnail has been loaded.
-    ThumbnailReady(VisualId),
+    ThumbnailReady(ThumbnailOutcome),
 }
 
 #[derive(Debug)]
@@ -311,11 +311,9 @@ impl SimpleComponent for MonthsAlbum {
                     sender.input(MonthsAlbumInput::Refresh);
                 }
             }
-            MonthsAlbumInput::ThumbnailReady(visual_id) => {
-                trace!("Thumbnail ready {:?}", visual_id);
-                self.lazy_thumbnail_tracker
-                    .borrow_mut()
-                    .complete(&visual_id);
+            MonthsAlbumInput::ThumbnailReady(outcome) => {
+                trace!("Thumbnail ready {:?}", outcome);
+                self.lazy_thumbnail_tracker.borrow_mut().complete(outcome);
             }
         }
     }

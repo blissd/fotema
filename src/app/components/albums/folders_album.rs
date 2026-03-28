@@ -4,9 +4,9 @@
 
 use gtk::prelude::OrientableExt;
 
-use fotema_core::VisualId;
 use fotema_core::thumbnailify::{ThumbnailSize, Thumbnailer};
 
+use crate::app::background::lazy_thumbnail_task::ThumbnailOutcome;
 use crate::app::background::lazy_thumbnail_tracker::LazyThumbnailTracker;
 
 use itertools::Itertools;
@@ -77,7 +77,7 @@ pub enum FoldersAlbumInput {
     Noop,
 
     // A thumbnail has been loaded.
-    ThumbnailReady(VisualId),
+    ThumbnailReady(ThumbnailOutcome),
 }
 
 #[derive(Debug)]
@@ -286,11 +286,9 @@ impl SimpleComponent for FoldersAlbum {
             FoldersAlbumInput::Adapt(adaptive::Layout::Wide) => {
                 self.edge_length.set_value(WIDE_EDGE_LENGTH);
             }
-            FoldersAlbumInput::ThumbnailReady(visual_id) => {
-                trace!("Thumbnail ready {:?}", visual_id);
-                self.lazy_thumbnail_tracker
-                    .borrow_mut()
-                    .complete(&visual_id);
+            FoldersAlbumInput::ThumbnailReady(outcome) => {
+                trace!("Thumbnail ready {:?}", outcome);
+                self.lazy_thumbnail_tracker.borrow_mut().complete(outcome);
             }
         }
     }

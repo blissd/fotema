@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use fotema_core::VisualId;
+use crate::app::background::lazy_thumbnail_task::ThumbnailOutcome;
 use relm4::{Reducer, Reducible};
 use std::sync::Arc;
 
@@ -11,25 +11,25 @@ pub type LazyThumbnailNotifier = Arc<Reducer<LazyThumbnailReducible>>;
 
 #[derive(Debug)]
 pub enum LazyThumbnailNotifierInput {
-    ThumbnailReady(VisualId),
+    ThumbnailReady(ThumbnailOutcome),
 }
 
 pub struct LazyThumbnailReducible {
     // A thumbnail has been generated for photo or video.
-    pub visual_id: Option<VisualId>,
+    pub outcome: Option<ThumbnailOutcome>,
 }
 
 impl Reducible for LazyThumbnailReducible {
     type Input = LazyThumbnailNotifierInput;
 
     fn init() -> Self {
-        Self { visual_id: None }
+        Self { outcome: None }
     }
 
     fn reduce(&mut self, input: Self::Input) -> bool {
         match input {
-            LazyThumbnailNotifierInput::ThumbnailReady(visual_id) => {
-                self.visual_id = Some(visual_id);
+            LazyThumbnailNotifierInput::ThumbnailReady(outcome) => {
+                self.outcome = Some(outcome);
                 return true; // subscribers only notified if 'true' is returned
             }
         }
