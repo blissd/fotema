@@ -13,6 +13,8 @@ use std::panic;
 use std::result::Result::Ok;
 use std::sync::{Arc, Mutex, RwLock};
 
+use gdt_cpus;
+
 use chrono::*;
 
 use crate::app::SharedState;
@@ -226,6 +228,11 @@ impl Worker for LazyThumbnailTask {
                     let runner = runner.clone();
                     let recv = recv.clone();
                     thread::spawn(move || {
+                        if let Err(err) =
+                            gdt_cpus::set_thread_priority(gdt_cpus::ThreadPriority::Lowest)
+                        {
+                            error!("Failed to lower thread priority: {:?}", err);
+                        }
                         runner.run(recv);
                     });
                 }

@@ -1298,6 +1298,7 @@ dependencies = [
  "deadpool",
  "fotema_core",
  "futures",
+ "gdt-cpus",
  "gettext-rs",
  "glycin",
  "h3o",
@@ -1581,6 +1582,23 @@ dependencies = [
  "glib-sys",
  "libc",
  "system-deps",
+]
+
+[[package]]
+name = "gdt-cpus"
+version = "25.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fb12c82e51a30ceac2fb2bf5fd23487364ac5abbfd6d94b97a98b3bcea8e0c6b"
+dependencies = [
+ "bitflags 2.11.0",
+ "core-foundation 0.10.1",
+ "libc",
+ "log",
+ "mach-sys",
+ "nix",
+ "raw-cpuid",
+ "thiserror 2.0.18",
+ "windows",
 ]
 
 [[package]]
@@ -2980,6 +2998,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1670343e58806300d87950e3401e820b519b9384281bbabfb15e3636689ffd69"
 
 [[package]]
+name = "mach-sys"
+version = "0.5.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "48460c2e82a3a0de197152fdf8d2c2d5e43adc501501553e439bf2156e6f87c7"
+dependencies = [
+ "fastrand",
+]
+
+[[package]]
 name = "malloc_buf"
 version = "0.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4007,6 +4034,15 @@ dependencies = [
  "rav1e",
  "rayon",
  "rgb",
+]
+
+[[package]]
+name = "raw-cpuid"
+version = "11.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "498cd0dc59d73224351ee52a95fee0f1a617a2eae0e7d9d720cc622c73a54186"
+dependencies = [
+ "bitflags 2.11.0",
 ]
 
 [[package]]
