@@ -8,12 +8,11 @@ use fotema_core::thumbnailify::{ThumbnailSize, Thumbnailer};
 use fotema_core::{Visual, VisualId};
 use relm4::Sender;
 use relm4::gtk;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
-use std::thread;
 use std::time::{Duration, Instant};
-use tracing::{info, trace};
+use tracing::info;
 
 #[derive(Debug)]
 struct PendingThumbnail {
