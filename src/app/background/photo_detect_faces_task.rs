@@ -12,6 +12,7 @@ use std::path::PathBuf;
 use std::result::Result::Ok;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::thread;
 
 use futures::executor::block_on;
 use tracing::{error, info};
@@ -21,10 +22,14 @@ use fotema_core::people;
 use fotema_core::people::FaceDetectionCandidate;
 use fotema_core::photo;
 use fotema_core::photo::PictureId;
+use fotema_core::thumbnailify;
+use fotema_core::thumbnailify::ThumbnailSize;
 use fotema_core::thumbnailify::Thumbnailer;
 
 use crate::app::components::progress_monitor::{ProgressMonitor, ProgressMonitorInput, TaskName};
 use deadpool::managed;
+
+use gdt_cpus;
 
 #[derive(Debug)]
 enum PoolError {
@@ -104,6 +109,13 @@ impl PhotoDetectFacesTask {
             .find_face_detection_candidates()?
             .into_iter()
             .filter(|candidate| candidate.path.sandbox_path.exists())
+            .filter(|candidate| {
+                let thumb_hash = candidate.thumbnail_hash();
+                let thumb_path = self
+                    .thumbnailer
+                    .get_thumbnail_hash_output(&thumb_hash, ThumbnailSize::XLarge);
+                thumb_path.exists()
+            })
             .collect();
 
         self.detect(sender, unprocessed)
@@ -223,7 +235,12 @@ impl Worker for PhotoDetectFacesTask {
                 let this = self.clone();
 
                 // Avoid runtime panic from calling block_on
-                rayon::spawn(move || {
+                thread::spawn(move || {
+                    if let Err(err) =
+                        gdt_cpus::set_thread_priority(gdt_cpus::ThreadPriority::Lowest)
+                    {
+                        error!("Failed to lower thread priority: {:?}", err);
+                    }
                     if let Err(e) = this.detect_for_all(sender) {
                         error!("Failed to extract photo faces: {}", e);
                     }

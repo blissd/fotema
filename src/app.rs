@@ -1104,11 +1104,7 @@ impl SimpleAsyncComponent for App {
 
                 *self.active_view.write() = child_name;
 
-                // figure out which view to activate
                 if child_name == ViewName::Library {
-                    // Note that we'll only won't get All, Month, and Year activations
-                    // here, they are handled in the Library view. However, we must handle
-                    // the enums for completeness.
                     self.library.emit(LibraryInput::Activate);
                 }
 

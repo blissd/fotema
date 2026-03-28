@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use anyhow::*;
+use gdt_cpus;
 use rayon::prelude::*;
 use relm4::Reducer;
 use relm4::Worker;
@@ -10,6 +11,7 @@ use relm4::prelude::*;
 use std::result::Result::Ok;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::thread;
 use tracing::{error, info};
 
 use crate::app::components::progress_monitor::{ProgressMonitor, ProgressMonitorInput, TaskName};
@@ -150,7 +152,13 @@ impl Worker for PhotoExtractMotionTask {
                 let extractor = self.extractor.clone();
                 let progress_monitor = self.progress_monitor.clone();
 
-                rayon::spawn(move || {
+                thread::spawn(move || {
+                    if let Err(err) =
+                        gdt_cpus::set_thread_priority(gdt_cpus::ThreadPriority::Lowest)
+                    {
+                        error!("Failed to lower thread priority: {:?}", err);
+                    }
+
                     if let Err(e) = PhotoExtractMotionTask::extract(
                         stop,
                         repo,

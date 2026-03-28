@@ -10,7 +10,9 @@ use relm4::prelude::*;
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::thread;
 
+use gdt_cpus;
 use tracing::{error, info};
 
 #[derive(Debug)]
@@ -99,7 +101,12 @@ impl Worker for PhotoEnrichTask {
                 let stop = self.stop.clone();
 
                 // Avoid runtime panic from calling block_on
-                rayon::spawn(move || {
+                thread::spawn(move || {
+                    if let Err(err) =
+                        gdt_cpus::set_thread_priority(gdt_cpus::ThreadPriority::Lowest)
+                    {
+                        error!("Failed to lower thread priority: {:?}", err);
+                    }
                     if let Err(e) = PhotoEnrichTask::enrich(stop, repo, &sender) {
                         error!("Failed to update previews: {}", e);
                     }

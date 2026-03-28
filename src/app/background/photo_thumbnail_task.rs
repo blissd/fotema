@@ -12,6 +12,9 @@ use std::path::{Path, PathBuf};
 use std::result::Result::Ok;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::thread;
+
+use gdt_cpus;
 use tracing::{error, info};
 
 use std::panic;
@@ -179,7 +182,13 @@ impl Worker for PhotoThumbnailTask {
                 let progress_monitor = self.progress_monitor.clone();
 
                 // Avoid runtime panic from calling block_on
-                rayon::spawn(move || {
+                thread::spawn(move || {
+                    if let Err(err) =
+                        gdt_cpus::set_thread_priority(gdt_cpus::ThreadPriority::Lowest)
+                    {
+                        error!("Failed to lower thread priority: {:?}", err);
+                    }
+
                     if let Err(e) = PhotoThumbnailTask::enrich(
                         stop,
                         repo,
