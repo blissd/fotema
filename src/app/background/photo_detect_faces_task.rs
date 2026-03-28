@@ -22,7 +22,6 @@ use fotema_core::people;
 use fotema_core::people::FaceDetectionCandidate;
 use fotema_core::photo;
 use fotema_core::photo::PictureId;
-use fotema_core::thumbnailify;
 use fotema_core::thumbnailify::ThumbnailSize;
 use fotema_core::thumbnailify::Thumbnailer;
 
@@ -252,7 +251,13 @@ impl Worker for PhotoDetectFacesTask {
                 let this = self.clone();
 
                 // Avoid runtime panic from calling block_on
-                rayon::spawn(move || {
+                thread::spawn(move || {
+                    if let Err(err) =
+                        gdt_cpus::set_thread_priority(gdt_cpus::ThreadPriority::Background)
+                    {
+                        error!("Failed to lower thread priority: {:?}", err);
+                    }
+
                     if let Err(e) = this.detect_for_one(sender.clone(), picture_id) {
                         error!("Failed to extract photo faces: {}", e);
                         let _ = sender.output(PhotoDetectFacesTaskOutput::Completed);

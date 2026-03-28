@@ -154,7 +154,7 @@ impl Worker for PhotoExtractMotionTask {
 
                 thread::spawn(move || {
                     if let Err(err) =
-                        gdt_cpus::set_thread_priority(gdt_cpus::ThreadPriority::Lowest)
+                        gdt_cpus::set_thread_priority(gdt_cpus::ThreadPriority::Background)
                     {
                         error!("Failed to lower thread priority: {:?}", err);
                     }

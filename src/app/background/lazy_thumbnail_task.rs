@@ -7,7 +7,6 @@ use relm4::Worker;
 use relm4::gtk::glib;
 use relm4::prelude::*;
 use std::cmp::{Ord, Ordering};
-use std::collections::BinaryHeap;
 use std::collections::{HashMap, HashSet};
 use std::panic;
 use std::result::Result::Ok;
@@ -109,11 +108,10 @@ impl LazyThumbnailTask {
             return;
         }
 
-        let count = self.parallelism - self.send.len();
         let mut submitted = 0;
 
         while !self.send.is_full() && submitted < self.parallelism {
-            if let Some((visual_id, ordering_ts)) = self.pending_ordered.pop() {
+            if let Some((visual_id, _ordering_ts)) = self.pending_ordered.pop() {
                 self.inflight += 1;
                 submitted += 1;
                 if self.send.send(visual_id.clone()).is_err() {
@@ -228,7 +226,7 @@ impl Worker for LazyThumbnailTask {
                     let recv = recv.clone();
                     thread::spawn(move || {
                         if let Err(err) =
-                            gdt_cpus::set_thread_priority(gdt_cpus::ThreadPriority::Lowest)
+                            gdt_cpus::set_thread_priority(gdt_cpus::ThreadPriority::BelowNormal)
                         {
                             error!("Failed to lower thread priority: {:?}", err);
                         }

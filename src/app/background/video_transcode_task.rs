@@ -132,7 +132,9 @@ impl Worker for VideoTranscodeTask {
         match msg {
             VideoTranscodeTaskInput::Start => {
                 info!("Transcoding all incompatible videos");
-                if let Err(err) = gdt_cpus::set_thread_priority(gdt_cpus::ThreadPriority::Lowest) {
+                if let Err(err) =
+                    gdt_cpus::set_thread_priority(gdt_cpus::ThreadPriority::Background)
+                {
                     error!("Failed to lower thread priority: {:?}", err);
                 }
                 if let Err(e) = self.transcode_all(&sender) {
