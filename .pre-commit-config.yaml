@@ -8,7 +8,7 @@ default_stages: [pre-commit]
 exclude: ".sql$"
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v6.0.0
+    rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c  # frozen: v6.0.0
     hooks:
       - id: check-yaml
       - id: check-json
@@ -25,31 +25,31 @@ repos:
           - "--indent=4"
 
   - repo: https://github.com/fsfe/reuse-tool
-    rev: v6.2.0
+    rev: a1bb792acda6fd0724936b4ebbdbc8eceb9c0459  # frozen: v6.2.0
     hooks:
       - id: reuse
 
   - repo: https://github.com/doublify/pre-commit-rust
-    rev: v1.0
+    rev: eeee35a89e69d5772bdee97db1a6a898467b686e  # frozen: v1.0
     hooks:
     - id: fmt
       name: rustfmt
 
   - repo: https://github.com/rhysd/actionlint
-    rev: v1.7.12
+    rev: 914e7df21a07ef503a81201c76d2b11c789d3fca  # frozen: v1.7.12
     hooks:
       - id: actionlint
         name: actionlint
 
   - repo: https://github.com/compilerla/conventional-pre-commit
-    rev: v4.4.0
+    rev: 91ab4bf57e58b32adf1a122681f6ebe164d081c8  # frozen: v4.4.0
     hooks:
       - id: conventional-pre-commit
         name: conventional-commits
         stages: [commit-msg]
 
   - repo: https://github.com/DavidAnson/markdownlint-cli2
-    rev: v0.22.0
+    rev: 3766ad839ad3a74558031510b3bc9872bb1d9980  # frozen: v0.22.0
     hooks:
     - id: markdownlint-cli2
       args:
@@ -57,7 +57,7 @@ repos:
 
   # zizmor detects security vulnerabilities in GitHub Actions workflows.
   - repo: https://github.com/zizmorcore/zizmor-pre-commit
-    rev: v1.23.1
+    rev: ea2eb407b4cbce87cf0d502f36578950494f5ac9  # frozen: v1.23.1
     hooks:
       - id: zizmor
         priority: 0
