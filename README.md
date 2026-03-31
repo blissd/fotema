@@ -27,13 +27,13 @@ Install `flatpak`, `flatpak-builder`, and [just](https://github.com/casey/just).
 
 Install [prek](https://prek.j178.dev/) for pre-commit hooks [uv](https://github.com/astral-sh/uv):
 
-```shell
+```bash
 uv tool install prek
 ```
 
 To build a local development release, run:
 
-```shell
+```bash
 just devel
 ```
 
