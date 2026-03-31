@@ -54,3 +54,10 @@ repos:
     - id: markdownlint-cli2
       args:
         - --fix
+
+  # zizmor detects security vulnerabilities in GitHub Actions workflows.
+  - repo: https://github.com/zizmorcore/zizmor-pre-commit
+    rev: v1.23.1
+    hooks:
+      - id: zizmor
+        priority: 0

@@ -9,6 +9,8 @@ on:
 
 name: CI
 
+permissions: {}
+
 jobs:
   flatpak:
     name: Flatpak
@@ -17,8 +19,10 @@ jobs:
       image: bilelmoussaoui/flatpak-github-actions:gnome-47
       options: --privileged
     steps:
-    - uses: actions/checkout@v6
-    - uses: bilelmoussaoui/flatpak-github-actions/flatpak-builder@v6
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        persist-credentials: false
+    - uses: bilelmoussaoui/flatpak-github-actions/flatpak-builder@92ae9851ad316786193b1fd3f40c4b51eb5cb101 # v6.6
       with:
         bundle: fotema.flatpak
         manifest-path: build-aux/app.fotema.Fotema.Devel.json
