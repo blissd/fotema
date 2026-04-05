@@ -35,12 +35,10 @@
 
     "cleanup": [
         "/include",
-        "/lib/pkgconfig",
         "/lib/cmake",
-        "/share/doc",
-        "/share/gtk-doc",
-        "/share/man",
-        "/share/pkgconfig",
+        "/lib/girepository-1.0",
+        "/lib/pkgconfig",
+        "/share/gir-1.0",
         "*.la",
         "*.a"
     ],
