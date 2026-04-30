@@ -49,7 +49,7 @@ repos:
         stages: [commit-msg]
 
   - repo: https://github.com/DavidAnson/markdownlint-cli2
-    rev: 3766ad839ad3a74558031510b3bc9872bb1d9980  # frozen: v0.22.0
+    rev: 996abf60411a8d954288ac9856aae7602b80cbda  # frozen: v0.22.1
     hooks:
     - id: markdownlint-cli2
       args:
