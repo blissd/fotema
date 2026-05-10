@@ -20,11 +20,11 @@ lto = "thin"
 gettext-rs = { version = "0.7", features = ["gettext-system"] }
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.22", features = ["chrono", "env-filter"] }
-relm4 = { version = "0.10.0", features = ["libadwaita", "gnome_48"] }
+relm4 = { version = "0.11.0", features = ["libadwaita", "gnome_50"] }
 itertools = "0.14.0"
 humansize = "2.1.3"
 rayon = "1.11.0"
-glycin = { version = "3.0.7", features = ["gdk4"] }
+glycin = { version = "3.1.0", features = ["gdk4"] }
 futures = "0.3.32"
 chrono = "0.4.44"
 anyhow = "1.0.101"
@@ -34,15 +34,15 @@ rust-embed = "8.11.0"
 i18n-embed-fl = "0.10.0"
 unic-langid = "0.9.5"
 lazy_static = "1.4.0"
-libshumate-sys = "0.7.0"
+libshumate-sys = "0.8.0"
 h3o = "0.9.3"
-ashpd = { version = "0.12.3", default-features = false, features = ["gtk4", "async-std"] }
+ashpd = { version = "0.13.10", default-features = false, features = ["async-io", "documents", "file_chooser", "gtk4"] }
 regex = "1.12.2"
 deadpool = "0.13.0"
 
 [dependencies.shumate]
 package = "libshumate"
-version = "0.7.0"
+version = "0.8.0"
 
 [dependencies.fotema_core]
 path = "core"

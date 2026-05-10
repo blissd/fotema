@@ -8,6 +8,8 @@ use relm4::adw::prelude::*;
 use relm4::gtk;
 use relm4::prelude::*;
 
+use gtk::glib;
+
 use tracing::{error, info};
 
 use crate::app::AlbumSort;
@@ -16,6 +18,7 @@ use crate::app::{Settings, SettingsState};
 use crate::fl;
 use crate::host_path;
 use fotema_core::FlatpakPathBuf;
+use std::path::PathBuf;
 
 pub struct PreferencesDialog {
     parent: adw::ApplicationWindow,
@@ -262,10 +265,13 @@ impl SimpleAsyncComponent for PreferencesDialog {
                         Ok(files) => {
                             info!("Open: {:?}", files);
                             if let Some(first) = files.uris().first() {
-                                info!("User has chosen picture library at: {:?}", first.path());
-                                if let Some(library_base_dir) =
-                                    files.uris().first().and_then(|uri| uri.to_file_path().ok())
-                                {
+                                let some_library_base_dir = files.uris().first().and_then(|uri| {
+                                    glib::Uri::parse(uri.as_str(), glib::UriFlags::NONE)
+                                        .map(|glib_uri| PathBuf::from(glib_uri.path()))
+                                        .ok()
+                                });
+
+                                if let Some(library_base_dir) = some_library_base_dir {
                                     info!(
                                         "User has chosen picture library at: {:?}",
                                         library_base_dir

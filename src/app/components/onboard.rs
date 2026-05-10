@@ -4,6 +4,7 @@
 
 use ashpd::{WindowIdentifier, desktop::file_chooser::OpenFileRequest};
 
+use gtk::glib;
 use relm4::gtk;
 use relm4::gtk::prelude::*;
 use relm4::prelude::*;
@@ -93,9 +94,11 @@ impl SimpleAsyncComponent for Onboard {
                     match request.send().await.and_then(|r| r.response()) {
                         Ok(files) => {
                             info!("Open: {:?}", files);
-                            let Some(dir) =
-                                files.uris().first().and_then(|uri| uri.to_file_path().ok())
-                            else {
+                            let Some(dir) = files.uris().first().and_then(|uri| {
+                                glib::Uri::parse(uri.as_str(), glib::UriFlags::NONE)
+                                    .map(|glib_uri| PathBuf::from(glib_uri.path()))
+                                    .ok()
+                            }) else {
                                 error!("No directory!");
                                 return;
                             };
