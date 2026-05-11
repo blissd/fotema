@@ -149,9 +149,9 @@ pub fn generate_all_thumbnails(
 
     let sizes = &[
         ThumbnailSize::XLarge,
-        ThumbnailSize::Large,
-        ThumbnailSize::Normal,
-        ThumbnailSize::Small,
+        //ThumbnailSize::Large,
+        //ThumbnailSize::Normal,
+        //ThumbnailSize::Small,
     ];
 
     let src_image = DynamicImage::from(src_image.into_rgba8());

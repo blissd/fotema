@@ -737,13 +737,14 @@ impl Bootstrap {
         // have processed the orientation metadata and will display pictures incorrectly.
         controllers.add_task_load_library(sender.input_sender().clone());
 
-        //controllers.add_task_photo_thumbnail();
-        //controllers.add_task_video_thumbnail();
         controllers.add_task_photo_clean();
         controllers.add_task_video_clean();
         controllers.add_task_photo_extract_motion();
         controllers.add_task_photo_detect_faces();
         controllers.add_task_photo_recognize_faces();
+
+        //controllers.add_task_photo_thumbnail();
+        //controllers.add_task_video_thumbnail();
 
         controllers.add_task_tidy();
 

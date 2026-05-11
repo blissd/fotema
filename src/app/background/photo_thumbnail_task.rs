@@ -100,12 +100,11 @@ impl PhotoThumbnailTask {
             count,
         ));
 
-        // One thread per CPU core... makes my laptop sluggish and hot... also likes memory.
-        // Might need to consider constraining number of CPUs to use less memory or to
-        // keep the computer more response while thumbnail generation is going on.
         unprocessed
-            .par_iter()
-            .take_any_while(|_| !stop.load(Ordering::Relaxed))
+            //.par_iter()
+            //.take_any_while(|_| !stop.load(Ordering::Relaxed))
+            .into_iter()
+            .take_while(|_| !stop.load(Ordering::Relaxed))
             .for_each(|pic| {
                 // Careful! panic::catch_unwind returns Ok(Err) if the evaluated expression returns
                 // an error but doesn't panic.
