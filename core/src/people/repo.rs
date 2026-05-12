@@ -419,7 +419,7 @@ impl Repository {
                 ",
             )?;
 
-            scan_insert_stmt.execute(params![picture_id.id(), false, faces.len(),])?;
+            scan_insert_stmt.execute(params![picture_id.id(), false, faces.len() as u32,])?;
 
             let mut face_insert_stmt = tx.prepare_cached(
                 "INSERT INTO pictures_faces (

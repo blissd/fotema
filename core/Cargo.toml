@@ -22,8 +22,8 @@ h3o = "0.9.4"
 image = "0.25.9"
 kamadak-exif = "0.6.1"
 rayon = "1.11.0"
-refinery = { version = "0.9.0", features = ["rusqlite"] }
-rusqlite = { version = "0.37.0", features = ["bundled", "chrono"] }
+refinery = { version = "0.9.1", features = ["rusqlite"] }
+rusqlite = { version = "0.38.0", features = ["bundled", "chrono"] }
 rust-faces = {git = "https://github.com/blissd/fotema-rust-faces.git", tag = "v2.0.1", features = ["viz"]}
 sm_motion_photo = "0.1.5"
 strum = { version = "0.28", features = ["derive"] }
