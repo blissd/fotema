@@ -38,5 +38,9 @@
       <default>false</default>
       <summary>Extract videos from Android motion photos.</summary>
     </key>
+    <key name="background-thumbnails-enabled" type="b">
+      <default>false</default>
+      <summary>Run background task to generate thumbnails.</summary>
+    </key>
   </schema>
 </schemalist>

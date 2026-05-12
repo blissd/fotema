@@ -43,6 +43,9 @@ pub struct VideoThumbnailTask {
     // Stop flag
     stop: Arc<AtomicBool>,
 
+    // Background thumbnail generation enabled?
+    enabled: Arc<AtomicBool>,
+
     thumbnails_path: PathBuf,
     thumbnailer: VideoThumbnailer,
 
@@ -55,6 +58,7 @@ pub struct VideoThumbnailTask {
 impl VideoThumbnailTask {
     fn enrich(
         stop: Arc<AtomicBool>,
+        enabled: Arc<AtomicBool>,
         repo: Repository,
         thumbnails_path: &Path,
         thumbnailer: VideoThumbnailer,
@@ -103,6 +107,7 @@ impl VideoThumbnailTask {
             //.take_any_while(|_| !stop.load(Ordering::Relaxed))
             .into_iter()
             .take_while(|_| !stop.load(Ordering::Relaxed))
+            .take_while(|_| enabled.load(Ordering::Relaxed))
             .for_each(|vid| {
                 // Careful! panic::catch_unwind returns Ok(Err) if the evaluated expression returns
                 // an error but doesn't panic.
@@ -145,6 +150,7 @@ impl VideoThumbnailTask {
 impl Worker for VideoThumbnailTask {
     type Init = (
         Arc<AtomicBool>,
+        Arc<AtomicBool>,
         PathBuf,
         VideoThumbnailer,
         Repository,
@@ -154,11 +160,12 @@ impl Worker for VideoThumbnailTask {
     type Output = VideoThumbnailTaskOutput;
 
     fn init(
-        (stop, thumbnails_path, thumbnailer, repo, progress_monitor): Self::Init,
+        (stop, enabled, thumbnails_path, thumbnailer, repo, progress_monitor): Self::Init,
         _sender: ComponentSender<Self>,
     ) -> Self {
         Self {
             stop,
+            enabled,
             thumbnails_path: thumbnails_path.into(),
             thumbnailer,
             repo,
@@ -171,6 +178,7 @@ impl Worker for VideoThumbnailTask {
             VideoThumbnailTaskInput::Start => {
                 info!("Generating video thumbnails...");
                 let stop = self.stop.clone();
+                let enabled = self.enabled.clone();
                 let repo = self.repo.clone();
                 let thumbnails_path = self.thumbnails_path.clone();
                 let thumbnailer = self.thumbnailer.clone();
@@ -185,6 +193,7 @@ impl Worker for VideoThumbnailTask {
                     }
                     if let Err(e) = VideoThumbnailTask::enrich(
                         stop,
+                        enabled,
                         repo,
                         &thumbnails_path,
                         thumbnailer,

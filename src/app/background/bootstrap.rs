@@ -153,6 +153,9 @@ pub struct Controllers {
     // Stop background tasks.
     stop: Arc<AtomicBool>,
 
+    // Background thumbnail generation in addition to on-demand thumbnail generation.
+    thumbnails_enabled: Arc<AtomicBool>,
+
     /// Whether a background task has updated some library state and the library should be reloaded.
     library_stale: Arc<AtomicBool>,
 
@@ -486,6 +489,8 @@ impl Bootstrap {
 
         let stop = Arc::new(AtomicBool::new(false));
 
+        let thumbnails_enabled = Arc::new(AtomicBool::new(false));
+
         let load_library_task = LoadLibraryTask::builder()
             .detach_worker((visual_repo.clone(), self.shared_state.clone()))
             .forward(sender.input_sender(), |msg| match msg {
@@ -548,6 +553,7 @@ impl Bootstrap {
         let photo_thumbnail_task = PhotoThumbnailTask::builder()
             .detach_worker((
                 stop.clone(),
+                thumbnails_enabled.clone(),
                 thumbnail_dir.clone(),
                 photo_thumbnailer.clone(),
                 photo_repo.clone(),
@@ -566,6 +572,7 @@ impl Bootstrap {
         let video_thumbnail_task = VideoThumbnailTask::builder()
             .detach_worker((
                 stop.clone(),
+                thumbnails_enabled.clone(),
                 thumbnail_dir.clone(),
                 video_thumbnailer.clone(),
                 video_repo.clone(),
@@ -698,6 +705,7 @@ impl Bootstrap {
 
         let mut controllers = Controllers {
             stop,
+            thumbnails_enabled,
             started_at: None,
             shared_state: self.shared_state.clone(),
             settings_state: self.settings_state.clone(),
@@ -825,6 +833,21 @@ impl Worker for Bootstrap {
                     } else {
                         self.controllers = None;
                         sender.input(BootstrapInput::Configure(settings.library_base_dir.clone()));
+                    }
+                }
+
+                if let Some(ref mut controllers) = self.controllers {
+                    let thumbnails_enabled = controllers.thumbnails_enabled.load(Ordering::Relaxed);
+                    if thumbnails_enabled != settings.background_thumbnails_enabled {
+                        if settings.background_thumbnails_enabled {
+                            controllers.add_task_photo_thumbnail();
+                            controllers.add_task_video_thumbnail();
+                            controllers.run_if_idle();
+                        }
+                        // if false will cause running background thumbnailers to stop.
+                        controllers
+                            .thumbnails_enabled
+                            .store(settings.background_thumbnails_enabled, Ordering::Relaxed);
                     }
                 }
             }

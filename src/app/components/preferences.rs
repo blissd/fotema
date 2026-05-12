@@ -60,6 +60,8 @@ pub enum PreferencesInput {
 
     UpdateProcessMotionPhotos(bool),
 
+    UpdateBackgroundThumbnails(bool),
+
     Sort(AlbumSort),
 
     ChoosePicturesDir,
@@ -168,6 +170,18 @@ impl SimpleAsyncComponent for PreferencesDialog {
                         },
                     },
 
+                    adw::SwitchRow {
+                        set_title: &fl!("prefs-background-thumbnails-enabled"),
+                        set_subtitle: &fl!("prefs-background-thumbnails-enabled", "subtitle"),
+
+                        #[watch]
+                        set_active: model.settings.background_thumbnails_enabled,
+
+                        connect_active_notify[sender] => move |switch| {
+                            let _ = sender.input_sender().send(PreferencesInput::UpdateBackgroundThumbnails(switch.is_active()));
+                        },
+                    },
+
                 },
             }
         }
@@ -224,6 +238,11 @@ impl SimpleAsyncComponent for PreferencesDialog {
                 };
 
                 self.album_sort.set_selected(index);
+            }
+            PreferencesInput::UpdateBackgroundThumbnails(enable) => {
+                info!("Update background thumbnails enabled: {:?}", enable);
+                self.settings.background_thumbnails_enabled = enable;
+                *self.settings_state.write() = self.settings.clone();
             }
             PreferencesInput::UpdateShowSelfies(show_selfies) => {
                 info!("Update show selfies: {}", show_selfies);
