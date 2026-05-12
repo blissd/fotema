@@ -91,6 +91,8 @@ impl PartialOrd for OrderedVisualId {
 }
 
 pub struct LazyThumbnailTask {
+    library_base_dir: FlatpakPathBuf,
+
     con: Arc<Mutex<database::Connection>>,
 
     shared_state: SharedState,
@@ -173,6 +175,7 @@ impl Worker for LazyThumbnailTask {
         info!("Lazy thumbnail parallelism: {:?}", parallelism);
 
         LazyThumbnailTask {
+            library_base_dir: FlatpakPathBuf::build("/var/empty", "/var/empty"),
             con,
             shared_state,
             send,
@@ -187,8 +190,11 @@ impl Worker for LazyThumbnailTask {
 
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
-            LazyThumbnailTaskInput::Configure(library_base_dir) => {
+            LazyThumbnailTaskInput::Configure(library_base_dir)
+                if library_base_dir != self.library_base_dir =>
+            {
                 info!("Configuring library base directory: {:?}", library_base_dir);
+                self.library_base_dir = library_base_dir.clone();
                 self.pending_ordered.clear();
 
                 let (send, recv): (Sender<VisualId>, Receiver<VisualId>) =
@@ -242,6 +248,9 @@ impl Worker for LazyThumbnailTask {
                 }
 
                 self.runner = Some(runner);
+            }
+            LazyThumbnailTaskInput::Configure(library_base_dir) => {
+                info!("Ignoring library_base_dir because no change");
             }
             LazyThumbnailTaskInput::Generate(visual_id, ordering_ts) => {
                 info!("Generate lazy thumbnail request: {:?}", visual_id);

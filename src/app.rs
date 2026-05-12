@@ -181,6 +181,10 @@ pub struct Settings {
     /// Base path of pictures directory inside Flatpak sandbox.
     /// Will be under `/run/users/<uid>/docs/<doc-id>/...`
     pub library_base_dir: FlatpakPathBuf,
+
+    /// Background thumbnail generation enabled?
+    /// This is in addition to lazy/on-demand thumbnail generation
+    pub background_thumbnails_enabled: bool,
 }
 
 /// Active settings
@@ -1323,6 +1327,7 @@ impl App {
                 .unwrap_or(AlbumSort::Ascending),
             is_onboarding_complete: gio_settings.boolean("onboarding-complete"),
             library_base_dir,
+            background_thumbnails_enabled: gio_settings.boolean("background-thumbnails-enabled"),
         })
     }
 
@@ -1338,6 +1343,7 @@ impl App {
             "pictures-base-dir-b64",
             &path_encoding::to_base64(&settings.library_base_dir.sandbox_path),
         )?;
+        //gio_settings.set_boolean("onboarding-complete", settings.is_onboarding_complete)?;
         Ok(())
     }
 }
