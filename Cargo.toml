@@ -36,7 +36,7 @@ unic-langid = "0.9.5"
 lazy_static = "1.4.0"
 libshumate-sys = "0.8.0"
 h3o = "0.9.3"
-ashpd = { version = "0.13.10", default-features = false, features = ["async-io", "documents", "file_chooser", "gtk4"] }
+ashpd = { version = "0.13.11", default-features = false, features = ["async-io", "documents", "file_chooser", "gtk4"] }
 regex = "1.12.2"
 deadpool = "0.13.0"
 
