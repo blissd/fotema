@@ -144,15 +144,18 @@ impl Repository {
     /// faces ordered by descending cluster size (most-seen unknown person first),
     /// with faces that have no embedding appended at the end.
     fn cluster_and_order(faces: Vec<(model::Face, Option<Vec<f32>>)>) -> Vec<model::Face> {
-        // L2 distance of L2-normalised SFace features below which two faces are
-        // considered the same person (matches FaceRecognizer::L2NORM_SIMILAR_THRESH).
-        const THRESHOLD: f32 = 1.128;
+        use crate::machine_learning::face_recognizer::EMBEDDING_DIM;
+        // L2 distance of L2-normalised ArcFace features below which two faces are
+        // considered the same person (≈ cosine 0.40). Tunable.
+        const THRESHOLD: f32 = 1.10;
 
         let mut with_embedding: Vec<(model::Face, Vec<f32>)> = Vec::new();
         let mut without: Vec<model::Face> = Vec::new();
         for (face, embedding) in faces {
             match embedding {
-                Some(e) if !e.is_empty() => {
+                // Only the current model's dimension; stale embeddings (e.g.
+                // old SFace) are treated as missing until recomputed.
+                Some(e) if e.len() == EMBEDDING_DIM => {
                     let norm = e.iter().map(|x| x * x).sum::<f32>().sqrt();
                     let e = if norm > 0.0 {
                         e.iter().map(|x| x / norm).collect()
@@ -211,8 +214,12 @@ impl Repository {
     /// Face ids that already have an embedding computed.
     pub fn faces_with_embedding(&self) -> Result<std::collections::HashSet<i64>> {
         let con = self.con.lock().unwrap();
-        let mut stmt =
-            con.prepare("SELECT face_id FROM pictures_faces WHERE embedding IS NOT NULL")?;
+        // Only count embeddings of the current model's dimension (512 floats =
+        // 2048 bytes). Older 128-d SFace embeddings are ignored so they get
+        // recomputed with the new ArcFace model.
+        let mut stmt = con.prepare(
+            "SELECT face_id FROM pictures_faces WHERE length(embedding) = 2048",
+        )?;
         let set = stmt
             .query_map([], |row| row.get::<_, i64>("face_id"))?
             .flatten()
@@ -358,6 +365,7 @@ impl Repository {
     /// embedding keep their alphabetical position at the end. Falls back to
     /// plain alphabetical order when the face itself has no embedding.
     pub fn people_by_similarity(&self, face_id: FaceId) -> Result<Vec<model::Person>> {
+        use crate::machine_learning::face_recognizer::EMBEDDING_DIM;
         let people = self.all_people()?; // alphabetical
         if people.is_empty() {
             return Ok(people);
@@ -378,6 +386,10 @@ impl Repository {
         let Some(face_embedding) = face_embedding else {
             return Ok(people);
         };
+        // Stale-dimension embedding (e.g. old SFace): can't compare meaningfully.
+        if face_embedding.len() != EMBEDDING_DIM {
+            return Ok(people);
+        }
 
         // Minimum distance from this face to each named person's faces.
         let mut best: std::collections::HashMap<i64, f32> = std::collections::HashMap::new();
@@ -393,7 +405,11 @@ impl Repository {
                 Ok((pid, bytes))
             })?;
             for (pid, bytes) in rows.flatten() {
-                let dist = Self::l2(&face_embedding, &Self::bytes_to_normalized(&bytes));
+                let other = Self::bytes_to_normalized(&bytes);
+                if other.len() != EMBEDDING_DIM {
+                    continue;
+                }
+                let dist = Self::l2(&face_embedding, &other);
                 best.entry(pid)
                     .and_modify(|m| {
                         if dist < *m {
@@ -537,6 +553,46 @@ impl Repository {
             FROM  pictures_faces AS faces
             WHERE faces.person_id IS NULL
             AND faces.is_ignored = FALSE",
+        )?;
+
+        let result: Vec<model::DetectedFace> = stmt
+            .query_map([], |row| self.to_detected_face(row))?
+            .flatten()
+            .collect();
+
+        Ok(result)
+    }
+
+    /// All non-ignored faces (named or not) that lack a current-dimension
+    /// embedding, so embeddings are (re)computed for everything — needed after
+    /// switching recognition models. The 2048-byte test = 512 floats (ArcFace).
+    pub fn find_faces_needing_embedding(&self) -> Result<Vec<model::DetectedFace>> {
+        let con = self.con.lock().unwrap();
+        let mut stmt = con.prepare(
+            "SELECT
+                face_id,
+                detected_at,
+                is_source_original,
+                bounds_path,
+                thumbnail_path,
+                bounds_x,
+                bounds_y,
+                bounds_width,
+                bounds_height,
+                right_eye_x,
+                right_eye_y,
+                left_eye_x,
+                left_eye_y,
+                nose_x,
+                nose_y,
+                right_mouth_corner_x,
+                right_mouth_corner_y,
+                left_mouth_corner_x,
+                left_mouth_corner_y,
+                confidence
+            FROM pictures_faces AS faces
+            WHERE faces.is_ignored = FALSE
+            AND (faces.embedding IS NULL OR length(faces.embedding) != 2048)",
         )?;
 
         let result: Vec<model::DetectedFace> = stmt

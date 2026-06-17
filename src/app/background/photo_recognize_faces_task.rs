@@ -13,7 +13,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use tracing::{error, info};
 
-use fotema_core::machine_learning::face_recognizer::FaceRecognizer;
+use fotema_core::machine_learning::face_recognizer::{FaceEmbedder, FaceRecognizer};
 use fotema_core::people;
 use fotema_core::people::model::{DetectedFace, PersonForRecognition};
 use fotema_core::photo;
@@ -198,17 +198,13 @@ impl PhotoRecognizeFacesTask {
             Err(e) => error!("Face-tag import failed: {:?}", e),
         }
 
-        // Faces that still need an SFace embedding (for clustering in the
+        // Faces that still need an ArcFace embedding (for clustering in the
         // "unknown people" view). Computed for every unnamed face, independent
         // of whether any people have been named yet.
-        let model_path = FaceRecognizer::ensure_model(&self.cache_dir)?;
-        let done = self.repo.faces_with_embedding()?;
-        let need_embedding: Vec<DetectedFace> = self
-            .repo
-            .find_unknown_faces()?
-            .into_iter()
-            .filter(|f| !done.contains(&f.face_id.id()))
-            .collect();
+        let (sface_path, arcface_path) = FaceRecognizer::ensure_models(&self.cache_dir)?;
+        // All faces (named or not) lacking a current ArcFace embedding. Covers
+        // the one-time recompute after switching from SFace.
+        let need_embedding: Vec<DetectedFace> = self.repo.find_faces_needing_embedding()?;
 
         let people: Vec<PersonForRecognition> = self
             .repo
@@ -229,24 +225,29 @@ impl PhotoRecognizeFacesTask {
 
         let _ = sender.output(PhotoRecognizeFacesTaskOutput::Started);
 
+        // Cap concurrency: each worker thread loads its own ~166MB ArcFace net,
+        // so a bounded pool keeps memory (and GPU memory) in check. Embeddings
+        // are a one-off recompute, so throughput is not critical.
+        let pool = rayon::ThreadPoolBuilder::new().num_threads(4).build()?;
+
         // ---- Embedding pass (GPU via OpenCL when available, else CPU). One
-        // recognizer instance per rayon thread: the model is loaded once per
-        // thread rather than once per face, and OpenCV's FaceRecognizerSF is not
-        // thread-safe so it must not be shared.
+        // embedder instance per worker thread: the models are loaded once per
+        // thread rather than once per face, and are not thread-safe.
         if !need_embedding.is_empty() {
             self.progress_monitor.emit(ProgressMonitorInput::Start(
                 TaskName::RecognizeFaces,
                 need_embedding.len(),
             ));
 
+            pool.install(|| {
             need_embedding
                 .into_par_iter()
                 .take_any_while(|_| !self.stop.load(Ordering::Relaxed))
                 .for_each_init(
-                    || FaceRecognizer::new_sface(&model_path).ok(),
-                    |recognizer, face| {
-                        if let Some(rec) = recognizer.as_mut() {
-                            match FaceRecognizer::embedding(rec, &face) {
+                    || FaceEmbedder::new(&sface_path, &arcface_path).ok(),
+                    |embedder, face| {
+                        if let Some(emb) = embedder.as_mut() {
+                            match emb.embedding(&face) {
                                 Ok(embedding) => {
                                     let _ = self
                                         .repo
@@ -261,6 +262,7 @@ impl PhotoRecognizeFacesTask {
                         self.progress_monitor.emit(ProgressMonitorInput::Advance);
                     },
                 );
+            });
 
             self.progress_monitor.emit(ProgressMonitorInput::Complete);
         }
@@ -284,29 +286,37 @@ impl PhotoRecognizeFacesTask {
 
                 let recognizer = FaceRecognizer::build(&self.cache_dir, people.clone())?;
 
+                pool.install(|| {
                 unprocessed
                     .into_par_iter()
                     .take_any_while(|_| !self.stop.load(Ordering::Relaxed))
-                    .for_each(|unknown_face| {
-                        let is_match = recognizer.recognize(&unknown_face);
-                        if let Ok(Some(person_id)) = is_match {
-                            info!(
-                                "Face {} looks like person {}",
-                                unknown_face.face_id, person_id
-                            );
-                            let mut repo = self.repo.clone();
-                            let result =
-                                repo.mark_as_person_unconfirmed(unknown_face.face_id, person_id);
-                            if let Err(e) = result {
-                                error!(
-                                    "Failed marking face {} as person: {:?}",
-                                    unknown_face.face_id, e
-                                );
+                    .for_each_init(
+                        || FaceEmbedder::new(&sface_path, &arcface_path).ok(),
+                        |embedder, unknown_face| {
+                            if let Some(emb) = embedder.as_mut() {
+                                if let Ok(Some(person_id)) =
+                                    recognizer.recognize(emb, &unknown_face)
+                                {
+                                    info!(
+                                        "Face {} looks like person {}",
+                                        unknown_face.face_id, person_id
+                                    );
+                                    let mut repo = self.repo.clone();
+                                    if let Err(e) = repo.mark_as_person_unconfirmed(
+                                        unknown_face.face_id,
+                                        person_id,
+                                    ) {
+                                        error!(
+                                            "Failed marking face {} as person: {:?}",
+                                            unknown_face.face_id, e
+                                        );
+                                    }
+                                }
                             }
-                        }
-
-                        self.progress_monitor.emit(ProgressMonitorInput::Advance);
-                    });
+                            self.progress_monitor.emit(ProgressMonitorInput::Advance);
+                        },
+                    );
+                });
 
                 self.progress_monitor.emit(ProgressMonitorInput::Complete);
             }
