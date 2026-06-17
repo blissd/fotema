@@ -390,6 +390,13 @@ person-rename-dialog =
   .cancel-button = Cancel
   .rename-button = Rename
 
+# Actions when right-clicking a photo inside a person's album.
+person-photo-action =
+  .heading = Edit this photo's tag
+  .set-thumbnail = Use as profile picture
+  .reassign = Assign to someone else…
+  .cancel = Cancel
+
 # First view to present to a user.
 onboard-select-pictures =
   .title = Welcome to { -app-name }.

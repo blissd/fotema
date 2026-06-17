@@ -280,6 +280,9 @@ pub(super) enum AppMsg {
 
     PersonRenamed,
 
+    /// A face was detached or reassigned within a person album.
+    FacesChanged,
+
     // A background task has started.
     TaskStarted(TaskName),
 
@@ -780,6 +783,7 @@ impl SimpleAsyncComponent for App {
                 PersonAlbumOutput::Selected(id, filter) => AppMsg::View(id, filter),
                 PersonAlbumOutput::Deleted => AppMsg::PersonDeleted,
                 PersonAlbumOutput::Renamed => AppMsg::PersonRenamed,
+                PersonAlbumOutput::FacesChanged => AppMsg::FacesChanged,
             });
 
         state.subscribe(person_album.sender(), |_| PersonAlbumInput::Refresh);
@@ -1063,6 +1067,12 @@ impl SimpleAsyncComponent for App {
             }
             AppMsg::PersonRenamed => {
                 self.people_page.emit(PeopleAlbumInput::Refresh);
+            }
+            AppMsg::FacesChanged => {
+                // A face was detached/reassigned in a person album: refresh the
+                // people overview and the unknown-faces grid (stay on the album).
+                self.people_page.emit(PeopleAlbumInput::Refresh);
+                self.faces_page.emit(UnknownPeopleInput::Refresh);
             }
             AppMsg::TaskStarted(task_name) => {
                 self.spinner

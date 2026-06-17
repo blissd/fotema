@@ -9,6 +9,7 @@ use relm4::adw::prelude::*;
 use relm4::binding::*;
 use relm4::gtk;
 use relm4::gtk::gdk;
+use relm4::prelude::*;
 use relm4::*;
 
 use crate::app::ActiveView;
@@ -19,6 +20,9 @@ use crate::app::components::albums::{
     album::{Album, AlbumInput, AlbumOutput},
     album_filter::AlbumFilter,
     album_sort::AlbumSort,
+};
+use crate::app::components::viewer::person_select::{
+    PersonSelect, PersonSelectInput, PersonSelectOutput,
 };
 
 use crate::fl;
@@ -63,8 +67,20 @@ pub enum PersonAlbumInput {
     /// Picture selected in underlying album
     Selected(VisualId),
 
-    /// Right-clicked a picture: set this person's avatar from that picture.
+    /// Right-clicked a picture: show actions for that photo.
+    ContextMenu(PictureId),
+
+    /// Set this person's avatar from that picture.
     SetThumbnail(PictureId),
+
+    /// This picture's face is not this person: detach it (back to "unknown").
+    NotPerson(PictureId),
+
+    /// Reassign this picture's face to a different person.
+    Reassign(PictureId),
+
+    /// The reassignment person-picker finished.
+    ReassignDone,
 
     /// Start rename person flow
     RenameDialog,
@@ -91,6 +107,9 @@ pub enum PersonAlbumOutput {
 
     /// Person renamed.
     Renamed,
+
+    /// A face was detached or reassigned; refresh people and unknown faces.
+    FacesChanged,
 }
 
 pub struct PersonAlbum {
@@ -102,6 +121,10 @@ pub struct PersonAlbum {
     title: gtk::Label,
     active_view: ActiveView,
     edge_length: I32Binding,
+
+    /// Person picker shown when reassigning a face to a different person.
+    person_select: AsyncController<PersonSelect>,
+    person_dialog: adw::Dialog,
 }
 
 #[relm4::component(pub)]
@@ -170,12 +193,25 @@ impl SimpleComponent for PersonAlbum {
             .forward(sender.input_sender(), |msg| match msg {
                 AlbumOutput::Selected(id, _) => PersonAlbumInput::Selected(id),
                 AlbumOutput::SecondaryClick(picture_id) => {
-                    PersonAlbumInput::SetThumbnail(picture_id)
+                    PersonAlbumInput::ContextMenu(picture_id)
                 }
                 AlbumOutput::ScrollOffset(offset) => PersonAlbumInput::ScrollOffset(offset),
             });
 
         let title = gtk::Label::builder().build();
+
+        let person_select = PersonSelect::builder().launch(repo.clone()).forward(
+            sender.input_sender(),
+            |msg| match msg {
+                PersonSelectOutput::Done => PersonAlbumInput::ReassignDone,
+            },
+        );
+
+        let person_dialog = adw::Dialog::builder()
+            .child(person_select.widget())
+            .presentation_mode(adw::DialogPresentationMode::BottomSheet)
+            .height_request(400)
+            .build();
 
         let model = PersonAlbum {
             repo,
@@ -186,6 +222,8 @@ impl SimpleComponent for PersonAlbum {
             active_view,
             picture_ids: vec![],
             edge_length: I32Binding::new(NARROW_EDGE_LENGTH),
+            person_select,
+            person_dialog,
         };
 
         model
@@ -276,42 +314,62 @@ impl SimpleComponent for PersonAlbum {
                     AlbumFilter::Any(self.picture_ids.clone()),
                 ));
             }
+            PersonAlbumInput::ContextMenu(picture_id) => {
+                let Some(person) = self.person.clone() else {
+                    return;
+                };
+                if self.face_in_picture(&picture_id).is_none() {
+                    return;
+                }
+
+                let dialog = adw::AlertDialog::builder()
+                    .heading(fl!("person-photo-action", "heading"))
+                    .build();
+                dialog.add_response(
+                    "set-thumbnail",
+                    &fl!("person-photo-action", "set-thumbnail"),
+                );
+                dialog.add_response(
+                    "reassign",
+                    &fl!("person-photo-action", "reassign"),
+                );
+                dialog.add_response(
+                    "not-person",
+                    &fl!("people-not-this-person", name = person.name.clone()),
+                );
+                dialog.set_response_appearance("not-person", adw::ResponseAppearance::Destructive);
+                dialog.add_response("cancel", &fl!("person-photo-action", "cancel"));
+                dialog.set_close_response("cancel");
+                dialog.set_default_response(Some("cancel"));
+
+                {
+                    let sender = sender.clone();
+                    dialog.connect_response(None, move |_, response| match response {
+                        "set-thumbnail" => {
+                            sender.input(PersonAlbumInput::SetThumbnail(picture_id))
+                        }
+                        "not-person" => sender.input(PersonAlbumInput::NotPerson(picture_id)),
+                        "reassign" => sender.input(PersonAlbumInput::Reassign(picture_id)),
+                        _ => {}
+                    });
+                }
+
+                if let Some(root) = gtk::Widget::root(self.avatar.widget_ref()) {
+                    dialog.present(Some(&root));
+                }
+            }
             PersonAlbumInput::SetThumbnail(picture_id) => {
                 let Some(person) = self.person.clone() else {
                     return;
                 };
-
-                // Find this person's face in the right-clicked picture.
-                let face = match self.repo.find_faces(&picture_id) {
-                    Ok(faces) => faces.into_iter().find_map(|(face, p)| {
-                        (p.map(|p| p.person_id) == Some(person.person_id)).then_some(face)
-                    }),
-                    Err(e) => {
-                        error!("Failed finding faces for {:?}: {}", picture_id, e);
-                        None
-                    }
-                };
-
-                let Some(face) = face else {
-                    error!(
-                        "No face for person {} in picture {:?}",
-                        person.person_id, picture_id
-                    );
+                let Some(face) = self.face_in_picture(&picture_id) else {
                     return;
                 };
-
                 if let Err(e) = self.repo.set_person_thumbnail(person.person_id, face.face_id) {
                     error!("Failed setting person thumbnail: {}", e);
                     return;
                 }
-
-                info!(
-                    "Set avatar for person {} from picture {:?}",
-                    person.person_id, picture_id
-                );
-
-                // Immediate feedback with the chosen face thumbnail. The
-                // high-quality large version regenerates on the next scan.
+                // Immediate feedback; the high-quality version regenerates later.
                 if face.thumbnail_path.exists() {
                     let img = gdk::Texture::from_filename(&face.thumbnail_path).ok();
                     self.avatar.set_custom_image(img.as_ref());
@@ -320,6 +378,34 @@ impl SimpleComponent for PersonAlbum {
                     p.small_thumbnail_path = Some(face.thumbnail_path.clone());
                     p.large_thumbnail_path = None;
                 }
+            }
+            PersonAlbumInput::NotPerson(picture_id) => {
+                let Some(face) = self.face_in_picture(&picture_id) else {
+                    return;
+                };
+                if let Err(e) = self.repo.mark_not_person(face.face_id) {
+                    error!("Failed detaching face from person: {}", e);
+                    return;
+                }
+                self.reload_pictures();
+                let _ = sender.output(PersonAlbumOutput::FacesChanged);
+            }
+            PersonAlbumInput::Reassign(picture_id) => {
+                let Some(face) = self.face_in_picture(&picture_id) else {
+                    return;
+                };
+                self.person_select.emit(PersonSelectInput::Activate(
+                    face.face_id,
+                    face.thumbnail_path.clone(),
+                ));
+                if let Some(root) = gtk::Widget::root(self.avatar.widget_ref()) {
+                    self.person_dialog.present(Some(&root));
+                }
+            }
+            PersonAlbumInput::ReassignDone => {
+                self.person_dialog.close();
+                self.reload_pictures();
+                let _ = sender.output(PersonAlbumOutput::FacesChanged);
             }
             PersonAlbumInput::Adapt(layout @ adaptive::Layout::Narrow) => {
                 self.edge_length.set_value(NARROW_EDGE_LENGTH);
@@ -457,5 +543,32 @@ impl SimpleComponent for PersonAlbum {
                 let _ = sender.output(PersonAlbumOutput::Deleted);
             }
         }
+    }
+}
+
+impl PersonAlbum {
+    /// The current person's face in `picture_id`, if any.
+    fn face_in_picture(&self, picture_id: &PictureId) -> Option<people::Face> {
+        let person_id = self.person.as_ref()?.person_id;
+        self.repo
+            .find_faces(picture_id)
+            .ok()?
+            .into_iter()
+            .find_map(|(face, p)| (p.map(|p| p.person_id) == Some(person_id)).then_some(face))
+    }
+
+    /// Re-fetch the current person's pictures and re-filter the album, after a
+    /// face was detached or reassigned.
+    fn reload_pictures(&mut self) {
+        let Some(person) = self.person.clone() else {
+            return;
+        };
+        self.picture_ids = self
+            .repo
+            .find_pictures_for_person(person.person_id)
+            .unwrap_or_default();
+        self.album.sender().emit(AlbumInput::Filter(AlbumFilter::Any(
+            self.picture_ids.clone(),
+        )));
     }
 }
