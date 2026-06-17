@@ -529,8 +529,51 @@ impl Repository {
         Ok(result)
     }
 
+    /// Replace the cached XMP face regions for the given pictures (read once
+    /// during enrich, alongside EXIF). Each entry's existing regions are cleared
+    /// first so re-enriching a picture refreshes them.
+    pub fn add_face_tags(
+        &mut self,
+        items: &[(PictureId, Vec<crate::photo::face_tags::FaceTag>)],
+    ) -> Result<()> {
+        let mut con = self.con.lock().unwrap();
+        let tx = con.transaction()?;
+        {
+            let mut delete =
+                tx.prepare_cached("DELETE FROM pictures_face_tags WHERE picture_id = ?1")?;
+            let mut insert = tx.prepare_cached(
+                "INSERT INTO pictures_face_tags (picture_id, name, center_x) VALUES (?1, ?2, ?3)",
+            )?;
+            for (picture_id, tags) in items {
+                delete.execute(params![picture_id.id()])?;
+                for tag in tags {
+                    insert.execute(params![picture_id.id(), tag.name, tag.center_x])?;
+                }
+            }
+        }
+        tx.commit()?;
+        Ok(())
+    }
+
+    /// Cached XMP face regions for a picture (for matching to detected faces).
+    pub fn find_face_tags(
+        &self,
+        picture_id: PictureId,
+    ) -> Result<Vec<crate::photo::face_tags::FaceTag>> {
+        let con = self.con.lock().unwrap();
+        let mut stmt = con
+            .prepare_cached("SELECT name, center_x FROM pictures_face_tags WHERE picture_id = ?1")?;
+        let rows = stmt.query_map(params![picture_id.id()], |row| {
+            Ok(crate::photo::face_tags::FaceTag {
+                name: row.get(0)?,
+                center_x: row.get(1)?,
+            })
+        })?;
+        Ok(rows.flatten().collect())
+    }
+
     /// Clear the "face tags imported" marker on every picture so the next
-    /// recognition pass re-reads XMP person tags for the whole library
+    /// recognition pass re-matches person tags for the whole library
     /// (retrospective re-scan, e.g. after tagging photos in another app).
     pub fn reset_face_tags_imported(&mut self) -> Result<()> {
         let con = self.con.lock().unwrap();

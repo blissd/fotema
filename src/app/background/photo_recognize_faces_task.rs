@@ -56,82 +56,129 @@ pub struct PhotoRecognizeFacesTask {
 }
 
 impl PhotoRecognizeFacesTask {
-    /// Import person names embedded in photos' XMP (MWG regions / Microsoft
-    /// people tags) and assign them to detected faces. Runs at most once per
-    /// picture (tracked by `pictures.face_tags_imported`). Conservative: only
-    /// assigns when the number of named regions equals the number of unnamed
-    /// faces, matched left-to-right. Returns the number of faces named.
-    fn import_face_tags(&self) -> Result<usize> {
-        let rows = self.photo_repo.find_unnamed_faces_with_pictures()?;
-        if rows.is_empty() {
-            return Ok(0);
-        }
-
+    /// Unnamed, non-ignored faces grouped by their picture (id + path), for
+    /// pictures whose tags have not yet been matched.
+    fn unnamed_faces_by_picture(
+        &self,
+    ) -> Result<Vec<(PictureId, FlatpakPathBuf, Vec<DetectedFace>)>> {
         // Rows are ordered by picture_id; group consecutive rows per picture.
         let mut groups: Vec<(PictureId, FlatpakPathBuf, Vec<DetectedFace>)> = Vec::new();
-        for (picture_id, path, face) in rows {
+        for (picture_id, path, face) in self.photo_repo.find_unnamed_faces_with_pictures()? {
             match groups.last_mut() {
                 Some(last) if last.0 == picture_id => last.2.push(face),
                 _ => groups.push((picture_id, path, vec![face])),
             }
+        }
+        Ok(groups)
+    }
+
+    /// Assign named regions to a picture's unnamed faces. Conservative: only acts
+    /// when the number of named regions equals the number of unnamed faces,
+    /// paired left-to-right by horizontal centre. Creates or reuses a person by
+    /// name. Returns the number of faces named.
+    fn assign_regions(
+        mut faces: Vec<DetectedFace>,
+        mut regions: Vec<photo::face_tags::FaceTag>,
+        people_repo: &mut people::Repository,
+    ) -> usize {
+        if regions.is_empty() || regions.len() != faces.len() {
+            return 0;
+        }
+
+        let by_x = |a: f32, b: f32| a.partial_cmp(&b).unwrap_or(std::cmp::Ordering::Equal);
+        regions.sort_by(|a, b| by_x(a.center_x, b.center_x));
+        faces.sort_by(|a, b| {
+            by_x(
+                a.bounds.x + a.bounds.width / 2.0,
+                b.bounds.x + b.bounds.width / 2.0,
+            )
+        });
+
+        let mut named = 0usize;
+        for (region, face) in regions.iter().zip(faces.iter()) {
+            let name = region.name.trim();
+            if name.is_empty() {
+                continue;
+            }
+            let result = match people_repo.find_person_id_by_name(name) {
+                Ok(Some(person_id)) => people_repo.mark_as_person(face.face_id, person_id),
+                Ok(None) => people_repo.add_person(face.face_id, name),
+                Err(e) => {
+                    error!("Looking up person '{}' failed: {:?}", name, e);
+                    continue;
+                }
+            };
+            match result {
+                Ok(()) => named += 1,
+                Err(e) => error!(
+                    "Importing face {} as '{}' failed: {:?}",
+                    face.face_id, name, e
+                ),
+            }
+        }
+        named
+    }
+
+    /// Match XMP person tags (already cached in the DB during enrich) to detected
+    /// faces. No file reads. Runs at most once per picture
+    /// (`pictures.face_tags_imported`). Returns the number of faces named.
+    fn import_face_tags(&self) -> Result<usize> {
+        let groups = self.unnamed_faces_by_picture()?;
+        if groups.is_empty() {
+            return Ok(0);
         }
 
         let mut people_repo = self.repo.clone();
         let mut processed: Vec<PictureId> = Vec::with_capacity(groups.len());
         let mut imported = 0usize;
 
-        for (picture_id, path, mut faces) in groups {
+        for (picture_id, _path, faces) in groups {
             if self.stop.load(Ordering::Relaxed) {
                 break;
             }
             processed.push(picture_id);
-
-            let mut tags = photo::face_tags::read_face_tags(&path.sandbox_path);
-
-            // Only act when we can match confidently: one named region per
-            // unnamed face, paired left-to-right by horizontal centre.
-            if tags.is_empty() || tags.len() != faces.len() {
-                continue;
-            }
-
-            let by_x = |a: f32, b: f32| a.partial_cmp(&b).unwrap_or(std::cmp::Ordering::Equal);
-            tags.sort_by(|a, b| by_x(a.center_x, b.center_x));
-            faces.sort_by(|a, b| {
-                by_x(
-                    a.bounds.x + a.bounds.width / 2.0,
-                    b.bounds.x + b.bounds.width / 2.0,
-                )
-            });
-
-            for (tag, face) in tags.iter().zip(faces.iter()) {
-                let name = tag.name.trim();
-                if name.is_empty() {
-                    continue;
-                }
-                let result = match people_repo.find_person_id_by_name(name) {
-                    Ok(Some(person_id)) => people_repo.mark_as_person(face.face_id, person_id),
-                    Ok(None) => people_repo.add_person(face.face_id, name),
-                    Err(e) => {
-                        error!("Looking up person '{}' failed: {:?}", name, e);
-                        continue;
-                    }
-                };
-                match result {
-                    Ok(()) => imported += 1,
-                    Err(e) => error!(
-                        "Importing face {} as '{}' failed: {:?}",
-                        face.face_id, name, e
-                    ),
-                }
-            }
+            let regions = self.photo_repo.find_face_tags(picture_id).unwrap_or_default();
+            imported += Self::assign_regions(faces, regions, &mut people_repo);
         }
 
         if !processed.is_empty() {
-            let mut photo_repo = self.photo_repo.clone();
-            if let Err(e) = photo_repo.mark_face_tags_imported(&processed) {
+            if let Err(e) = self.photo_repo.clone().mark_face_tags_imported(&processed) {
                 error!("Failed marking pictures as tag-imported: {:?}", e);
             }
         }
+
+        Ok(imported)
+    }
+
+    /// Retrospective re-scan: re-read every relevant photo's XMP from disk (to
+    /// pick up tags added by other apps since the last enrich), refresh the
+    /// cached regions, and re-match. Used by the manual menu action.
+    fn rescan_face_tags(&self) -> Result<usize> {
+        let _ = self.photo_repo.clone().reset_face_tags_imported();
+
+        let groups = self.unnamed_faces_by_picture()?;
+        if groups.is_empty() {
+            return Ok(0);
+        }
+
+        let mut people_repo = self.repo.clone();
+        let mut refreshed: Vec<(PictureId, Vec<photo::face_tags::FaceTag>)> = Vec::new();
+        let mut processed: Vec<PictureId> = Vec::with_capacity(groups.len());
+        let mut imported = 0usize;
+
+        for (picture_id, path, faces) in groups {
+            if self.stop.load(Ordering::Relaxed) {
+                break;
+            }
+            processed.push(picture_id);
+            let regions = photo::face_tags::read_face_tags(&path.sandbox_path);
+            imported += Self::assign_regions(faces, regions.clone(), &mut people_repo);
+            refreshed.push((picture_id, regions));
+        }
+
+        let mut photo_repo = self.photo_repo.clone();
+        let _ = photo_repo.add_face_tags(&refreshed);
+        let _ = photo_repo.mark_face_tags_imported(&processed);
 
         Ok(imported)
     }
@@ -325,14 +372,12 @@ impl Worker for PhotoRecognizeFacesTask {
                 let this = self.clone();
 
                 rayon::spawn(move || {
-                    let mut photo_repo = this.photo_repo.clone();
-                    if let Err(e) = photo_repo.reset_face_tags_imported() {
-                        error!("Failed resetting face-tag import markers: {:?}", e);
+                    let _ = sender.output(PhotoRecognizeFacesTaskOutput::Started);
+                    match this.rescan_face_tags() {
+                        Ok(n) => info!("Re-scan named {} face(s) from photo metadata.", n),
+                        Err(e) => error!("Face-tag re-scan failed: {:?}", e),
                     }
-                    if let Err(e) = this.recognize(sender.clone()) {
-                        error!("Failed to recognize photo faces: {}", e);
-                        let _ = sender.output(PhotoRecognizeFacesTaskOutput::Completed);
-                    }
+                    let _ = sender.output(PhotoRecognizeFacesTaskOutput::Completed);
                 });
             }
         };

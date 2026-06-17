@@ -31,23 +31,34 @@ pub struct FaceTag {
 }
 
 /// Read named face-region tags from a photo file. Returns an empty vector when
-/// the file has no readable XMP person tags.
+/// the file has no readable XMP person tags. Prefer [`face_tags_from_bytes`]
+/// when the file header has already been read (e.g. during metadata enrich) to
+/// avoid opening the file a second time.
 pub fn read_face_tags(path: &Path) -> Vec<FaceTag> {
-    match extract_xmp(path) {
+    let file = match std::fs::File::open(path) {
+        std::result::Result::Ok(f) => f,
+        std::result::Result::Err(_) => return Vec::new(),
+    };
+    let mut buf = Vec::new();
+    if file.take(1024 * 1024).read_to_end(&mut buf).is_err() {
+        return Vec::new();
+    }
+    face_tags_from_bytes(&buf)
+}
+
+/// Parse named face-region tags from already-read header bytes (the part of the
+/// file that holds the XMP packet). Lets EXIF and XMP be extracted from a single
+/// file read.
+pub fn face_tags_from_bytes(bytes: &[u8]) -> Vec<FaceTag> {
+    match extract_xmp(bytes) {
         Some(xmp) => parse_face_tags(&xmp),
         None => Vec::new(),
     }
 }
 
-/// Pull the `<x:xmpmeta>...</x:xmpmeta>` packet out of the first part of the
-/// file. Bounded to 1 MiB: the face-region packet sits in an early APP1 segment
-/// in practice, and this keeps the cost small across a large library.
-fn extract_xmp(path: &Path) -> Option<String> {
-    let file = std::fs::File::open(path).ok()?;
-    let mut buf = Vec::new();
-    file.take(1024 * 1024).read_to_end(&mut buf).ok()?;
-    let text = String::from_utf8_lossy(&buf);
-
+/// Pull the `<x:xmpmeta>...</x:xmpmeta>` packet out of the given bytes.
+fn extract_xmp(bytes: &[u8]) -> Option<String> {
+    let text = String::from_utf8_lossy(bytes);
     let start = text.find("<x:xmpmeta")?;
     let rest = &text[start..];
     let end = rest.find("</x:xmpmeta>")? + "</x:xmpmeta>".len();

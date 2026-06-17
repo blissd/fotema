@@ -57,11 +57,13 @@ impl PhotoEnrichTask {
 
         let _ = sender.output(PhotoEnrichTaskOutput::Started);
 
-        let metadatas = unprocessed
+        // Read EXIF metadata and embedded XMP face-region person tags in a
+        // single file read per photo.
+        let enriched: Vec<_> = unprocessed
             .par_iter()
             .take_any_while(|_| !stop.load(Ordering::Relaxed))
             .flat_map(|pic| {
-                metadata::from_path(&pic.sandbox_path())
+                metadata::from_path_with_face_tags(&pic.sandbox_path())
                     .map_err(|e| {
                         tracing::warn!(
                             "Failed to extract metadata for {:?}: {}",
@@ -70,11 +72,19 @@ impl PhotoEnrichTask {
                         )
                     })
                     .ok()
-                    .map(|m| (pic.picture_id, m))
+                    .map(|(m, tags)| (pic.picture_id, m, tags))
             })
             .collect();
 
+        let mut metadatas = Vec::with_capacity(enriched.len());
+        let mut face_tags = Vec::with_capacity(enriched.len());
+        for (picture_id, meta, tags) in enriched {
+            metadatas.push((picture_id, meta));
+            face_tags.push((picture_id, tags));
+        }
+
         repo.add_metadatas(metadatas)?;
+        repo.add_face_tags(&face_tags)?;
 
         info!(
             "Extracted {} photo metadatas in {} seconds.",
