@@ -354,6 +354,15 @@ primary-menu-preferences = Preferences
 # Menu item to show "about" dialog
 primary-menu-about = About {-app-name}
 
+# Menu item to check for application updates
+primary-menu-check-updates = Check for Updates
+
+# Toast shown when a newer release is available. $version is the new version number.
+update-available = Update available: { -app-name } { $version }
+
+# Toast shown when the installed version is current
+update-not-available = { -app-name } is up to date
+
 ## Person menu
 
 # Menu item to rename a person

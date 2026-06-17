@@ -21,7 +21,7 @@ use relm4::{
 };
 
 use crate::adaptive;
-use crate::config::{APP_ID, PROFILE};
+use crate::config::{APP_ID, PROFILE, VERSION};
 use crate::fl;
 
 use fotema_core::FlatpakPathBuf;
@@ -46,6 +46,7 @@ use strum::{AsRefStr, FromRepr};
 use tracing::{error, info, warn};
 
 mod components;
+mod update_checker;
 
 use crate::host_path;
 
@@ -161,6 +162,9 @@ pub struct Settings {
     /// Enable processing of Android motion photos.
     pub process_motion_photos: bool,
 
+    /// Automatically check GitHub for a newer release on startup.
+    pub update_check_enabled: bool,
+
     /// Has the user completed the onboarding processes to select
     /// the picture library root directory?
     pub is_onboarding_complete: bool,
@@ -240,6 +244,9 @@ pub(super) struct App {
     // Message banner
     banner: adw::Banner,
 
+    // Toast overlay for update notifications
+    toast_overlay: adw::ToastOverlay,
+
     settings_state: SettingsState,
 }
 
@@ -301,11 +308,21 @@ pub(super) enum AppMsg {
 
     /// Onboarding process is complete and user has selected the picture base directory
     OnboardDone(PathBuf),
+
+    /// Manually trigger a check for updates.
+    CheckForUpdates,
+
+    /// A newer version is available on GitHub.
+    UpdateAvailable(String),
+
+    /// The installed version is up to date.
+    NoUpdateAvailable,
 }
 
 relm4::new_action_group!(pub(super) WindowActionGroup, "win");
 relm4::new_stateless_action!(PreferencesAction, WindowActionGroup, "preferences");
 relm4::new_stateless_action!(AboutAction, WindowActionGroup, "about");
+relm4::new_stateless_action!(CheckForUpdatesAction, WindowActionGroup, "check-for-updates");
 
 #[relm4::component(pub async)]
 impl SimpleAsyncComponent for App {
@@ -318,6 +335,7 @@ impl SimpleAsyncComponent for App {
         primary_menu: {
             section! {
                 &fl!("primary-menu-preferences") => PreferencesAction,
+                &fl!("primary-menu-check-updates") => CheckForUpdatesAction,
                 &fl!("primary-menu-about") => AboutAction,
             }
         }
@@ -359,7 +377,11 @@ impl SimpleAsyncComponent for App {
                 connect_unapply => AppMsg::Adapt(adaptive::Layout::Wide),
             },
 
-            gtk::Box {
+            #[local_ref]
+            toast_overlay -> adw::ToastOverlay {
+
+            #[wrap(Some)]
+            set_child = &gtk::Box {
                 set_orientation: gtk::Orientation::Vertical,
 
             // Top-level navigation view containing:
@@ -559,6 +581,7 @@ impl SimpleAsyncComponent for App {
 
                 #[wrap(Some)]
                 set_content = model.onboard.widget(),
+            }
             }
             }
         }
@@ -830,6 +853,8 @@ impl SimpleAsyncComponent for App {
             .tooltip_text(fl!("banner-button-stop", "tooltip"))
             .build();
 
+        let toast_overlay = adw::ToastOverlay::new();
+
         let model = Self {
             adaptive_layout,
             bootstrap,
@@ -864,6 +889,8 @@ impl SimpleAsyncComponent for App {
 
             banner: banner.clone(),
 
+            toast_overlay: toast_overlay.clone(),
+
             settings_state: settings_state.clone(),
         };
 
@@ -885,8 +912,16 @@ impl SimpleAsyncComponent for App {
             })
         };
 
+        let check_for_updates_action = {
+            let sender = sender.clone();
+            RelmAction::<CheckForUpdatesAction>::new_stateless(move |_| {
+                sender.input(AppMsg::CheckForUpdates);
+            })
+        };
+
         actions.add_action(about_action);
         actions.add_action(preferences_action);
+        actions.add_action(check_for_updates_action);
 
         actions.register_for_widget(&widgets.main_window);
 
@@ -907,6 +942,21 @@ impl SimpleAsyncComponent for App {
         } else {
             model.picture_navigation_view.set_visible(false);
             model.onboard_view.set_visible(true);
+        }
+
+        // Startup update check. Only notifies when an update is available;
+        // runs the blocking request off the UI thread.
+        if settings.update_check_enabled {
+            let sender = sender.clone();
+            relm4::spawn(async move {
+                let found = relm4::spawn_blocking(|| update_checker::check(VERSION))
+                    .await
+                    .ok()
+                    .flatten();
+                if let Some(version) = found {
+                    sender.input(AppMsg::UpdateAvailable(version));
+                }
+            });
         }
 
         AsyncComponentParts { model, widgets }
@@ -1137,6 +1187,29 @@ impl SimpleAsyncComponent for App {
                 self.picture_navigation_view.set_visible(true);
                 self.onboard_view.set_visible(false);
             }
+            AppMsg::CheckForUpdates => {
+                info!("Manually checking for updates");
+                let sender = sender.clone();
+                relm4::spawn(async move {
+                    let found = relm4::spawn_blocking(|| update_checker::check(VERSION))
+                        .await
+                        .ok()
+                        .flatten();
+                    match found {
+                        Some(version) => sender.input(AppMsg::UpdateAvailable(version)),
+                        None => sender.input(AppMsg::NoUpdateAvailable),
+                    }
+                });
+            }
+            AppMsg::UpdateAvailable(version) => {
+                info!("Update available: {}", version);
+                let toast = adw::Toast::new(&fl!("update-available", version = version));
+                self.toast_overlay.add_toast(toast);
+            }
+            AppMsg::NoUpdateAvailable => {
+                let toast = adw::Toast::new(&fl!("update-not-available"));
+                self.toast_overlay.add_toast(toast);
+            }
         }
     }
 
@@ -1161,6 +1234,7 @@ impl App {
         Ok(Settings {
             show_selfies: gio_settings.boolean("show-selfies"),
             process_motion_photos: gio_settings.boolean("process-motion-photos"),
+            update_check_enabled: gio_settings.boolean("update-check-enabled"),
             face_detection_mode: FaceDetectionMode::from_str(
                 &gio_settings.string("face-detection-mode"),
             )
@@ -1177,6 +1251,7 @@ impl App {
         let gio_settings = gio::Settings::new(APP_ID);
         gio_settings.set_boolean("show-selfies", settings.show_selfies)?;
         gio_settings.set_boolean("process-motion-photos", settings.process_motion_photos)?;
+        gio_settings.set_boolean("update-check-enabled", settings.update_check_enabled)?;
         gio_settings.set_string("face-detection-mode", settings.face_detection_mode.as_ref())?;
         gio_settings.set_string("album-sort", settings.album_sort.as_ref())?;
         gio_settings.set_boolean("onboarding-complete", settings.is_onboarding_complete)?;

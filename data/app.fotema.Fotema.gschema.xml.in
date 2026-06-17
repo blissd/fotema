@@ -38,5 +38,9 @@
       <default>false</default>
       <summary>Extract videos from Android motion photos.</summary>
     </key>
+    <key name="update-check-enabled" type="b">
+      <default>true</default>
+      <summary>Automatically check GitHub for a newer release on startup.</summary>
+    </key>
   </schema>
 </schemalist>
