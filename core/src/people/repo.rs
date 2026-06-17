@@ -101,6 +101,38 @@ impl Repository {
         Ok(result)
     }
 
+    /// All detected faces not yet assigned to a person (and not ignored), across
+    /// the whole library. Powers the "name faces" overview so faces can be named
+    /// without opening each photo individually.
+    pub fn find_unnamed_faces(&self) -> Result<Vec<model::Face>> {
+        let con = self.con.lock().unwrap();
+        let mut stmt = con.prepare(
+            "SELECT
+                faces.face_id AS face_id,
+                faces.thumbnail_path AS face_thumbnail_path
+            FROM pictures_faces AS faces
+            WHERE faces.person_id IS NULL AND faces.is_ignored = FALSE
+            ORDER BY faces.face_id",
+        )?;
+
+        let data_dir = self.data_dir_base_path.clone();
+        let result = stmt
+            .query_map([], move |row| {
+                let face_id = row.get("face_id").map(FaceId::new)?;
+                let thumbnail_path = row
+                    .get("face_thumbnail_path")
+                    .map(|p: String| data_dir.join(p))?;
+                Ok(model::Face {
+                    face_id,
+                    thumbnail_path,
+                })
+            })?
+            .flatten()
+            .collect();
+
+        Ok(result)
+    }
+
     pub fn ignore_unknown_faces(&mut self, picture_id: PictureId) -> Result<()> {
         let mut con = self.con.lock().unwrap();
         let tx = con.transaction()?;
