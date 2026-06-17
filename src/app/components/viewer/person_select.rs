@@ -203,11 +203,14 @@ impl SimpleAsyncComponent for PersonSelect {
         match msg {
             PersonSelectInput::Activate(face_id, thumbnail) => {
                 self.face_ids = vec![face_id];
-                self.populate(&thumbnail, &sender);
+                let people = self.ranked_people(Some(face_id)).await;
+                self.populate(&thumbnail, people, &sender);
             }
             PersonSelectInput::ActivateMany(face_ids, thumbnail) => {
                 self.face_ids = face_ids;
-                self.populate(&thumbnail, &sender);
+                let rep = self.face_ids.first().copied();
+                let people = self.ranked_people(rep).await;
+                self.populate(&thumbnail, people, &sender);
             }
             PersonSelectInput::Associate(person_id) => {
                 self.assign_all(person_id);
@@ -276,10 +279,27 @@ impl SimpleAsyncComponent for PersonSelect {
 }
 
 impl PersonSelect {
+    /// Rank known people by similarity to a face off the UI thread (the
+    /// comparison scales with the number of named faces).
+    async fn ranked_people(&self, face_id: Option<FaceId>) -> Vec<people::Person> {
+        let repo = self.people_repo.clone();
+        relm4::spawn_blocking(move || match face_id {
+            Some(fid) => repo.people_by_similarity(fid).unwrap_or_default(),
+            None => repo.all_people().unwrap_or_default(),
+        })
+        .await
+        .unwrap_or_default()
+    }
+
     /// Rebuild the selector for the current `face_ids`: set the preview avatar
-    /// and the selection count, and fill the people list ordered by similarity
-    /// to the (first) selected face so the most likely person is at the top.
-    fn populate(&mut self, thumbnail: &PathBuf, sender: &AsyncComponentSender<Self>) {
+    /// and the selection count, and fill the people list (already ranked by
+    /// similarity to the first selected face).
+    fn populate(
+        &mut self,
+        thumbnail: &PathBuf,
+        people: Vec<people::Person>,
+        sender: &AsyncComponentSender<Self>,
+    ) {
         self.people_list.remove_all();
         self.all_people.clear();
         self.all_names.clear();
@@ -294,15 +314,6 @@ impl PersonSelect {
 
         let img = gdk::Texture::from_filename(thumbnail).ok();
         self.avatar.set_custom_image(img.as_ref());
-
-        // Suggest the most similar known people first (by the first face).
-        let people = match self.face_ids.first() {
-            Some(face_id) => self
-                .people_repo
-                .people_by_similarity(*face_id)
-                .unwrap_or_default(),
-            None => self.people_repo.all_people().unwrap_or_default(),
-        };
 
         for person in people {
             let avatar = adw::Avatar::builder().size(50).name(&person.name).build();

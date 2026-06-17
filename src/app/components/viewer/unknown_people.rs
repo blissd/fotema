@@ -229,21 +229,39 @@ impl SimpleAsyncComponent for UnknownPeople {
         match msg {
             UnknownPeopleInput::Refresh => {
                 self.face_grid.clear();
-                match self.people_repo.find_unnamed_faces() {
-                    Ok(faces) => {
-                        debug!("Found {} unnamed faces", faces.len());
+
+                // Query + greedy O(n²) clustering of ~10k faces (512-dim) is
+                // heavy: run it off the UI thread so the main loop keeps
+                // responding and GNOME never flags the app as "not responding".
+                let repo = self.people_repo.clone();
+                let faces = match relm4::spawn_blocking(move || {
+                    repo.find_unnamed_faces().map(|faces| {
                         faces
                             .into_iter()
                             .filter(|face| face.thumbnail_path.exists())
-                            .for_each(|face| {
-                                self.face_grid.append(UnknownFaceItem {
-                                    face,
-                                    edge_length: self.edge_length.clone(),
-                                });
-                            });
+                            .collect::<Vec<_>>()
+                    })
+                })
+                .await
+                {
+                    Ok(Ok(faces)) => faces,
+                    Ok(Err(e)) => {
+                        error!("Failed getting unnamed faces: {}", e);
+                        Vec::new()
                     }
-                    Err(e) => error!("Failed getting unnamed faces: {}", e),
-                }
+                    Err(e) => {
+                        error!("Unnamed-faces task failed: {}", e);
+                        Vec::new()
+                    }
+                };
+
+                debug!("Found {} unnamed faces", faces.len());
+                let edge = self.edge_length.clone();
+                self.face_grid
+                    .extend_from_iter(faces.into_iter().map(|face| UnknownFaceItem {
+                        face,
+                        edge_length: edge.clone(),
+                    }));
 
                 // Show the empty state when nothing is left to name.
                 let is_empty = self.face_grid.len() == 0;
