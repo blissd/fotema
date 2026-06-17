@@ -8,8 +8,6 @@ use crate::thumbnailify::{ThumbnailSize, Thumbnailer};
 use anyhow::*;
 
 use super::nms::Nms;
-use image::ImageReader;
-use std::io::Cursor;
 use std::path::{Path, PathBuf};
 use std::result::Result::Ok;
 
@@ -20,6 +18,29 @@ use rust_faces::{
 use gdk4::prelude::TextureExt;
 use image::DynamicImage;
 use tracing::{debug, error, info};
+
+/// Save a face crop as JPEG. Faces are stored as JPEG (never PNG) to keep the
+/// on-disk face cache compact. JPEG has no alpha channel, so flatten to RGB.
+fn save_face_jpeg(img: &DynamicImage, path: &Path, quality: u8) {
+    let rgb = img.to_rgb8();
+    let file = match std::fs::File::create(path) {
+        Ok(f) => f,
+        Err(e) => {
+            error!("Failed creating face image {:?}: {}", path, e);
+            return;
+        }
+    };
+    let mut encoder =
+        image::codecs::jpeg::JpegEncoder::new_with_quality(std::io::BufWriter::new(file), quality);
+    if let Err(e) = encoder.encode(
+        rgb.as_raw(),
+        rgb.width(),
+        rgb.height(),
+        image::ExtendedColorType::Rgb8,
+    ) {
+        error!("Failed encoding face image {:?}: {}", path, e);
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct Rect {
@@ -112,13 +133,10 @@ impl FaceExtractor {
 
         detectors.push((blaze_face_default, "blaze_face_640_default".into()));
 
-        let mtcnn_params = rust_faces::MtCnnParams::default();
-
-        let mtcnn = FaceDetectorBuilder::new(FaceDetection::MtCnn(mtcnn_params))
-            .download()
-            .build()?;
-
-        detectors.push((mtcnn, "mtcnn".into()));
+        // MTCNN intentionally not used: running it as a second detector on every
+        // photo roughly doubled face-detection time (its image-pyramid cascade is
+        // expensive on real photos: ~1.2s/photo measured). BlazeFace alone is
+        // fast and sufficient. Re-add here if higher recall is needed.
 
         Ok(FaceExtractor {
             faces_base_path,
@@ -180,7 +198,9 @@ impl FaceExtractor {
                     f.rect.height
                 };
 
-                let mut longest = longest * 1.6;
+                // Capture a bit more of the head/shoulders so faces are easier
+                // to recognise in the "unknown people" view.
+                let mut longest = longest * 1.8;
                 let mut half_longest = longest / 2.0;
 
                 let (centre_x, centre_y) = Self::centre(&f);
@@ -219,12 +239,14 @@ impl FaceExtractor {
                 let thumbnail =
                     original_image.crop_imm(x as u32, y as u32, longest as u32, longest as u32);
 
-                // 64x64 matches size in thumbnail list in picture view
-                let thumbnail = thumbnail.thumbnail(64, 64);
+                // Stored at 200px (= the widest "unknown people" avatar) so the
+                // grid stays sharp; the 64px picture-view overlay downscales it.
+                let thumbnail = thumbnail.thumbnail(200, 200);
                 let thumbnail_path = self
                     .thumbnail_base_path
-                    .join(format!("{}_{}.png", &thumbnail_hash, index));
-                let _ = thumbnail.save(&thumbnail_path);
+                    .join(format!("{}_{}.jpg", &thumbnail_hash, index));
+                // Display-only crop: standard JPEG quality is fine.
+                save_face_jpeg(&thumbnail, &thumbnail_path, 82);
 
                 let bounds = Rect {
                     x: f.rect.x,
@@ -242,8 +264,10 @@ impl FaceExtractor {
 
                 let bounds_path = self
                     .faces_base_path
-                    .join(format!("{}_{}.png", &thumbnail_hash, index));
-                let _ = bounds_img.save(&bounds_path);
+                    .join(format!("{}_{}.jpg", &thumbnail_hash, index));
+                // This crop is fed to SFace for recognition, so keep quality
+                // high to avoid perturbing the embeddings.
+                save_face_jpeg(&bounds_img, &bounds_path, 95);
 
                 Face {
                     thumbnail_path,
@@ -261,11 +285,13 @@ impl FaceExtractor {
 
     /// Computes the centre of a face.
     fn centre(f: &DetectedFace) -> (f32, f32) {
-        if let Some(ref landmarks) = f.landmarks {
+        if let Some((right_eye, left_eye)) =
+            f.landmarks.as_ref().filter(|l| l.len() >= 2).map(|l| (l[0], l[1]))
+        {
             // If we have landmarks, then the first two are the right and left eyes.
             // Use the midpoint between the eyes as the centre of the thumbnail.
-            let x = (landmarks[0].0 + landmarks[1].0) / 2.0;
-            let y = (landmarks[0].1 + landmarks[1].1) / 2.0;
+            let x = (right_eye.0 + left_eye.0) / 2.0;
+            let y = (right_eye.1 + left_eye.1) / 2.0;
             (x, y)
         } else {
             let x = f.rect.x + (f.rect.width / 2.0);
@@ -280,11 +306,33 @@ impl FaceExtractor {
         let loader = glycin::Loader::new(file);
         let image = loader.load().await?;
         let frame = image.next_frame().await?;
-        let bytes = frame.texture().save_to_png_bytes();
-        let image =
-            ImageReader::with_format(Cursor::new(bytes), image::ImageFormat::Png).decode()?;
 
-        Ok(image)
+        // Download raw RGBA pixels directly instead of round-tripping through a
+        // full PNG encode + decode.
+        let texture = frame.texture();
+        let width = texture.width() as u32;
+        let height = texture.height() as u32;
+
+        let mut downloader = gdk4::TextureDownloader::new(&texture);
+        downloader.set_format(gdk4::MemoryFormat::R8g8b8a8);
+        let (bytes, stride) = downloader.download_bytes();
+
+        let row_bytes = width as usize * 4;
+        let data = if stride == row_bytes {
+            bytes.to_vec()
+        } else {
+            let mut packed = Vec::with_capacity(row_bytes * height as usize);
+            for y in 0..height as usize {
+                let start = y * stride;
+                packed.extend_from_slice(&bytes[start..start + row_bytes]);
+            }
+            packed
+        };
+
+        let buffer = image::RgbaImage::from_raw(width, height, data)
+            .ok_or_else(|| anyhow!("Texture buffer size mismatch for {:?}", source_path))?;
+
+        Ok(DynamicImage::ImageRgba8(buffer))
     }
 }
 

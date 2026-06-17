@@ -12,6 +12,7 @@ pub mod sizes;
 pub mod thumbnailer;
 
 pub use error::ThumbnailError;
+pub use file::find_existing_thumbnail;
 pub use file::get_file_uri;
 pub use file::get_thumbnail_hash_output;
 pub use file::get_thumbnail_path;
@@ -64,37 +65,26 @@ impl Thumbnailer {
      * If no thumbnails exist, then return preferred path pointing to absent file.
      */
     pub fn nearest_thumbnail(&self, hash: &str, size: ThumbnailSize) -> Option<PathBuf> {
-        let preferred = file::get_thumbnail_hash_output(&self.thumbnails_path, hash, size);
-
-        if preferred.exists() {
-            Some(preferred)
-        } else {
-            let xxlarge = file::get_thumbnail_hash_output(
-                &self.thumbnails_path,
-                hash,
-                ThumbnailSize::XXLarge,
-            );
-            let xlarge =
-                file::get_thumbnail_hash_output(&self.thumbnails_path, hash, ThumbnailSize::XLarge);
-            let large =
-                file::get_thumbnail_hash_output(&self.thumbnails_path, hash, ThumbnailSize::Large);
-            let normal =
-                file::get_thumbnail_hash_output(&self.thumbnails_path, hash, ThumbnailSize::Normal);
-            let small =
-                file::get_thumbnail_hash_output(&self.thumbnails_path, hash, ThumbnailSize::Small);
-
-            let paths = match size {
-                // TODO figure out if some fallback sizes should be excluded?
-                // Do I want a request for a small thumbnail to return an XXLarge?
-                ThumbnailSize::Small => [small, normal, large, xlarge, xxlarge],
-                ThumbnailSize::Normal => [normal, large, xlarge, xxlarge, small],
-                ThumbnailSize::Large => [large, xlarge, xxlarge, normal, small],
-                ThumbnailSize::XLarge => [xlarge, xxlarge, large, normal, small],
-                ThumbnailSize::XXLarge => [xxlarge, xlarge, large, normal, small],
-            };
-
-            paths.iter().find(|path| path.exists()).cloned()
+        // Each candidate tolerates the legacy PNG format so caches from older
+        // builds are reused rather than treated as missing.
+        if let Some(path) = file::find_existing_thumbnail(&self.thumbnails_path, hash, size) {
+            return Some(path);
         }
+
+        use ThumbnailSize::*;
+        let fallback_order = match size {
+            // TODO figure out if some fallback sizes should be excluded?
+            // Do I want a request for a small thumbnail to return an XXLarge?
+            Small => [Small, Normal, Large, XLarge, XXLarge],
+            Normal => [Normal, Large, XLarge, XXLarge, Small],
+            Large => [Large, XLarge, XXLarge, Normal, Small],
+            XLarge => [XLarge, XXLarge, Large, Normal, Small],
+            XXLarge => [XXLarge, XLarge, Large, Normal, Small],
+        };
+
+        fallback_order
+            .iter()
+            .find_map(|s| file::find_existing_thumbnail(&self.thumbnails_path, hash, *s))
     }
 
     pub fn generate_thumbnail(

@@ -6,14 +6,11 @@
 use std::{
     fs,
     fs::File,
-    io::{BufReader, BufWriter},
+    io::BufWriter,
     path::{Path, PathBuf},
-    time::UNIX_EPOCH,
 };
 use tracing::{debug, info}; // <-- Logging macros
 
-use image::{DynamicImage, Rgba, RgbaImage};
-use png::{Decoder, Encoder};
 use url::Url;
 
 use crate::FlatpakPathBuf;
@@ -31,14 +28,14 @@ pub fn get_thumbnail_path(
 }
 
 /// Gets the thumbnail output path using hash and size.
-/// Format: `{cache_dir}/thumbnails/{size}/{md5_hash}.png`
+/// Format: `{cache_dir}/thumbnails/{size}/{md5_hash}.jpg`
 pub fn get_thumbnail_hash_output(
     thumbnails_base_dir: &Path,
     hash: &str,
     size: ThumbnailSize,
 ) -> PathBuf {
     let output_dir = thumbnails_base_dir.join(size.to_string());
-    let output_file = format!("{}.png", hash);
+    let output_file = format!("{}.jpg", hash);
     let path = output_dir.join(output_file);
 
     debug!(
@@ -48,10 +45,29 @@ pub fn get_thumbnail_hash_output(
     path
 }
 
+/// Resolve an existing thumbnail file for `hash`/`size`, tolerating the legacy
+/// PNG format written by older builds. This lets a newer build adopt an older
+/// build's thumbnail cache instead of regenerating it. The current JPEG format
+/// is preferred; the `.png` fallback is only used when no `.jpg` exists.
+pub fn find_existing_thumbnail(
+    thumbnails_base_dir: &Path,
+    hash: &str,
+    size: ThumbnailSize,
+) -> Option<PathBuf> {
+    let output_dir = thumbnails_base_dir.join(size.to_string());
+    for ext in ["jpg", "png"] {
+        let candidate = output_dir.join(format!("{}.{}", hash, ext));
+        if candidate.exists() {
+            return Some(candidate);
+        }
+    }
+    None
+}
+
 pub fn get_failed_thumbnail_output(thumbnails_base_dir: &Path, hash: &str) -> PathBuf {
     // FIXME don't hardcode app-id.
     let fail_dir = thumbnails_base_dir.join("fail").join("app.fotema.Fotema");
-    let output_file = format!("{}.png", hash);
+    let output_file = format!("{}.jpg", hash);
     let path = fail_dir.join(output_file);
 
     debug!(
@@ -86,43 +102,14 @@ pub fn write_failed_thumbnail(
 
     fail_path.parent().as_ref().map(|p| fs::create_dir_all(p));
 
-    let failed_img: DynamicImage =
-        DynamicImage::ImageRgba8(RgbaImage::from_pixel(1, 1, Rgba([0, 0, 0, 0])));
-
-    let failed_img: RgbaImage = failed_img.to_rgba8();
-
-    // FIXME write to temporary file first and then move to final path.
+    // The marker is a sentinel: only its existence matters (see `is_failed`),
+    // so a minimal 1x1 black JPEG is enough. Stored as JPEG, not PNG.
     let file = File::create(&fail_path)?;
-    let mut encoder = Encoder::new(BufWriter::new(file), 1, 1);
-    encoder.set_color(png::ColorType::Rgba);
-    encoder.set_depth(png::BitDepth::Eight);
-
-    // FIXME metadata is copy-and-pasted from thumbnailer.rs
-
-    // FIXME hard-coded app-id
-    encoder.add_text_chunk("Software".to_string(), "app.fotema.Fotema".to_string())?;
-
-    let uri = get_file_uri(&path.host_path)?;
-    encoder.add_text_chunk("Thumb::URI".to_string(), uri)?;
-
-    let metadata = std::fs::metadata(&path.sandbox_path)?;
-
-    let size = metadata.len();
-    encoder.add_text_chunk("Thumb::Size".to_string(), size.to_string())?;
-
-    let modified_time = metadata.modified()?;
-    let mtime_unix = modified_time
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs();
-    encoder.add_text_chunk("Thumb::MTime".to_string(), mtime_unix.to_string())?;
-
-    // Write out the PNG header
-    let mut writer = encoder.write_header()?;
-    writer.write_image_data(&failed_img.into_raw())?;
+    let mut encoder = image::codecs::jpeg::JpegEncoder::new(BufWriter::new(file));
+    encoder.encode(&[0u8, 0, 0], 1, 1, image::ExtendedColorType::Rgb8)?;
 
     debug!("Successfully wrote failure marker file to {:?}", fail_path);
-    return Ok(());
+    Ok(())
 }
 
 /// Attempts to convert the file path into a file URI.
@@ -151,107 +138,4 @@ pub fn get_file_uri(input: &Path) -> Result<String, ThumbnailError> {
 
     debug!("File URI for path {:?} is {}", input, url);
     Ok(url.to_string())
-}
-
-/// Writes out the thumbnail as a PNG, embedding:
-/// - `Thumb::URI`
-/// - `Thumb::Size`
-/// - `Thumb::MTime`
-pub fn write_out_thumbnail(
-    image_path: &Path,
-    img: DynamicImage,
-    source_image_path: &Path,
-) -> Result<(), ThumbnailError> {
-    info!(
-        "Writing out thumbnail to {:?} from source {:?}",
-        image_path, source_image_path
-    );
-
-    // FIXME write to temporary file first and then move to final path.
-    let file = File::create(image_path)?;
-
-    let rgba_image: RgbaImage = img.to_rgba8();
-    let (width, height) = rgba_image.dimensions();
-    let buffer = rgba_image.into_raw();
-
-    let mut encoder = Encoder::new(BufWriter::new(file), width, height);
-    encoder.set_color(png::ColorType::Rgba);
-    encoder.set_depth(png::BitDepth::Eight);
-
-    let mut writer = encoder.write_header()?;
-    writer.write_image_data(&buffer)?;
-
-    debug!("Successfully wrote thumbnail file to {:?}", image_path);
-    Ok(())
-}
-
-pub fn add_thumbnail_metadata(
-    thumb_path: &Path,
-    source_image_sandbox_path: &Path,
-    source_image_host_path: &Path,
-) -> Result<(), ThumbnailError> {
-    debug!("Adding thumbnail metadata to {:?}", thumb_path);
-
-    let file_in = File::open(thumb_path)?;
-    let reader = BufReader::new(file_in);
-
-    // Decode the PNG
-    let decoder = Decoder::new(reader);
-    let mut reader = decoder.read_info()?;
-
-    // Extract existing metadata
-    let info = reader.info();
-    let existing_text = &info.uncompressed_latin1_text.clone();
-
-    let output_buffer_size = reader
-        .output_buffer_size()
-        .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::InvalidData, "Failed decoding"))?;
-
-    let mut buf = vec![0; output_buffer_size];
-    reader.next_frame(&mut buf)?;
-
-    // Re-encode with updated metadata
-    // Overwrite the same file (be sure to keep backups in real usage)
-    let file_out = File::create(thumb_path)?;
-    let w = BufWriter::new(file_out);
-
-    let mut encoder = Encoder::new(w, reader.info().width, reader.info().height);
-    encoder.set_color(reader.info().color_type);
-    encoder.set_depth(reader.info().bit_depth);
-
-    // Copy existing text chunks into the new file
-    for chunk in existing_text {
-        encoder.add_text_chunk(chunk.keyword.clone(), chunk.text.clone())?;
-    }
-
-    // FIXME hard-coded app-id.
-    encoder.add_text_chunk("Software".to_string(), "app.fotema.Fotema".to_string())?;
-
-    let uri = get_file_uri(source_image_host_path)?;
-    encoder.add_text_chunk("Thumb::URI".to_string(), uri)?;
-
-    let metadata = std::fs::metadata(source_image_sandbox_path)?;
-
-    let size = metadata.len();
-    encoder.add_text_chunk("Thumb::Size".to_string(), size.to_string())?;
-
-    let modified_time = metadata.modified()?;
-    let mtime_unix = modified_time
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs();
-    encoder.add_text_chunk("Thumb::MTime".to_string(), mtime_unix.to_string())?;
-
-    // Write out the PNG header
-    let mut writer = encoder.write_header()?;
-
-    // Write image data
-    writer.write_image_data(&buf)?;
-
-    debug!(
-        "Embedded PNG metadata: URI, Size={}, MTime={}",
-        size, mtime_unix
-    );
-
-    Ok(())
 }

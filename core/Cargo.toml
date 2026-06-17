@@ -36,6 +36,6 @@ reqwest = { version = "0.13.4", features = ["blocking"] }
 futures = "0.3.32"
 url = "2.5.7"
 md5 = "0.8.0"
-png = "0.18.0"
 thiserror = "2.0.18"
 byteorder = "1.5.0"
+quick-xml = "0.37.5"

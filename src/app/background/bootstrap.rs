@@ -113,6 +113,13 @@ pub enum BootstrapInput {
     ScanPictureForFaces(PictureId),
     ScanPicturesForFaces,
 
+    /// Re-import person names from photo XMP across the whole library.
+    RescanForFaceTags,
+
+    /// Low-priority background pass after the user named a face: propagate the
+    /// named person across the library from stored embeddings (no model/inference).
+    RecognizeFacesNow,
+
     /// Queue task for transcoding videos
     TranscodeAll,
 
@@ -216,6 +223,16 @@ impl Controllers {
                 info!("Queueing task to scan all pictures for faces");
                 self.add_task_photo_detect_faces();
                 self.add_task_photo_recognize_faces();
+                self.run_if_idle();
+            }
+            BootstrapInput::RescanForFaceTags => {
+                info!("Queueing task to re-import face tags from photo metadata");
+                self.add_task_rescan_face_tags();
+                self.run_if_idle();
+            }
+            BootstrapInput::RecognizeFacesNow => {
+                info!("Queueing low-priority background face recognition");
+                self.add_task_photo_recognize_faces_now();
                 self.run_if_idle();
             }
             BootstrapInput::TranscodeAll => {
@@ -362,6 +379,25 @@ impl Controllers {
                 }));
             }
         };
+    }
+
+    fn add_task_photo_recognize_faces_now(&mut self) {
+        // User-initiated (triggered by naming a face), so it runs regardless of
+        // the face-detection setting; it is cheap — pure stored-embedding cosine
+        // matching, no model load or inference.
+        let sender = self.photo_recognize_faces_task.sender().clone();
+        self.enqueue(Box::new(move || {
+            sender.emit(PhotoRecognizeFacesTaskInput::RecognizeNow)
+        }));
+    }
+
+    fn add_task_rescan_face_tags(&mut self) {
+        // User-initiated, so it runs regardless of the face-detection setting;
+        // it is cheap when there are no detected faces to name.
+        let sender = self.photo_recognize_faces_task.sender().clone();
+        self.enqueue(Box::new(move || {
+            sender.emit(PhotoRecognizeFacesTaskInput::RescanFaceTags)
+        }));
     }
 
     fn add_task_person_thumbnails(&mut self) {
@@ -645,6 +681,7 @@ impl Bootstrap {
                 stop.clone(),
                 cache_dir.clone(),
                 people_repo.clone(),
+                photo_repo.clone(),
                 self.progress_monitor.clone(),
             ))
             .forward(sender.input_sender(), |msg| match msg {

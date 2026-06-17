@@ -58,6 +58,9 @@ pub enum PeopleAlbumInput {
     SettingsChanged,
 
     EnableFaceDetection,
+
+    /// Toggle between the normal overview and the hidden ("ignored") people.
+    ShowIgnored(bool),
 }
 
 #[derive(Debug)]
@@ -103,6 +106,15 @@ impl RelmGridItem for PhotoGridItem {
     fn bind(&mut self, widgets: &mut Self::Widgets, _root: &mut Self::Root) {
         widgets.label.set_text(&self.person.name);
 
+        // Visually mark hidden people (only shown in the "ignored" view).
+        if self.person.is_ignored {
+            widgets.avatar.set_opacity(0.45);
+            widgets.label.add_css_class("dim-label");
+        } else {
+            widgets.avatar.set_opacity(1.0);
+            widgets.label.remove_css_class("dim-label");
+        }
+
         // If we repeatedly bind, then Fotema will die with the following error:
         // (fotema:2): GLib-GObject-CRITICAL **: 13:26:14.297: Too many GWeakRef registered
         // GLib-GObject:ERROR:../gobject/gbinding.c:805:g_binding_constructed: assertion failed: (source != NULL)
@@ -138,6 +150,12 @@ pub struct PeopleAlbum {
     avatars: gtk::ScrolledWindow,
     status: adw::StatusPage,
     edge_length: I32Binding,
+
+    /// Whether the overview currently shows hidden ("ignored") people instead of
+    /// the normal list.
+    show_ignored: bool,
+    /// Toggle for the above; hidden entirely when there is nobody to restore.
+    show_ignored_toggle: gtk::ToggleButton,
 }
 
 #[relm4::component(pub)]
@@ -149,6 +167,23 @@ impl SimpleComponent for PeopleAlbum {
     view! {
         gtk::Box {
             set_orientation: gtk::Orientation::Vertical,
+
+            gtk::Box {
+                set_orientation: gtk::Orientation::Horizontal,
+                set_halign: gtk::Align::End,
+                set_margin_top: 6,
+                set_margin_end: 6,
+
+                #[local_ref]
+                show_ignored_toggle -> gtk::ToggleButton {
+                    set_label: &fl!("people-show-ignored"),
+                    add_css_class: "flat",
+                    set_visible: false,
+                    connect_toggled[sender] => move |btn| {
+                        sender.input(PeopleAlbumInput::ShowIgnored(btn.is_active()));
+                    },
+                },
+            },
 
             #[local_ref]
             avatars -> gtk::ScrolledWindow {
@@ -207,6 +242,8 @@ impl SimpleComponent for PeopleAlbum {
 
         let avatars = gtk::ScrolledWindow::builder().build();
 
+        let show_ignored_toggle = gtk::ToggleButton::builder().build();
+
         let model = PeopleAlbum {
             repo,
             active_view,
@@ -215,6 +252,8 @@ impl SimpleComponent for PeopleAlbum {
             avatars: avatars.clone(),
             status: status.clone(),
             edge_length: I32Binding::new(NARROW_EDGE_LENGTH),
+            show_ignored: false,
+            show_ignored_toggle: show_ignored_toggle.clone(),
         };
 
         let pictures_box = &model.photo_grid.view;
@@ -253,6 +292,10 @@ impl SimpleComponent for PeopleAlbum {
             PeopleAlbumInput::SettingsChanged => {
                 self.refresh();
             }
+            PeopleAlbumInput::ShowIgnored(show) => {
+                self.show_ignored = show;
+                self.refresh();
+            }
             PeopleAlbumInput::EnableFaceDetection => {
                 let mut settings = self.settings_state.read().clone();
                 settings.face_detection_mode = FaceDetectionMode::On;
@@ -277,10 +320,30 @@ impl PeopleAlbum {
             if let Some(child) = self.status.child() {
                 child.set_visible(true);
             }
+            self.show_ignored_toggle.set_visible(false);
             return;
         }
 
-        let mut people = self.repo.all_people().unwrap_or_default();
+        // Hidden people (for the toggle + the "ignored" view).
+        let ignored = self.repo.all_ignored_people().unwrap_or_default();
+
+        // Offer the toggle only when there's something to restore (or we're
+        // already looking at the ignored list). Never stay in the ignored view
+        // once it's empty.
+        if ignored.is_empty() {
+            self.show_ignored = false;
+        }
+        self.show_ignored_toggle
+            .set_visible(!ignored.is_empty() || self.show_ignored);
+        if self.show_ignored_toggle.is_active() != self.show_ignored {
+            self.show_ignored_toggle.set_active(self.show_ignored);
+        }
+
+        let mut people = if self.show_ignored {
+            ignored
+        } else {
+            self.repo.all_people().unwrap_or_default()
+        };
         people.sort_by_key(|p| p.name.clone());
 
         self.photo_grid.clear();
@@ -302,10 +365,21 @@ impl PeopleAlbum {
             if let Some(child) = self.status.child() {
                 child.set_visible(false);
             }
-            self.status
-                .set_title(&fl!("people-page-status-no-people", "title"));
-            self.status
-                .set_description(Some(&fl!("people-page-status-no-people", "description")));
+            if self.show_ignored {
+                self.status
+                    .set_title(&fl!("people-page-status-no-ignored", "title"));
+                self.status.set_description(Some(&fl!(
+                    "people-page-status-no-ignored",
+                    "description"
+                )));
+            } else {
+                self.status
+                    .set_title(&fl!("people-page-status-no-people", "title"));
+                self.status.set_description(Some(&fl!(
+                    "people-page-status-no-people",
+                    "description"
+                )));
+            }
         }
 
         self.photo_grid.extend_from_iter(items);

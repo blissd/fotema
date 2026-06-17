@@ -38,5 +38,9 @@
       <default>false</default>
       <summary>Extract videos from Android motion photos.</summary>
     </key>
+    <key name="face-recognition-auto" type="b">
+      <default>true</default>
+      <summary>Automatically re-run person recognition in the background after naming a face.</summary>
+    </key>
   </schema>
 </schemalist>
