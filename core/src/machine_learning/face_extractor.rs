@@ -19,6 +19,29 @@ use gdk4::prelude::TextureExt;
 use image::DynamicImage;
 use tracing::{debug, error, info};
 
+/// Save a face crop as JPEG. Faces are stored as JPEG (never PNG) to keep the
+/// on-disk face cache compact. JPEG has no alpha channel, so flatten to RGB.
+fn save_face_jpeg(img: &DynamicImage, path: &Path, quality: u8) {
+    let rgb = img.to_rgb8();
+    let file = match std::fs::File::create(path) {
+        Ok(f) => f,
+        Err(e) => {
+            error!("Failed creating face image {:?}: {}", path, e);
+            return;
+        }
+    };
+    let mut encoder =
+        image::codecs::jpeg::JpegEncoder::new_with_quality(std::io::BufWriter::new(file), quality);
+    if let Err(e) = encoder.encode(
+        rgb.as_raw(),
+        rgb.width(),
+        rgb.height(),
+        image::ExtendedColorType::Rgb8,
+    ) {
+        error!("Failed encoding face image {:?}: {}", path, e);
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Rect {
     pub x: f32,
@@ -175,7 +198,9 @@ impl FaceExtractor {
                     f.rect.height
                 };
 
-                let mut longest = longest * 1.6;
+                // Capture a bit more of the head/shoulders so faces are easier
+                // to recognise in the "unknown people" view.
+                let mut longest = longest * 1.8;
                 let mut half_longest = longest / 2.0;
 
                 let (centre_x, centre_y) = Self::centre(&f);
@@ -214,12 +239,14 @@ impl FaceExtractor {
                 let thumbnail =
                     original_image.crop_imm(x as u32, y as u32, longest as u32, longest as u32);
 
-                // 64x64 matches size in thumbnail list in picture view
-                let thumbnail = thumbnail.thumbnail(64, 64);
+                // Stored at 200px (= the widest "unknown people" avatar) so the
+                // grid stays sharp; the 64px picture-view overlay downscales it.
+                let thumbnail = thumbnail.thumbnail(200, 200);
                 let thumbnail_path = self
                     .thumbnail_base_path
-                    .join(format!("{}_{}.png", &thumbnail_hash, index));
-                let _ = thumbnail.save(&thumbnail_path);
+                    .join(format!("{}_{}.jpg", &thumbnail_hash, index));
+                // Display-only crop: standard JPEG quality is fine.
+                save_face_jpeg(&thumbnail, &thumbnail_path, 82);
 
                 let bounds = Rect {
                     x: f.rect.x,
@@ -237,8 +264,10 @@ impl FaceExtractor {
 
                 let bounds_path = self
                     .faces_base_path
-                    .join(format!("{}_{}.png", &thumbnail_hash, index));
-                let _ = bounds_img.save(&bounds_path);
+                    .join(format!("{}_{}.jpg", &thumbnail_hash, index));
+                // This crop is fed to SFace for recognition, so keep quality
+                // high to avoid perturbing the embeddings.
+                save_face_jpeg(&bounds_img, &bounds_path, 95);
 
                 Face {
                     thumbnail_path,
