@@ -9,6 +9,7 @@
 // the 112x112 aligned face from the 5 landmarks (the alignment template matches
 // what ArcFace expects); only the embedding network changed.
 
+use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::BufWriter;
 use std::path::Path;
@@ -127,14 +128,18 @@ impl FaceRecognizer {
         &self,
         embedder: &mut FaceEmbedder,
         unknown_face: &DetectedFace,
+        negatives: &HashMap<i64, HashSet<i64>>,
     ) -> Result<Option<PersonId>> {
         let unknown = embedder.embedding(unknown_face)?;
+        let rejected = negatives.get(&unknown_face.face_id.id());
 
         let best = self
             .people
             .iter()
             // Only recognise against people known before this face was detected.
             .filter(|(p, _)| p.recognized_at <= unknown_face.detected_at)
+            // Skip people this face was explicitly rejected as (negative learning).
+            .filter(|(p, _)| rejected.map_or(true, |r| !r.contains(&p.person_id.id())))
             .map(|(person, reference)| (person, cosine(&unknown, reference)))
             .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
 

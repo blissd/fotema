@@ -7,6 +7,7 @@ use rayon::prelude::*;
 use relm4::Reducer;
 use relm4::Worker;
 use relm4::prelude::*;
+use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::result::Result::Ok;
 use std::sync::Arc;
@@ -80,6 +81,7 @@ impl PhotoRecognizeFacesTask {
         mut faces: Vec<DetectedFace>,
         mut regions: Vec<photo::face_tags::FaceTag>,
         people_repo: &mut people::Repository,
+        negatives: &HashMap<i64, HashSet<i64>>,
     ) -> usize {
         if regions.is_empty() || regions.len() != faces.len() {
             return 0;
@@ -104,6 +106,13 @@ impl PhotoRecognizeFacesTask {
             // user can override them.
             let result = match people_repo.find_person_id_by_name(name) {
                 Ok(Some(person_id)) => {
+                    // Respect a prior "not this person" rejection.
+                    if negatives
+                        .get(&face.face_id.id())
+                        .is_some_and(|r| r.contains(&person_id.id()))
+                    {
+                        continue;
+                    }
                     people_repo.mark_as_person_unconfirmed(face.face_id, person_id)
                 }
                 Ok(None) => people_repo.add_person_unconfirmed(face.face_id, name),
@@ -133,6 +142,7 @@ impl PhotoRecognizeFacesTask {
         }
 
         let mut people_repo = self.repo.clone();
+        let negatives = self.repo.find_negative_associations().unwrap_or_default();
         let mut processed: Vec<PictureId> = Vec::with_capacity(groups.len());
         let mut imported = 0usize;
 
@@ -142,7 +152,7 @@ impl PhotoRecognizeFacesTask {
             }
             processed.push(picture_id);
             let regions = self.photo_repo.find_face_tags(picture_id).unwrap_or_default();
-            imported += Self::assign_regions(faces, regions, &mut people_repo);
+            imported += Self::assign_regions(faces, regions, &mut people_repo, &negatives);
         }
 
         if !processed.is_empty() {
@@ -166,6 +176,7 @@ impl PhotoRecognizeFacesTask {
         }
 
         let mut people_repo = self.repo.clone();
+        let negatives = self.repo.find_negative_associations().unwrap_or_default();
         let mut refreshed: Vec<(PictureId, Vec<photo::face_tags::FaceTag>)> = Vec::new();
         let mut processed: Vec<PictureId> = Vec::with_capacity(groups.len());
         let mut imported = 0usize;
@@ -176,7 +187,7 @@ impl PhotoRecognizeFacesTask {
             }
             processed.push(picture_id);
             let regions = photo::face_tags::read_face_tags(&path.sandbox_path);
-            imported += Self::assign_regions(faces, regions.clone(), &mut people_repo);
+            imported += Self::assign_regions(faces, regions.clone(), &mut people_repo, &negatives);
             refreshed.push((picture_id, regions));
         }
 
@@ -285,6 +296,9 @@ impl PhotoRecognizeFacesTask {
                 ));
 
                 let recognizer = FaceRecognizer::build(&self.cache_dir, people.clone())?;
+                // "This face is NOT person X" rejections, respected so corrected
+                // mistakes don't come back (negative learning).
+                let negatives = self.repo.find_negative_associations().unwrap_or_default();
 
                 pool.install(|| {
                 unprocessed
@@ -295,7 +309,7 @@ impl PhotoRecognizeFacesTask {
                         |embedder, unknown_face| {
                             if let Some(emb) = embedder.as_mut() {
                                 if let Ok(Some(person_id)) =
-                                    recognizer.recognize(emb, &unknown_face)
+                                    recognizer.recognize(emb, &unknown_face, &negatives)
                                 {
                                     info!(
                                         "Face {} looks like person {}",

@@ -929,11 +929,38 @@ impl Repository {
         Ok(())
     }
 
+    /// All "this face is not this person" rejections as `face_id -> {person_id}`.
+    /// Recognition uses it to never re-assign a face to a rejected person.
+    pub fn find_negative_associations(
+        &self,
+    ) -> Result<std::collections::HashMap<i64, std::collections::HashSet<i64>>> {
+        let con = self.con.lock().unwrap();
+        let mut stmt = con.prepare("SELECT face_id, person_id FROM face_not_person")?;
+        let rows = stmt.query_map([], |row| {
+            Ok((row.get::<_, i64>(0)?, row.get::<_, i64>(1)?))
+        })?;
+        let mut map: std::collections::HashMap<i64, std::collections::HashSet<i64>> =
+            std::collections::HashMap::new();
+        for (face_id, person_id) in rows.flatten() {
+            map.entry(face_id).or_default().insert(person_id);
+        }
+        Ok(map)
+    }
+
     pub fn mark_not_person(&mut self, face_id: FaceId) -> Result<()> {
         let mut con = self.con.lock().unwrap();
         let tx = con.transaction()?;
 
         {
+            // Negative learning: remember that this face is NOT its current
+            // person, so recognition never re-assigns it to them.
+            let mut remember = tx.prepare_cached(
+                "INSERT OR IGNORE INTO face_not_person (face_id, person_id)
+                 SELECT face_id, person_id FROM pictures_faces
+                 WHERE face_id = ?1 AND person_id IS NOT NULL",
+            )?;
+            remember.execute(params![face_id.id(),])?;
+
             let mut stmt = tx.prepare_cached(
                 "UPDATE pictures_faces
                 SET
