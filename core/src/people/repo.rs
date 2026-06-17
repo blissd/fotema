@@ -282,9 +282,12 @@ impl Repository {
         let tx = con.transaction()?;
 
         {
+            // Detach every face so it returns to the "unknown people" overview
+            // instead of dangling on a person that no longer exists.
             let mut stmt = tx.prepare_cached(
                 "UPDATE pictures_faces
                 SET
+                    person_id = NULL,
                     is_confirmed = FALSE,
                     is_thumbnail = FALSE
                 WHERE person_id = ?1",
@@ -751,6 +754,48 @@ impl Repository {
                 SET
                     person_id = ?2,
                     is_confirmed = TRUE,
+                    is_thumbnail = TRUE
+                WHERE face_id = ?1",
+            )?;
+
+            update_face.execute(params![face_id.id(), person_id,])?;
+        }
+
+        tx.commit()?;
+        Ok(())
+    }
+
+    /// Like [`add_person`], but the assignment is left unconfirmed: the name is
+    /// a recommendation (e.g. imported from photo XMP) that the user can
+    /// override. The first face still becomes the person's thumbnail so the
+    /// person has an avatar.
+    pub fn add_person_unconfirmed(&mut self, face_id: FaceId, name: &str) -> Result<()> {
+        let mut con = self.con.lock().unwrap();
+        let tx = con.transaction()?;
+
+        {
+            let mut insert_person = tx.prepare_cached(
+                "
+                INSERT INTO people (name)
+                SELECT ?1 AS name
+                FROM pictures_faces
+                WHERE face_id = ?2 AND person_id IS NULL
+                ",
+            )?;
+
+            insert_person.execute(params![name, face_id.id(),])?;
+
+            let person_id = tx.last_insert_rowid();
+            if person_id == 0 {
+                warn!("Detected double insert of person. Skipping.");
+                return Ok(());
+            }
+
+            let mut update_face = tx.prepare_cached(
+                "UPDATE pictures_faces
+                SET
+                    person_id = ?2,
+                    is_confirmed = FALSE,
                     is_thumbnail = TRUE
                 WHERE face_id = ?1",
             )?;

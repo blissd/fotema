@@ -100,9 +100,13 @@ impl PhotoRecognizeFacesTask {
             if name.is_empty() {
                 continue;
             }
+            // XMP names are a recommendation: assign them unconfirmed so the
+            // user can override them.
             let result = match people_repo.find_person_id_by_name(name) {
-                Ok(Some(person_id)) => people_repo.mark_as_person(face.face_id, person_id),
-                Ok(None) => people_repo.add_person(face.face_id, name),
+                Ok(Some(person_id)) => {
+                    people_repo.mark_as_person_unconfirmed(face.face_id, person_id)
+                }
+                Ok(None) => people_repo.add_person_unconfirmed(face.face_id, name),
                 Err(e) => {
                     error!("Looking up person '{}' failed: {:?}", name, e);
                     continue;
