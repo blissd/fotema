@@ -61,8 +61,16 @@ impl PhotoEnrichTask {
             .par_iter()
             .take_any_while(|_| !stop.load(Ordering::Relaxed))
             .flat_map(|pic| {
-                let result = metadata::from_path(&pic.sandbox_path());
-                result.map(|m| (pic.picture_id, m))
+                metadata::from_path(&pic.sandbox_path())
+                    .map_err(|e| {
+                        tracing::warn!(
+                            "Failed to extract metadata for {:?}: {}",
+                            pic.sandbox_path(),
+                            e
+                        )
+                    })
+                    .ok()
+                    .map(|m| (pic.picture_id, m))
             })
             .collect();
 

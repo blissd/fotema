@@ -81,10 +81,6 @@ pub fn from_path(path: &Path) -> Result<Metadata> {
 
         if !f64::is_nan(rotation) {
             metadata.rotation = Some(rotation as i32);
-            println!(
-                "rotation f64={}, metadata.rotation={:?}",
-                rotation, metadata.rotation
-            );
         }
     }
 

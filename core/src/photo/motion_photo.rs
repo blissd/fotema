@@ -56,7 +56,7 @@ impl MotionPhotoExtractor {
 
         let video_path = {
             // Create a directory per 1000 motion photos
-            let partition = (picture_id.id() / 1000) as i32;
+            let partition = picture_id.id() / 1000;
             let partition = format!("{:0>4}", partition);
             let file_name = format!("{}.mp4", picture_id);
             self.base_path.join(partition).join(file_name)
@@ -97,7 +97,7 @@ impl MotionPhotoExtractor {
         {
             let transcoded_path = {
                 // Create a directory per 1000 motion photos
-                let partition = (picture_id.id() / 1000) as i32;
+                let partition = picture_id.id() / 1000;
                 let partition = format!("{:0>4}", partition);
                 let file_name = format!("{}_transcoded.mkv", picture_id);
                 self.base_path.join(partition).join(file_name)
