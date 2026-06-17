@@ -39,8 +39,8 @@ places-page = Places
 # Title for people page which shows an album of faces.
 people-page = People
 
-# Title for the faces page which shows all detected, not-yet-named faces.
-faces-page = Faces
+# Title for the page which shows all detected, not-yet-named faces.
+faces-page = Unknown People
 
 # Status page shown for people album when face detection is disabled.
 people-page-status-off =

@@ -230,6 +230,7 @@ viewer-faces-menu =
     .ignore-unknown = Alle unbekannten Gesichter ignorieren
     .scan = Nach weiteren Gesichtern suchen
 people-page = Personen
+faces-page = Unbekannte Personen
 people-page-status-off =
     .title = Gesichtserkennung aktivieren?
     .description = { -app-name } kann automatisch Gesichter und Personen erkennen, jedoch ist dies ein zeitaufwändiger Prozess. Möchten Sie diese Funktion aktivieren?
