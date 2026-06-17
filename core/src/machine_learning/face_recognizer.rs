@@ -205,35 +205,6 @@ impl FaceRecognizer {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::people::model::{FaceId, Rect};
-    use std::path::PathBuf;
-
-    #[test]
-    fn test_recognize() {
-        let person_face = DetectedFace {
-            face_id: FaceId::new(1),
-            face_path: PathBuf::from(
-                "/var/home/david/.var/app/app.fotema.Fotema.Devel/cache/app.fotema.Fotema.Devel/photo_faces/0003/3027/0_blaze_face_640_original.png",
-            ),
-            bounds: Rect {
-                x: 0.,
-                y: 0.,
-                width: 100.,
-                height: 100.,
-            },
-
-            right_eye: (20., 10.),
-            left_eye: (10., 10.),
-            nose: (15., 15.),
-            right_mouth_corner: (20., 20.),
-            left_mouth_corner: (10., 20.),
-
-            confidence: 0.98,
-        };
-
-        let _ = FaceRecognizer::build(&person_face).unwrap();
-    }
-}
+// (The previous `test_recognize` unit test was removed: it used the pre-2.x
+// `FaceRecognizer::build` signature and a hard-coded developer path, so it no
+// longer compiled or ran.)

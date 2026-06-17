@@ -338,6 +338,17 @@ impl Repository {
         Ok(result)
     }
 
+    /// Find an existing person by exact name (case-insensitive). Used when
+    /// importing names from photo metadata so duplicates aren't created.
+    pub fn find_person_id_by_name(&self, name: &str) -> Result<Option<PersonId>> {
+        let con = self.con.lock().unwrap();
+        let mut stmt =
+            con.prepare_cached("SELECT person_id FROM people WHERE name = ?1 COLLATE NOCASE LIMIT 1")?;
+        let mut rows = stmt.query_map(params![name], |row| row.get::<_, i64>(0))?;
+        let id = rows.next().transpose()?;
+        Ok(id.map(PersonId::new))
+    }
+
     /// All known people that must have a face recognition performed.
     /// Select the best face for recognition, where "best" is the face with
     /// the highest confidence for a face that the user has confirmed is a particular person.

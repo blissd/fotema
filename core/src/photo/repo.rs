@@ -464,6 +464,96 @@ impl Repository {
         Ok(result)
     }
 
+    /// Unnamed, non-ignored detected faces together with their picture id and
+    /// path, for pictures whose XMP face tags have not yet been imported.
+    /// Ordered by picture so callers can group consecutive rows.
+    pub fn find_unnamed_faces_with_pictures(
+        &self,
+    ) -> Result<Vec<(PictureId, FlatpakPathBuf, DetectedFace)>> {
+        let con = self.con.lock().unwrap();
+
+        // NOTE: this is non-standard SQL that might not work in DBs that aren't SQLite.
+        let mut stmt = con.prepare(
+            "SELECT
+                faces.picture_id AS picture_id,
+                face_id,
+                detected_at,
+
+                is_source_original,
+                pictures.picture_path_b64 AS picture_path_b64,
+
+                bounds_path,
+                faces.thumbnail_path AS thumbnail_path,
+
+                bounds_x,
+                bounds_y,
+                bounds_width,
+                bounds_height,
+
+                right_eye_x,
+                right_eye_y,
+
+                left_eye_x,
+                left_eye_y,
+
+                nose_x,
+                nose_y,
+
+                right_mouth_corner_x,
+                right_mouth_corner_y,
+
+                left_mouth_corner_x,
+                left_mouth_corner_y,
+
+                confidence
+            FROM  pictures_faces AS faces
+            INNER JOIN pictures USING (picture_id)
+            WHERE faces.person_id IS NULL
+            AND faces.is_ignored IS FALSE
+            AND pictures.face_tags_imported = 0
+            ORDER BY faces.picture_id",
+        )?;
+
+        let result: Vec<(PictureId, FlatpakPathBuf, DetectedFace)> = stmt
+            .query_map([], |row| {
+                let picture_id = row.get("picture_id").map(PictureId::new)?;
+                Ok((
+                    picture_id,
+                    self.to_library_path(row)?,
+                    self.to_detected_face(row)?,
+                ))
+            })?
+            .flatten()
+            .collect();
+
+        Ok(result)
+    }
+
+    /// Clear the "face tags imported" marker on every picture so the next
+    /// recognition pass re-reads XMP person tags for the whole library
+    /// (retrospective re-scan, e.g. after tagging photos in another app).
+    pub fn reset_face_tags_imported(&mut self) -> Result<()> {
+        let con = self.con.lock().unwrap();
+        con.execute("UPDATE pictures SET face_tags_imported = 0", [])?;
+        Ok(())
+    }
+
+    /// Mark pictures as having had their XMP face tags imported, so the import
+    /// does not re-read them on the next launch.
+    pub fn mark_face_tags_imported(&mut self, picture_ids: &[PictureId]) -> Result<()> {
+        let mut con = self.con.lock().unwrap();
+        let tx = con.transaction()?;
+        {
+            let mut stmt =
+                tx.prepare_cached("UPDATE pictures SET face_tags_imported = 1 WHERE picture_id = ?1")?;
+            for id in picture_ids {
+                stmt.execute(params![id.id()])?;
+            }
+        }
+        tx.commit()?;
+        Ok(())
+    }
+
     fn to_library_path(&self, row: &Row<'_>) -> rusqlite::Result<FlatpakPathBuf> {
         let relative_path: String = row.get("picture_path_b64")?;
         let relative_path = path_encoding::from_base64(&relative_path)
