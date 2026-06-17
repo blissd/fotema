@@ -148,7 +148,16 @@ impl PhotoDetectFacesTask {
             faces_base_dir: self.faces_base_dir.clone(),
             thumbnailer: self.thumbnailer.clone(),
         };
-        let detector_pool = FaceDetectorPool::builder(detector_pool_manager).build()?;
+        // Bound the pool: each FaceExtractor holds several ONNX sessions, and an
+        // unbounded pool would build one per rayon worker (one per CPU core),
+        // thrashing memory and session initialisation. A small pool keeps a few
+        // detectors warm and reuses them across photos.
+        let pool_size = std::thread::available_parallelism()
+            .map(|n| n.get().clamp(1, 4))
+            .unwrap_or(2);
+        let detector_pool = FaceDetectorPool::builder(detector_pool_manager)
+            .max_size(pool_size)
+            .build()?;
 
         unprocessed
             .par_iter()
@@ -159,9 +168,10 @@ impl PhotoDetectFacesTask {
                 // Careful! panic::catch_unwind returns Ok(Err) if the evaluated expression returns
                 // an error but doesn't panic.
                 let result = block_on(async {
-                    // FIXME unwrap
-                    let mut detector = detector_pool.get().await.unwrap();
-                    detector.extract_faces(&candidate).await
+                    match detector_pool.get().await {
+                        Ok(mut detector) => detector.extract_faces(&candidate).await,
+                        Err(e) => Err(anyhow!("Failed to acquire face detector: {e:?}")),
+                    }
                 })
                 .and_then(|faces| repo.clone().add_face_scans(&candidate.picture_id, &faces));
 

@@ -8,8 +8,6 @@ use crate::thumbnailify::{ThumbnailSize, Thumbnailer};
 use anyhow::*;
 
 use super::nms::Nms;
-use image::ImageReader;
-use std::io::Cursor;
 use std::path::{Path, PathBuf};
 use std::result::Result::Ok;
 
@@ -261,11 +259,13 @@ impl FaceExtractor {
 
     /// Computes the centre of a face.
     fn centre(f: &DetectedFace) -> (f32, f32) {
-        if let Some(ref landmarks) = f.landmarks {
+        if let Some((right_eye, left_eye)) =
+            f.landmarks.as_ref().filter(|l| l.len() >= 2).map(|l| (l[0], l[1]))
+        {
             // If we have landmarks, then the first two are the right and left eyes.
             // Use the midpoint between the eyes as the centre of the thumbnail.
-            let x = (landmarks[0].0 + landmarks[1].0) / 2.0;
-            let y = (landmarks[0].1 + landmarks[1].1) / 2.0;
+            let x = (right_eye.0 + left_eye.0) / 2.0;
+            let y = (right_eye.1 + left_eye.1) / 2.0;
             (x, y)
         } else {
             let x = f.rect.x + (f.rect.width / 2.0);
@@ -280,11 +280,33 @@ impl FaceExtractor {
         let loader = glycin::Loader::new(file);
         let image = loader.load().await?;
         let frame = image.next_frame().await?;
-        let bytes = frame.texture().save_to_png_bytes();
-        let image =
-            ImageReader::with_format(Cursor::new(bytes), image::ImageFormat::Png).decode()?;
 
-        Ok(image)
+        // Download raw RGBA pixels directly instead of round-tripping through a
+        // full PNG encode + decode.
+        let texture = frame.texture();
+        let width = texture.width() as u32;
+        let height = texture.height() as u32;
+
+        let mut downloader = gdk4::TextureDownloader::new(&texture);
+        downloader.set_format(gdk4::MemoryFormat::R8g8b8a8);
+        let (bytes, stride) = downloader.download_bytes();
+
+        let row_bytes = width as usize * 4;
+        let data = if stride == row_bytes {
+            bytes.to_vec()
+        } else {
+            let mut packed = Vec::with_capacity(row_bytes * height as usize);
+            for y in 0..height as usize {
+                let start = y * stride;
+                packed.extend_from_slice(&bytes[start..start + row_bytes]);
+            }
+            packed
+        };
+
+        let buffer = image::RgbaImage::from_raw(width, height, data)
+            .ok_or_else(|| anyhow!("Texture buffer size mismatch for {:?}", source_path))?;
+
+        Ok(DynamicImage::ImageRgba8(buffer))
     }
 }
 
