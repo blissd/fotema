@@ -112,6 +112,59 @@ impl FaceRecognizer {
         Ok(None)
     }
 
+    /// Ensure the SFace recognition model is downloaded and return its path.
+    pub fn ensure_model(cache_dir: &Path) -> Result<PathBuf> {
+        let model_path = {
+            let base_path = cache_dir.join("opencv_models");
+            std::fs::create_dir_all(&base_path)?;
+            base_path.join("face_recognition_sface_2021dec.onnx")
+        };
+        Self::download_model(Self::MODEL_URL, &model_path)?;
+        Ok(model_path)
+    }
+
+    /// Create an SFace recognizer, preferring the GPU via OpenCL and falling
+    /// back to CPU. One instance may be reused for many `embedding()` calls on a
+    /// single thread, but must NOT be shared across threads (OpenCV's
+    /// FaceRecognizerSF is not thread-safe).
+    pub fn new_sface(model_path: &Path) -> Result<opencv::core::Ptr<FaceRecognizerSF>> {
+        let model = model_path.to_string_lossy();
+        if opencv::core::have_opencl().unwrap_or(false) {
+            if let Ok(r) = FaceRecognizerSF::create(
+                &model,
+                "",
+                opencv::dnn::DNN_BACKEND_OPENCV,
+                opencv::dnn::DNN_TARGET_OPENCL,
+            ) {
+                info!("Face recognizer using OpenCL (GPU) acceleration.");
+                return Ok(r);
+            }
+            info!("OpenCL face recognizer unavailable; falling back to CPU.");
+        }
+        Ok(FaceRecognizerSF::create(
+            &model,
+            "",
+            opencv::dnn::DNN_BACKEND_OPENCV,
+            opencv::dnn::DNN_TARGET_CPU,
+        )?)
+    }
+
+    /// Compute the SFace embedding (feature vector) for a detected face. Reuse
+    /// `recognizer` across faces on the same thread to avoid reloading the model.
+    pub fn embedding(
+        recognizer: &mut opencv::core::Ptr<FaceRecognizerSF>,
+        face: &DetectedFace,
+    ) -> Result<Vec<f32>> {
+        let face_img = imgcodecs::imread_def(&face.face_path.to_string_lossy())?;
+        let landmarks = face.landmarks_as_mat();
+        let mut aligned = Mat::default();
+        recognizer.align_crop(&face_img, &landmarks, &mut aligned)?;
+        let mut features = Mat::default();
+        recognizer.feature(&aligned, &mut features)?;
+        let data: &[f32] = features.data_typed()?;
+        Ok(data.to_vec())
+    }
+
     fn download_model(url: &str, destination: &Path) -> Result<()> {
         if destination.exists() {
             info!("Face recognition model already downloaded.");

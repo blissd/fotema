@@ -102,35 +102,122 @@ impl Repository {
     }
 
     /// All detected faces not yet assigned to a person (and not ignored), across
-    /// the whole library. Powers the "name faces" overview so faces can be named
-    /// without opening each photo individually.
+    /// the whole library, grouped by similarity (via stored SFace embeddings)
+    /// and ordered so the most frequently occurring unknown person comes first.
+    /// Faces without an embedding yet are appended at the end. Powers the
+    /// "unknown people" overview.
     pub fn find_unnamed_faces(&self) -> Result<Vec<model::Face>> {
-        let con = self.con.lock().unwrap();
-        let mut stmt = con.prepare(
-            "SELECT
-                faces.face_id AS face_id,
-                faces.thumbnail_path AS face_thumbnail_path
-            FROM pictures_faces AS faces
-            WHERE faces.person_id IS NULL AND faces.is_ignored = FALSE
-            ORDER BY faces.face_id",
-        )?;
+        let rows: Vec<(model::Face, Option<Vec<f32>>)> = {
+            let con = self.con.lock().unwrap();
+            let mut stmt = con.prepare(
+                "SELECT
+                    faces.face_id AS face_id,
+                    faces.thumbnail_path AS face_thumbnail_path,
+                    faces.embedding AS embedding
+                FROM pictures_faces AS faces
+                WHERE faces.person_id IS NULL AND faces.is_ignored = FALSE
+                ORDER BY faces.face_id",
+            )?;
 
-        let data_dir = self.data_dir_base_path.clone();
-        let result = stmt
-            .query_map([], move |row| {
+            let data_dir = self.data_dir_base_path.clone();
+            stmt.query_map([], move |row| {
                 let face_id = row.get("face_id").map(FaceId::new)?;
                 let thumbnail_path = row
                     .get("face_thumbnail_path")
                     .map(|p: String| data_dir.join(p))?;
-                Ok(model::Face {
-                    face_id,
-                    thumbnail_path,
-                })
+                let bytes: Option<Vec<u8>> = row.get("embedding")?;
+                let embedding = bytes.map(|b| {
+                    b.chunks_exact(4)
+                        .map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]]))
+                        .collect::<Vec<f32>>()
+                });
+                Ok((model::Face { face_id, thumbnail_path }, embedding))
             })?
             .flatten()
-            .collect();
+            .collect()
+        };
 
-        Ok(result)
+        Ok(Self::cluster_and_order(rows))
+    }
+
+    /// Greedy clustering of faces by normalised-embedding L2 distance, returning
+    /// faces ordered by descending cluster size (most-seen unknown person first),
+    /// with faces that have no embedding appended at the end.
+    fn cluster_and_order(faces: Vec<(model::Face, Option<Vec<f32>>)>) -> Vec<model::Face> {
+        // L2 distance of L2-normalised SFace features below which two faces are
+        // considered the same person (matches FaceRecognizer::L2NORM_SIMILAR_THRESH).
+        const THRESHOLD: f32 = 1.128;
+
+        let mut with_embedding: Vec<(model::Face, Vec<f32>)> = Vec::new();
+        let mut without: Vec<model::Face> = Vec::new();
+        for (face, embedding) in faces {
+            match embedding {
+                Some(e) if !e.is_empty() => {
+                    let norm = e.iter().map(|x| x * x).sum::<f32>().sqrt();
+                    let e = if norm > 0.0 {
+                        e.iter().map(|x| x / norm).collect()
+                    } else {
+                        e
+                    };
+                    with_embedding.push((face, e));
+                }
+                _ => without.push(face),
+            }
+        }
+
+        let mut clusters: Vec<Vec<(model::Face, Vec<f32>)>> = Vec::new();
+        for (face, e) in with_embedding {
+            let mut found = None;
+            for (i, cluster) in clusters.iter().enumerate() {
+                let rep = &cluster[0].1;
+                let dist = e
+                    .iter()
+                    .zip(rep)
+                    .map(|(a, b)| (a - b) * (a - b))
+                    .sum::<f32>()
+                    .sqrt();
+                if dist < THRESHOLD {
+                    found = Some(i);
+                    break;
+                }
+            }
+            match found {
+                Some(i) => clusters[i].push((face, e)),
+                None => clusters.push(vec![(face, e)]),
+            }
+        }
+
+        clusters.sort_by(|a, b| b.len().cmp(&a.len()));
+
+        let mut result: Vec<model::Face> = clusters
+            .into_iter()
+            .flat_map(|c| c.into_iter().map(|(f, _)| f))
+            .collect();
+        result.extend(without);
+        result
+    }
+
+    /// Store an SFace embedding (little-endian f32 vector) for a face.
+    pub fn store_face_embedding(&self, face_id: FaceId, embedding: &[f32]) -> Result<()> {
+        let bytes: Vec<u8> = embedding.iter().flat_map(|f| f.to_le_bytes()).collect();
+        let con = self.con.lock().unwrap();
+        con.execute(
+            "UPDATE pictures_faces SET embedding = ?1 WHERE face_id = ?2",
+            rusqlite::params![bytes, face_id.id()],
+        )?;
+        Ok(())
+    }
+
+    /// Face ids that already have an embedding computed.
+    pub fn faces_with_embedding(&self) -> Result<std::collections::HashSet<i64>> {
+        let con = self.con.lock().unwrap();
+        let mut stmt =
+            con.prepare("SELECT face_id FROM pictures_faces WHERE embedding IS NOT NULL")?;
+        let set = stmt
+            .query_map([], |row| row.get::<_, i64>("face_id"))?
+            .flatten()
+            .collect();
+        Ok(set)
     }
 
     pub fn ignore_unknown_faces(&mut self, picture_id: PictureId) -> Result<()> {
