@@ -110,13 +110,10 @@ impl FaceExtractor {
 
         detectors.push((blaze_face_default, "blaze_face_640_default".into()));
 
-        let mtcnn_params = rust_faces::MtCnnParams::default();
-
-        let mtcnn = FaceDetectorBuilder::new(FaceDetection::MtCnn(mtcnn_params))
-            .download()
-            .build()?;
-
-        detectors.push((mtcnn, "mtcnn".into()));
+        // MTCNN intentionally not used: running it as a second detector on every
+        // photo roughly doubled face-detection time (its image-pyramid cascade is
+        // expensive on real photos: ~1.2s/photo measured). BlazeFace alone is
+        // fast and sufficient. Re-add here if higher recall is needed.
 
         Ok(FaceExtractor {
             faces_base_path,
