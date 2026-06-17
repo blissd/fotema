@@ -11,6 +11,7 @@ use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
 use relm4::RelmObjectExt;
 
 use crate::adaptive;
+use crate::app::SettingsState;
 use crate::fl;
 use fotema_core::FaceId;
 use fotema_core::people;
@@ -112,6 +113,10 @@ pub enum UnknownPeopleInput {
     /// Toggle between the normal (unnamed) grid and the ignored-faces grid.
     ShowIgnoredFaces(bool),
 
+    /// Auto-recognition setting changed: hide the manual "find matches" button
+    /// while it is on (recognition then runs automatically after naming).
+    AutoRecognitionChanged(bool),
+
     /// Adapt avatar size to the window layout.
     Adapt(adaptive::Layout),
 }
@@ -158,11 +163,15 @@ pub struct UnknownPeople {
     show_ignored: bool,
     /// Toggle for the above; hidden when there is nothing ignored to restore.
     show_ignored_toggle: gtk::ToggleButton,
+
+    /// Manual "find matches" button; hidden while automatic recognition is on
+    /// (it would be redundant — naming then triggers recognition itself).
+    recognize_button: gtk::Button,
 }
 
 #[relm4::component(pub async)]
 impl SimpleAsyncComponent for UnknownPeople {
-    type Init = people::Repository;
+    type Init = (people::Repository, SettingsState);
     type Input = UnknownPeopleInput;
     type Output = UnknownPeopleOutput;
 
@@ -222,7 +231,8 @@ impl SimpleAsyncComponent for UnknownPeople {
             set_sidebar = &gtk::Box {
                 set_orientation: gtk::Orientation::Vertical,
 
-                gtk::Button {
+                #[local_ref]
+                recognize_button -> gtk::Button {
                     set_label: &fl!("unknown-people-recognize"),
                     set_tooltip_text: Some(&fl!("unknown-people-recognize", "tooltip")),
                     add_css_class: "pill",
@@ -253,10 +263,17 @@ impl SimpleAsyncComponent for UnknownPeople {
     }
 
     async fn init(
-        people_repo: Self::Init,
+        (people_repo, settings_state): Self::Init,
         root: Self::Root,
         sender: AsyncComponentSender<Self>,
     ) -> AsyncComponentParts<Self> {
+        // Track the auto-recognition setting so the manual button can hide when
+        // it is on.
+        let auto_recognition = settings_state.read().face_recognition_auto;
+        settings_state.subscribe(sender.input_sender(), |settings| {
+            UnknownPeopleInput::AutoRecognitionChanged(settings.face_recognition_auto)
+        });
+
         let face_grid: TypedGridView<UnknownFaceItem, gtk::MultiSelection> = TypedGridView::new();
         let grid_view = &face_grid.view.clone();
 
@@ -287,6 +304,10 @@ impl SimpleAsyncComponent for UnknownPeople {
 
         let show_ignored_toggle = gtk::ToggleButton::new();
 
+        // Hidden while auto-recognition is on (it would be redundant then).
+        let recognize_button = gtk::Button::new();
+        recognize_button.set_visible(!auto_recognition);
+
         let widgets = view_output!();
 
         let model = Self {
@@ -300,6 +321,7 @@ impl SimpleAsyncComponent for UnknownPeople {
             ignore_button: ignore_button.clone(),
             show_ignored: false,
             show_ignored_toggle: show_ignored_toggle.clone(),
+            recognize_button: recognize_button.clone(),
         };
 
         AsyncComponentParts { model, widgets }
@@ -478,6 +500,10 @@ impl SimpleAsyncComponent for UnknownPeople {
                 // Manual trigger (button): same background pass, on demand,
                 // regardless of the auto-recognition setting.
                 let _ = sender.output(UnknownPeopleOutput::RecognizeRequested);
+            }
+            UnknownPeopleInput::AutoRecognitionChanged(auto) => {
+                // Hide the manual button while auto-recognition is on.
+                self.recognize_button.set_visible(!auto);
             }
             UnknownPeopleInput::Adapt(adaptive::Layout::Narrow) => {
                 self.edge_length.set_value(NARROW_EDGE_LENGTH);

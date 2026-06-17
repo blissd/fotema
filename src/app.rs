@@ -783,7 +783,7 @@ impl SimpleAsyncComponent for App {
         });
 
         let faces_page = UnknownPeople::builder()
-            .launch(people_repo.clone())
+            .launch((people_repo.clone(), settings_state.clone()))
             .forward(sender.input_sender(), |msg| match msg {
                 UnknownPeopleOutput::RecognizeRequested => AppMsg::RecognizeInBackground,
                 UnknownPeopleOutput::AutoRecognizeRequested => AppMsg::RecognizeAuto,
