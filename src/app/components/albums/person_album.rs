@@ -9,6 +9,7 @@ use relm4::adw::prelude::*;
 use relm4::binding::*;
 use relm4::gtk;
 use relm4::gtk::gdk;
+use relm4::gtk::gio;
 use relm4::prelude::*;
 use relm4::*;
 
@@ -46,6 +47,9 @@ relm4::new_stateless_action!(RenameAction, PersonActionGroup, "rename");
 
 // Delete a person
 relm4::new_stateless_action!(DeleteAction, PersonActionGroup, "delete");
+
+// Ignore (hide) or restore a person
+relm4::new_stateless_action!(IgnoreAction, PersonActionGroup, "ignore");
 
 #[derive(Debug)]
 pub enum PersonAlbumInput {
@@ -94,6 +98,9 @@ pub enum PersonAlbumInput {
     /// Actually delete person.
     Delete,
 
+    /// Hide this person (or restore them if already hidden).
+    ToggleIgnore,
+
     Sort(AlbumSort),
 }
 
@@ -110,6 +117,9 @@ pub enum PersonAlbumOutput {
 
     /// A face was detached or reassigned; refresh people and unknown faces.
     FacesChanged,
+
+    /// This person was hidden or restored; pop back and refresh the overview.
+    IgnoredChanged,
 }
 
 pub struct PersonAlbum {
@@ -125,6 +135,13 @@ pub struct PersonAlbum {
     /// Person picker shown when reassigning a face to a different person.
     person_select: AsyncController<PersonSelect>,
     person_dialog: adw::Dialog,
+
+    /// Header menu button, whose menu is swapped between `menu_active` and
+    /// `menu_ignored` depending on whether the viewed person is hidden.
+    menu_button: gtk::MenuButton,
+    /// Menu for a normal person (offers "ignore"); for a hidden one ("restore").
+    menu_active: gio::Menu,
+    menu_ignored: gio::Menu,
 }
 
 #[relm4::component(pub)]
@@ -132,16 +149,6 @@ impl SimpleComponent for PersonAlbum {
     type Init = (SharedState, people::Repository, ActiveView, Rc<Thumbnailer>);
     type Input = PersonAlbumInput;
     type Output = PersonAlbumOutput;
-
-    menu! {
-        primary_menu: {
-            section! {
-                // FIXME I would like to have the person's name in these menu items.
-                &fl!("person-menu-rename") => RenameAction,
-                &fl!("person-menu-delete") => DeleteAction,
-            }
-        }
-    }
 
     view! {
         adw::ToolbarView {
@@ -152,9 +159,9 @@ impl SimpleComponent for PersonAlbum {
                     add_css_class: "title",
                 },
 
-                pack_end = &gtk::MenuButton {
+                #[local_ref]
+                pack_end = &menu_button -> gtk::MenuButton {
                     set_icon_name: "open-menu-symbolic",
-                    set_menu_model: Some(&primary_menu),
                 },
             },
 
@@ -213,6 +220,26 @@ impl SimpleComponent for PersonAlbum {
             .height_request(400)
             .build();
 
+        // Two header menus, identical but for the ignore/restore item. The View
+        // handler shows whichever matches the person's current visibility.
+        let make_menu = |toggle_label: &str| {
+            let menu = gio::Menu::new();
+            let rename = fl!("person-menu-rename");
+            let delete = fl!("person-menu-delete");
+            menu.append(Some(rename.as_str()), Some("person.rename"));
+            menu.append(Some(toggle_label), Some("person.ignore"));
+            menu.append(Some(delete.as_str()), Some("person.delete"));
+            menu
+        };
+        let ignore_label = fl!("person-menu-ignore");
+        let restore_label = fl!("person-menu-restore");
+        let menu_active = make_menu(ignore_label.as_str());
+        let menu_ignored = make_menu(restore_label.as_str());
+
+        let menu_button = gtk::MenuButton::builder()
+            .menu_model(&menu_active)
+            .build();
+
         let model = PersonAlbum {
             repo,
             person: None,
@@ -224,6 +251,9 @@ impl SimpleComponent for PersonAlbum {
             edge_length: I32Binding::new(NARROW_EDGE_LENGTH),
             person_select,
             person_dialog,
+            menu_button: menu_button.clone(),
+            menu_active,
+            menu_ignored,
         };
 
         model
@@ -247,8 +277,16 @@ impl SimpleComponent for PersonAlbum {
             })
         };
 
+        let ignore_action = {
+            let sender = sender.clone();
+            RelmAction::<IgnoreAction>::new_stateless(move |_| {
+                sender.input(PersonAlbumInput::ToggleIgnore);
+            })
+        };
+
         actions.add_action(rename_action);
         actions.add_action(delete_action);
+        actions.add_action(ignore_action);
         actions.register_for_widget(&root);
 
         ComponentParts { model, widgets }
@@ -304,6 +342,13 @@ impl SimpleComponent for PersonAlbum {
                         self.picture_ids.clone(),
                     )));
                 self.album.sender().emit(AlbumInput::ScrollToTop);
+
+                // Offer "ignore" for a normal person, "restore" for a hidden one.
+                self.menu_button.set_menu_model(Some(if person.is_ignored {
+                    &self.menu_ignored
+                } else {
+                    &self.menu_active
+                }));
 
                 self.title.set_label(&person.name);
                 self.person = Some(person);
@@ -541,6 +586,25 @@ impl SimpleComponent for PersonAlbum {
                 self.person = None;
                 self.picture_ids.clear();
                 let _ = sender.output(PersonAlbumOutput::Deleted);
+            }
+            PersonAlbumInput::ToggleIgnore => {
+                let Some(ref mut person) = self.person else {
+                    info!("Asked to ignore person, but no person for album");
+                    return;
+                };
+                let now_ignored = !person.is_ignored;
+                info!(
+                    "Setting person {} ignored = {}",
+                    person.person_id, now_ignored
+                );
+                if let Err(e) = self.repo.set_person_ignored(person.person_id, now_ignored) {
+                    error!("Failed to set person ignored: {}", e);
+                    return;
+                }
+                person.is_ignored = now_ignored;
+                // Pop back to the overview and let it refresh (the person leaves
+                // the active list, or the ignored list, accordingly).
+                let _ = sender.output(PersonAlbumOutput::IgnoredChanged);
             }
         }
     }

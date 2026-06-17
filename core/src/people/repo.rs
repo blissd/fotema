@@ -21,7 +21,28 @@ use rusqlite::params;
 use std::path::{Path, PathBuf};
 use std::result::Result::Ok;
 use std::sync::{Arc, Mutex};
+use chrono::{DateTime, Utc};
 use tracing::warn;
+
+/// A confirmed, named reference face together with its stored ArcFace embedding
+/// (already L2-normalised) and its person's last-recognition timestamp. The
+/// lightweight recognition pass compares unnamed faces against these stored
+/// embeddings instead of recomputing them with the model.
+#[derive(Debug, Clone)]
+pub struct RecognitionReference {
+    pub person_id: PersonId,
+    pub recognized_at: DateTime<Utc>,
+    pub embedding: Vec<f32>,
+}
+
+/// An unnamed, non-ignored face with its stored (L2-normalised) ArcFace
+/// embedding and detection time.
+#[derive(Debug, Clone)]
+pub struct UnnamedEmbedding {
+    pub face_id: FaceId,
+    pub detected_at: DateTime<Utc>,
+    pub embedding: Vec<f32>,
+}
 
 /// Repository of people data.
 /// Repository is backed by a Sqlite database.
@@ -138,6 +159,38 @@ impl Repository {
         };
 
         Ok(Self::cluster_and_order(rows))
+    }
+
+    /// Faces the user has hidden via "ignore face" (still unnamed). Powers the
+    /// "show ignored faces" view, from which they can be restored. Newest first;
+    /// no clustering (these are typically non-faces or strangers).
+    pub fn find_ignored_faces(&self) -> Result<Vec<model::Face>> {
+        let con = self.con.lock().unwrap();
+        let mut stmt = con.prepare(
+            "SELECT
+                faces.face_id AS face_id,
+                faces.thumbnail_path AS face_thumbnail_path
+            FROM pictures_faces AS faces
+            WHERE faces.person_id IS NULL AND faces.is_ignored = TRUE
+            ORDER BY faces.face_id DESC",
+        )?;
+
+        let data_dir = self.data_dir_base_path.clone();
+        let result: Vec<model::Face> = stmt
+            .query_map([], move |row| {
+                let face_id = row.get("face_id").map(FaceId::new)?;
+                let thumbnail_path = row
+                    .get("face_thumbnail_path")
+                    .map(|p: String| data_dir.join(p))?;
+                Ok(model::Face {
+                    face_id,
+                    thumbnail_path,
+                })
+            })?
+            .flatten()
+            .collect();
+
+        Ok(result)
     }
 
     /// Greedy clustering of faces by normalised-embedding L2 distance, returning
@@ -328,17 +381,30 @@ impl Repository {
     }
 
     pub fn all_people(&self) -> Result<Vec<model::Person>> {
+        self.people_where("p.is_ignored = FALSE")
+    }
+
+    /// People the user has hidden (for the "show ignored people" view, from which
+    /// they can be restored). Their data and face assignments are untouched.
+    pub fn all_ignored_people(&self) -> Result<Vec<model::Person>> {
+        self.people_where("p.is_ignored = TRUE")
+    }
+
+    /// Shared people query, filtered by the given (trusted, literal) predicate.
+    fn people_where(&self, predicate: &str) -> Result<Vec<model::Person>> {
         let con = self.con.lock().unwrap();
-        let mut stmt = con.prepare(
+        let mut stmt = con.prepare(&format!(
             "SELECT
                 p.person_id AS person_id,
                 p.name AS person_name,
+                p.is_ignored AS is_ignored,
                 f.thumbnail_path AS person_thumbnail_path
             FROM people AS p
             LEFT OUTER JOIN pictures_faces AS f
                 ON (f.person_id = p.person_id AND f.is_thumbnail = TRUE)
-            ORDER BY name ASC",
-        )?;
+            WHERE {predicate}
+            ORDER BY name ASC"
+        ))?;
 
         let result: Vec<model::Person> = stmt
             .query_map([], |row| self.to_person(row))?
@@ -346,6 +412,18 @@ impl Repository {
             .collect();
 
         Ok(result)
+    }
+
+    /// Hide or restore a whole person. Reversible and data-preserving: their face
+    /// assignments stay; only their visibility (overview + auto-recognition seed)
+    /// changes.
+    pub fn set_person_ignored(&mut self, person_id: PersonId, ignored: bool) -> Result<()> {
+        let con = self.con.lock().unwrap();
+        con.execute(
+            "UPDATE people SET is_ignored = ?2 WHERE person_id = ?1",
+            params![person_id.id(), ignored],
+        )?;
+        Ok(())
     }
 
     /// Find an existing person by exact name (case-insensitive). Used when
@@ -433,6 +511,77 @@ impl Repository {
         let mut result: Vec<model::Person> = with_dist.into_iter().map(|(p, _)| p).collect();
         result.extend(without);
         Ok(result)
+    }
+
+    /// Confirmed, named faces that carry a current (512-dim ArcFace) embedding,
+    /// each paired with its person's last-recognition time. These are the
+    /// references the lightweight recognition pass matches unnamed faces
+    /// against — using the embeddings already in the DB, so no model load, image
+    /// read or inference is needed. A person can contribute several reference
+    /// faces (better recall); the match takes the closest.
+    pub fn find_recognition_references(&self) -> Result<Vec<RecognitionReference>> {
+        let con = self.con.lock().unwrap();
+        let mut stmt = con.prepare(
+            "SELECT faces.person_id   AS person_id,
+                    people.recognized_at AS recognized_at,
+                    faces.embedding   AS embedding
+             FROM pictures_faces AS faces
+             INNER JOIN people USING (person_id)
+             WHERE faces.is_confirmed = TRUE
+               AND people.is_ignored = FALSE
+               AND length(faces.embedding) = 2048",
+        )?;
+        let rows = stmt.query_map([], |row| {
+            let person_id = row.get("person_id").map(PersonId::new)?;
+            let recognized_at: DateTime<Utc> = row.get("recognized_at")?;
+            let bytes: Vec<u8> = row.get("embedding")?;
+            Ok((person_id, recognized_at, bytes))
+        })?;
+
+        let mut out = Vec::new();
+        for (person_id, recognized_at, bytes) in rows.flatten() {
+            out.push(RecognitionReference {
+                person_id,
+                recognized_at,
+                embedding: Self::bytes_to_normalized(&bytes),
+            });
+        }
+        Ok(out)
+    }
+
+    /// Unnamed, non-ignored faces that carry a current (512-dim ArcFace)
+    /// embedding, with their detection time. The recognition candidates.
+    pub fn find_unnamed_with_embeddings(&self) -> Result<Vec<UnnamedEmbedding>> {
+        let con = self.con.lock().unwrap();
+        let mut stmt = con.prepare(
+            "SELECT face_id, detected_at, embedding
+             FROM pictures_faces
+             WHERE person_id IS NULL
+               AND is_ignored = FALSE
+               AND length(embedding) = 2048",
+        )?;
+        let rows = stmt.query_map([], |row| {
+            let face_id = row.get("face_id").map(FaceId::new)?;
+            let detected_at: DateTime<Utc> = row.get("detected_at")?;
+            let bytes: Vec<u8> = row.get("embedding")?;
+            Ok((face_id, detected_at, bytes))
+        })?;
+
+        let mut out = Vec::new();
+        for (face_id, detected_at, bytes) in rows.flatten() {
+            out.push(UnnamedEmbedding {
+                face_id,
+                detected_at,
+                embedding: Self::bytes_to_normalized(&bytes),
+            });
+        }
+        Ok(out)
+    }
+
+    /// Cosine similarity of two already-L2-normalised embeddings (a plain dot
+    /// product). Higher = more similar.
+    pub fn cosine_normalized(a: &[f32], b: &[f32]) -> f32 {
+        a.iter().zip(b).map(|(x, y)| x * y).sum()
     }
 
     /// Decode a little-endian f32 embedding BLOB and L2-normalise it.
@@ -643,6 +792,18 @@ impl Repository {
         }
 
         tx.commit()?;
+        Ok(())
+    }
+
+    /// Restore a previously ignored face: clear `is_ignored` so it returns to the
+    /// unknown-faces pool. Reverses `mark_ignore` (the prior person link, if any,
+    /// is not restored — the face can simply be named again).
+    pub fn restore_face(&mut self, face_id: FaceId) -> Result<()> {
+        let con = self.con.lock().unwrap();
+        con.execute(
+            "UPDATE pictures_faces SET is_ignored = FALSE WHERE face_id = ?1",
+            params![face_id.id()],
+        )?;
         Ok(())
     }
 
@@ -1054,6 +1215,8 @@ impl Repository {
                 name,
                 small_thumbnail_path: person_thumbnail_path,
                 large_thumbnail_path: large_thumbnail_path,
+                // Not selected on this path; not used for ignore decisions here.
+                is_ignored: false,
             })
         } else {
             None
@@ -1088,11 +1251,14 @@ impl Repository {
             None
         };
 
+        let is_ignored = row.get("is_ignored").unwrap_or(false);
+
         std::result::Result::Ok(model::Person {
             person_id,
             name,
             small_thumbnail_path,
             large_thumbnail_path,
+            is_ignored,
         })
     }
 

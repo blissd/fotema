@@ -18,7 +18,7 @@ use fotema_core::machine_learning::face_recognizer::{FaceEmbedder, FaceRecognize
 use fotema_core::people;
 use fotema_core::people::model::{DetectedFace, PersonForRecognition};
 use fotema_core::photo;
-use fotema_core::{FlatpakPathBuf, PictureId};
+use fotema_core::{FaceId, FlatpakPathBuf, PersonId, PictureId};
 
 use crate::app::components::progress_monitor::{ProgressMonitor, ProgressMonitorInput, TaskName};
 
@@ -29,6 +29,12 @@ pub enum PhotoRecognizeFacesTaskInput {
     /// Re-read XMP person tags for the whole library (clears the per-picture
     /// import marker first), then run the normal recognition pass.
     RescanFaceTags,
+
+    /// Lightweight, low-priority pass triggered after the user names a face:
+    /// match unnamed faces to named people purely from the embeddings already
+    /// stored in the DB (no model, no image reads, no inference). Lets a newly
+    /// named person propagate across the library in the background.
+    RecognizeNow,
 }
 
 #[derive(Debug)]
@@ -278,71 +284,14 @@ impl PhotoRecognizeFacesTask {
             self.progress_monitor.emit(ProgressMonitorInput::Complete);
         }
 
-        // ---- Recognition pass: match unnamed faces against named people.
+        // ---- Recognition pass: match unnamed faces to named people from the
+        // embeddings already stored in the DB — pure cosine comparison, no
+        // model load, image read or inference.
         if !people.is_empty() {
-            let min_recognized_at = people.iter().map(|x| x.recognized_at).min().unwrap();
-
-            let unprocessed: Vec<DetectedFace> = self
-                .repo
-                .find_unknown_faces()?
-                .into_iter()
-                .filter(|unknown_face| unknown_face.detected_at > min_recognized_at)
-                .collect();
-
-            if !unprocessed.is_empty() {
-                self.progress_monitor.emit(ProgressMonitorInput::Start(
-                    TaskName::RecognizeFaces,
-                    unprocessed.len(),
-                ));
-
-                let recognizer = FaceRecognizer::build(&self.cache_dir, people.clone())?;
-                // "This face is NOT person X" rejections, respected so corrected
-                // mistakes don't come back (negative learning).
-                let negatives = self.repo.find_negative_associations().unwrap_or_default();
-
-                pool.install(|| {
-                unprocessed
-                    .into_par_iter()
-                    .take_any_while(|_| !self.stop.load(Ordering::Relaxed))
-                    .for_each_init(
-                        || FaceEmbedder::new(&sface_path, &arcface_path).ok(),
-                        |embedder, unknown_face| {
-                            if let Some(emb) = embedder.as_mut() {
-                                if let Ok(Some(person_id)) =
-                                    recognizer.recognize(emb, &unknown_face, &negatives)
-                                {
-                                    info!(
-                                        "Face {} looks like person {}",
-                                        unknown_face.face_id, person_id
-                                    );
-                                    let mut repo = self.repo.clone();
-                                    if let Err(e) = repo.mark_as_person_unconfirmed(
-                                        unknown_face.face_id,
-                                        person_id,
-                                    ) {
-                                        error!(
-                                            "Failed marking face {} as person: {:?}",
-                                            unknown_face.face_id, e
-                                        );
-                                    }
-                                }
-                            }
-                            self.progress_monitor.emit(ProgressMonitorInput::Advance);
-                        },
-                    );
-                });
-
-                self.progress_monitor.emit(ProgressMonitorInput::Complete);
-            }
-
-            let mut repo = self.repo.clone();
-            for person in people {
-                if let Err(e) = repo.mark_face_recognition_complete(person.person_id) {
-                    error!(
-                        "Failed marking face recognition complete for person {}: {:?}",
-                        person.person_id, e
-                    );
-                }
+            match self.recognize_from_embeddings() {
+                Ok(n) if n > 0 => info!("Recognised {} face(s) from stored embeddings.", n),
+                Ok(_) => {}
+                Err(e) => error!("Embedding recognition failed: {:?}", e),
             }
         }
 
@@ -354,6 +303,87 @@ impl PhotoRecognizeFacesTask {
         let _ = sender.output(PhotoRecognizeFacesTaskOutput::Completed);
 
         Ok(())
+    }
+
+    /// Match unnamed faces to named people purely from the embeddings already
+    /// stored in the DB. No model, no image reads, no inference — just a cosine
+    /// comparison against each named person's reference faces. Cheap enough to
+    /// run after every naming. Returns the number of faces newly named.
+    fn recognize_from_embeddings(&self) -> Result<usize> {
+        // Reference faces: confirmed, named, with a current embedding.
+        let references = self.repo.find_recognition_references()?;
+        if references.is_empty() {
+            return Ok(0);
+        }
+
+        // Faces detected at or before *every* person's last recognition were
+        // already considered; skip them. A freshly named person has
+        // recognized_at = epoch, so it still sees the whole library the first time.
+        let min_recognized_at = references.iter().map(|r| r.recognized_at).min().unwrap();
+
+        let unnamed: Vec<people::UnnamedEmbedding> = self
+            .repo
+            .find_unnamed_with_embeddings()?
+            .into_iter()
+            .filter(|face| face.detected_at > min_recognized_at)
+            .collect();
+
+        // "This face is NOT person X" rejections, respected so corrected
+        // mistakes don't come back (negative learning).
+        let negatives = self.repo.find_negative_associations().unwrap_or_default();
+
+        // Precision-leaning cosine threshold (mirrors the auto-recognition default).
+        const THRESHOLD: f32 = 0.42;
+
+        let assignments: Vec<(FaceId, PersonId)> = unnamed
+            .par_iter()
+            .take_any_while(|_| !self.stop.load(Ordering::Relaxed))
+            .filter_map(|face| {
+                let rejected = negatives.get(&face.face_id.id());
+                let mut best_person: Option<PersonId> = None;
+                let mut best_cos = THRESHOLD;
+                for reference in &references {
+                    // Per-person timing: a face is only matched to people whose
+                    // last recognition is at or before the face's detection.
+                    if reference.recognized_at > face.detected_at {
+                        continue;
+                    }
+                    if rejected.is_some_and(|set| set.contains(&reference.person_id.id())) {
+                        continue;
+                    }
+                    let cos =
+                        people::Repository::cosine_normalized(&face.embedding, &reference.embedding);
+                    if cos > best_cos {
+                        best_cos = cos;
+                        best_person = Some(reference.person_id);
+                    }
+                }
+                best_person.map(|person_id| (face.face_id, person_id))
+            })
+            .collect();
+
+        let count = assignments.len();
+        let mut repo = self.repo.clone();
+        for (face_id, person_id) in assignments {
+            info!("Face {} looks like person {}", face_id, person_id);
+            // Auto-recognised matches are unconfirmed — overridable by the user.
+            if let Err(e) = repo.mark_as_person_unconfirmed(face_id, person_id) {
+                error!("Failed marking face {} as person: {:?}", face_id, e);
+            }
+        }
+
+        // Advance recognized_at for every named person so the next pass only
+        // considers faces detected since this run.
+        let mut person_ids: Vec<i64> = references.iter().map(|r| r.person_id.id()).collect();
+        person_ids.sort_unstable();
+        person_ids.dedup();
+        for id in person_ids {
+            if let Err(e) = repo.mark_face_recognition_complete(PersonId::new(id)) {
+                error!("Failed marking recognition complete for person {}: {:?}", id, e);
+            }
+        }
+
+        Ok(count)
     }
 }
 
@@ -393,6 +423,20 @@ impl Worker for PhotoRecognizeFacesTask {
                         error!("Failed to recognize photo faces: {}", e);
                         let _ = sender.output(PhotoRecognizeFacesTaskOutput::Completed);
                     }
+                });
+            }
+            PhotoRecognizeFacesTaskInput::RecognizeNow => {
+                info!("Propagating named people across the library (background)...");
+                let this = self.clone();
+
+                rayon::spawn(move || {
+                    let _ = sender.output(PhotoRecognizeFacesTaskOutput::Started);
+                    match this.recognize_from_embeddings() {
+                        Ok(n) if n > 0 => info!("Background recognition named {} face(s).", n),
+                        Ok(_) => {}
+                        Err(e) => error!("Background recognition failed: {:?}", e),
+                    }
+                    let _ = sender.output(PhotoRecognizeFacesTaskOutput::Completed);
                 });
             }
             PhotoRecognizeFacesTaskInput::RescanFaceTags => {

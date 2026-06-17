@@ -101,12 +101,31 @@ pub enum UnknownPeopleInput {
     /// The naming sidebar finished associating/creating a person.
     PersonSelected,
 
+    /// The user pressed "find matches": ask the app to run a background
+    /// recognition pass, then reload the grid when it finishes.
+    Recognize,
+
+    /// Act on the selected face(s): ignore them in the normal view, or restore
+    /// them in the ignored view.
+    ActOnSelected,
+
+    /// Toggle between the normal (unnamed) grid and the ignored-faces grid.
+    ShowIgnoredFaces(bool),
+
     /// Adapt avatar size to the window layout.
     Adapt(adaptive::Layout),
 }
 
 #[derive(Debug)]
-pub enum UnknownPeopleOutput {}
+pub enum UnknownPeopleOutput {
+    /// The user pressed "find matches": run a background recognition pass
+    /// (always, regardless of the auto-recognition setting).
+    RecognizeRequested,
+
+    /// A face was just named: run a background recognition pass *if* the user
+    /// has auto-recognition enabled in the settings.
+    AutoRecognizeRequested,
+}
 
 pub struct UnknownPeople {
     people_repo: people::Repository,
@@ -127,6 +146,18 @@ pub struct UnknownPeople {
     /// selector as the photo viewer, just relocated from a bottom sheet to a
     /// persistent column so naming many faces in a row is quick.
     person_select: AsyncController<PersonSelect>,
+
+    /// Faces currently selected in the grid (for the ignore/restore action).
+    selected_faces: Vec<FaceId>,
+
+    /// Action button on the selection: "ignore face(s)" normally, "restore
+    /// face(s)" while the ignored view is shown. Enabled only with a selection.
+    ignore_button: gtk::Button,
+
+    /// Whether the grid currently shows ignored faces instead of unnamed ones.
+    show_ignored: bool,
+    /// Toggle for the above; hidden when there is nothing ignored to restore.
+    show_ignored_toggle: gtk::ToggleButton,
 }
 
 #[relm4::component(pub async)]
@@ -145,6 +176,23 @@ impl SimpleAsyncComponent for UnknownPeople {
             #[wrap(Some)]
             set_content = &gtk::Box {
                 set_orientation: gtk::Orientation::Vertical,
+
+                gtk::Box {
+                    set_orientation: gtk::Orientation::Horizontal,
+                    set_halign: gtk::Align::End,
+                    set_margin_top: 6,
+                    set_margin_end: 6,
+
+                    #[local_ref]
+                    show_ignored_toggle -> gtk::ToggleButton {
+                        set_label: &fl!("unknown-people-show-ignored"),
+                        add_css_class: "flat",
+                        set_visible: false,
+                        connect_toggled[sender] => move |btn| {
+                            sender.input(UnknownPeopleInput::ShowIgnoredFaces(btn.is_active()));
+                        },
+                    },
+                },
 
                 #[local_ref]
                 avatars -> gtk::ScrolledWindow {
@@ -174,8 +222,32 @@ impl SimpleAsyncComponent for UnknownPeople {
             set_sidebar = &gtk::Box {
                 set_orientation: gtk::Orientation::Vertical,
 
+                gtk::Button {
+                    set_label: &fl!("unknown-people-recognize"),
+                    set_tooltip_text: Some(&fl!("unknown-people-recognize", "tooltip")),
+                    add_css_class: "pill",
+                    add_css_class: "suggested-action",
+                    set_halign: gtk::Align::Center,
+                    set_margin_top: 8,
+                    set_margin_bottom: 4,
+                    connect_clicked => UnknownPeopleInput::Recognize,
+                },
+
                 #[local_ref]
                 person_select_widget -> gtk::Box {},
+
+                #[local_ref]
+                ignore_button -> gtk::Button {
+                    set_label: &fl!("unknown-people-ignore-face"),
+                    set_tooltip_text: Some(&fl!("unknown-people-ignore-face", "tooltip")),
+                    add_css_class: "flat",
+                    set_sensitive: false,
+                    set_margin_top: 4,
+                    set_margin_bottom: 8,
+                    set_margin_start: 8,
+                    set_margin_end: 8,
+                    connect_clicked => UnknownPeopleInput::ActOnSelected,
+                },
             },
         }
     }
@@ -211,6 +283,10 @@ impl SimpleAsyncComponent for UnknownPeople {
         );
         let person_select_widget = person_select.widget().clone();
 
+        let ignore_button = gtk::Button::new();
+
+        let show_ignored_toggle = gtk::ToggleButton::new();
+
         let widgets = view_output!();
 
         let model = Self {
@@ -220,6 +296,10 @@ impl SimpleAsyncComponent for UnknownPeople {
             status,
             edge_length: I32Binding::new(NARROW_EDGE_LENGTH),
             person_select,
+            selected_faces: vec![],
+            ignore_button: ignore_button.clone(),
+            show_ignored: false,
+            show_ignored_toggle: show_ignored_toggle.clone(),
         };
 
         AsyncComponentParts { model, widgets }
@@ -228,34 +308,58 @@ impl SimpleAsyncComponent for UnknownPeople {
     async fn update(&mut self, msg: Self::Input, sender: AsyncComponentSender<Self>) {
         match msg {
             UnknownPeopleInput::Refresh => {
+                // Remember the scroll position so naming/ignoring a face doesn't
+                // bounce the user to the top — they carry on roughly where they
+                // were. Captured before clearing (which resets the adjustment).
+                let scroll = self.avatars.vadjustment().value();
+
                 self.face_grid.clear();
 
                 // Query + greedy O(n²) clustering of ~10k faces (512-dim) is
                 // heavy: run it off the UI thread so the main loop keeps
                 // responding and GNOME never flags the app as "not responding".
                 let repo = self.people_repo.clone();
-                let faces = match relm4::spawn_blocking(move || {
-                    repo.find_unnamed_faces().map(|faces| {
+                let show_ignored = self.show_ignored;
+                let (faces, has_ignored) = relm4::spawn_blocking(move || {
+                    let exists = |faces: Vec<people::Face>| {
                         faces
                             .into_iter()
                             .filter(|face| face.thumbnail_path.exists())
                             .collect::<Vec<_>>()
-                    })
+                    };
+                    if show_ignored {
+                        let faces = exists(repo.find_ignored_faces().unwrap_or_default());
+                        let has_ignored = !faces.is_empty();
+                        (faces, has_ignored)
+                    } else {
+                        let faces = exists(repo.find_unnamed_faces().unwrap_or_default());
+                        let has_ignored = repo
+                            .find_ignored_faces()
+                            .map(|v| !v.is_empty())
+                            .unwrap_or(false);
+                        (faces, has_ignored)
+                    }
                 })
                 .await
-                {
-                    Ok(Ok(faces)) => faces,
-                    Ok(Err(e)) => {
-                        error!("Failed getting unnamed faces: {}", e);
-                        Vec::new()
-                    }
-                    Err(e) => {
-                        error!("Unnamed-faces task failed: {}", e);
-                        Vec::new()
-                    }
-                };
+                .unwrap_or_else(|e| {
+                    error!("Faces task failed: {}", e);
+                    (Vec::new(), false)
+                });
 
-                debug!("Found {} unnamed faces", faces.len());
+                debug!(
+                    "Found {} faces (ignored view: {})",
+                    faces.len(),
+                    self.show_ignored
+                );
+
+                // If the last ignored face was just restored, drop back to the
+                // normal view rather than showing an empty ignored list.
+                if self.show_ignored && !has_ignored {
+                    self.show_ignored = false;
+                    sender.input(UnknownPeopleInput::Refresh);
+                    return;
+                }
+
                 let edge = self.edge_length.clone();
                 self.face_grid
                     .extend_from_iter(faces.into_iter().map(|face| UnknownFaceItem {
@@ -263,10 +367,34 @@ impl SimpleAsyncComponent for UnknownPeople {
                         edge_length: edge.clone(),
                     }));
 
-                // Show the empty state when nothing is left to name.
+                // Offer the "show ignored" toggle only when there's something to
+                // restore (or we're already viewing it).
+                self.show_ignored_toggle
+                    .set_visible(has_ignored || self.show_ignored);
+                if self.show_ignored_toggle.is_active() != self.show_ignored {
+                    self.show_ignored_toggle.set_active(self.show_ignored);
+                }
+
+                // Empty state, worded for whichever view is active.
                 let is_empty = self.face_grid.len() == 0;
                 self.avatars.set_visible(!is_empty);
                 self.status.set_visible(is_empty);
+                if self.show_ignored {
+                    self.status
+                        .set_title(&fl!("unknown-people-no-ignored", "title"));
+                    self.status
+                        .set_description(Some(&fl!("unknown-people-no-ignored", "description")));
+                } else {
+                    self.status.set_title(&fl!("faces-page-empty", "title"));
+                    self.status
+                        .set_description(Some(&fl!("faces-page-empty", "description")));
+                }
+
+                // Restore the remembered position once the new grid is laid out.
+                if scroll > 0.0 {
+                    let vadj = self.avatars.vadjustment();
+                    gtk::glib::idle_add_local_once(move || vadj.set_value(scroll));
+                }
             }
             UnknownPeopleInput::SelectionChanged => {
                 // Collect all currently selected faces (in grid order).
@@ -284,15 +412,72 @@ impl SimpleAsyncComponent for UnknownPeople {
                     }
                 }
                 debug!("{} face(s) selected", face_ids.len());
+                self.selected_faces = face_ids.clone();
+                self.ignore_button.set_sensitive(!face_ids.is_empty());
                 if let Some(thumbnail) = first_thumb {
                     self.person_select
                         .emit(PersonSelectInput::ActivateMany(face_ids, thumbnail));
                 }
             }
+            UnknownPeopleInput::ActOnSelected => {
+                if self.selected_faces.is_empty() {
+                    return;
+                }
+                let mut repo = self.people_repo.clone();
+                if self.show_ignored {
+                    debug!("Restoring {} face(s)", self.selected_faces.len());
+                    for face_id in &self.selected_faces {
+                        if let Err(e) = repo.restore_face(*face_id) {
+                            error!("Failed to restore face {}: {}", face_id, e);
+                        }
+                    }
+                } else {
+                    debug!("Ignoring {} face(s)", self.selected_faces.len());
+                    for face_id in &self.selected_faces {
+                        if let Err(e) = repo.mark_ignore(*face_id) {
+                            error!("Failed to ignore face {}: {}", face_id, e);
+                        }
+                    }
+                }
+                self.selected_faces.clear();
+                self.ignore_button.set_sensitive(false);
+                // The acted-on faces leave the current view: reload (keeps scroll).
+                sender.input(UnknownPeopleInput::Refresh);
+            }
+            UnknownPeopleInput::ShowIgnoredFaces(show) => {
+                if self.show_ignored == show {
+                    return;
+                }
+                self.show_ignored = show;
+                // The selection action becomes "restore" in the ignored view.
+                if show {
+                    self.ignore_button
+                        .set_label(&fl!("unknown-people-restore-face"));
+                    self.ignore_button
+                        .set_tooltip_text(Some(&fl!("unknown-people-restore-face", "tooltip")));
+                } else {
+                    self.ignore_button
+                        .set_label(&fl!("unknown-people-ignore-face"));
+                    self.ignore_button
+                        .set_tooltip_text(Some(&fl!("unknown-people-ignore-face", "tooltip")));
+                }
+                self.selected_faces.clear();
+                self.ignore_button.set_sensitive(false);
+                sender.input(UnknownPeopleInput::Refresh);
+            }
             UnknownPeopleInput::PersonSelected => {
                 // The named face is no longer unnamed: reload so it drops out
                 // and the next-most-frequent unknown bubbles up.
                 sender.input(UnknownPeopleInput::Refresh);
+                // Auto-propagate (only if enabled in settings): run a background
+                // recognition pass so the just-named person picks up their other
+                // faces automatically.
+                let _ = sender.output(UnknownPeopleOutput::AutoRecognizeRequested);
+            }
+            UnknownPeopleInput::Recognize => {
+                // Manual trigger (button): same background pass, on demand,
+                // regardless of the auto-recognition setting.
+                let _ = sender.output(UnknownPeopleOutput::RecognizeRequested);
             }
             UnknownPeopleInput::Adapt(adaptive::Layout::Narrow) => {
                 self.edge_length.set_value(NARROW_EDGE_LENGTH);
