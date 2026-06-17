@@ -220,10 +220,6 @@ pub enum FaceThumbnailsInput {
     /// View an item.
     View(PictureId),
 
-    /// Show all detected, not-yet-named faces across the whole library
-    /// (used by the dedicated "Faces" view).
-    ViewAllUnnamed,
-
     /// Reload face and person data for current picture
     Refresh,
 
@@ -253,10 +249,6 @@ pub struct FaceThumbnails {
     people_repo: people::Repository,
 
     picture_id: Option<PictureId>,
-
-    /// When true, show all unnamed faces in the library rather than the faces
-    /// of a single picture.
-    all_unnamed: bool,
 
     face_grid: TypedGridView<FaceGridItem, gtk::SingleSelection>,
 
@@ -308,7 +300,6 @@ impl SimpleAsyncComponent for FaceThumbnails {
 
         let model = Self {
             picture_id: None,
-            all_unnamed: false,
             people_repo,
             person_dialog,
             person_select,
@@ -324,37 +315,11 @@ impl SimpleAsyncComponent for FaceThumbnails {
                 self.face_grid.clear();
             }
             FaceThumbnailsInput::View(picture_id) => {
-                self.all_unnamed = false;
                 self.picture_id = Some(picture_id);
-                sender.input(FaceThumbnailsInput::Refresh);
-            }
-            FaceThumbnailsInput::ViewAllUnnamed => {
-                self.all_unnamed = true;
-                self.picture_id = None;
                 sender.input(FaceThumbnailsInput::Refresh);
             }
             FaceThumbnailsInput::Refresh => {
                 self.face_grid.clear();
-
-                if self.all_unnamed {
-                    match self.people_repo.find_unnamed_faces() {
-                        Ok(faces) => {
-                            debug!("Found {} unnamed faces", faces.len());
-                            faces
-                                .into_iter()
-                                .filter(|face| face.thumbnail_path.exists())
-                                .for_each(|face| {
-                                    self.face_grid.append(FaceGridItem {
-                                        face,
-                                        person: None,
-                                        sender: sender.clone(),
-                                    });
-                                });
-                        }
-                        Err(e) => error!("Failed getting unnamed faces: {}", e),
-                    }
-                    return;
-                }
 
                 let Some(picture_id) = self.picture_id else {
                     return;

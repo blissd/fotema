@@ -30,6 +30,9 @@ pub enum PersonSelectInput {
     /// Associate a face with a person. Used when user clicks person with mouse.
     /// usize is index into vector of people
     AssociateByIndex(usize),
+
+    /// Complete the name entry to the best-matching known name (Tab key).
+    Autocomplete,
 }
 
 #[derive(Debug)]
@@ -53,6 +56,9 @@ pub struct PersonSelect {
     /// List of person IDs of people.
     /// MUST be in same order as people_list.
     all_people: Vec<PersonId>,
+
+    /// Names of people, same order as `all_people`. Used for Tab autocomplete.
+    all_names: Vec<String>,
 
     /// ID of face to associate with person,
     face_id: Option<FaceId>,
@@ -107,6 +113,7 @@ impl SimpleAsyncComponent for PersonSelect {
 
         {
             let people_list2 = people_list.clone();
+            let sender = sender.clone();
             people_list.connect_row_activated(move |_, row| {
                 debug!("activated = {:?}", row);
                 if let Some(index) = people_list2.index_of_child(row) {
@@ -123,6 +130,51 @@ impl SimpleAsyncComponent for PersonSelect {
             debug!("selected = {:?}", row);
         });
 
+        // Suggest already-known names: live-filter the people list to those
+        // whose name contains what the user is typing.
+        people_list.set_filter_func({
+            let face_name = face_name.clone();
+            move |row| {
+                let query = face_name.text().to_lowercase();
+                let query = query.trim();
+                if query.is_empty() {
+                    return true;
+                }
+                row.downcast_ref::<adw::ActionRow>()
+                    .map(|r| r.title().to_lowercase().contains(query))
+                    .unwrap_or(true)
+            }
+        });
+        {
+            let people_list = people_list.clone();
+            face_name.connect_changed(move |_| people_list.invalidate_filter());
+        }
+
+        // Enter creates a person with the typed name (or reuses a matching one).
+        {
+            let sender = sender.clone();
+            face_name.connect_activate(move |_| {
+                debug!("Face name entry activated.");
+                sender.input(PersonSelectInput::NewPerson);
+            });
+        }
+
+        // Tab completes the entry to the best-matching known name (autocomplete),
+        // instead of moving focus.
+        {
+            let key_controller = gtk::EventControllerKey::new();
+            let sender = sender.clone();
+            key_controller.connect_key_pressed(move |_, key, _, _| {
+                if key == gdk::Key::Tab || key == gdk::Key::ISO_Left_Tab {
+                    sender.input(PersonSelectInput::Autocomplete);
+                    gtk::glib::Propagation::Stop
+                } else {
+                    gtk::glib::Propagation::Proceed
+                }
+            });
+            face_name.add_controller(key_controller);
+        }
+
         let widgets = view_output!();
 
         let model = Self {
@@ -131,6 +183,7 @@ impl SimpleAsyncComponent for PersonSelect {
             face_name,
             people_list,
             all_people: vec![],
+            all_names: vec![],
             face_id: None,
         };
 
@@ -144,16 +197,9 @@ impl SimpleAsyncComponent for PersonSelect {
 
                 self.people_list.remove_all();
                 self.all_people.clear();
+                self.all_names.clear();
                 self.face_name.set_text("");
                 self.face_id = Some(face_id);
-
-                {
-                    let sender = sender.clone();
-                    self.face_name.connect_activate(move |_| {
-                        debug!("Face name entry activated.");
-                        sender.input(PersonSelectInput::NewPerson);
-                    });
-                }
 
                 let img = gdk::Texture::from_filename(&thumbnail).ok();
                 self.avatar.set_custom_image(img.as_ref());
@@ -167,6 +213,8 @@ impl SimpleAsyncComponent for PersonSelect {
                         let img = gdk::Texture::from_filename(&thumbnail_path).ok();
                         avatar.set_custom_image(img.as_ref());
                     }
+
+                    self.all_names.push(person.name.clone());
 
                     let row = adw::ActionRow::builder()
                         .title(person.name)
@@ -213,12 +261,52 @@ impl SimpleAsyncComponent for PersonSelect {
                 self.all_people.clear();
                 let _ = sender.output(PersonSelectOutput::Done);
             }
+            PersonSelectInput::Autocomplete => {
+                let text = self.face_name.text().to_string();
+                let query = text.trim().to_lowercase();
+                if query.is_empty() {
+                    return;
+                }
+                // Prefer a name that starts with what's typed; otherwise the
+                // first that contains it (matches the visible filtered list).
+                let best = self
+                    .all_names
+                    .iter()
+                    .find(|n| n.to_lowercase().starts_with(&query))
+                    .or_else(|| self.all_names.iter().find(|n| n.to_lowercase().contains(&query)));
+                if let Some(name) = best {
+                    debug!("Autocompleting '{}' to '{}'", text.trim(), name);
+                    self.face_name.set_text(name);
+                    self.face_name.set_position(-1);
+                }
+            }
             PersonSelectInput::NewPerson => {
                 if let Some(face_id) = self.face_id {
-                    debug!("Face {} is a new person", face_id);
                     let name = self.face_name.text().to_string();
-                    if let Err(e) = self.people_repo.add_person(face_id, &name) {
-                        error!("Failed adding new person: {:?}", e);
+                    let trimmed = name.trim();
+                    if trimmed.is_empty() {
+                        // Nothing typed: keep the selector open.
+                        return;
+                    }
+
+                    // If the typed name matches an existing person, associate
+                    // with them rather than creating a duplicate.
+                    let existing = self
+                        .people_repo
+                        .all_people()
+                        .unwrap_or_default()
+                        .into_iter()
+                        .find(|p| p.name.to_lowercase() == trimmed.to_lowercase());
+
+                    let result = if let Some(person) = existing {
+                        debug!("Face {} reuses existing person {}", face_id, person.name);
+                        self.people_repo.mark_as_person(face_id, person.person_id)
+                    } else {
+                        debug!("Face {} is a new person '{}'", face_id, trimmed);
+                        self.people_repo.add_person(face_id, trimmed)
+                    };
+                    if let Err(e) = result {
+                        error!("Failed adding/associating person: {:?}", e);
                     }
                 }
                 self.people_list.remove_all();

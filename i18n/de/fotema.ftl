@@ -206,6 +206,8 @@ banner-extract-motion-photos = Bewegungsfotos werden verarbeitet.
 
 # Menu item to show preferences dialog
 primary-menu-preferences = Einstellungen
+# Menu item to re-import person names embedded in photo metadata
+primary-menu-scan-face-tags = Namen aus Fotos importieren
 # Menu item to show "about" dialog
 primary-menu-about = Info zu { -app-name }
 people-person-search =
@@ -231,6 +233,9 @@ viewer-faces-menu =
     .scan = Nach weiteren Gesichtern suchen
 people-page = Personen
 faces-page = Unbekannte Personen
+faces-page-empty =
+  .title = Keine unbekannten Gesichter
+  .description = Noch nicht benannte Gesichter erscheinen hier. Wähle eines aus und benenne es, um Personen zu gruppieren.
 people-page-status-off =
     .title = Gesichtserkennung aktivieren?
     .description = { -app-name } kann automatisch Gesichter und Personen erkennen, jedoch ist dies ein zeitaufwändiger Prozess. Möchten Sie diese Funktion aktivieren?

@@ -42,6 +42,11 @@ people-page = People
 # Title for the page which shows all detected, not-yet-named faces.
 faces-page = Unknown People
 
+# Empty state for the Unknown People page when no unnamed faces remain.
+faces-page-empty =
+  .title = No unknown faces
+  .description = Faces you haven't named yet appear here. Select one and name it to start grouping people.
+
 # Status page shown for people album when face detection is disabled.
 people-page-status-off =
   .title = Enable face detection?
@@ -356,6 +361,9 @@ primary-menu-preferences = Preferences
 
 # Menu item to show "about" dialog
 primary-menu-about = About {-app-name}
+
+# Menu item to re-import person names embedded in photo metadata
+primary-menu-scan-face-tags = Import Names from Photos
 
 ## Person menu
 

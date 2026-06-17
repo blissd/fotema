@@ -63,6 +63,9 @@ pub enum PersonAlbumInput {
     /// Picture selected in underlying album
     Selected(VisualId),
 
+    /// Right-clicked a picture: set this person's avatar from that picture.
+    SetThumbnail(PictureId),
+
     /// Start rename person flow
     RenameDialog,
 
@@ -166,6 +169,9 @@ impl SimpleComponent for PersonAlbum {
             ))
             .forward(sender.input_sender(), |msg| match msg {
                 AlbumOutput::Selected(id, _) => PersonAlbumInput::Selected(id),
+                AlbumOutput::SecondaryClick(picture_id) => {
+                    PersonAlbumInput::SetThumbnail(picture_id)
+                }
                 AlbumOutput::ScrollOffset(offset) => PersonAlbumInput::ScrollOffset(offset),
             });
 
@@ -269,6 +275,51 @@ impl SimpleComponent for PersonAlbum {
                     visual_id,
                     AlbumFilter::Any(self.picture_ids.clone()),
                 ));
+            }
+            PersonAlbumInput::SetThumbnail(picture_id) => {
+                let Some(person) = self.person.clone() else {
+                    return;
+                };
+
+                // Find this person's face in the right-clicked picture.
+                let face = match self.repo.find_faces(&picture_id) {
+                    Ok(faces) => faces.into_iter().find_map(|(face, p)| {
+                        (p.map(|p| p.person_id) == Some(person.person_id)).then_some(face)
+                    }),
+                    Err(e) => {
+                        error!("Failed finding faces for {:?}: {}", picture_id, e);
+                        None
+                    }
+                };
+
+                let Some(face) = face else {
+                    error!(
+                        "No face for person {} in picture {:?}",
+                        person.person_id, picture_id
+                    );
+                    return;
+                };
+
+                if let Err(e) = self.repo.set_person_thumbnail(person.person_id, face.face_id) {
+                    error!("Failed setting person thumbnail: {}", e);
+                    return;
+                }
+
+                info!(
+                    "Set avatar for person {} from picture {:?}",
+                    person.person_id, picture_id
+                );
+
+                // Immediate feedback with the chosen face thumbnail. The
+                // high-quality large version regenerates on the next scan.
+                if face.thumbnail_path.exists() {
+                    let img = gdk::Texture::from_filename(&face.thumbnail_path).ok();
+                    self.avatar.set_custom_image(img.as_ref());
+                }
+                if let Some(ref mut p) = self.person {
+                    p.small_thumbnail_path = Some(face.thumbnail_path.clone());
+                    p.large_thumbnail_path = None;
+                }
             }
             PersonAlbumInput::Adapt(layout @ adaptive::Layout::Narrow) => {
                 self.edge_length.set_value(NARROW_EDGE_LENGTH);
