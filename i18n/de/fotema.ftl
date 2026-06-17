@@ -212,6 +212,7 @@ primary-menu-scan-face-tags = Namen aus Fotos importieren
 primary-menu-about = Info zu { -app-name }
 people-person-search =
     .placeholder = Name der Person
+people-selected-count = { $count } Gesichter ausgewählt
 people-face-ignore = Ignorieren
 people-not-this-person = Nicht { $name }
 prefs-views-faces = Gesichtserkennung

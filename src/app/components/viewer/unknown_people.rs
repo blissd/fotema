@@ -12,11 +12,14 @@ use relm4::RelmObjectExt;
 
 use crate::adaptive;
 use crate::fl;
+use fotema_core::FaceId;
 use fotema_core::people;
 
 use super::person_select::{PersonSelect, PersonSelectInput, PersonSelectOutput};
 
 use tracing::{debug, error};
+
+use std::path::PathBuf;
 
 // Face avatar edge length, matching the People album so the two grids look the
 // same. Deliberately larger than the 64px per-picture overlay so unfamiliar
@@ -90,8 +93,10 @@ pub enum UnknownPeopleInput {
     /// Reload the unnamed-faces grid (clustered, most-frequent first).
     Refresh,
 
-    /// A face cell was activated; show it in the naming sidebar.
-    Selected(u32),
+    /// The grid selection changed; show the selected face(s) in the naming
+    /// sidebar. Several faces can be selected (Ctrl/Shift+click) and named at
+    /// once.
+    SelectionChanged,
 
     /// The naming sidebar finished associating/creating a person.
     PersonSelected,
@@ -106,7 +111,7 @@ pub enum UnknownPeopleOutput {}
 pub struct UnknownPeople {
     people_repo: people::Repository,
 
-    face_grid: TypedGridView<UnknownFaceItem, gtk::SingleSelection>,
+    face_grid: TypedGridView<UnknownFaceItem, gtk::MultiSelection>,
 
     /// Scrolled grid of unnamed faces; hidden (in favour of `status`) when there
     /// are none left to name.
@@ -151,7 +156,8 @@ impl SimpleAsyncComponent for UnknownPeople {
                         // Remove 'view' css class to avoid black background.
                         remove_css_class: "view",
                         set_orientation: gtk::Orientation::Vertical,
-                        set_single_click_activate: true,
+                        // Multi-selection: plain click selects one, Ctrl/Shift+click
+                        // extend the selection so many faces can be named at once.
                     },
                 },
 
@@ -179,14 +185,16 @@ impl SimpleAsyncComponent for UnknownPeople {
         root: Self::Root,
         sender: AsyncComponentSender<Self>,
     ) -> AsyncComponentParts<Self> {
-        let face_grid: TypedGridView<UnknownFaceItem, gtk::SingleSelection> = TypedGridView::new();
+        let face_grid: TypedGridView<UnknownFaceItem, gtk::MultiSelection> = TypedGridView::new();
         let grid_view = &face_grid.view.clone();
 
         {
             let sender = sender.clone();
-            grid_view.connect_activate(move |_, position| {
-                sender.input(UnknownPeopleInput::Selected(position));
-            });
+            face_grid
+                .selection_model
+                .connect_selection_changed(move |_, _, _| {
+                    sender.input(UnknownPeopleInput::SelectionChanged);
+                });
         }
 
         let avatars = gtk::ScrolledWindow::builder().build();
@@ -242,14 +250,25 @@ impl SimpleAsyncComponent for UnknownPeople {
                 self.avatars.set_visible(!is_empty);
                 self.status.set_visible(is_empty);
             }
-            UnknownPeopleInput::Selected(position) => {
-                if let Some(item) = self.face_grid.get(position) {
-                    let face = &item.borrow().face;
-                    debug!("Selected unknown face {}", face.face_id);
-                    self.person_select.emit(PersonSelectInput::Activate(
-                        face.face_id,
-                        face.thumbnail_path.clone(),
-                    ));
+            UnknownPeopleInput::SelectionChanged => {
+                // Collect all currently selected faces (in grid order).
+                let mut face_ids: Vec<FaceId> = Vec::new();
+                let mut first_thumb: Option<PathBuf> = None;
+                for position in 0..self.face_grid.len() {
+                    if self.face_grid.selection_model.is_selected(position) {
+                        if let Some(item) = self.face_grid.get(position) {
+                            let face = &item.borrow().face;
+                            face_ids.push(face.face_id);
+                            if first_thumb.is_none() {
+                                first_thumb = Some(face.thumbnail_path.clone());
+                            }
+                        }
+                    }
+                }
+                debug!("{} face(s) selected", face_ids.len());
+                if let Some(thumbnail) = first_thumb {
+                    self.person_select
+                        .emit(PersonSelectInput::ActivateMany(face_ids, thumbnail));
                 }
             }
             UnknownPeopleInput::PersonSelected => {

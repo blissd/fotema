@@ -349,6 +349,96 @@ impl Repository {
         Ok(id.map(PersonId::new))
     }
 
+    /// Order known people by how similar their faces' SFace embeddings are to
+    /// the given face's embedding (closest first), so the most likely match is
+    /// suggested at the top of the naming list. People with no comparable
+    /// embedding keep their alphabetical position at the end. Falls back to
+    /// plain alphabetical order when the face itself has no embedding.
+    pub fn people_by_similarity(&self, face_id: FaceId) -> Result<Vec<model::Person>> {
+        let people = self.all_people()?; // alphabetical
+        if people.is_empty() {
+            return Ok(people);
+        }
+
+        // Embedding of the face we want suggestions for.
+        let face_embedding: Option<Vec<f32>> = {
+            let con = self.con.lock().unwrap();
+            let mut stmt =
+                con.prepare("SELECT embedding FROM pictures_faces WHERE face_id = ?1")?;
+            let mut rows =
+                stmt.query_map(params![face_id.id()], |row| row.get::<_, Option<Vec<u8>>>(0))?;
+            rows.next()
+                .transpose()?
+                .flatten()
+                .map(|b| Self::bytes_to_normalized(&b))
+        };
+        let Some(face_embedding) = face_embedding else {
+            return Ok(people);
+        };
+
+        // Minimum distance from this face to each named person's faces.
+        let mut best: std::collections::HashMap<i64, f32> = std::collections::HashMap::new();
+        {
+            let con = self.con.lock().unwrap();
+            let mut stmt = con.prepare(
+                "SELECT person_id, embedding FROM pictures_faces
+                 WHERE person_id IS NOT NULL AND embedding IS NOT NULL",
+            )?;
+            let rows = stmt.query_map([], |row| {
+                let pid: i64 = row.get("person_id")?;
+                let bytes: Vec<u8> = row.get("embedding")?;
+                Ok((pid, bytes))
+            })?;
+            for (pid, bytes) in rows.flatten() {
+                let dist = Self::l2(&face_embedding, &Self::bytes_to_normalized(&bytes));
+                best.entry(pid)
+                    .and_modify(|m| {
+                        if dist < *m {
+                            *m = dist;
+                        }
+                    })
+                    .or_insert(dist);
+            }
+        }
+
+        let mut with_dist: Vec<(model::Person, f32)> = Vec::new();
+        let mut without: Vec<model::Person> = Vec::new();
+        for p in people {
+            match best.get(&p.person_id.id()) {
+                Some(d) => with_dist.push((p, *d)),
+                None => without.push(p),
+            }
+        }
+        with_dist.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+
+        let mut result: Vec<model::Person> = with_dist.into_iter().map(|(p, _)| p).collect();
+        result.extend(without);
+        Ok(result)
+    }
+
+    /// Decode a little-endian f32 embedding BLOB and L2-normalise it.
+    fn bytes_to_normalized(bytes: &[u8]) -> Vec<f32> {
+        let v: Vec<f32> = bytes
+            .chunks_exact(4)
+            .map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]]))
+            .collect();
+        let norm = v.iter().map(|x| x * x).sum::<f32>().sqrt();
+        if norm > 0.0 {
+            v.iter().map(|x| x / norm).collect()
+        } else {
+            v
+        }
+    }
+
+    /// Euclidean (L2) distance between two equal-length vectors.
+    fn l2(a: &[f32], b: &[f32]) -> f32 {
+        a.iter()
+            .zip(b)
+            .map(|(x, y)| (x - y) * (x - y))
+            .sum::<f32>()
+            .sqrt()
+    }
+
     /// All known people that must have a face recognition performed.
     /// Select the best face for recognition, where "best" is the face with
     /// the highest confidence for a face that the user has confirmed is a particular person.

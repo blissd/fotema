@@ -18,17 +18,21 @@ use std::path::PathBuf;
 
 #[derive(Debug)]
 pub enum PersonSelectInput {
-    /// Present person selector for a give face.
+    /// Present the person selector for a single face.
     Activate(FaceId, PathBuf),
 
-    /// Create a new person to associate with a face.
+    /// Present the person selector for several faces at once; naming applies to
+    /// all of them. The path is a representative thumbnail (the first face).
+    ActivateMany(Vec<FaceId>, PathBuf),
+
+    /// Create (or reuse) a person with the typed name for the selected face(s).
     NewPerson,
 
-    /// Associate a face with a person. Used when user selects person with return key.
+    /// Associate the selected face(s) with a person. Used on return key.
     Associate(PersonId),
 
-    /// Associate a face with a person. Used when user clicks person with mouse.
-    /// usize is index into vector of people
+    /// Associate the selected face(s) with a person picked with the mouse.
+    /// usize is index into the displayed people vector.
     AssociateByIndex(usize),
 
     /// Complete the name entry to the best-matching known name (Tab key).
@@ -47,21 +51,23 @@ pub struct PersonSelect {
     /// Avatar for face to associate with person.
     avatar: adw::Avatar,
 
-    /// Input box for new person name... and search, if I can get it to work.
+    /// Shows how many faces will be named when more than one is selected.
+    count_label: gtk::Label,
+
+    /// Input box for new person name / search.
     face_name: gtk::Entry,
 
-    /// List of avatars for people
+    /// List of avatars for people.
     people_list: gtk::ListBox,
 
-    /// List of person IDs of people.
-    /// MUST be in same order as people_list.
+    /// Person IDs of people, in the same order as `people_list`.
     all_people: Vec<PersonId>,
 
     /// Names of people, same order as `all_people`. Used for Tab autocomplete.
     all_names: Vec<String>,
 
-    /// ID of face to associate with person,
-    face_id: Option<FaceId>,
+    /// Faces to associate with a person (one, or several when multi-selected).
+    face_ids: Vec<FaceId>,
 }
 
 #[relm4::component(pub async)]
@@ -78,6 +84,12 @@ impl SimpleAsyncComponent for PersonSelect {
 
             #[local_ref]
             avatar -> adw::Avatar,
+
+            #[local_ref]
+            count_label -> gtk::Label {
+                add_css_class: "dim-label",
+                set_visible: false,
+            },
 
             #[local_ref]
             face_name -> gtk::Entry,
@@ -101,6 +113,8 @@ impl SimpleAsyncComponent for PersonSelect {
             .show_initials(false)
             .build();
 
+        let count_label = gtk::Label::builder().build();
+
         let face_name = gtk::Entry::builder()
             .placeholder_text(fl!("people-person-search", "placeholder"))
             .input_purpose(gtk::InputPurpose::Name)
@@ -115,7 +129,6 @@ impl SimpleAsyncComponent for PersonSelect {
             let people_list2 = people_list.clone();
             let sender = sender.clone();
             people_list.connect_row_activated(move |_, row| {
-                debug!("activated = {:?}", row);
                 if let Some(index) = people_list2.index_of_child(row) {
                     if index >= 0 {
                         sender.input(PersonSelectInput::AssociateByIndex(index as usize));
@@ -125,10 +138,6 @@ impl SimpleAsyncComponent for PersonSelect {
                 }
             });
         }
-
-        people_list.connect_row_selected(|_, row| {
-            debug!("selected = {:?}", row);
-        });
 
         // Suggest already-known names: live-filter the people list to those
         // whose name contains what the user is typing.
@@ -154,7 +163,6 @@ impl SimpleAsyncComponent for PersonSelect {
         {
             let sender = sender.clone();
             face_name.connect_activate(move |_| {
-                debug!("Face name entry activated.");
                 sender.input(PersonSelectInput::NewPerson);
             });
         }
@@ -180,11 +188,12 @@ impl SimpleAsyncComponent for PersonSelect {
         let model = Self {
             people_repo,
             avatar,
+            count_label,
             face_name,
             people_list,
             all_people: vec![],
             all_names: vec![],
-            face_id: None,
+            face_ids: vec![],
         };
 
         AsyncComponentParts { model, widgets }
@@ -193,73 +202,56 @@ impl SimpleAsyncComponent for PersonSelect {
     async fn update(&mut self, msg: Self::Input, sender: AsyncComponentSender<Self>) {
         match msg {
             PersonSelectInput::Activate(face_id, thumbnail) => {
-                debug!("Activate for face {}", face_id);
-
-                self.people_list.remove_all();
-                self.all_people.clear();
-                self.all_names.clear();
-                self.face_name.set_text("");
-                self.face_id = Some(face_id);
-
-                let img = gdk::Texture::from_filename(&thumbnail).ok();
-                self.avatar.set_custom_image(img.as_ref());
-
-                let people = self.people_repo.all_people().unwrap_or_default();
-
-                for person in people {
-                    let avatar = adw::Avatar::builder().size(50).name(&person.name).build();
-
-                    if let Some(thumbnail_path) = person.small_thumbnail_path {
-                        let img = gdk::Texture::from_filename(&thumbnail_path).ok();
-                        avatar.set_custom_image(img.as_ref());
-                    }
-
-                    self.all_names.push(person.name.clone());
-
-                    let row = adw::ActionRow::builder()
-                        .title(person.name)
-                        .activatable(true)
-                        .build();
-
-                    row.add_prefix(&avatar);
-
-                    {
-                        let sender = sender.clone();
-                        row.connect_activate(move |_| {
-                            sender.input(PersonSelectInput::Associate(person.person_id));
-                        });
-                    }
-
-                    self.people_list.append(&row);
-                    self.all_people.push(person.person_id);
-                }
+                self.face_ids = vec![face_id];
+                self.populate(&thumbnail, &sender);
+            }
+            PersonSelectInput::ActivateMany(face_ids, thumbnail) => {
+                self.face_ids = face_ids;
+                self.populate(&thumbnail, &sender);
             }
             PersonSelectInput::Associate(person_id) => {
-                if let Some(face_id) = self.face_id {
-                    debug!("Associating face {} with person {}", face_id, person_id);
-                    if let Err(e) = self.people_repo.mark_as_person(face_id, person_id) {
-                        error!("Failed associating face with person: {:?}", e);
-                    }
-                }
-                self.people_list.remove_all();
-                self.all_people.clear();
-                let _ = sender.output(PersonSelectOutput::Done);
+                self.assign_all(person_id);
+                self.finish(&sender);
             }
-            PersonSelectInput::AssociateByIndex(person_id_index) => {
-                if let (Some(face_id), Some(person_id)) =
-                    (self.face_id, self.all_people.get(person_id_index))
-                {
-                    debug!(
-                        "Associating face {} with person {} by idnex",
-                        face_id, person_id
-                    );
-                    if let Err(e) = self.people_repo.mark_as_person(face_id, *person_id) {
-                        error!("Failed associating face with person: {:?}", e);
-                    }
+            PersonSelectInput::AssociateByIndex(index) => {
+                if let Some(person_id) = self.all_people.get(index).copied() {
+                    self.assign_all(person_id);
                 }
-                self.people_list.remove_all();
-                self.all_people.clear();
-                let _ = sender.output(PersonSelectOutput::Done);
+                self.finish(&sender);
+            }
+            PersonSelectInput::NewPerson => {
+                let name = self.face_name.text().to_string();
+                let trimmed = name.trim();
+                if trimmed.is_empty() || self.face_ids.is_empty() {
+                    // Nothing typed / nothing selected: keep the selector open.
+                    return;
+                }
+
+                // Reuse a person with this exact name, else create one.
+                let person_id = match self.people_repo.find_person_id_by_name(trimmed) {
+                    Ok(Some(pid)) => Some(pid),
+                    Ok(None) => {
+                        let first = self.face_ids[0];
+                        if let Err(e) = self.people_repo.add_person(first, trimmed) {
+                            error!("Failed adding new person: {:?}", e);
+                            None
+                        } else {
+                            self.people_repo
+                                .find_person_id_by_name(trimmed)
+                                .ok()
+                                .flatten()
+                        }
+                    }
+                    Err(e) => {
+                        error!("Failed looking up person '{}': {:?}", trimmed, e);
+                        None
+                    }
+                };
+
+                if let Some(person_id) = person_id {
+                    self.assign_all(person_id);
+                }
+                self.finish(&sender);
             }
             PersonSelectInput::Autocomplete => {
                 let text = self.face_name.text().to_string();
@@ -275,45 +267,89 @@ impl SimpleAsyncComponent for PersonSelect {
                     .find(|n| n.to_lowercase().starts_with(&query))
                     .or_else(|| self.all_names.iter().find(|n| n.to_lowercase().contains(&query)));
                 if let Some(name) = best {
-                    debug!("Autocompleting '{}' to '{}'", text.trim(), name);
                     self.face_name.set_text(name);
                     self.face_name.set_position(-1);
                 }
             }
-            PersonSelectInput::NewPerson => {
-                if let Some(face_id) = self.face_id {
-                    let name = self.face_name.text().to_string();
-                    let trimmed = name.trim();
-                    if trimmed.is_empty() {
-                        // Nothing typed: keep the selector open.
-                        return;
-                    }
+        }
+    }
+}
 
-                    // If the typed name matches an existing person, associate
-                    // with them rather than creating a duplicate.
-                    let existing = self
-                        .people_repo
-                        .all_people()
-                        .unwrap_or_default()
-                        .into_iter()
-                        .find(|p| p.name.to_lowercase() == trimmed.to_lowercase());
+impl PersonSelect {
+    /// Rebuild the selector for the current `face_ids`: set the preview avatar
+    /// and the selection count, and fill the people list ordered by similarity
+    /// to the (first) selected face so the most likely person is at the top.
+    fn populate(&mut self, thumbnail: &PathBuf, sender: &AsyncComponentSender<Self>) {
+        self.people_list.remove_all();
+        self.all_people.clear();
+        self.all_names.clear();
+        self.face_name.set_text("");
 
-                    let result = if let Some(person) = existing {
-                        debug!("Face {} reuses existing person {}", face_id, person.name);
-                        self.people_repo.mark_as_person(face_id, person.person_id)
-                    } else {
-                        debug!("Face {} is a new person '{}'", face_id, trimmed);
-                        self.people_repo.add_person(face_id, trimmed)
-                    };
-                    if let Err(e) = result {
-                        error!("Failed adding/associating person: {:?}", e);
-                    }
-                }
-                self.people_list.remove_all();
-                self.all_people.clear();
-                self.face_id = None;
-                let _ = sender.output(PersonSelectOutput::Done);
+        let n = self.face_ids.len();
+        self.count_label.set_visible(n > 1);
+        if n > 1 {
+            self.count_label
+                .set_label(&fl!("people-selected-count", count = n.to_string()));
+        }
+
+        let img = gdk::Texture::from_filename(thumbnail).ok();
+        self.avatar.set_custom_image(img.as_ref());
+
+        // Suggest the most similar known people first (by the first face).
+        let people = match self.face_ids.first() {
+            Some(face_id) => self
+                .people_repo
+                .people_by_similarity(*face_id)
+                .unwrap_or_default(),
+            None => self.people_repo.all_people().unwrap_or_default(),
+        };
+
+        for person in people {
+            let avatar = adw::Avatar::builder().size(50).name(&person.name).build();
+
+            if let Some(thumbnail_path) = person.small_thumbnail_path {
+                let img = gdk::Texture::from_filename(&thumbnail_path).ok();
+                avatar.set_custom_image(img.as_ref());
+            }
+
+            self.all_names.push(person.name.clone());
+
+            let row = adw::ActionRow::builder()
+                .title(person.name)
+                .activatable(true)
+                .build();
+
+            row.add_prefix(&avatar);
+
+            {
+                let sender = sender.clone();
+                row.connect_activate(move |_| {
+                    sender.input(PersonSelectInput::Associate(person.person_id));
+                });
+            }
+
+            self.people_list.append(&row);
+            self.all_people.push(person.person_id);
+        }
+    }
+
+    /// Associate every currently selected face with `person_id`.
+    fn assign_all(&mut self, person_id: PersonId) {
+        for face_id in self.face_ids.clone() {
+            debug!("Associating face {} with person {}", face_id, person_id);
+            if let Err(e) = self.people_repo.mark_as_person(face_id, person_id) {
+                error!("Failed associating face {} with person: {:?}", face_id, e);
             }
         }
+    }
+
+    /// Reset the selector and notify the parent that naming is done.
+    fn finish(&mut self, sender: &AsyncComponentSender<Self>) {
+        self.people_list.remove_all();
+        self.all_people.clear();
+        self.all_names.clear();
+        self.face_ids.clear();
+        self.count_label.set_visible(false);
+        let _ = sender.output(PersonSelectOutput::Done);
     }
 }

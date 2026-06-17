@@ -218,6 +218,9 @@ people-set-name = Set name
 people-person-search =
         .placeholder = Person name
 
+# Shown when several faces are selected to be named at once.
+people-selected-count = { $count } faces selected
+
 # Menu item to ignore a face match because it is a random face or not a face.
 people-face-ignore = Ignore
 
