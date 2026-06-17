@@ -31,14 +31,14 @@ pub fn get_thumbnail_path(
 }
 
 /// Gets the thumbnail output path using hash and size.
-/// Format: `{cache_dir}/thumbnails/{size}/{md5_hash}.png`
+/// Format: `{cache_dir}/thumbnails/{size}/{md5_hash}.jpg`
 pub fn get_thumbnail_hash_output(
     thumbnails_base_dir: &Path,
     hash: &str,
     size: ThumbnailSize,
 ) -> PathBuf {
     let output_dir = thumbnails_base_dir.join(size.to_string());
-    let output_file = format!("{}.png", hash);
+    let output_file = format!("{}.jpg", hash);
     let path = output_dir.join(output_file);
 
     debug!(
