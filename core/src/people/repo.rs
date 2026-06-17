@@ -44,6 +44,14 @@ pub struct UnnamedEmbedding {
     pub embedding: Vec<f32>,
 }
 
+/// Minimum detected-face size (shorter side, in source-image pixels) for a face
+/// to appear in the "unknown people" grid and be considered for recognition.
+/// Faces smaller than this are too low-resolution to identify reliably and only
+/// add noise (weak embeddings, spurious clusters). Tunable; raise it to be
+/// stricter. Existing faces are only filtered from queries, never deleted, so
+/// lowering it brings them back.
+pub const MIN_FACE_PX: f64 = 24.0;
+
 /// Repository of people data.
 /// Repository is backed by a Sqlite database.
 #[derive(Debug, Clone)]
@@ -130,15 +138,17 @@ impl Repository {
     pub fn find_unnamed_faces(&self) -> Result<Vec<model::Face>> {
         let rows: Vec<(model::Face, Option<Vec<f32>>)> = {
             let con = self.con.lock().unwrap();
-            let mut stmt = con.prepare(
+            let mut stmt = con.prepare(&format!(
                 "SELECT
                     faces.face_id AS face_id,
                     faces.thumbnail_path AS face_thumbnail_path,
                     faces.embedding AS embedding
                 FROM pictures_faces AS faces
                 WHERE faces.person_id IS NULL AND faces.is_ignored = FALSE
-                ORDER BY faces.face_id",
-            )?;
+                    AND faces.bounds_width >= {MIN_FACE_PX}
+                    AND faces.bounds_height >= {MIN_FACE_PX}
+                ORDER BY faces.face_id"
+            ))?;
 
             let data_dir = self.data_dir_base_path.clone();
             stmt.query_map([], move |row| {
@@ -553,13 +563,15 @@ impl Repository {
     /// embedding, with their detection time. The recognition candidates.
     pub fn find_unnamed_with_embeddings(&self) -> Result<Vec<UnnamedEmbedding>> {
         let con = self.con.lock().unwrap();
-        let mut stmt = con.prepare(
+        let mut stmt = con.prepare(&format!(
             "SELECT face_id, detected_at, embedding
              FROM pictures_faces
              WHERE person_id IS NULL
                AND is_ignored = FALSE
-               AND length(embedding) = 2048",
-        )?;
+               AND bounds_width >= {MIN_FACE_PX}
+               AND bounds_height >= {MIN_FACE_PX}
+               AND length(embedding) = 2048"
+        ))?;
         let rows = stmt.query_map([], |row| {
             let face_id = row.get("face_id").map(FaceId::new)?;
             let detected_at: DateTime<Utc> = row.get("detected_at")?;
