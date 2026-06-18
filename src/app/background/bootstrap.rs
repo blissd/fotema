@@ -146,6 +146,9 @@ type Task = dyn Fn() + Send + Sync;
 pub struct Controllers {
     started_at: Option<Instant>,
 
+    /// When the currently-running task emitted TaskStarted, for per-stage timing.
+    task_started_at: Option<Instant>,
+
     shared_state: SharedState,
 
     settings_state: SettingsState,
@@ -230,9 +233,26 @@ impl Controllers {
             }
             BootstrapInput::TaskStarted(task_name) => {
                 info!("Task started: {:?}", task_name);
+                self.task_started_at = Some(Instant::now());
                 let _ = sender.output(BootstrapOutput::TaskStarted(task_name));
             }
             BootstrapInput::TaskCompleted(task_name, updated) => {
+                // Per-stage timing. take() so a TaskCompleted without a matching
+                // TaskStarted (e.g. LoadLibrary) doesn't report a bogus duration.
+                if let Some(started_at) = self.task_started_at.take() {
+                    info!(
+                        "Stage {:?} took {:?} ({:?} items)",
+                        task_name,
+                        started_at.elapsed(),
+                        updated
+                    );
+                }
+                if let Some(total_started_at) = self.started_at {
+                    info!(
+                        "Total elapsed since bootstrap start: {:?}",
+                        total_started_at.elapsed()
+                    );
+                }
                 info!(
                     "Task completed: {:?}. Items updated? {:?}",
                     task_name, updated
@@ -699,6 +719,7 @@ impl Bootstrap {
         let mut controllers = Controllers {
             stop,
             started_at: None,
+            task_started_at: None,
             shared_state: self.shared_state.clone(),
             settings_state: self.settings_state.clone(),
             load_library_task: Arc::new(load_library_task),
