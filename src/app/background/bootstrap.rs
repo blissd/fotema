@@ -248,7 +248,10 @@ impl Controllers {
                     );
                 }
                 if let Some(total_started_at) = self.started_at {
-                    info!("Total elapsed since bootstrap start: {:?}", total_started_at.elapsed());
+                    info!(
+                        "Total elapsed since bootstrap start: {:?}",
+                        total_started_at.elapsed()
+                    );
                 }
                 info!(
                     "Task completed: {:?}. Items updated? {:?}",
