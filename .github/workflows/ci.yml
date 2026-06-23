@@ -17,7 +17,9 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: bilelmoussaoui/flatpak-github-actions:gnome-47
-      options: --privileged
+      # Mount the runner's large ephemeral disk (/mnt, ~70 GB) into the
+      # container so the build can use it (see build/state/repo-dir below).
+      options: --privileged -v /mnt:/mnt
     steps:
     - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       with:
@@ -28,3 +30,9 @@ jobs:
         manifest-path: build-aux/app.fotema.Fotema.Devel.json
         run-tests: true
         upload-artifact: false
+        # The OpenCV + onnxruntime build trees and the OSTree repo are several
+        # GB and overflow the runner's small root partition ("No space left on
+        # device"). Put them on the large /mnt disk mounted above.
+        build-dir: /mnt/flatpak/build
+        state-dir: /mnt/flatpak/state
+        repo-dir: /mnt/flatpak/repo
