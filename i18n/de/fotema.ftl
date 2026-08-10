@@ -206,10 +206,13 @@ banner-extract-motion-photos = Bewegungsfotos werden verarbeitet.
 
 # Menu item to show preferences dialog
 primary-menu-preferences = Einstellungen
+# Menu item to re-import person names embedded in photo metadata
+primary-menu-scan-face-tags = Namen aus Fotos importieren
 # Menu item to show "about" dialog
 primary-menu-about = Info zu { -app-name }
 people-person-search =
     .placeholder = Name der Person
+people-selected-count = { $count } Gesichter ausgewählt
 people-face-ignore = Ignorieren
 people-not-this-person = Nicht { $name }
 prefs-views-faces = Gesichtserkennung
@@ -219,17 +222,40 @@ person-rename-dialog =
     .placeholder = Neuer Name
     .cancel-button = Abbrechen
     .rename-button = Umbenennen
+person-photo-action =
+    .heading = Foto-Zuordnung bearbeiten
+    .set-thumbnail = Als Profilbild verwenden
+    .reassign = Anderer Person zuordnen…
+    .cancel = Abbrechen
 people-page-status-no-people =
     .title = Keine Personen gefunden
     .description =
         { -app-name } wird nach dem Start nach Gesichtern in neuen Fotos suchen.
         Benennen Sie die Personen auf Ihren Fotos, damit { -app-name } für jede Person ein Album erstellen kann.
+people-show-ignored = Ignorierte anzeigen
+people-page-status-no-ignored =
+    .title = Keine ignorierten Personen
+    .description = Personen, die Sie ignorieren, werden hier verborgen, damit Sie sie später wiederherstellen können.
 viewer-faces-menu =
     .tooltip = Gesichter-Menü
     .restore-ignored = Alle ignorierten Gesichter wiederherstellen
     .ignore-unknown = Alle unbekannten Gesichter ignorieren
     .scan = Nach weiteren Gesichtern suchen
 people-page = Personen
+faces-page = Unbekannte Personen
+faces-page-empty =
+  .title = Keine unbekannten Gesichter
+  .description = Noch nicht benannte Gesichter erscheinen hier. Wähle eines aus und benenne es, um Personen zu gruppieren.
+unknown-people-recognize = Ähnliche zuordnen
+  .tooltip = Durchsucht die unbenannten Gesichter und ordnet jene zu, die zu einer bereits benannten Person passen.
+unknown-people-ignore-face = Gesicht ignorieren
+  .tooltip = Blendet die ausgewählten Gesichter aus – für Nicht-Gesichter oder Personen, die Sie nicht benennen möchten.
+unknown-people-show-ignored = Ignorierte anzeigen
+unknown-people-restore-face = Gesicht wiederherstellen
+  .tooltip = Holt die ausgewählten ignorierten Gesichter zurück in die Liste der unbekannten Gesichter.
+unknown-people-no-ignored =
+  .title = Keine ignorierten Gesichter
+  .description = Ignorierte Gesichter werden hier verborgen, damit Sie sie später wiederherstellen können.
 people-page-status-off =
     .title = Gesichtserkennung aktivieren?
     .description = { -app-name } kann automatisch Gesichter und Personen erkennen, jedoch ist dies ein zeitaufwändiger Prozess. Möchten Sie diese Funktion aktivieren?
@@ -243,6 +269,8 @@ banner-detect-faces-photos = Erkennen von Gesichtern auf Fotos. Dies wird eine W
 banner-recognize-faces-photos = Erkennen von Personen auf Fotos. Dies wird eine Weile dauern.
 person-menu-rename = Person umbenennen
 person-menu-delete = Person löschen
+person-menu-ignore = Person ignorieren
+person-menu-restore = Person wiederherstellen
 person-delete-dialog =
     .heading = Person löschen?
     .body = Es werden keine Bilder oder Videos gelöscht.
@@ -292,6 +320,9 @@ prefs-processing-section = Foto- und Videobearbeitung
     .description = Konfigurieren Sie die Foto- und Videobearbeitungsfunktionen.
 prefs-processing-face-detection = Gesichtserkennung
     .subtitle = Erkennung von Gesichtern und von Personen, die benannt wurden. Dies kann Zeit in Anspruch nehmen.
+prefs-processing-recognition-auto = Automatische Personenerkennung
+    .subtitle = Nach dem Benennen eines Gesichts wird im Hintergrund die Mediathek nach weiteren Gesichtern dieser Person durchsucht.
+
 prefs-processing-motion-photos = Bewegungsfotos
     .subtitle = Erkennen von Android-Bewegungsfotos und extrahieren der Videos.
 banner-scan-library = Mediathek scannen.

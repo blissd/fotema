@@ -58,6 +58,8 @@ pub enum PreferencesInput {
 
     UpdateFaceDetectionMode(FaceDetectionMode),
 
+    UpdateFaceRecognitionAuto(bool),
+
     UpdateProcessMotionPhotos(bool),
 
     Sort(AlbumSort),
@@ -157,6 +159,18 @@ impl SimpleAsyncComponent for PreferencesDialog {
                     },
 
                     adw::SwitchRow {
+                        set_title: &fl!("prefs-processing-recognition-auto"),
+                        set_subtitle: &fl!("prefs-processing-recognition-auto", "subtitle"),
+
+                        #[watch]
+                        set_active: model.settings.face_recognition_auto,
+
+                        connect_active_notify[sender] => move |switch| {
+                            let _ = sender.input_sender().send(PreferencesInput::UpdateFaceRecognitionAuto(switch.is_active()));
+                        },
+                    },
+
+                    adw::SwitchRow {
                         set_title: &fl!("prefs-processing-motion-photos"),
                         set_subtitle: &fl!("prefs-processing-motion-photos", "subtitle"),
 
@@ -228,6 +242,11 @@ impl SimpleAsyncComponent for PreferencesDialog {
             PreferencesInput::UpdateShowSelfies(show_selfies) => {
                 info!("Update show selfies: {}", show_selfies);
                 self.settings.show_selfies = show_selfies;
+                *self.settings_state.write() = self.settings.clone();
+            }
+            PreferencesInput::UpdateFaceRecognitionAuto(enable) => {
+                info!("Update auto face recognition: {:?}", enable);
+                self.settings.face_recognition_auto = enable;
                 *self.settings_state.write() = self.settings.clone();
             }
             PreferencesInput::UpdateProcessMotionPhotos(enable) => {

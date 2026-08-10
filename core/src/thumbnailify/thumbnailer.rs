@@ -4,10 +4,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use std::collections::HashMap;
-use std::io::{BufReader, BufWriter};
+use std::io::BufWriter;
 use std::{
     fs,
-    fs::File,
     io,
     path::{Path, PathBuf},
     time::UNIX_EPOCH,
@@ -23,15 +22,11 @@ use crate::thumbnailify::{
     sizes::ThumbnailSize,
 };
 
-use png::Decoder;
-
 use image::DynamicImage;
 
 use fast_image_resize as fr;
 use fr::images::Image;
 use fr::{ResizeOptions, Resizer};
-
-use png::Encoder as ExtendedPngEncoder;
 
 use tempfile;
 
@@ -44,84 +39,26 @@ use tempfile;
 /// Returns true if "Thumb::MTime" is present and matches the source file's modification time,
 /// and if "Thumb::Size" is present it must match the source file's size.
 pub fn is_thumbnail_up_to_date(thumb_path: &Path, host_path: &Path) -> bool {
-    debug!(
-        "Checking if thumbnail at {:?} is up-to-date with source {:?}",
-        thumb_path, host_path
-    );
-
-    let file = match File::open(thumb_path) {
-        Ok(f) => f,
+    // Format-agnostic staleness check: the thumbnail is current if it was
+    // written at or after the source's last modification. (Thumbnails are now
+    // JPEG, so we no longer embed/read PNG "Thumb::MTime" metadata.)
+    let thumb_mtime = match std::fs::metadata(thumb_path).and_then(|m| m.modified()) {
+        Ok(t) => t,
         Err(e) => {
-            debug!("Failed to open thumbnail {:?}: {}", thumb_path, e);
+            debug!("Failed to read thumbnail mtime {:?}: {}", thumb_path, e);
             return false;
         }
     };
 
-    let file = BufReader::new(file);
-    let decoder = Decoder::new(file);
-    let reader = match decoder.read_info() {
-        Ok(r) => r,
+    let source_mtime = match std::fs::metadata(host_path).and_then(|m| m.modified()) {
+        Ok(t) => t,
         Err(e) => {
-            debug!("Failed to read PNG info for {:?}: {}", thumb_path, e);
+            debug!("Failed to read source mtime {:?}: {}", host_path, e);
             return false;
         }
     };
 
-    let texts = &reader.info().uncompressed_latin1_text;
-
-    let thumb_mtime_str = match texts.iter().find(|c| c.keyword == "Thumb::MTime") {
-        Some(c) => &c.text,
-        None => {
-            debug!("Thumbnail missing 'Thumb::MTime' metadata chunk.");
-            return false;
-        }
-    };
-    let thumb_mtime = thumb_mtime_str.parse::<u64>().unwrap_or(0);
-
-    let source_metadata = match std::fs::metadata(host_path) {
-        Ok(m) => m,
-        Err(e) => {
-            debug!("Failed to get metadata of source {:?}: {}", host_path, e);
-            return false;
-        }
-    };
-
-    let source_modified_time = match source_metadata.modified() {
-        Ok(mt) => mt.duration_since(UNIX_EPOCH).unwrap_or_default().as_secs(),
-        Err(e) => {
-            debug!(
-                "Failed to read modified time of source {:?}: {}",
-                host_path, e
-            );
-            return false;
-        }
-    };
-
-    if thumb_mtime != source_modified_time {
-        debug!(
-            "Thumb::MTime mismatch: thumbnail={} source={}",
-            thumb_mtime, source_modified_time
-        );
-        return false;
-    }
-
-    if let Some(chunk) = texts.iter().find(|c| c.keyword == "Thumb::Size") {
-        let thumb_size = chunk.text.parse::<u64>().unwrap_or(0);
-        let source_file_size = source_metadata.len();
-        if thumb_size != source_file_size {
-            debug!(
-                "Thumb::Size mismatch: thumbnail={} source={}",
-                thumb_size, source_file_size
-            );
-            return false;
-        }
-    }
-
-    debug!(
-        "Thumbnail at {:?} is up-to-date with source {:?}",
-        thumb_path, host_path
-    );
-    true
+    thumb_mtime >= source_mtime
 }
 pub fn generate_all_thumbnails(
     thumbnails_base_dir: &Path,
@@ -306,7 +243,7 @@ pub fn generate_thumbnail(
 
     let named_temp = tempfile::Builder::new()
         .prefix("thumb-")
-        .suffix(".png.tmp")
+        .suffix(".jpg.tmp")
         .tempfile_in(thumb_dir)?;
 
     let temp_path = named_temp.path().to_owned();
@@ -328,40 +265,31 @@ pub fn generate_thumbnail(
 
     let file = std::fs::File::create(&temp_path)?;
     let file = BufWriter::new(file);
-
-    let mut encoder = ExtendedPngEncoder::new(file, dst_width, dst_height);
-    encoder.set_color(png::ColorType::Rgba);
-    encoder.set_depth(png::BitDepth::Eight);
-
-    // FIXME hard-coded app-id
-    encoder.add_text_chunk("Software".to_string(), "app.fotema.Fotema".to_string())?;
-
-    let uri = get_file_uri(&path.host_path)?;
-    encoder.add_text_chunk("Thumb::URI".to_string(), uri)?;
-
-    let metadata = std::fs::metadata(&path.sandbox_path)?;
-
-    let size = metadata.len();
-    encoder.add_text_chunk("Thumb::Size".to_string(), size.to_string())?;
-
-    let modified_time = metadata.modified()?;
-    let mtime_unix = modified_time
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs();
-    encoder.add_text_chunk("Thumb::MTime".to_string(), mtime_unix.to_string())?;
-
-    // TODO image width/height, video duration.
-    // See https://specifications.freedesktop.org/thumbnail-spec/latest/creation.html
-
-    // Write out the PNG header
-    let mut writer = encoder.write_header()?;
-    writer.write_image_data(&dst_image.buffer())?;
-    drop(writer); // flush
+    write_jpeg(file, dst_width, dst_height, dst_image.buffer())?;
 
     named_temp.persist(&thumb_path)?;
 
     return Ok(thumb_path.into());
+}
+
+/// Encode an RGBA pixel buffer as a compact JPEG. Thumbnails are opaque, so the
+/// alpha channel is dropped. Replaces the previous lossless PNG output.
+fn write_jpeg<W: std::io::Write>(
+    writer: W,
+    width: u32,
+    height: u32,
+    rgba: &[u8],
+) -> Result<(), ThumbnailError> {
+    const QUALITY: u8 = 82;
+
+    let mut rgb = Vec::with_capacity(width as usize * height as usize * 3);
+    for px in rgba.chunks_exact(4) {
+        rgb.extend_from_slice(&px[0..3]);
+    }
+
+    let mut encoder = image::codecs::jpeg::JpegEncoder::new_with_quality(writer, QUALITY);
+    encoder.encode(&rgb, width, height, image::ExtendedColorType::Rgb8)?;
+    Ok(())
 }
 
 fn resize(
@@ -446,7 +374,7 @@ fn quality_resize(
 fn write_thumbnail(
     thumb_path: &Path,
     thumbnail: &Image<'static>,
-    labels: &HashMap<String, String>,
+    _labels: &HashMap<String, String>,
 ) -> Result<(), ThumbnailError> {
     // Prepare a temporary file in the same directory as the final thumbnail.
     // Using `tempfile_in` ensures that the temp file is on the same filesystem
@@ -462,26 +390,14 @@ fn write_thumbnail(
 
     let named_temp = tempfile::Builder::new()
         .prefix("thumb-")
-        .suffix(".png.tmp")
+        .suffix(".jpg.tmp")
         .tempfile_in(thumb_dir)?;
 
     let temp_path = named_temp.path().to_owned();
 
     let file = std::fs::File::create(&temp_path)?;
     let file = BufWriter::new(file);
-
-    let mut encoder = ExtendedPngEncoder::new(file, thumbnail.width(), thumbnail.height());
-    encoder.set_color(png::ColorType::Rgba);
-    encoder.set_depth(png::BitDepth::Eight);
-
-    for (key, value) in labels.iter() {
-        encoder.add_text_chunk(key.into(), value.into())?;
-    }
-
-    // Write out the PNG header
-    let mut writer = encoder.write_header()?;
-    writer.write_image_data(&thumbnail.buffer())?;
-    drop(writer); // flush
+    write_jpeg(file, thumbnail.width(), thumbnail.height(), thumbnail.buffer())?;
 
     named_temp.persist(&thumb_path)?;
     Ok(())

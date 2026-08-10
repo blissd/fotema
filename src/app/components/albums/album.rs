@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+use fotema_core::PictureId;
 use fotema_core::VisualId;
 use fotema_core::YearMonth;
 use fotema_core::thumbnailify::{ThumbnailSize, Thumbnailer};
@@ -15,6 +16,7 @@ use relm4::gtk::prelude::AdjustmentExt;
 use relm4::gtk::prelude::*;
 use relm4::typed_view::grid::{RelmGridItem, TypedGridView};
 use relm4::*;
+use std::cell::RefCell;
 use std::path::Path;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -41,6 +43,9 @@ pub enum AlbumInput {
 
     /// User has selected photo in grid view
     Selected(u32), // Index into a Vec
+
+    /// User right-clicked a picture in the grid.
+    SecondaryClick(PictureId),
 
     // Scroll to first photo of year/month.
     GoToMonth(YearMonth),
@@ -69,6 +74,9 @@ pub enum AlbumOutput {
     /// User has selected photo or video in grid view
     Selected(VisualId, AlbumFilter),
 
+    /// User right-clicked a picture in the grid.
+    SecondaryClick(PictureId),
+
     // Scroll offset, in pixels.
     ScrollOffset(f64),
 }
@@ -81,6 +89,9 @@ struct PhotoGridItem {
     edge_length: I32Binding,
 
     thumbnailer: Rc<Thumbnailer>,
+
+    // Channel back to the Album, used to report right-clicks.
+    album_sender: relm4::Sender<AlbumInput>,
 }
 
 struct PhotoGridItemWidgets {
@@ -92,6 +103,10 @@ struct PhotoGridItemWidgets {
 
     // If the gtk::Picture has been bound to edge_length.
     is_bound: bool,
+
+    // Current right-click target (sender + picture). Updated on each bind so the
+    // gesture created once in setup() always acts on the cell's current item.
+    secondary: Rc<RefCell<Option<(relm4::Sender<AlbumInput>, PictureId)>>>,
 }
 
 impl RelmGridItem for PhotoGridItem {
@@ -143,6 +158,24 @@ impl RelmGridItem for PhotoGridItem {
             }
         }
 
+        // Right-click a picture to act on it (e.g. set as a person's avatar).
+        // The gesture is added once here; bind() points `secondary` at the
+        // current item, so recycling never stacks gestures.
+        let secondary: Rc<RefCell<Option<(relm4::Sender<AlbumInput>, PictureId)>>> =
+            Rc::new(RefCell::new(None));
+        {
+            let secondary = secondary.clone();
+            let gesture = gtk::GestureClick::builder()
+                .button(gdk::BUTTON_SECONDARY)
+                .build();
+            gesture.connect_released(move |_, _, _, _| {
+                if let Some((sender, picture_id)) = secondary.borrow().clone() {
+                    let _ = sender.send(AlbumInput::SecondaryClick(picture_id));
+                }
+            });
+            root.add_controller(gesture);
+        }
+
         let widgets = PhotoGridItemWidgets {
             picture,
             status_overlay,
@@ -150,12 +183,20 @@ impl RelmGridItem for PhotoGridItem {
             duration_overlay,
             duration_label,
             is_bound: false,
+            secondary,
         };
 
         (root, widgets)
     }
 
     fn bind(&mut self, widgets: &mut Self::Widgets, _root: &mut Self::Root) {
+        // Point the right-click gesture at this item (pictures only).
+        *widgets.secondary.borrow_mut() = self
+            .visual
+            .picture_id
+            .clone()
+            .map(|picture_id| (self.album_sender.clone(), picture_id));
+
         // Bindings to allow dynamic update of thumbnail width and height
         // when layout changes between wide and narrow
 
@@ -233,6 +274,7 @@ impl RelmGridItem for PhotoGridItem {
     }
 
     fn unbind(&mut self, widgets: &mut Self::Widgets, _root: &mut Self::Root) {
+        *widgets.secondary.borrow_mut() = None;
         widgets.picture.set_filename(None::<&Path>);
         widgets.motion_type_icon.set_icon_name(None);
         widgets.status_overlay.set_visible(false);
@@ -250,6 +292,9 @@ pub struct Album {
     sort: AlbumSort,
     edge_length: I32Binding,
     thumbnailer: Rc<Thumbnailer>,
+
+    // Cloned into each grid item so it can report right-clicks.
+    input_sender: relm4::Sender<AlbumInput>,
 }
 
 #[relm4::component(pub)]
@@ -306,6 +351,7 @@ impl SimpleComponent for Album {
             sort: AlbumSort::default(),
             edge_length: I32Binding::new(NARROW_EDGE_LENGTH),
             thumbnailer,
+            input_sender: sender.input_sender().clone(),
         };
 
         model.update_filter();
@@ -352,6 +398,9 @@ impl SimpleComponent for Album {
                     let _ = sender.output(AlbumOutput::Selected(visual_id, self.filter.clone()));
                 }
             }
+            AlbumInput::SecondaryClick(picture_id) => {
+                let _ = sender.output(AlbumOutput::SecondaryClick(picture_id));
+            }
             AlbumInput::GoToMonth(ym) => {
                 info!("Showing for month: {}", ym);
                 let index_opt = self.photo_grid.find(|p| p.visual.year_month() == ym);
@@ -391,6 +440,7 @@ impl Album {
                     visual: visual.clone(),
                     edge_length: self.edge_length.clone(),
                     thumbnailer: self.thumbnailer.clone(),
+                    album_sender: self.input_sender.clone(),
                 })
                 .collect::<Vec<PhotoGridItem>>()
         };

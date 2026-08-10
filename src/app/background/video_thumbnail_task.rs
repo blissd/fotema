@@ -65,13 +65,15 @@ impl VideoThumbnailTask {
             .into_iter()
             .filter(|vid| vid.path.exists())
             .filter(|vid| {
+                // Adopt an older build's cache (incl. legacy PNG) instead of
+                // regenerating it.
                 let thumb_hash = vid.thumbnail_hash();
-                let large_path = thumbnailify::get_thumbnail_hash_output(
+                thumbnailify::find_existing_thumbnail(
                     thumbnails_path,
                     &thumb_hash,
                     ThumbnailSize::Large,
-                );
-                !large_path.exists()
+                )
+                .is_none()
             })
             .collect();
 

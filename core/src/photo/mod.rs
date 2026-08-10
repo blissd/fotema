@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+pub mod face_tags;
 pub mod gps;
 pub mod metadata;
 pub mod model;

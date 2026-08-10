@@ -67,13 +67,15 @@ impl PhotoThumbnailTask {
             .into_iter()
             .filter(|pic| pic.path.exists())
             .filter(|pic| {
+                // Adopt an older build's cache (incl. legacy PNG) instead of
+                // regenerating it.
                 let thumb_hash = pic.thumbnail_hash();
-                let large_path = thumbnailify::get_thumbnail_hash_output(
+                thumbnailify::find_existing_thumbnail(
                     thumbnails_path,
                     &thumb_hash,
                     ThumbnailSize::XLarge,
-                );
-                !large_path.exists()
+                )
+                .is_none()
             })
             .collect();
 

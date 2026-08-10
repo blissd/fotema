@@ -108,6 +108,7 @@ impl SimpleComponent for Library {
             ))
             .forward(sender.input_sender(), |msg| match msg {
                 AlbumOutput::Selected(id, _) => LibraryInput::View(id),
+                AlbumOutput::SecondaryClick(_) => LibraryInput::Ignore,
                 AlbumOutput::ScrollOffset(_) => LibraryInput::Ignore,
             });
 

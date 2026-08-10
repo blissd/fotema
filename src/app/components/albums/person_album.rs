@@ -9,6 +9,8 @@ use relm4::adw::prelude::*;
 use relm4::binding::*;
 use relm4::gtk;
 use relm4::gtk::gdk;
+use relm4::gtk::gio;
+use relm4::prelude::*;
 use relm4::*;
 
 use crate::app::ActiveView;
@@ -19,6 +21,9 @@ use crate::app::components::albums::{
     album::{Album, AlbumInput, AlbumOutput},
     album_filter::AlbumFilter,
     album_sort::AlbumSort,
+};
+use crate::app::components::viewer::person_select::{
+    PersonSelect, PersonSelectInput, PersonSelectOutput,
 };
 
 use crate::fl;
@@ -43,6 +48,9 @@ relm4::new_stateless_action!(RenameAction, PersonActionGroup, "rename");
 // Delete a person
 relm4::new_stateless_action!(DeleteAction, PersonActionGroup, "delete");
 
+// Ignore (hide) or restore a person
+relm4::new_stateless_action!(IgnoreAction, PersonActionGroup, "ignore");
+
 #[derive(Debug)]
 pub enum PersonAlbumInput {
     /// Album is visible
@@ -63,6 +71,21 @@ pub enum PersonAlbumInput {
     /// Picture selected in underlying album
     Selected(VisualId),
 
+    /// Right-clicked a picture: show actions for that photo.
+    ContextMenu(PictureId),
+
+    /// Set this person's avatar from that picture.
+    SetThumbnail(PictureId),
+
+    /// This picture's face is not this person: detach it (back to "unknown").
+    NotPerson(PictureId),
+
+    /// Reassign this picture's face to a different person.
+    Reassign(PictureId),
+
+    /// The reassignment person-picker finished.
+    ReassignDone,
+
     /// Start rename person flow
     RenameDialog,
 
@@ -74,6 +97,9 @@ pub enum PersonAlbumInput {
 
     /// Actually delete person.
     Delete,
+
+    /// Hide this person (or restore them if already hidden).
+    ToggleIgnore,
 
     Sort(AlbumSort),
 }
@@ -88,6 +114,12 @@ pub enum PersonAlbumOutput {
 
     /// Person renamed.
     Renamed,
+
+    /// A face was detached or reassigned; refresh people and unknown faces.
+    FacesChanged,
+
+    /// This person was hidden or restored; pop back and refresh the overview.
+    IgnoredChanged,
 }
 
 pub struct PersonAlbum {
@@ -99,6 +131,17 @@ pub struct PersonAlbum {
     title: gtk::Label,
     active_view: ActiveView,
     edge_length: I32Binding,
+
+    /// Person picker shown when reassigning a face to a different person.
+    person_select: AsyncController<PersonSelect>,
+    person_dialog: adw::Dialog,
+
+    /// Header menu button, whose menu is swapped between `menu_active` and
+    /// `menu_ignored` depending on whether the viewed person is hidden.
+    menu_button: gtk::MenuButton,
+    /// Menu for a normal person (offers "ignore"); for a hidden one ("restore").
+    menu_active: gio::Menu,
+    menu_ignored: gio::Menu,
 }
 
 #[relm4::component(pub)]
@@ -106,16 +149,6 @@ impl SimpleComponent for PersonAlbum {
     type Init = (SharedState, people::Repository, ActiveView, Rc<Thumbnailer>);
     type Input = PersonAlbumInput;
     type Output = PersonAlbumOutput;
-
-    menu! {
-        primary_menu: {
-            section! {
-                // FIXME I would like to have the person's name in these menu items.
-                &fl!("person-menu-rename") => RenameAction,
-                &fl!("person-menu-delete") => DeleteAction,
-            }
-        }
-    }
 
     view! {
         adw::ToolbarView {
@@ -126,9 +159,9 @@ impl SimpleComponent for PersonAlbum {
                     add_css_class: "title",
                 },
 
-                pack_end = &gtk::MenuButton {
+                #[local_ref]
+                pack_end = &menu_button -> gtk::MenuButton {
                     set_icon_name: "open-menu-symbolic",
-                    set_menu_model: Some(&primary_menu),
                 },
             },
 
@@ -166,10 +199,46 @@ impl SimpleComponent for PersonAlbum {
             ))
             .forward(sender.input_sender(), |msg| match msg {
                 AlbumOutput::Selected(id, _) => PersonAlbumInput::Selected(id),
+                AlbumOutput::SecondaryClick(picture_id) => {
+                    PersonAlbumInput::ContextMenu(picture_id)
+                }
                 AlbumOutput::ScrollOffset(offset) => PersonAlbumInput::ScrollOffset(offset),
             });
 
         let title = gtk::Label::builder().build();
+
+        let person_select = PersonSelect::builder().launch(repo.clone()).forward(
+            sender.input_sender(),
+            |msg| match msg {
+                PersonSelectOutput::Done => PersonAlbumInput::ReassignDone,
+            },
+        );
+
+        let person_dialog = adw::Dialog::builder()
+            .child(person_select.widget())
+            .presentation_mode(adw::DialogPresentationMode::BottomSheet)
+            .height_request(400)
+            .build();
+
+        // Two header menus, identical but for the ignore/restore item. The View
+        // handler shows whichever matches the person's current visibility.
+        let make_menu = |toggle_label: &str| {
+            let menu = gio::Menu::new();
+            let rename = fl!("person-menu-rename");
+            let delete = fl!("person-menu-delete");
+            menu.append(Some(rename.as_str()), Some("person.rename"));
+            menu.append(Some(toggle_label), Some("person.ignore"));
+            menu.append(Some(delete.as_str()), Some("person.delete"));
+            menu
+        };
+        let ignore_label = fl!("person-menu-ignore");
+        let restore_label = fl!("person-menu-restore");
+        let menu_active = make_menu(ignore_label.as_str());
+        let menu_ignored = make_menu(restore_label.as_str());
+
+        let menu_button = gtk::MenuButton::builder()
+            .menu_model(&menu_active)
+            .build();
 
         let model = PersonAlbum {
             repo,
@@ -180,6 +249,11 @@ impl SimpleComponent for PersonAlbum {
             active_view,
             picture_ids: vec![],
             edge_length: I32Binding::new(NARROW_EDGE_LENGTH),
+            person_select,
+            person_dialog,
+            menu_button: menu_button.clone(),
+            menu_active,
+            menu_ignored,
         };
 
         model
@@ -203,8 +277,16 @@ impl SimpleComponent for PersonAlbum {
             })
         };
 
+        let ignore_action = {
+            let sender = sender.clone();
+            RelmAction::<IgnoreAction>::new_stateless(move |_| {
+                sender.input(PersonAlbumInput::ToggleIgnore);
+            })
+        };
+
         actions.add_action(rename_action);
         actions.add_action(delete_action);
+        actions.add_action(ignore_action);
         actions.register_for_widget(&root);
 
         ComponentParts { model, widgets }
@@ -261,6 +343,13 @@ impl SimpleComponent for PersonAlbum {
                     )));
                 self.album.sender().emit(AlbumInput::ScrollToTop);
 
+                // Offer "ignore" for a normal person, "restore" for a hidden one.
+                self.menu_button.set_menu_model(Some(if person.is_ignored {
+                    &self.menu_ignored
+                } else {
+                    &self.menu_active
+                }));
+
                 self.title.set_label(&person.name);
                 self.person = Some(person);
             }
@@ -269,6 +358,99 @@ impl SimpleComponent for PersonAlbum {
                     visual_id,
                     AlbumFilter::Any(self.picture_ids.clone()),
                 ));
+            }
+            PersonAlbumInput::ContextMenu(picture_id) => {
+                let Some(person) = self.person.clone() else {
+                    return;
+                };
+                if self.face_in_picture(&picture_id).is_none() {
+                    return;
+                }
+
+                let dialog = adw::AlertDialog::builder()
+                    .heading(fl!("person-photo-action", "heading"))
+                    .build();
+                dialog.add_response(
+                    "set-thumbnail",
+                    &fl!("person-photo-action", "set-thumbnail"),
+                );
+                dialog.add_response(
+                    "reassign",
+                    &fl!("person-photo-action", "reassign"),
+                );
+                dialog.add_response(
+                    "not-person",
+                    &fl!("people-not-this-person", name = person.name.clone()),
+                );
+                dialog.set_response_appearance("not-person", adw::ResponseAppearance::Destructive);
+                dialog.add_response("cancel", &fl!("person-photo-action", "cancel"));
+                dialog.set_close_response("cancel");
+                dialog.set_default_response(Some("cancel"));
+
+                {
+                    let sender = sender.clone();
+                    dialog.connect_response(None, move |_, response| match response {
+                        "set-thumbnail" => {
+                            sender.input(PersonAlbumInput::SetThumbnail(picture_id))
+                        }
+                        "not-person" => sender.input(PersonAlbumInput::NotPerson(picture_id)),
+                        "reassign" => sender.input(PersonAlbumInput::Reassign(picture_id)),
+                        _ => {}
+                    });
+                }
+
+                if let Some(root) = gtk::Widget::root(self.avatar.widget_ref()) {
+                    dialog.present(Some(&root));
+                }
+            }
+            PersonAlbumInput::SetThumbnail(picture_id) => {
+                let Some(person) = self.person.clone() else {
+                    return;
+                };
+                let Some(face) = self.face_in_picture(&picture_id) else {
+                    return;
+                };
+                if let Err(e) = self.repo.set_person_thumbnail(person.person_id, face.face_id) {
+                    error!("Failed setting person thumbnail: {}", e);
+                    return;
+                }
+                // Immediate feedback; the high-quality version regenerates later.
+                if face.thumbnail_path.exists() {
+                    let img = gdk::Texture::from_filename(&face.thumbnail_path).ok();
+                    self.avatar.set_custom_image(img.as_ref());
+                }
+                if let Some(ref mut p) = self.person {
+                    p.small_thumbnail_path = Some(face.thumbnail_path.clone());
+                    p.large_thumbnail_path = None;
+                }
+            }
+            PersonAlbumInput::NotPerson(picture_id) => {
+                let Some(face) = self.face_in_picture(&picture_id) else {
+                    return;
+                };
+                if let Err(e) = self.repo.mark_not_person(face.face_id) {
+                    error!("Failed detaching face from person: {}", e);
+                    return;
+                }
+                self.reload_pictures();
+                let _ = sender.output(PersonAlbumOutput::FacesChanged);
+            }
+            PersonAlbumInput::Reassign(picture_id) => {
+                let Some(face) = self.face_in_picture(&picture_id) else {
+                    return;
+                };
+                self.person_select.emit(PersonSelectInput::Activate(
+                    face.face_id,
+                    face.thumbnail_path.clone(),
+                ));
+                if let Some(root) = gtk::Widget::root(self.avatar.widget_ref()) {
+                    self.person_dialog.present(Some(&root));
+                }
+            }
+            PersonAlbumInput::ReassignDone => {
+                self.person_dialog.close();
+                self.reload_pictures();
+                let _ = sender.output(PersonAlbumOutput::FacesChanged);
             }
             PersonAlbumInput::Adapt(layout @ adaptive::Layout::Narrow) => {
                 self.edge_length.set_value(NARROW_EDGE_LENGTH);
@@ -405,6 +587,52 @@ impl SimpleComponent for PersonAlbum {
                 self.picture_ids.clear();
                 let _ = sender.output(PersonAlbumOutput::Deleted);
             }
+            PersonAlbumInput::ToggleIgnore => {
+                let Some(ref mut person) = self.person else {
+                    info!("Asked to ignore person, but no person for album");
+                    return;
+                };
+                let now_ignored = !person.is_ignored;
+                info!(
+                    "Setting person {} ignored = {}",
+                    person.person_id, now_ignored
+                );
+                if let Err(e) = self.repo.set_person_ignored(person.person_id, now_ignored) {
+                    error!("Failed to set person ignored: {}", e);
+                    return;
+                }
+                person.is_ignored = now_ignored;
+                // Pop back to the overview and let it refresh (the person leaves
+                // the active list, or the ignored list, accordingly).
+                let _ = sender.output(PersonAlbumOutput::IgnoredChanged);
+            }
         }
+    }
+}
+
+impl PersonAlbum {
+    /// The current person's face in `picture_id`, if any.
+    fn face_in_picture(&self, picture_id: &PictureId) -> Option<people::Face> {
+        let person_id = self.person.as_ref()?.person_id;
+        self.repo
+            .find_faces(picture_id)
+            .ok()?
+            .into_iter()
+            .find_map(|(face, p)| (p.map(|p| p.person_id) == Some(person_id)).then_some(face))
+    }
+
+    /// Re-fetch the current person's pictures and re-filter the album, after a
+    /// face was detached or reassigned.
+    fn reload_pictures(&mut self) {
+        let Some(person) = self.person.clone() else {
+            return;
+        };
+        self.picture_ids = self
+            .repo
+            .find_pictures_for_person(person.person_id)
+            .unwrap_or_default();
+        self.album.sender().emit(AlbumInput::Filter(AlbumFilter::Any(
+            self.picture_ids.clone(),
+        )));
     }
 }
