@@ -2883,9 +2883,9 @@ dependencies = [
 
 [[package]]
 name = "libshumate-sys"
-version = "0.8.0"
+version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e3aa13ff6eba6aeaa3026f08794596a1a3eb4895e93f1643219b514722da42ba"
+checksum = "139011b1db5dce6f52ae88a30a5bc46157d6a7b048a0c39e7e7d1550737701a6"
 dependencies = [
  "gdk-pixbuf-sys",
  "gdk4-sys",
