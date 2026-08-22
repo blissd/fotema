@@ -55,7 +55,7 @@
                 "append-path": "/usr/lib/sdk/rust-stable/bin:/usr/lib/sdk/llvm21/bin",
                 "prepend-ld-library-path": "/usr/lib/sdk/llvm21/lib",
                 "env": {
-                    "OPENCV_INCLUDE_PATHS": "/app/include/opencv4",
+                    "OPENCV_INCLUDE_PATHS": "/app/include/opencv5",
                     "LIBCLANG_PATH": "/usr/lib/sdk/llvm21/lib",
                     "ORT_STRATEGY": "system"
                 }

@@ -53,7 +53,7 @@ impl FaceRecognizer {
             let mut opencv_face_recognizer =
                 FaceRecognizerSF::create_def(&recognizer.model_path.to_string_lossy(), "")?;
 
-            let face_img = imgcodecs::imread_def(&person.face.face_path.to_string_lossy())?;
+            let face_img = imgcodecs::imread_def(&person.face.face_path)?;
 
             let face_landarks = person.face.landmarks_as_mat();
 
@@ -74,7 +74,7 @@ impl FaceRecognizer {
         let mut face_recognizer =
             FaceRecognizerSF::create_def(&self.model_path.to_string_lossy(), "")?;
 
-        let face_img = imgcodecs::imread_def(&unknown_face.face_path.to_string_lossy())?;
+        let face_img = imgcodecs::imread_def(&unknown_face.face_path)?;
 
         let face_landmarks = unknown_face.landmarks_as_mat();
 
