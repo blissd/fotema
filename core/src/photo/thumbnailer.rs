@@ -4,14 +4,12 @@
 
 use anyhow::*;
 
-use image::ImageReader;
-
-use gdk4::prelude::TextureExt;
 use glycin;
-use std::io::Cursor;
+
 use tracing::error;
 
 use crate::FlatpakPathBuf;
+use crate::texture_utils;
 use crate::thumbnailify;
 
 /// Thumbnail operations for photos.
@@ -54,17 +52,8 @@ impl PhotoThumbnailer {
             err
         })?;
 
-        let bytes = frame.texture().save_to_png_bytes();
+        let src_image = texture_utils::texture_to_rgba(frame.texture())?;
 
-        let src_image =
-            ImageReader::with_format(Cursor::new(bytes), image::ImageFormat::Png).decode()?;
-        /*
-                let _ = self.thumbnailer.generate_thumbnail(
-                    path,
-                    thumbnailify::ThumbnailSize::Large,
-                    src_image.clone(),
-                )?;
-        */
         let _ = self.thumbnailer.generate_all_thumbnails(path, src_image)?;
 
         Ok(())
