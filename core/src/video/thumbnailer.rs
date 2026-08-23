@@ -5,6 +5,7 @@
 use crate::FlatpakPathBuf;
 use crate::thumbnailify;
 use crate::video::display_matrix::av_display_rotation_get;
+use crate::video::hwaccel;
 
 use anyhow::*;
 use image::imageops;
@@ -58,26 +59,23 @@ impl VideoThumbnailer {
 
             let video_stream_index = input.index();
 
-            let context_decoder =
+            let mut context_decoder =
                 ffmpeg::codec::context::Context::from_parameters(input.parameters())?;
+            // Try VAAPI hardware decode; falls back to software on any failure.
+            let use_hw = hwaccel::setup_vaapi(&mut context_decoder);
             let mut decoder = context_decoder.decoder().video()?;
 
-            let mut scaler = Context::get(
-                decoder.format(),
-                decoder.width(),
-                decoder.height(),
-                Pixel::RGB24,
-                decoder.width(),
-                decoder.height(),
-                Flags::BILINEAR,
-            )?;
+            // Built lazily once the first frame's pixel format is known — for
+            // hardware decode that is only settled after the GPU→CPU transfer.
+            let mut scaler: Option<Context> = None;
 
             // Lambda for decoding video
             let mut receive_and_process_decoded_frames =
                 |decoder: &mut ffmpeg::decoder::Video| -> Result<(), ffmpeg::Error> {
                     let mut decoded = Video::empty();
                     if decoder.receive_frame(&mut decoded).is_ok() {
-                        // MatrixData contains rotation.
+                        // MatrixData contains rotation. Read it from the decoded
+                        // frame before any hardware transfer.
                         let display_matrix = decoded.side_data(SideDataType::DisplayMatrix);
                         let rotation = if let Some(display_matrix) = display_matrix {
                             av_display_rotation_get(display_matrix.data())
@@ -85,8 +83,30 @@ impl VideoThumbnailer {
                             f64::NAN
                         };
 
+                        // Copy a VAAPI surface into system memory; software
+                        // frames are used as-is.
+                        let frame = if use_hw && hwaccel::is_hw_frame(&decoded) {
+                            hwaccel::transfer_to_software(&decoded)
+                                .map_err(|_| ffmpeg::Error::Unknown)?
+                        } else {
+                            decoded
+                        };
+
+                        if scaler.is_none() {
+                            scaler = Some(Context::get(
+                                frame.format(),
+                                frame.width(),
+                                frame.height(),
+                                Pixel::RGB24,
+                                frame.width(),
+                                frame.height(),
+                                Flags::BILINEAR,
+                            )?);
+                        }
+                        let scaler = scaler.as_mut().unwrap();
+
                         let mut rgb_frame = Video::empty();
-                        scaler.run(&decoded, &mut rgb_frame)?;
+                        scaler.run(&frame, &mut rgb_frame)?;
                         Self::convert_rgb_to_png(&rgb_frame, rotation, temporary_png_file.path())
                             .map_err(|_| ffmpeg::Error::Unknown)?;
                     }

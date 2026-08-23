@@ -4,6 +4,7 @@
 
 pub mod display_matrix;
 
+mod hwaccel;
 pub mod metadata;
 pub mod model;
 pub mod repo;
