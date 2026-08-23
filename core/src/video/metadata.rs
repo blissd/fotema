@@ -16,6 +16,7 @@ use std::path::Path;
 use std::result::Result::Ok;
 
 use std::fs;
+use tracing::debug;
 
 /// This version number should be incremented each time metadata scanning has
 /// a bug fix or feature addition that changes the metadata produced.
@@ -81,7 +82,7 @@ pub fn from_path(path: &Path) -> Result<Metadata> {
 
         if !f64::is_nan(rotation) {
             metadata.rotation = Some(rotation as i32);
-            println!(
+            debug!(
                 "rotation f64={}, metadata.rotation={:?}",
                 rotation, metadata.rotation
             );

@@ -6,18 +6,16 @@
 // Necessary because face thumbnails are extracted from x-large thumbnail images, which
 // makes the face thumbnails quite small.
 
-use std::io::Cursor;
 use std::path::PathBuf;
 
 use super::model::DetectedFace;
 use crate::FlatpakPathBuf;
+use crate::texture_utils;
 use crate::thumbnailify;
 use crate::thumbnailify::ThumbnailSize;
 
 use anyhow::*;
-use gdk4::prelude::TextureExt;
 use glycin;
-use image::ImageReader;
 use tracing::error;
 
 #[derive(Debug, Clone)]
@@ -148,14 +146,7 @@ impl PersonThumbnailer {
             y = 0.0;
         }
 
-        let bytes = frame.texture().save_to_png_bytes();
-
-        let original_image = ImageReader::with_format(Cursor::new(bytes), image::ImageFormat::Png)
-            .decode()
-            .map_err(|err| {
-                error!("Failed to convert to PNG: {:?}", original_picture.host_path);
-                err
-            })?;
+        let original_image = texture_utils::texture_to_rgba(frame.texture())?;
 
         // FIXME use fast_image_resize instead of image-rs
         let thumbnail = original_image.crop_imm(x as u32, y as u32, longest as u32, longest as u32);

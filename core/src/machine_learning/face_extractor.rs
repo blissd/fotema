@@ -3,13 +3,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use crate::people::FaceDetectionCandidate;
+use crate::texture_utils;
 use crate::thumbnailify::{ThumbnailSize, Thumbnailer};
 
 use anyhow::*;
 
 use super::nms::Nms;
-use image::ImageReader;
-use std::io::Cursor;
+
 use std::path::{Path, PathBuf};
 use std::result::Result::Ok;
 
@@ -17,7 +17,6 @@ use rust_faces::{
     BlazeFaceParams, Face as DetectedFace, FaceDetection, FaceDetectorBuilder, ToArray3,
 };
 
-use gdk4::prelude::TextureExt;
 use image::DynamicImage;
 use tracing::{debug, error, info};
 
@@ -280,10 +279,7 @@ impl FaceExtractor {
         let loader = glycin::Loader::new(file);
         let image = loader.load().await?;
         let frame = image.next_frame().await?;
-        let bytes = frame.texture().save_to_png_bytes();
-        let image =
-            ImageReader::with_format(Cursor::new(bytes), image::ImageFormat::Png).decode()?;
-
+        let image = texture_utils::texture_to_rgba(frame.texture())?;
         Ok(image)
     }
 }

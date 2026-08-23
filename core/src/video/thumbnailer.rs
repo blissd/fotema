@@ -6,18 +6,14 @@ use crate::FlatpakPathBuf;
 use crate::thumbnailify;
 use crate::video::display_matrix::av_display_rotation_get;
 
+use anyhow::Context;
 use anyhow::*;
+use image::ImageBuffer;
 use image::imageops;
-use image::{ImageBuffer, ImageFormat, ImageReader, RgbImage};
-use std::path::Path;
 use std::result::Result::Ok;
-use tempfile;
 
-use ffmpeg::format::{Pixel, input};
-use ffmpeg::media::Type;
-use ffmpeg::software::scaling::{context::Context, flag::Flags};
-use ffmpeg::util::frame::video::Video;
-use ffmpeg_next as ffmpeg;
+use video_rs::decode::Decoder;
+
 use ffmpeg_next::frame::side_data::Type as SideDataType;
 
 /// Thumbnail operations for videos.
@@ -46,80 +42,35 @@ impl VideoThumbnailer {
     pub fn thumbnail_internal(&self, path: &FlatpakPathBuf) -> Result<()> {
         // Extract first frame of video for thumbnail
 
-        // Temporary output file for frame.
-        let temporary_png_file = tempfile::Builder::new().suffix(".png").tempfile()?;
+        let mut decoder = Decoder::new(path.sandbox_path.clone())?;
 
-        // See https://docs.rs/ffmpeg-next/latest/src/dump_frames/dump-frames.rs.html
-        if let Ok(mut ictx) = input(path.sandbox_path.as_os_str()) {
-            let input = ictx
-                .streams()
-                .best(Type::Video)
-                .ok_or(ffmpeg::Error::StreamNotFound)?;
+        let (width, height) = decoder.size();
 
-            let video_stream_index = input.index();
+        // FIXME do we have to decode twice?
+        // Right now this is so we can get the image data from frame and the
+        // side-data from raw_frame.
+        // The image data can also come from raw_frame,
+        // but If I use raw_frame.data(0).to_vec() insead of frame.as_slice(),
+        // then some frame are corrupted :-/
 
-            let context_decoder =
-                ffmpeg::codec::context::Context::from_parameters(input.parameters())?;
-            let mut decoder = context_decoder.decoder().video()?;
+        let frame = decoder.decode()?.1;
+        decoder.seek(0)?;
+        let raw_frame = decoder.decode_raw()?;
 
-            let mut scaler = Context::get(
-                decoder.format(),
-                decoder.width(),
-                decoder.height(),
-                Pixel::RGB24,
-                decoder.width(),
-                decoder.height(),
-                Flags::BILINEAR,
-            )?;
+        let frame_slice = frame
+            .as_slice()
+            .context("Failed to turn frame into slice.")?;
 
-            // Lambda for decoding video
-            let mut receive_and_process_decoded_frames =
-                |decoder: &mut ffmpeg::decoder::Video| -> Result<(), ffmpeg::Error> {
-                    let mut decoded = Video::empty();
-                    if decoder.receive_frame(&mut decoded).is_ok() {
-                        // MatrixData contains rotation.
-                        let display_matrix = decoded.side_data(SideDataType::DisplayMatrix);
-                        let rotation = if let Some(display_matrix) = display_matrix {
-                            av_display_rotation_get(display_matrix.data())
-                        } else {
-                            f64::NAN
-                        };
+        let display_matrix = raw_frame.side_data(SideDataType::DisplayMatrix);
+        let rotation = if let Some(display_matrix) = display_matrix {
+            av_display_rotation_get(display_matrix.data())
+        } else {
+            f64::NAN
+        };
 
-                        let mut rgb_frame = Video::empty();
-                        scaler.run(&decoded, &mut rgb_frame)?;
-                        Self::convert_rgb_to_png(&rgb_frame, rotation, temporary_png_file.path())
-                            .map_err(|_| ffmpeg::Error::Unknown)?;
-                    }
-                    Ok(())
-                };
-
-            for (stream, packet) in ictx.packets() {
-                if stream.index() == video_stream_index {
-                    // Note to self: can also get side data and display matrix
-                    // from packet side data.
-                    decoder.send_packet(&packet)?;
-                    receive_and_process_decoded_frames(&mut decoder)?;
-                    break;
-                }
-            }
-            decoder.send_eof()?;
-            receive_and_process_decoded_frames(&mut decoder)?;
-        }
-
-        let src_image = ImageReader::open(&temporary_png_file)?.decode()?;
-
-        let _ = self.thumbnailer.generate_all_thumbnails(path, src_image)?;
-
-        Ok(())
-    }
-
-    fn convert_rgb_to_png(frame: &Video, rotation: f64, png_path: &Path) -> Result<()> {
-        let image_width = frame.width();
-        let image_height = frame.height();
-        let frame_bytes: Vec<u8> = frame.data(0).to_vec();
-
-        let buffer: RgbImage = ImageBuffer::from_raw(image_width, image_height, frame_bytes)
-            .expect("Video frame to image");
+        let buffer: ImageBuffer<image::Rgb<u8>, Vec<u8>> =
+            ImageBuffer::from_raw(width, height, frame_slice.to_vec())
+                .context("Failed to construct image buffer.")?;
 
         let buffer = match rotation {
             90.0 => imageops::rotate90(&buffer),
@@ -128,7 +79,10 @@ impl VideoThumbnailer {
             _ => buffer,
         };
 
-        buffer.save_with_format(png_path, ImageFormat::Png)?;
+        let src_image = image::DynamicImage::ImageRgb8(buffer);
+
+        let _ = self.thumbnailer.generate_all_thumbnails(path, src_image)?;
+
         Ok(())
     }
 }
