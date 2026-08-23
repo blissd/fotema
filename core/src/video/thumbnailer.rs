@@ -49,6 +49,10 @@ impl VideoThumbnailer {
         // FIXME do we have to decode twice?
         // Right now this is so we can get the image data from frame and the
         // side-data from raw_frame.
+        // The image data can also come from raw_frame,
+        // but If I use raw_frame.data(0).to_vec() insead of frame.as_slice(),
+        // then some frame are corrupted :-/
+
         let frame = decoder.decode()?.1;
         decoder.seek(0)?;
         let raw_frame = decoder.decode_raw()?;
