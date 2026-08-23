@@ -3,10 +3,10 @@
     "buildsystem": "cmake-ninja",
     "cleanup": [
         "/bin/*",
-        "/share/opencv4/*"
+        "/share/opencv5/*"
     ],
     "config-opts": [
-        "-D BUILD_LIST=objdetect,imgcodecs,dnn",
+        "-D BUILD_LIST=objdetect,imgcodecs,dnn,features",
         "-D CMAKE_BUILD_TYPE=RELEASE",
         "-D BUILD_PERF_TESTS=OFF",
         "-D BUILD_EXAMPLES=OFF",
@@ -33,9 +33,9 @@
     "name": "opencv",
     "sources": [
         {
-            "sha256": "1d40ca017ea51c533cf9fd5cbde5b5fe7ae248291ddf2af99d4c17cf8e13017d",
+            "sha256": "b0528f5a1d379d59d4701cb28c36e22214cc51cf64594e5b56f2d3e6c0233095",
             "type": "archive",
-            "url": "https://github.com/opencv/opencv/archive/4.13.0.tar.gz",
+            "url": "https://github.com/opencv/opencv/archive/5.0.0.tar.gz",
             "x-checker-data": {
                 "project-id": 6615,
                 "stable-only": true,
