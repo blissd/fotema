@@ -21,7 +21,36 @@ use rusqlite::params;
 use std::path::{Path, PathBuf};
 use std::result::Result::Ok;
 use std::sync::{Arc, Mutex};
+use chrono::{DateTime, Utc};
 use tracing::warn;
+
+/// A confirmed, named reference face together with its stored ArcFace embedding
+/// (already L2-normalised) and its person's last-recognition timestamp. The
+/// lightweight recognition pass compares unnamed faces against these stored
+/// embeddings instead of recomputing them with the model.
+#[derive(Debug, Clone)]
+pub struct RecognitionReference {
+    pub person_id: PersonId,
+    pub recognized_at: DateTime<Utc>,
+    pub embedding: Vec<f32>,
+}
+
+/// An unnamed, non-ignored face with its stored (L2-normalised) ArcFace
+/// embedding and detection time.
+#[derive(Debug, Clone)]
+pub struct UnnamedEmbedding {
+    pub face_id: FaceId,
+    pub detected_at: DateTime<Utc>,
+    pub embedding: Vec<f32>,
+}
+
+/// Minimum detected-face size (shorter side, in source-image pixels) for a face
+/// to appear in the "unknown people" grid and be considered for recognition.
+/// Faces smaller than this are too low-resolution to identify reliably and only
+/// add noise (weak embeddings, spurious clusters). Tunable; raise it to be
+/// stricter. Existing faces are only filtered from queries, never deleted, so
+/// lowering it brings them back.
+pub const MIN_FACE_PX: f64 = 24.0;
 
 /// Repository of people data.
 /// Repository is backed by a Sqlite database.
@@ -101,6 +130,166 @@ impl Repository {
         Ok(result)
     }
 
+    /// All detected faces not yet assigned to a person (and not ignored), across
+    /// the whole library, grouped by similarity (via stored SFace embeddings)
+    /// and ordered so the most frequently occurring unknown person comes first.
+    /// Faces without an embedding yet are appended at the end. Powers the
+    /// "unknown people" overview.
+    pub fn find_unnamed_faces(&self) -> Result<Vec<model::Face>> {
+        let rows: Vec<(model::Face, Option<Vec<f32>>)> = {
+            let con = self.con.lock().unwrap();
+            let mut stmt = con.prepare(&format!(
+                "SELECT
+                    faces.face_id AS face_id,
+                    faces.thumbnail_path AS face_thumbnail_path,
+                    faces.embedding AS embedding
+                FROM pictures_faces AS faces
+                WHERE faces.person_id IS NULL AND faces.is_ignored = FALSE
+                    AND faces.bounds_width >= {MIN_FACE_PX}
+                    AND faces.bounds_height >= {MIN_FACE_PX}
+                ORDER BY faces.face_id"
+            ))?;
+
+            let data_dir = self.data_dir_base_path.clone();
+            stmt.query_map([], move |row| {
+                let face_id = row.get("face_id").map(FaceId::new)?;
+                let thumbnail_path = row
+                    .get("face_thumbnail_path")
+                    .map(|p: String| data_dir.join(p))?;
+                let bytes: Option<Vec<u8>> = row.get("embedding")?;
+                let embedding = bytes.map(|b| {
+                    b.chunks_exact(4)
+                        .map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]]))
+                        .collect::<Vec<f32>>()
+                });
+                Ok((model::Face { face_id, thumbnail_path }, embedding))
+            })?
+            .flatten()
+            .collect()
+        };
+
+        Ok(Self::cluster_and_order(rows))
+    }
+
+    /// Faces the user has hidden via "ignore face" (still unnamed). Powers the
+    /// "show ignored faces" view, from which they can be restored. Newest first;
+    /// no clustering (these are typically non-faces or strangers).
+    pub fn find_ignored_faces(&self) -> Result<Vec<model::Face>> {
+        let con = self.con.lock().unwrap();
+        let mut stmt = con.prepare(
+            "SELECT
+                faces.face_id AS face_id,
+                faces.thumbnail_path AS face_thumbnail_path
+            FROM pictures_faces AS faces
+            WHERE faces.person_id IS NULL AND faces.is_ignored = TRUE
+            ORDER BY faces.face_id DESC",
+        )?;
+
+        let data_dir = self.data_dir_base_path.clone();
+        let result: Vec<model::Face> = stmt
+            .query_map([], move |row| {
+                let face_id = row.get("face_id").map(FaceId::new)?;
+                let thumbnail_path = row
+                    .get("face_thumbnail_path")
+                    .map(|p: String| data_dir.join(p))?;
+                Ok(model::Face {
+                    face_id,
+                    thumbnail_path,
+                })
+            })?
+            .flatten()
+            .collect();
+
+        Ok(result)
+    }
+
+    /// Greedy clustering of faces by normalised-embedding L2 distance, returning
+    /// faces ordered by descending cluster size (most-seen unknown person first),
+    /// with faces that have no embedding appended at the end.
+    fn cluster_and_order(faces: Vec<(model::Face, Option<Vec<f32>>)>) -> Vec<model::Face> {
+        use crate::machine_learning::face_recognizer::EMBEDDING_DIM;
+        // L2 distance of L2-normalised ArcFace features below which two faces are
+        // considered the same person (≈ cosine 0.40). Tunable.
+        const THRESHOLD: f32 = 1.10;
+
+        let mut with_embedding: Vec<(model::Face, Vec<f32>)> = Vec::new();
+        let mut without: Vec<model::Face> = Vec::new();
+        for (face, embedding) in faces {
+            match embedding {
+                // Only the current model's dimension; stale embeddings (e.g.
+                // old SFace) are treated as missing until recomputed.
+                Some(e) if e.len() == EMBEDDING_DIM => {
+                    let norm = e.iter().map(|x| x * x).sum::<f32>().sqrt();
+                    let e = if norm > 0.0 {
+                        e.iter().map(|x| x / norm).collect()
+                    } else {
+                        e
+                    };
+                    with_embedding.push((face, e));
+                }
+                _ => without.push(face),
+            }
+        }
+
+        let mut clusters: Vec<Vec<(model::Face, Vec<f32>)>> = Vec::new();
+        for (face, e) in with_embedding {
+            let mut found = None;
+            for (i, cluster) in clusters.iter().enumerate() {
+                let rep = &cluster[0].1;
+                let dist = e
+                    .iter()
+                    .zip(rep)
+                    .map(|(a, b)| (a - b) * (a - b))
+                    .sum::<f32>()
+                    .sqrt();
+                if dist < THRESHOLD {
+                    found = Some(i);
+                    break;
+                }
+            }
+            match found {
+                Some(i) => clusters[i].push((face, e)),
+                None => clusters.push(vec![(face, e)]),
+            }
+        }
+
+        clusters.sort_by(|a, b| b.len().cmp(&a.len()));
+
+        let mut result: Vec<model::Face> = clusters
+            .into_iter()
+            .flat_map(|c| c.into_iter().map(|(f, _)| f))
+            .collect();
+        result.extend(without);
+        result
+    }
+
+    /// Store an SFace embedding (little-endian f32 vector) for a face.
+    pub fn store_face_embedding(&self, face_id: FaceId, embedding: &[f32]) -> Result<()> {
+        let bytes: Vec<u8> = embedding.iter().flat_map(|f| f.to_le_bytes()).collect();
+        let con = self.con.lock().unwrap();
+        con.execute(
+            "UPDATE pictures_faces SET embedding = ?1 WHERE face_id = ?2",
+            rusqlite::params![bytes, face_id.id()],
+        )?;
+        Ok(())
+    }
+
+    /// Face ids that already have an embedding computed.
+    pub fn faces_with_embedding(&self) -> Result<std::collections::HashSet<i64>> {
+        let con = self.con.lock().unwrap();
+        // Only count embeddings of the current model's dimension (512 floats =
+        // 2048 bytes). Older 128-d SFace embeddings are ignored so they get
+        // recomputed with the new ArcFace model.
+        let mut stmt = con.prepare(
+            "SELECT face_id FROM pictures_faces WHERE length(embedding) = 2048",
+        )?;
+        let set = stmt
+            .query_map([], |row| row.get::<_, i64>("face_id"))?
+            .flatten()
+            .collect();
+        Ok(set)
+    }
+
     pub fn ignore_unknown_faces(&mut self, picture_id: PictureId) -> Result<()> {
         let mut con = self.con.lock().unwrap();
         let tx = con.transaction()?;
@@ -163,9 +352,12 @@ impl Repository {
         let tx = con.transaction()?;
 
         {
+            // Detach every face so it returns to the "unknown people" overview
+            // instead of dangling on a person that no longer exists.
             let mut stmt = tx.prepare_cached(
                 "UPDATE pictures_faces
                 SET
+                    person_id = NULL,
                     is_confirmed = FALSE,
                     is_thumbnail = FALSE
                 WHERE person_id = ?1",
@@ -199,17 +391,30 @@ impl Repository {
     }
 
     pub fn all_people(&self) -> Result<Vec<model::Person>> {
+        self.people_where("p.is_ignored = FALSE")
+    }
+
+    /// People the user has hidden (for the "show ignored people" view, from which
+    /// they can be restored). Their data and face assignments are untouched.
+    pub fn all_ignored_people(&self) -> Result<Vec<model::Person>> {
+        self.people_where("p.is_ignored = TRUE")
+    }
+
+    /// Shared people query, filtered by the given (trusted, literal) predicate.
+    fn people_where(&self, predicate: &str) -> Result<Vec<model::Person>> {
         let con = self.con.lock().unwrap();
-        let mut stmt = con.prepare(
+        let mut stmt = con.prepare(&format!(
             "SELECT
                 p.person_id AS person_id,
                 p.name AS person_name,
+                p.is_ignored AS is_ignored,
                 f.thumbnail_path AS person_thumbnail_path
             FROM people AS p
             LEFT OUTER JOIN pictures_faces AS f
                 ON (f.person_id = p.person_id AND f.is_thumbnail = TRUE)
-            ORDER BY name ASC",
-        )?;
+            WHERE {predicate}
+            ORDER BY name ASC"
+        ))?;
 
         let result: Vec<model::Person> = stmt
             .query_map([], |row| self.to_person(row))?
@@ -217,6 +422,201 @@ impl Repository {
             .collect();
 
         Ok(result)
+    }
+
+    /// Hide or restore a whole person. Reversible and data-preserving: their face
+    /// assignments stay; only their visibility (overview + auto-recognition seed)
+    /// changes.
+    pub fn set_person_ignored(&mut self, person_id: PersonId, ignored: bool) -> Result<()> {
+        let con = self.con.lock().unwrap();
+        con.execute(
+            "UPDATE people SET is_ignored = ?2 WHERE person_id = ?1",
+            params![person_id.id(), ignored],
+        )?;
+        Ok(())
+    }
+
+    /// Find an existing person by exact name (case-insensitive). Used when
+    /// importing names from photo metadata so duplicates aren't created.
+    pub fn find_person_id_by_name(&self, name: &str) -> Result<Option<PersonId>> {
+        let con = self.con.lock().unwrap();
+        let mut stmt =
+            con.prepare_cached("SELECT person_id FROM people WHERE name = ?1 COLLATE NOCASE LIMIT 1")?;
+        let mut rows = stmt.query_map(params![name], |row| row.get::<_, i64>(0))?;
+        let id = rows.next().transpose()?;
+        Ok(id.map(PersonId::new))
+    }
+
+    /// Order known people by how similar their faces' SFace embeddings are to
+    /// the given face's embedding (closest first), so the most likely match is
+    /// suggested at the top of the naming list. People with no comparable
+    /// embedding keep their alphabetical position at the end. Falls back to
+    /// plain alphabetical order when the face itself has no embedding.
+    pub fn people_by_similarity(&self, face_id: FaceId) -> Result<Vec<model::Person>> {
+        use crate::machine_learning::face_recognizer::EMBEDDING_DIM;
+        let people = self.all_people()?; // alphabetical
+        if people.is_empty() {
+            return Ok(people);
+        }
+
+        // Embedding of the face we want suggestions for.
+        let face_embedding: Option<Vec<f32>> = {
+            let con = self.con.lock().unwrap();
+            let mut stmt =
+                con.prepare("SELECT embedding FROM pictures_faces WHERE face_id = ?1")?;
+            let mut rows =
+                stmt.query_map(params![face_id.id()], |row| row.get::<_, Option<Vec<u8>>>(0))?;
+            rows.next()
+                .transpose()?
+                .flatten()
+                .map(|b| Self::bytes_to_normalized(&b))
+        };
+        let Some(face_embedding) = face_embedding else {
+            return Ok(people);
+        };
+        // Stale-dimension embedding (e.g. old SFace): can't compare meaningfully.
+        if face_embedding.len() != EMBEDDING_DIM {
+            return Ok(people);
+        }
+
+        // Minimum distance from this face to each named person's faces.
+        let mut best: std::collections::HashMap<i64, f32> = std::collections::HashMap::new();
+        {
+            let con = self.con.lock().unwrap();
+            let mut stmt = con.prepare(
+                "SELECT person_id, embedding FROM pictures_faces
+                 WHERE person_id IS NOT NULL AND embedding IS NOT NULL",
+            )?;
+            let rows = stmt.query_map([], |row| {
+                let pid: i64 = row.get("person_id")?;
+                let bytes: Vec<u8> = row.get("embedding")?;
+                Ok((pid, bytes))
+            })?;
+            for (pid, bytes) in rows.flatten() {
+                let other = Self::bytes_to_normalized(&bytes);
+                if other.len() != EMBEDDING_DIM {
+                    continue;
+                }
+                let dist = Self::l2(&face_embedding, &other);
+                best.entry(pid)
+                    .and_modify(|m| {
+                        if dist < *m {
+                            *m = dist;
+                        }
+                    })
+                    .or_insert(dist);
+            }
+        }
+
+        let mut with_dist: Vec<(model::Person, f32)> = Vec::new();
+        let mut without: Vec<model::Person> = Vec::new();
+        for p in people {
+            match best.get(&p.person_id.id()) {
+                Some(d) => with_dist.push((p, *d)),
+                None => without.push(p),
+            }
+        }
+        with_dist.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+
+        let mut result: Vec<model::Person> = with_dist.into_iter().map(|(p, _)| p).collect();
+        result.extend(without);
+        Ok(result)
+    }
+
+    /// Confirmed, named faces that carry a current (512-dim ArcFace) embedding,
+    /// each paired with its person's last-recognition time. These are the
+    /// references the lightweight recognition pass matches unnamed faces
+    /// against — using the embeddings already in the DB, so no model load, image
+    /// read or inference is needed. A person can contribute several reference
+    /// faces (better recall); the match takes the closest.
+    pub fn find_recognition_references(&self) -> Result<Vec<RecognitionReference>> {
+        let con = self.con.lock().unwrap();
+        let mut stmt = con.prepare(
+            "SELECT faces.person_id   AS person_id,
+                    people.recognized_at AS recognized_at,
+                    faces.embedding   AS embedding
+             FROM pictures_faces AS faces
+             INNER JOIN people USING (person_id)
+             WHERE faces.is_confirmed = TRUE
+               AND people.is_ignored = FALSE
+               AND length(faces.embedding) = 2048",
+        )?;
+        let rows = stmt.query_map([], |row| {
+            let person_id = row.get("person_id").map(PersonId::new)?;
+            let recognized_at: DateTime<Utc> = row.get("recognized_at")?;
+            let bytes: Vec<u8> = row.get("embedding")?;
+            Ok((person_id, recognized_at, bytes))
+        })?;
+
+        let mut out = Vec::new();
+        for (person_id, recognized_at, bytes) in rows.flatten() {
+            out.push(RecognitionReference {
+                person_id,
+                recognized_at,
+                embedding: Self::bytes_to_normalized(&bytes),
+            });
+        }
+        Ok(out)
+    }
+
+    /// Unnamed, non-ignored faces that carry a current (512-dim ArcFace)
+    /// embedding, with their detection time. The recognition candidates.
+    pub fn find_unnamed_with_embeddings(&self) -> Result<Vec<UnnamedEmbedding>> {
+        let con = self.con.lock().unwrap();
+        let mut stmt = con.prepare(&format!(
+            "SELECT face_id, detected_at, embedding
+             FROM pictures_faces
+             WHERE person_id IS NULL
+               AND is_ignored = FALSE
+               AND bounds_width >= {MIN_FACE_PX}
+               AND bounds_height >= {MIN_FACE_PX}
+               AND length(embedding) = 2048"
+        ))?;
+        let rows = stmt.query_map([], |row| {
+            let face_id = row.get("face_id").map(FaceId::new)?;
+            let detected_at: DateTime<Utc> = row.get("detected_at")?;
+            let bytes: Vec<u8> = row.get("embedding")?;
+            Ok((face_id, detected_at, bytes))
+        })?;
+
+        let mut out = Vec::new();
+        for (face_id, detected_at, bytes) in rows.flatten() {
+            out.push(UnnamedEmbedding {
+                face_id,
+                detected_at,
+                embedding: Self::bytes_to_normalized(&bytes),
+            });
+        }
+        Ok(out)
+    }
+
+    /// Cosine similarity of two already-L2-normalised embeddings (a plain dot
+    /// product). Higher = more similar.
+    pub fn cosine_normalized(a: &[f32], b: &[f32]) -> f32 {
+        a.iter().zip(b).map(|(x, y)| x * y).sum()
+    }
+
+    /// Decode a little-endian f32 embedding BLOB and L2-normalise it.
+    fn bytes_to_normalized(bytes: &[u8]) -> Vec<f32> {
+        let v: Vec<f32> = bytes
+            .chunks_exact(4)
+            .map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]]))
+            .collect();
+        let norm = v.iter().map(|x| x * x).sum::<f32>().sqrt();
+        if norm > 0.0 {
+            v.iter().map(|x| x / norm).collect()
+        } else {
+            v
+        }
+    }
+
+    /// Euclidean (L2) distance between two equal-length vectors.
+    fn l2(a: &[f32], b: &[f32]) -> f32 {
+        a.iter()
+            .zip(b)
+            .map(|(x, y)| (x - y) * (x - y))
+            .sum::<f32>()
+            .sqrt()
     }
 
     /// All known people that must have a face recognition performed.
@@ -324,6 +724,46 @@ impl Repository {
         Ok(result)
     }
 
+    /// All non-ignored faces (named or not) that lack a current-dimension
+    /// embedding, so embeddings are (re)computed for everything — needed after
+    /// switching recognition models. The 2048-byte test = 512 floats (ArcFace).
+    pub fn find_faces_needing_embedding(&self) -> Result<Vec<model::DetectedFace>> {
+        let con = self.con.lock().unwrap();
+        let mut stmt = con.prepare(
+            "SELECT
+                face_id,
+                detected_at,
+                is_source_original,
+                bounds_path,
+                thumbnail_path,
+                bounds_x,
+                bounds_y,
+                bounds_width,
+                bounds_height,
+                right_eye_x,
+                right_eye_y,
+                left_eye_x,
+                left_eye_y,
+                nose_x,
+                nose_y,
+                right_mouth_corner_x,
+                right_mouth_corner_y,
+                left_mouth_corner_x,
+                left_mouth_corner_y,
+                confidence
+            FROM pictures_faces AS faces
+            WHERE faces.is_ignored = FALSE
+            AND (faces.embedding IS NULL OR length(faces.embedding) != 2048)",
+        )?;
+
+        let result: Vec<model::DetectedFace> = stmt
+            .query_map([], |row| self.to_detected_face(row))?
+            .flatten()
+            .collect();
+
+        Ok(result)
+    }
+
     /// Finds all pictures that feature a known person.
     pub fn find_pictures_for_person(&self, person_id: PersonId) -> Result<Vec<PictureId>> {
         let con = self.con.lock().unwrap();
@@ -364,6 +804,18 @@ impl Repository {
         }
 
         tx.commit()?;
+        Ok(())
+    }
+
+    /// Restore a previously ignored face: clear `is_ignored` so it returns to the
+    /// unknown-faces pool. Reverses `mark_ignore` (the prior person link, if any,
+    /// is not restored — the face can simply be named again).
+    pub fn restore_face(&mut self, face_id: FaceId) -> Result<()> {
+        let con = self.con.lock().unwrap();
+        con.execute(
+            "UPDATE pictures_faces SET is_ignored = FALSE WHERE face_id = ?1",
+            params![face_id.id()],
+        )?;
         Ok(())
     }
 
@@ -542,6 +994,48 @@ impl Repository {
         Ok(())
     }
 
+    /// Like [`add_person`], but the assignment is left unconfirmed: the name is
+    /// a recommendation (e.g. imported from photo XMP) that the user can
+    /// override. The first face still becomes the person's thumbnail so the
+    /// person has an avatar.
+    pub fn add_person_unconfirmed(&mut self, face_id: FaceId, name: &str) -> Result<()> {
+        let mut con = self.con.lock().unwrap();
+        let tx = con.transaction()?;
+
+        {
+            let mut insert_person = tx.prepare_cached(
+                "
+                INSERT INTO people (name)
+                SELECT ?1 AS name
+                FROM pictures_faces
+                WHERE face_id = ?2 AND person_id IS NULL
+                ",
+            )?;
+
+            insert_person.execute(params![name, face_id.id(),])?;
+
+            let person_id = tx.last_insert_rowid();
+            if person_id == 0 {
+                warn!("Detected double insert of person. Skipping.");
+                return Ok(());
+            }
+
+            let mut update_face = tx.prepare_cached(
+                "UPDATE pictures_faces
+                SET
+                    person_id = ?2,
+                    is_confirmed = FALSE,
+                    is_thumbnail = TRUE
+                WHERE face_id = ?1",
+            )?;
+
+            update_face.execute(params![face_id.id(), person_id,])?;
+        }
+
+        tx.commit()?;
+        Ok(())
+    }
+
     /// User is manually marking a face as a person
     pub fn mark_as_person(&mut self, face_id: FaceId, person_id: PersonId) -> Result<()> {
         let mut con = self.con.lock().unwrap();
@@ -608,11 +1102,38 @@ impl Repository {
         Ok(())
     }
 
+    /// All "this face is not this person" rejections as `face_id -> {person_id}`.
+    /// Recognition uses it to never re-assign a face to a rejected person.
+    pub fn find_negative_associations(
+        &self,
+    ) -> Result<std::collections::HashMap<i64, std::collections::HashSet<i64>>> {
+        let con = self.con.lock().unwrap();
+        let mut stmt = con.prepare("SELECT face_id, person_id FROM face_not_person")?;
+        let rows = stmt.query_map([], |row| {
+            Ok((row.get::<_, i64>(0)?, row.get::<_, i64>(1)?))
+        })?;
+        let mut map: std::collections::HashMap<i64, std::collections::HashSet<i64>> =
+            std::collections::HashMap::new();
+        for (face_id, person_id) in rows.flatten() {
+            map.entry(face_id).or_default().insert(person_id);
+        }
+        Ok(map)
+    }
+
     pub fn mark_not_person(&mut self, face_id: FaceId) -> Result<()> {
         let mut con = self.con.lock().unwrap();
         let tx = con.transaction()?;
 
         {
+            // Negative learning: remember that this face is NOT its current
+            // person, so recognition never re-assigns it to them.
+            let mut remember = tx.prepare_cached(
+                "INSERT OR IGNORE INTO face_not_person (face_id, person_id)
+                 SELECT face_id, person_id FROM pictures_faces
+                 WHERE face_id = ?1 AND person_id IS NOT NULL",
+            )?;
+            remember.execute(params![face_id.id(),])?;
+
             let mut stmt = tx.prepare_cached(
                 "UPDATE pictures_faces
                 SET
@@ -706,6 +1227,8 @@ impl Repository {
                 name,
                 small_thumbnail_path: person_thumbnail_path,
                 large_thumbnail_path: large_thumbnail_path,
+                // Not selected on this path; not used for ignore decisions here.
+                is_ignored: false,
             })
         } else {
             None
@@ -740,11 +1263,14 @@ impl Repository {
             None
         };
 
+        let is_ignored = row.get("is_ignored").unwrap_or(false);
+
         std::result::Result::Ok(model::Person {
             person_id,
             name,
             small_thumbnail_path,
             large_thumbnail_path,
+            is_ignored,
         })
     }
 

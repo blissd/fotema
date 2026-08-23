@@ -39,6 +39,34 @@ places-page = Places
 # Title for people page which shows an album of faces.
 people-page = People
 
+# Title for the page which shows all detected, not-yet-named faces.
+faces-page = Unknown People
+
+# Empty state for the Unknown People page when no unnamed faces remain.
+faces-page-empty =
+  .title = No unknown faces
+  .description = Faces you haven't named yet appear here. Select one and name it to start grouping people.
+
+# Button to run recognition over the remaining unnamed faces.
+unknown-people-recognize = Find matches
+  .tooltip = Look through the unnamed faces and assign those that match a person you have already named.
+
+# Button to ignore (hide) the selected unnamed face(s).
+unknown-people-ignore-face = Ignore face
+  .tooltip = Hide the selected face(s) — for non-faces or people you don't want to name.
+
+# Toggle to switch the grid to the ignored faces (so they can be restored).
+unknown-people-show-ignored = Show ignored
+
+# Button to restore the selected ignored face(s) back to the unknown list.
+unknown-people-restore-face = Restore face
+  .tooltip = Bring the selected ignored face(s) back into the unknown-faces list.
+
+# Empty state for the ignored-faces view.
+unknown-people-no-ignored =
+  .title = No ignored faces
+  .description = Faces you ignore are hidden here so you can restore them later.
+
 # Status page shown for people album when face detection is disabled.
 people-page-status-off =
   .title = Enable face detection?
@@ -51,6 +79,14 @@ people-page-status-no-people =
   .title = No people found
   .description = { -app-name } will look for faces in new photos when launched.
   Name the people in your photos so { -app-name } can make an album for each person.
+
+# Toggle button to show hidden (ignored) people.
+people-show-ignored = Show ignored
+
+# Status page shown when the ignored-people view is empty.
+people-page-status-no-ignored =
+  .title = No ignored people
+  .description = People you ignore are hidden here so you can restore them later.
 
 ## Thumbnail decorations
 
@@ -210,6 +246,9 @@ people-set-name = Set name
 people-person-search =
         .placeholder = Person name
 
+# Shown when several faces are selected to be named at once.
+people-selected-count = { $count } faces selected
+
 # Menu item to ignore a face match because it is a random face or not a face.
 people-face-ignore = Ignore
 
@@ -252,6 +291,9 @@ prefs-processing-face-detection = Face detection
 # Motion photo processing enabled or disabled.
 # Attributes:
 #   .subtitle - Description of toggle button action.
+prefs-processing-recognition-auto = Automatic person recognition
+  .subtitle = After you name a face, look through the library in the background for that person's other faces.
+
 prefs-processing-motion-photos = Motion photos
   .subtitle = Detect Android motion photos and extract the videos.
 
@@ -354,6 +396,9 @@ primary-menu-preferences = Preferences
 # Menu item to show "about" dialog
 primary-menu-about = About {-app-name}
 
+# Menu item to re-import person names embedded in photo metadata
+primary-menu-scan-face-tags = Import Names from Photos
+
 ## Person menu
 
 # Menu item to rename a person
@@ -361,6 +406,12 @@ person-menu-rename = Rename person
 
 # Menu item to delete a person
 person-menu-delete = Delete person
+
+# Menu item to hide a person (reversible)
+person-menu-ignore = Ignore person
+
+# Menu item to restore a previously hidden person
+person-menu-restore = Restore person
 
 # Person delete dialog
 person-delete-dialog =
@@ -375,6 +426,13 @@ person-rename-dialog =
   .placeholder = New name
   .cancel-button = Cancel
   .rename-button = Rename
+
+# Actions when right-clicking a photo inside a person's album.
+person-photo-action =
+  .heading = Edit this photo's tag
+  .set-thumbnail = Use as profile picture
+  .reassign = Assign to someone else…
+  .cancel = Cancel
 
 # First view to present to a user.
 onboard-select-pictures =

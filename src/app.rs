@@ -63,6 +63,7 @@ use self::components::{
     library::{Library, LibraryInput, LibraryOutput},
     onboard::{Onboard, OnboardOutput},
     preferences::{PreferencesDialog, PreferencesInput, PreferencesOutput},
+    viewer::unknown_people::{UnknownPeople, UnknownPeopleInput, UnknownPeopleOutput},
     viewer::view_nav::{ViewNav, ViewNavInput, ViewNavOutput},
 };
 
@@ -90,6 +91,7 @@ pub enum ViewName {
     Folder,
     People,
     Person,
+    Faces,
     Places,
     Selfies,
 }
@@ -112,6 +114,7 @@ impl FromStr for ViewName {
             "Folder" => ::core::result::Result::Ok(ViewName::Folder),
             "People" => ::core::result::Result::Ok(ViewName::People),
             "Person" => ::core::result::Result::Ok(ViewName::Person),
+            "Faces" => ::core::result::Result::Ok(ViewName::Faces),
             "Places" => ::core::result::Result::Ok(ViewName::Places),
             "Selfies" => ::core::result::Result::Ok(ViewName::Selfies),
             _ => ::core::result::Result::Err(::strum::ParseError::VariantNotFound),
@@ -153,6 +156,10 @@ pub struct Settings {
 
     /// Enable or disable face detection.
     pub face_detection_mode: FaceDetectionMode,
+
+    /// Automatically re-run person recognition in the background after a face is
+    /// named (the manual "find matches" button works regardless).
+    pub face_recognition_auto: bool,
 
     /// Sorting for albums.
     /// NOTE: doesn't include folder's album.
@@ -207,6 +214,13 @@ pub(super) struct App {
 
     /// Album with photos overlayed onto a map
     people_page: Controller<PeopleAlbum>,
+
+    // Grid of all detected, not-yet-named faces.
+    faces_page: AsyncController<UnknownPeople>,
+
+    /// Set when a manual "find matches" run is in flight, so the unknown grid is
+    /// reloaded once the background queue drains.
+    pending_unknown_refresh: bool,
 
     // Album for individual person.
     person_album: Controller<PersonAlbum>,
@@ -274,6 +288,19 @@ pub(super) enum AppMsg {
 
     PersonRenamed,
 
+    /// A person was hidden or restored; pop back and refresh the overview.
+    PersonIgnoredChanged,
+
+    /// A face was detached or reassigned within a person album.
+    FacesChanged,
+
+    /// The user named a face: kick off a low-priority background pass that
+    /// propagates the named person across the library from stored embeddings.
+    RecognizeInBackground,
+
+    /// Same as above, but only when auto-recognition is enabled in settings.
+    RecognizeAuto,
+
     // A background task has started.
     TaskStarted(TaskName),
 
@@ -284,6 +311,9 @@ pub(super) enum AppMsg {
 
     ScanPictureForFaces(PictureId),
     ScanPicturesForFaces,
+
+    /// Re-import person names from photo XMP metadata across the library.
+    RescanFaceTags,
 
     ProcessMotionPhotos,
 
@@ -306,6 +336,7 @@ pub(super) enum AppMsg {
 relm4::new_action_group!(pub(super) WindowActionGroup, "win");
 relm4::new_stateless_action!(PreferencesAction, WindowActionGroup, "preferences");
 relm4::new_stateless_action!(AboutAction, WindowActionGroup, "about");
+relm4::new_stateless_action!(ScanFaceTagsAction, WindowActionGroup, "scan-face-tags");
 
 #[relm4::component(pub async)]
 impl SimpleAsyncComponent for App {
@@ -318,6 +349,7 @@ impl SimpleAsyncComponent for App {
         primary_menu: {
             section! {
                 &fl!("primary-menu-preferences") => PreferencesAction,
+                &fl!("primary-menu-scan-face-tags") => ScanFaceTagsAction,
                 &fl!("primary-menu-about") => AboutAction,
             }
         }
@@ -474,6 +506,14 @@ impl SimpleAsyncComponent for App {
                                         } -> {
                                             set_title: &fl!("people-page"),
                                             set_name: ViewName::People.as_ref(),
+                                        },
+
+                                        add_child = &gtk::Box {
+                                            set_orientation: gtk::Orientation::Vertical,
+                                            container_add: model.faces_page.widget(),
+                                        } -> {
+                                            set_title: &fl!("faces-page"),
+                                            set_name: ViewName::Faces.as_ref(),
                                         },
 
                                         add_child = &gtk::Box {
@@ -675,6 +715,7 @@ impl SimpleAsyncComponent for App {
             ))
             .forward(sender.input_sender(), |msg| match msg {
                 AlbumOutput::Selected(id, filter) => AppMsg::View(id, filter),
+                AlbumOutput::SecondaryClick(_) => AppMsg::Ignore,
                 AlbumOutput::ScrollOffset(_) => AppMsg::Ignore,
             });
 
@@ -696,6 +737,7 @@ impl SimpleAsyncComponent for App {
             ))
             .forward(sender.input_sender(), |msg| match msg {
                 AlbumOutput::Selected(id, filter) => AppMsg::View(id, filter),
+                AlbumOutput::SecondaryClick(_) => AppMsg::Ignore,
                 AlbumOutput::ScrollOffset(_) => AppMsg::Ignore,
             });
 
@@ -715,6 +757,7 @@ impl SimpleAsyncComponent for App {
             ))
             .forward(sender.input_sender(), |msg| match msg {
                 AlbumOutput::Selected(id, filter) => AppMsg::View(id, filter),
+                AlbumOutput::SecondaryClick(_) => AppMsg::Ignore,
                 AlbumOutput::ScrollOffset(_) => AppMsg::Ignore,
             });
 
@@ -739,6 +782,17 @@ impl SimpleAsyncComponent for App {
             PeopleAlbumInput::Adapt(*layout)
         });
 
+        let faces_page = UnknownPeople::builder()
+            .launch((people_repo.clone(), settings_state.clone()))
+            .forward(sender.input_sender(), |msg| match msg {
+                UnknownPeopleOutput::RecognizeRequested => AppMsg::RecognizeInBackground,
+                UnknownPeopleOutput::AutoRecognizeRequested => AppMsg::RecognizeAuto,
+            });
+
+        adaptive_layout.subscribe(faces_page.sender(), |layout| {
+            UnknownPeopleInput::Adapt(*layout)
+        });
+
         let person_album = PersonAlbum::builder()
             .launch((
                 state.clone(),
@@ -750,6 +804,8 @@ impl SimpleAsyncComponent for App {
                 PersonAlbumOutput::Selected(id, filter) => AppMsg::View(id, filter),
                 PersonAlbumOutput::Deleted => AppMsg::PersonDeleted,
                 PersonAlbumOutput::Renamed => AppMsg::PersonRenamed,
+                PersonAlbumOutput::FacesChanged => AppMsg::FacesChanged,
+                PersonAlbumOutput::IgnoredChanged => AppMsg::PersonIgnoredChanged,
             });
 
         state.subscribe(person_album.sender(), |_| PersonAlbumInput::Refresh);
@@ -797,6 +853,7 @@ impl SimpleAsyncComponent for App {
             ))
             .forward(sender.input_sender(), |msg| match msg {
                 AlbumOutput::Selected(id, filter) => AppMsg::View(id, filter),
+                AlbumOutput::SecondaryClick(_) => AppMsg::Ignore,
                 AlbumOutput::ScrollOffset(_) => AppMsg::Ignore,
             });
 
@@ -846,6 +903,8 @@ impl SimpleAsyncComponent for App {
             motion_page,
             videos_page,
             people_page,
+            faces_page,
+            pending_unknown_refresh: false,
             person_album,
             places_page,
             selfies_page,
@@ -885,8 +944,16 @@ impl SimpleAsyncComponent for App {
             })
         };
 
+        let scan_face_tags_action = {
+            let sender = sender.clone();
+            RelmAction::<ScanFaceTagsAction>::new_stateless(move |_| {
+                sender.input(AppMsg::RescanFaceTags);
+            })
+        };
+
         actions.add_action(about_action);
         actions.add_action(preferences_action);
+        actions.add_action(scan_face_tags_action);
 
         actions.register_for_widget(&widgets.main_window);
 
@@ -981,6 +1048,7 @@ impl SimpleAsyncComponent for App {
                     ViewName::Folder => self.folder_album.emit(AlbumInput::Activate),
                     ViewName::People => self.people_page.emit(PeopleAlbumInput::Activate),
                     ViewName::Person => self.person_album.emit(PersonAlbumInput::Activate),
+                    ViewName::Faces => self.faces_page.emit(UnknownPeopleInput::Refresh),
                     ViewName::Places => self.places_page.emit(PlacesAlbumInput::Activate),
                     ViewName::Nothing => warn!("Nothing activated... which should not happen"),
                 }
@@ -1017,9 +1085,44 @@ impl SimpleAsyncComponent for App {
             AppMsg::PersonDeleted => {
                 self.picture_navigation_view.pop();
                 self.people_page.emit(PeopleAlbumInput::Refresh);
+                // A deleted person's faces become unnamed again.
+                self.faces_page.emit(UnknownPeopleInput::Refresh);
             }
             AppMsg::PersonRenamed => {
                 self.people_page.emit(PeopleAlbumInput::Refresh);
+            }
+            AppMsg::PersonIgnoredChanged => {
+                // Hidden or restored: leave the person album and refresh the
+                // overview (it re-renders the active or ignored list as set).
+                self.picture_navigation_view.pop();
+                self.people_page.emit(PeopleAlbumInput::Refresh);
+            }
+            AppMsg::FacesChanged => {
+                // A face was detached/reassigned in a person album: refresh the
+                // people overview and the unknown-faces grid (stay on the album).
+                self.people_page.emit(PeopleAlbumInput::Refresh);
+                self.faces_page.emit(UnknownPeopleInput::Refresh);
+                // A reassignment may let the person match more faces: auto-run a
+                // background recognition pass (only if enabled in settings).
+                if self.settings_state.read().face_recognition_auto {
+                    self.pending_unknown_refresh = true;
+                    self.bootstrap.emit(BootstrapInput::RecognizeFacesNow);
+                }
+            }
+            AppMsg::RecognizeInBackground => {
+                // Manual "find matches" from the unknown-people tab: run a cheap,
+                // off-thread pass that propagates named people across the unnamed
+                // faces. Always runs, regardless of the auto-recognition setting.
+                self.pending_unknown_refresh = true;
+                self.bootstrap.emit(BootstrapInput::RecognizeFacesNow);
+            }
+            AppMsg::RecognizeAuto => {
+                // Triggered after naming a face: only run when the user has left
+                // auto-recognition enabled in the settings.
+                if self.settings_state.read().face_recognition_auto {
+                    self.pending_unknown_refresh = true;
+                    self.bootstrap.emit(BootstrapInput::RecognizeFacesNow);
+                }
             }
             AppMsg::TaskStarted(task_name) => {
                 self.spinner
@@ -1080,6 +1183,13 @@ impl SimpleAsyncComponent for App {
                 info!("Bootstrap completed.");
                 self.spinner.set_visible(false);
                 self.banner.set_revealed(false);
+                // A manual "find matches" run just finished: reload so newly
+                // recognised faces leave the unknown grid and join their people.
+                if self.pending_unknown_refresh {
+                    self.pending_unknown_refresh = false;
+                    self.faces_page.emit(UnknownPeopleInput::Refresh);
+                    self.people_page.emit(PeopleAlbumInput::Refresh);
+                }
             }
             AppMsg::TranscodeAll => {
                 info!("Transcode all");
@@ -1093,6 +1203,10 @@ impl SimpleAsyncComponent for App {
             AppMsg::ScanPicturesForFaces => {
                 info!("Scan pictures for faces");
                 self.bootstrap.emit(BootstrapInput::ScanPicturesForFaces);
+            }
+            AppMsg::RescanFaceTags => {
+                info!("Re-import face tags from photo metadata");
+                self.bootstrap.emit(BootstrapInput::RescanForFaceTags);
             }
             AppMsg::ProcessMotionPhotos => {
                 info!("Process motion photos");
@@ -1161,6 +1275,7 @@ impl App {
         Ok(Settings {
             show_selfies: gio_settings.boolean("show-selfies"),
             process_motion_photos: gio_settings.boolean("process-motion-photos"),
+            face_recognition_auto: gio_settings.boolean("face-recognition-auto"),
             face_detection_mode: FaceDetectionMode::from_str(
                 &gio_settings.string("face-detection-mode"),
             )
@@ -1177,6 +1292,7 @@ impl App {
         let gio_settings = gio::Settings::new(APP_ID);
         gio_settings.set_boolean("show-selfies", settings.show_selfies)?;
         gio_settings.set_boolean("process-motion-photos", settings.process_motion_photos)?;
+        gio_settings.set_boolean("face-recognition-auto", settings.face_recognition_auto)?;
         gio_settings.set_string("face-detection-mode", settings.face_detection_mode.as_ref())?;
         gio_settings.set_string("album-sort", settings.album_sort.as_ref())?;
         gio_settings.set_boolean("onboarding-complete", settings.is_onboarding_complete)?;

@@ -8,10 +8,8 @@ use crate::video::display_matrix::av_display_rotation_get;
 
 use anyhow::*;
 use image::imageops;
-use image::{ImageBuffer, ImageFormat, ImageReader, RgbImage};
-use std::path::Path;
+use image::{DynamicImage, ImageBuffer, RgbImage};
 use std::result::Result::Ok;
-use tempfile;
 
 use ffmpeg::format::{Pixel, input};
 use ffmpeg::media::Type;
@@ -44,10 +42,10 @@ impl VideoThumbnailer {
     }
 
     pub fn thumbnail_internal(&self, path: &FlatpakPathBuf) -> Result<()> {
-        // Extract first frame of video for thumbnail
-
-        // Temporary output file for frame.
-        let temporary_png_file = tempfile::Builder::new().suffix(".png").tempfile()?;
+        // Extract first frame of video for thumbnail.
+        // The decoded frame is handed to the thumbnailer in memory; no
+        // intermediate PNG file (avoids a lossless-but-wasteful encode/decode).
+        let mut captured_frame: Option<DynamicImage> = None;
 
         // See https://docs.rs/ffmpeg-next/latest/src/dump_frames/dump-frames.rs.html
         if let Ok(mut ictx) = input(path.sandbox_path.as_os_str()) {
@@ -87,8 +85,7 @@ impl VideoThumbnailer {
 
                         let mut rgb_frame = Video::empty();
                         scaler.run(&decoded, &mut rgb_frame)?;
-                        Self::convert_rgb_to_png(&rgb_frame, rotation, temporary_png_file.path())
-                            .map_err(|_| ffmpeg::Error::Unknown)?;
+                        captured_frame = Some(Self::convert_rgb_to_image(&rgb_frame, rotation));
                     }
                     Ok(())
                 };
@@ -106,14 +103,15 @@ impl VideoThumbnailer {
             receive_and_process_decoded_frames(&mut decoder)?;
         }
 
-        let src_image = ImageReader::open(&temporary_png_file)?.decode()?;
+        let src_image = captured_frame
+            .ok_or_else(|| anyhow!("No frame could be decoded for {:?}", path.host_path))?;
 
         let _ = self.thumbnailer.generate_all_thumbnails(path, src_image)?;
 
         Ok(())
     }
 
-    fn convert_rgb_to_png(frame: &Video, rotation: f64, png_path: &Path) -> Result<()> {
+    fn convert_rgb_to_image(frame: &Video, rotation: f64) -> DynamicImage {
         let image_width = frame.width();
         let image_height = frame.height();
         let frame_bytes: Vec<u8> = frame.data(0).to_vec();
@@ -128,7 +126,6 @@ impl VideoThumbnailer {
             _ => buffer,
         };
 
-        buffer.save_with_format(png_path, ImageFormat::Png)?;
-        Ok(())
+        DynamicImage::ImageRgb8(buffer)
     }
 }

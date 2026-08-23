@@ -33,7 +33,11 @@ impl Nms {
     /// This method is lifted from the rust-faces project and modified to add turn
     /// the face into a tuple that carries a model name.
     pub fn suppress_non_maxima(&self, mut faces: Vec<(Face, String)>) -> Vec<(Face, String)> {
-        faces.sort_by(|a, b| a.0.confidence.partial_cmp(&b.0.confidence).unwrap());
+        faces.sort_by(|a, b| {
+            a.0.confidence
+                .partial_cmp(&b.0.confidence)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         let mut faces_map = HashMap::new();
         faces.iter().rev().enumerate().for_each(|(i, face)| {

@@ -12,6 +12,7 @@ use exif;
 use exif::Exif;
 use std::fs;
 use std::io::BufReader;
+use std::io::Read;
 use std::path::Path;
 use std::result::Result::Ok;
 
@@ -25,7 +26,8 @@ use std::result::Result::Ok;
 /// 1. Orientation.
 /// 2. Motion photos.
 /// 3. GPS coordinates.
-pub const VERSION: u32 = 3;
+/// 4. XMP face-region person tags (read alongside EXIF in one pass).
+pub const VERSION: u32 = 4;
 
 /// Extract EXIF metadata from file
 pub fn from_path(path: &Path) -> Result<Metadata> {
@@ -64,6 +66,41 @@ pub fn from_path(path: &Path) -> Result<Metadata> {
     }
 
     Ok(metadata)
+}
+
+/// Extract EXIF metadata AND embedded XMP face-region person tags from a single
+/// file read. EXIF (GPS, dates, orientation) and the XMP packet both live in the
+/// header segments, so a capped read serves both — avoiding a second file open
+/// later for the person tags.
+pub fn from_path_with_face_tags(
+    path: &Path,
+) -> Result<(Metadata, Vec<crate::photo::face_tags::FaceTag>)> {
+    // Bounds I/O for photos with no people tags; EXIF/XMP sit well within this.
+    const HEADER_CAP: u64 = 512 * 1024;
+    let mut bytes = Vec::new();
+    fs::File::open(path)?.take(HEADER_CAP).read_to_end(&mut bytes)?;
+
+    let mut metadata = match exif::Reader::new()
+        .read_from_container(&mut std::io::Cursor::new(bytes.as_slice()))
+    {
+        Ok(exif_data) => from_exif(exif_data)?,
+        Err(_) => Metadata::default(),
+    };
+
+    let fs_metadata = fs::metadata(path)?;
+    metadata.fs_created_at = fs_metadata.created().map(Into::<DateTime<Utc>>::into).ok();
+    metadata.fs_modified_at = fs_metadata.modified().map(Into::<DateTime<Utc>>::into).ok();
+
+    let ext = path
+        .extension()
+        .and_then(|s| s.to_str())
+        .map(|s| s.to_lowercase());
+    if ext.is_some_and(|x| x == "heic") {
+        metadata.orientation = None;
+    }
+
+    let tags = crate::photo::face_tags::face_tags_from_bytes(&bytes);
+    Ok((metadata, tags))
 }
 
 /// Extract EXIF metadata from raw buffer

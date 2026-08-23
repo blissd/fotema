@@ -161,10 +161,29 @@ impl PersonThumbnailer {
         let thumbnail = original_image.crop_imm(x as u32, y as u32, longest as u32, longest as u32);
         let thumbnail = thumbnail.thumbnail(256, 256);
 
-        thumbnail.save(&large_thumbnail_path).map_err(|err| {
+        // Stored as JPEG (the cache is JPEG, and large_thumbnail_path now ends
+        // in .jpg). JPEG has no alpha, so flatten to RGB. Quality is kept high
+        // because this is the person's chosen "high-quality" avatar.
+        let rgb = thumbnail.to_rgb8();
+        let file = std::fs::File::create(&large_thumbnail_path).map_err(|err| {
             error!("Failed to save face thumbnail: {:?}", large_thumbnail_path);
             err
         })?;
+        let mut encoder = image::codecs::jpeg::JpegEncoder::new_with_quality(
+            std::io::BufWriter::new(file),
+            90,
+        );
+        encoder
+            .encode(
+                rgb.as_raw(),
+                rgb.width(),
+                rgb.height(),
+                image::ExtendedColorType::Rgb8,
+            )
+            .map_err(|err| {
+                error!("Failed to encode face thumbnail: {:?}", large_thumbnail_path);
+                err
+            })?;
 
         Ok(())
     }
