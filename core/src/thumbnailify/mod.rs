@@ -19,7 +19,6 @@ pub use file::is_failed;
 pub use file::write_failed_thumbnail;
 pub use hash::compute_hash;
 pub use sizes::ThumbnailSize;
-pub use thumbnailer::generate_thumbnail;
 
 use crate::FlatpakPathBuf;
 
@@ -107,10 +106,9 @@ impl Thumbnailer {
         path: &FlatpakPathBuf,
         size: ThumbnailSize,
         src_image: DynamicImage,
-    ) -> Result<PathBuf, ThumbnailError> {
-        thumbnailer::generate_thumbnail(&self.thumbnails_path, path, size, src_image)
-
-        //thumbnailer::generate_normal_thumbnail(&self.thumbnails_path, path, size, src_image)?;
+    ) -> Result<(), ThumbnailError> {
+        thumbnailer::generate_hq_thumbnail(&self.thumbnails_path, path, size, src_image)?;
+        Ok(())
     }
 
     pub fn generate_normal_thumbnail(
@@ -157,7 +155,7 @@ impl Thumbnailer {
             ThumbnailSize::Normal,
             img,
         )?;
-        let img = thumbnailer::generate_normal_thumbnail(
+        let _ = thumbnailer::generate_normal_thumbnail(
             &self.thumbnails_path,
             path,
             ThumbnailSize::Small,
