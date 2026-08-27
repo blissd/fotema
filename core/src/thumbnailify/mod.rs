@@ -19,9 +19,14 @@ pub use file::is_failed;
 pub use file::write_failed_thumbnail;
 pub use hash::compute_hash;
 pub use sizes::ThumbnailSize;
-pub use thumbnailer::generate_thumbnail;
 
 use crate::FlatpakPathBuf;
+
+#[derive(Copy, Clone)]
+pub enum ThumbnailQuality {
+    Normal,
+    High,
+}
 
 pub fn compute_hash_for_path(host_path: &Path) -> String {
     let file_uri = file::get_file_uri(host_path).unwrap();
@@ -101,9 +106,11 @@ impl Thumbnailer {
         &self,
         path: &FlatpakPathBuf,
         size: ThumbnailSize,
+        quality: ThumbnailQuality,
         src_image: DynamicImage,
-    ) -> Result<PathBuf, ThumbnailError> {
-        thumbnailer::generate_thumbnail(&self.thumbnails_path, path, size, src_image)
+    ) -> Result<(), ThumbnailError> {
+        thumbnailer::generate_thumbnail(&self.thumbnails_path, path, size, quality, src_image)?;
+        Ok(())
     }
 
     pub fn generate_all_thumbnails(
@@ -111,7 +118,37 @@ impl Thumbnailer {
         path: &FlatpakPathBuf,
         src_image: DynamicImage,
     ) -> Result<(), ThumbnailError> {
-        thumbnailer::generate_all_thumbnails(&self.thumbnails_path, path, src_image)
+        let quality = ThumbnailQuality::Normal;
+        let img = src_image;
+        let img = thumbnailer::generate_thumbnail(
+            &self.thumbnails_path,
+            path,
+            ThumbnailSize::XLarge,
+            quality,
+            img,
+        )?;
+        let img = thumbnailer::generate_thumbnail(
+            &self.thumbnails_path,
+            path,
+            ThumbnailSize::Large,
+            quality,
+            img,
+        )?;
+        let img = thumbnailer::generate_thumbnail(
+            &self.thumbnails_path,
+            path,
+            ThumbnailSize::Normal,
+            quality,
+            img,
+        )?;
+        let _ = thumbnailer::generate_thumbnail(
+            &self.thumbnails_path,
+            path,
+            ThumbnailSize::Small,
+            quality,
+            img,
+        )?;
+        Ok(())
     }
 
     pub fn write_failed_thumbnail(&self, path: &FlatpakPathBuf) -> Result<(), ThumbnailError> {
