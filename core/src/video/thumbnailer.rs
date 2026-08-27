@@ -4,6 +4,7 @@
 
 use crate::FlatpakPathBuf;
 use crate::thumbnailify;
+use crate::thumbnailify::{ThumbnailQuality, ThumbnailSize};
 use crate::video::display_matrix::av_display_rotation_get;
 
 use anyhow::Context;
@@ -33,13 +34,35 @@ impl VideoThumbnailer {
             anyhow::bail!("Failed thumbnail marker exists for {:?}", path.host_path);
         }
 
-        self.thumbnail_internal(path).map_err(|err| {
+        self.thumbnail_internal(path, ThumbnailSize::Large, ThumbnailQuality::High)
+            .map_err(|err| {
+                let _ = self.thumbnailer.write_failed_thumbnail(path);
+                err
+            })
+    }
+    /// Computes a preview for a video
+    pub fn thumbnail2(
+        &self,
+        path: &FlatpakPathBuf,
+        size: ThumbnailSize,
+        quality: ThumbnailQuality,
+    ) -> Result<()> {
+        if self.thumbnailer.is_failed(&path.host_path) {
+            anyhow::bail!("Failed thumbnail marker exists for {:?}", path.host_path);
+        }
+
+        self.thumbnail_internal(path, size, quality).map_err(|err| {
             let _ = self.thumbnailer.write_failed_thumbnail(path);
             err
         })
     }
 
-    pub fn thumbnail_internal(&self, path: &FlatpakPathBuf) -> Result<()> {
+    pub fn thumbnail_internal(
+        &self,
+        path: &FlatpakPathBuf,
+        size: ThumbnailSize,
+        quality: ThumbnailQuality,
+    ) -> Result<()> {
         // Extract first frame of video for thumbnail
 
         let mut decoder = Decoder::new(path.sandbox_path.clone())?;
@@ -81,7 +104,9 @@ impl VideoThumbnailer {
 
         let src_image = image::DynamicImage::ImageRgb8(buffer);
 
-        let _ = self.thumbnailer.generate_all_thumbnails(path, src_image)?;
+        let _ = self
+            .thumbnailer
+            .generate_thumbnail(path, size, quality, src_image)?;
 
         Ok(())
     }
