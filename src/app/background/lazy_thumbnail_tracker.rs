@@ -140,6 +140,7 @@ impl LazyThumbnailTracker {
             ThumbnailOutcome::Failed(visual_id) => {
                 if let Some(pending_thumbnail) = self.pending.remove(&visual_id) {
                     info!("FAILED. {} more thumbnails expected.", self.pending.len());
+                    /*
 
                     let pb = gdk_pixbuf::Pixbuf::from_resource_at_scale(
                         "/app/fotema/Fotema/icons/scalable/actions/error-outline-symbolic.svg",
@@ -153,6 +154,7 @@ impl LazyThumbnailTracker {
                     pending_thumbnail
                         .picture
                         .set_content_fit(gtk::ContentFit::Contain);
+                        */
                 }
             }
         };
