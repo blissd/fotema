@@ -168,6 +168,7 @@ impl Worker for LazyThumbnailTask {
             .unwrap_or(1);
         info!("Available parallelism: {:?}", parallelism);
 
+        // Don't use all the CPUs
         let parallelism = usize::max(1, parallelism / 2);
         info!("Lazy thumbnail parallelism: {:?}", parallelism);
 

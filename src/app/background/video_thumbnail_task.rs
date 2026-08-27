@@ -72,7 +72,7 @@ impl VideoThumbnailTask {
                 let large_path = thumbnailify::get_thumbnail_hash_output(
                     thumbnails_path,
                     &thumb_hash,
-                    ThumbnailSize::Large,
+                    ThumbnailSize::XLarge,
                 );
                 !large_path.exists()
             })
@@ -99,8 +99,10 @@ impl VideoThumbnailTask {
         ));
 
         unprocessed
-            .par_iter()
-            .take_any_while(|_| !stop.load(Ordering::Relaxed))
+            //.par_iter()
+            //.take_any_while(|_| !stop.load(Ordering::Relaxed))
+            .into_iter()
+            .take_while(|_| !stop.load(Ordering::Relaxed))
             .for_each(|vid| {
                 // Careful! panic::catch_unwind returns Ok(Err) if the evaluated expression returns
                 // an error but doesn't panic.
