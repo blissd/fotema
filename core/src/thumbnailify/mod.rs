@@ -22,6 +22,7 @@ pub use sizes::ThumbnailSize;
 
 use crate::FlatpakPathBuf;
 
+#[derive(Copy, Clone)]
 pub enum ThumbnailQuality {
     Normal,
     High,
@@ -105,29 +106,10 @@ impl Thumbnailer {
         &self,
         path: &FlatpakPathBuf,
         size: ThumbnailSize,
+        quality: ThumbnailQuality,
         src_image: DynamicImage,
     ) -> Result<(), ThumbnailError> {
-        thumbnailer::generate_hq_thumbnail(&self.thumbnails_path, path, size, src_image)?;
-        Ok(())
-    }
-
-    pub fn generate_normal_thumbnail(
-        &self,
-        path: &FlatpakPathBuf,
-        size: ThumbnailSize,
-        src_image: DynamicImage,
-    ) -> Result<(), ThumbnailError> {
-        thumbnailer::generate_normal_thumbnail(&self.thumbnails_path, path, size, src_image)?;
-        Ok(())
-    }
-
-    pub fn generate_hq_thumbnail(
-        &self,
-        path: &FlatpakPathBuf,
-        size: ThumbnailSize,
-        src_image: DynamicImage,
-    ) -> Result<(), ThumbnailError> {
-        thumbnailer::generate_hq_thumbnail(&self.thumbnails_path, path, size, src_image)?;
+        thumbnailer::generate_thumbnail(&self.thumbnails_path, path, size, quality, src_image)?;
         Ok(())
     }
 
@@ -136,29 +118,34 @@ impl Thumbnailer {
         path: &FlatpakPathBuf,
         src_image: DynamicImage,
     ) -> Result<(), ThumbnailError> {
+        let quality = ThumbnailQuality::Normal;
         let img = src_image;
-        let img = thumbnailer::generate_normal_thumbnail(
+        let img = thumbnailer::generate_thumbnail(
             &self.thumbnails_path,
             path,
             ThumbnailSize::XLarge,
+            quality,
             img,
         )?;
-        let img = thumbnailer::generate_normal_thumbnail(
+        let img = thumbnailer::generate_thumbnail(
             &self.thumbnails_path,
             path,
             ThumbnailSize::Large,
+            quality,
             img,
         )?;
-        let img = thumbnailer::generate_normal_thumbnail(
+        let img = thumbnailer::generate_thumbnail(
             &self.thumbnails_path,
             path,
             ThumbnailSize::Normal,
+            quality,
             img,
         )?;
-        let _ = thumbnailer::generate_normal_thumbnail(
+        let _ = thumbnailer::generate_thumbnail(
             &self.thumbnails_path,
             path,
             ThumbnailSize::Small,
+            quality,
             img,
         )?;
         Ok(())

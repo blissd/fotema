@@ -117,36 +117,6 @@ pub fn is_thumbnail_up_to_date(thumb_path: &Path, host_path: &Path) -> bool {
     true
 }
 
-pub fn generate_normal_thumbnail(
-    thumbnails_base_dir: &Path,
-    path: &FlatpakPathBuf,
-    size: ThumbnailSize,
-    src_image: DynamicImage,
-) -> Result<DynamicImage, ThumbnailError> {
-    generate_thumbnail_internal(
-        thumbnails_base_dir,
-        path,
-        size,
-        ThumbnailQuality::Normal,
-        src_image,
-    )
-}
-
-pub fn generate_hq_thumbnail(
-    thumbnails_base_dir: &Path,
-    path: &FlatpakPathBuf,
-    size: ThumbnailSize,
-    src_image: DynamicImage,
-) -> Result<DynamicImage, ThumbnailError> {
-    generate_thumbnail_internal(
-        thumbnails_base_dir,
-        path,
-        size,
-        ThumbnailQuality::High,
-        src_image,
-    )
-}
-
 /// Generate a thumbnail for a file that exists outside of the Flatpak sandbox.
 /// NOTE: the sandbox_path/host_path could point to a picture or a video.
 /// `thumbnails_base_dir` - thumbnail base directory
@@ -155,7 +125,7 @@ pub fn generate_hq_thumbnail(
 /// `size` - standard XDG thumbnail size.
 /// `quality` - thumbnail quality.
 /// `src_image` - image data for thumbnail. Image data will have been loaded in a safe way using Glycin.
-pub fn generate_thumbnail_internal(
+pub fn generate_thumbnail(
     thumbnails_base_dir: &Path,
     path: &FlatpakPathBuf,
     size: ThumbnailSize,
