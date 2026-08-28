@@ -8,6 +8,7 @@ use std::path::{Path, PathBuf};
 pub mod error;
 pub mod file;
 pub mod hash;
+pub mod quality;
 pub mod sizes;
 pub mod thumbnailer;
 
@@ -18,15 +19,10 @@ pub use file::get_thumbnail_path;
 pub use file::is_failed;
 pub use file::write_failed_thumbnail;
 pub use hash::compute_hash;
+pub use quality::ThumbnailQuality;
 pub use sizes::ThumbnailSize;
 
 use crate::FlatpakPathBuf;
-
-#[derive(Copy, Clone)]
-pub enum ThumbnailQuality {
-    Normal,
-    High,
-}
 
 pub fn compute_hash_for_path(host_path: &Path) -> String {
     let file_uri = file::get_file_uri(host_path).unwrap();
