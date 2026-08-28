@@ -42,7 +42,7 @@ impl Thumbnailer {
     }
 
     pub fn is_thumbnail_up_to_date(&self, host_path: &Path) -> bool {
-        thumbnailer::is_thumbnail_up_to_date(&self.thumbnails_path, host_path)
+        file::is_thumbnail_up_to_date(&self.thumbnails_path, host_path)
     }
 
     pub fn get_thumbnail_hash_output(&self, hash: &str, size: ThumbnailSize) -> PathBuf {
