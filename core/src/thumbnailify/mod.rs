@@ -113,44 +113,6 @@ impl Thumbnailer {
         Ok(())
     }
 
-    pub fn generate_all_thumbnails(
-        &self,
-        path: &FlatpakPathBuf,
-        src_image: DynamicImage,
-    ) -> Result<(), ThumbnailError> {
-        let quality = ThumbnailQuality::Normal;
-        let img = src_image;
-        let img = thumbnailer::generate_thumbnail(
-            &self.thumbnails_path,
-            path,
-            ThumbnailSize::XLarge,
-            quality,
-            img,
-        )?;
-        let img = thumbnailer::generate_thumbnail(
-            &self.thumbnails_path,
-            path,
-            ThumbnailSize::Large,
-            quality,
-            img,
-        )?;
-        let img = thumbnailer::generate_thumbnail(
-            &self.thumbnails_path,
-            path,
-            ThumbnailSize::Normal,
-            quality,
-            img,
-        )?;
-        let _ = thumbnailer::generate_thumbnail(
-            &self.thumbnails_path,
-            path,
-            ThumbnailSize::Small,
-            quality,
-            img,
-        )?;
-        Ok(())
-    }
-
     pub fn write_failed_thumbnail(&self, path: &FlatpakPathBuf) -> Result<(), ThumbnailError> {
         file::write_failed_thumbnail(&self.thumbnails_path, path)
     }
