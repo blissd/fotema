@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use md5;
+use std::path::Path;
 use tracing::debug;
 
 /// Computes the MD5 hash for the given input file path.
@@ -15,4 +16,9 @@ pub fn compute_hash(input: &str) -> String {
 
     debug!("MD5 hash for input={} is {}", input, hash);
     hash
+}
+
+pub fn compute_hash_for_path(host_path: &Path) -> String {
+    let file_uri = super::file::get_file_uri(host_path).unwrap();
+    compute_hash(&file_uri)
 }
