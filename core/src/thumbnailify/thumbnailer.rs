@@ -250,17 +250,3 @@ pub fn generate_thumbnail(
 
     Ok(())
 }
-
-fn fast_image_to_dynamic(img: &Image) -> Result<DynamicImage, ThumbnailError> {
-    let width = img.width();
-    let height = img.height();
-    let pixels = img.buffer();
-
-    // Create ImageBuffer<u8, &[u8]> by wrapping the slice
-    // Then convert to owned buffer
-    let buffer = ImageBuffer::<Rgba<u8>, Vec<u8>>::from_raw(width, height, pixels.to_vec()).ok_or(
-        io::Error::new(io::ErrorKind::Other, "Failed to create ImageBuffer"),
-    )?;
-
-    Ok(DynamicImage::ImageRgba8(buffer))
-}
