@@ -17,7 +17,7 @@ members = ["core"]
 lto = "thin"
 
 [dependencies]
-gettext-rs = { version = "0.7", features = ["gettext-system"] }
+gettext-rs = { version = "0.8", features = ["gettext-system"] }
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.22", features = ["chrono", "env-filter"] }
 relm4 = { version = "0.11.0", features = ["libadwaita", "gnome_50"] }
