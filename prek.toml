@@ -1,0 +1,98 @@
+# SPDX-FileCopyrightText: © 2026 David Bliss
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# Configuration file for `prek`, a git hook framework written in Rust.
+# See https://prek.j178.dev for more information.
+#:schema https://www.schemastore.org/prek.json
+
+minimum_pre_commit_version = "3.3.0"
+default_install_hook_types = [
+  "pre-commit",
+  "commit-msg"
+  ]
+default_stages = ["pre-commit"]
+exclude = ".sql$"
+
+[[repos]]
+repo = "https://github.com/pre-commit/pre-commit-hooks"
+rev = "3e8a8703264a2f4a69428a0aa4dcb512790b2c8c"
+hooks = [
+  { id = "check-yaml" },
+  { id = "check-json" },
+  { id = "check-toml" },
+  { id = "check-xml" },
+  { id = "check-merge-conflict" },
+  { id = "end-of-file-fixer" },
+  { id = "mixed-line-ending" },
+  { id = "trailing-whitespace" },
+  {
+    id = "pretty-format-json",
+    exclude = "app.fotema.Fotema.Devel.json$",
+    args = [
+      "--autofix",
+      "--indent=4"
+    ]
+  }
+]
+
+[[repos]]
+repo = "https://github.com/fsfe/reuse-tool"
+rev = "a1bb792acda6fd0724936b4ebbdbc8eceb9c0459"
+hooks = [
+  { id = "reuse" }
+]
+
+[[repos]]
+repo = "https://github.com/doublify/pre-commit-rust"
+rev = "eeee35a89e69d5772bdee97db1a6a898467b686e"
+hooks = [
+  {
+    id = "fmt",
+    name = "rustfmt"
+  }
+]
+
+[[repos]]
+repo = "https://github.com/rhysd/actionlint"
+rev = "914e7df21a07ef503a81201c76d2b11c789d3fca"
+hooks = [
+  {
+    id = "actionlint",
+    name = "actionlint"
+  }
+]
+
+[[repos]]
+repo = "https://github.com/compilerla/conventional-pre-commit"
+rev = "91ab4bf57e58b32adf1a122681f6ebe164d081c8"
+hooks = [
+  {
+    id = "conventional-pre-commit",
+    name = "conventional-commits",
+    stages = ["commit-msg"]
+  }
+]
+
+[[repos]]
+repo = "https://github.com/rvben/rumdl-pre-commit"
+rev = "v0.2.78"
+hooks = [
+  {
+    id = "rumdl",
+    args = ["--fix"]
+  },
+  {
+    id = "rumdl-fmt"
+  }
+]
+
+[[repos]]
+repo = "https://github.com/zizmorcore/zizmor-pre-commit"
+rev = "451b56af716f9f0d0c2b816503a3fd0cf8b036fa"
+hooks = [
+  {
+    id = "zizmor",
+    priority = 0
+  }
+]
