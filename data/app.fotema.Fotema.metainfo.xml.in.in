@@ -118,10 +118,11 @@
   </screenshots>
 
   <releases>
-    <release version="2.5.0" date="2026-03-25">
+    <release version="2.5.0" date="2026-10-07">
       <description>
         <ul>
           <li>More efficient video processing.</li>
+          <li>GNOME 51 runtime</li>
         </ul>
       </description>
     </release>

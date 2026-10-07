@@ -18,7 +18,7 @@ Naming format should be `v[major].[minor].[patch]`, such as `v1.15.0`.
 
 To cut a new release to be published to Flathub perform the following steps:
 
-Create a new release tag for the Git repository.  Example:
+Create a new release tag for the Git repository. Example:
 
 ```shell
 git tag -a -m "Release with new feature" v1.15.0
