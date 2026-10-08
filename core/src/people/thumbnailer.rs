@@ -57,7 +57,7 @@ impl PersonThumbnailer {
         let file = gio::File::for_path(&original_picture.sandbox_path);
         let loader = glycin::Loader::new(file);
 
-        let original_image = loader.load().await.map_err(|err| {
+        let mut original_image = loader.load().await.map_err(|err| {
             error!(
                 "Glycin failed to load file at {:?}",
                 original_picture.host_path

@@ -67,7 +67,7 @@ impl PhotoThumbnailer {
     ) -> Result<()> {
         let file = gio::File::for_path(&path.sandbox_path);
         let loader = glycin::Loader::new(file);
-        let image = loader.load().await.map_err(|err| {
+        let mut image = loader.load().await.map_err(|err| {
             error!("Glycin failed to load file at {:?}", path.sandbox_path);
             err
         })?;

@@ -397,7 +397,7 @@ impl SimpleAsyncComponent for ViewOne {
 
                     let image = loader.load().await;
 
-                    let Ok(image) = image else {
+                    let Ok(mut image) = image else {
                         event!(Level::ERROR, "Failed loading image: {:?}", image);
                         self.viewing = Viewing::Error;
                         self.broken = Broken::Failed;

@@ -69,7 +69,7 @@ pub fn from_path(path: &Path) -> Result<Metadata> {
 /// Extract EXIF metadata from raw buffer
 pub fn from_raw(data: Vec<u8>) -> Result<Metadata> {
     let exif_data = {
-        match exif::Reader::new().read_raw(data) {
+        match exif::Reader::new().read_raw(data.to_vec()) {
             Ok(exif) => exif,
             Err(_) => {
                 // Assume this error is when there is no EXIF data.

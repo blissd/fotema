@@ -277,7 +277,7 @@ impl FaceExtractor {
         let file = gio::File::for_path(source_path);
 
         let loader = glycin::Loader::new(file);
-        let image = loader.load().await?;
+        let mut image = loader.load().await?;
         let frame = image.next_frame().await?;
         let image = texture_utils::texture_to_rgba(frame.texture())?;
         Ok(image)
