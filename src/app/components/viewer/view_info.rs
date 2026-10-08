@@ -533,8 +533,8 @@ impl ViewInfo {
 
         self.image_details.set_visible(has_image_details);
 
-        if let Some(Ok(exif)) = image_details.metadata_exif().as_ref().map(|x| x.get_full()) {
-            let metadata = fotema_core::photo::metadata::from_raw(exif).ok();
+        if let Some(exif) = image_details.metadata_exif() {
+            let metadata = fotema_core::photo::metadata::from_raw(exif.to_vec()).ok();
 
             let fs_created_at: Option<String> = metadata
                 .clone()

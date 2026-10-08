@@ -47,6 +47,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "aliasable"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "250f629c0161ad8107cf89319e990051fae62832fd343083bea452d93e2205fd"
+
+[[package]]
 name = "aligned"
 version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1140,6 +1146,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "fearless_simd"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b97b65636e5b9ef369943878ac74335ba1c55c1cb6adbf1e2c293c624248d693"
+
+[[package]]
 name = "ffmpeg-next"
 version = "8.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1281,28 +1293,7 @@ version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f6f339eb8adc052cd2ca78910fda869aefa38d22d5cb648e6485e4d3fc06f3b1"
 dependencies = [
- "foreign-types-shared 0.1.1",
-]
-
-[[package]]
-name = "foreign-types"
-version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d737d9aa519fb7b749cbc3b962edcf310a8dd1f4b67c91c4f83975dbdd17d965"
-dependencies = [
- "foreign-types-macros",
- "foreign-types-shared 0.3.1",
-]
-
-[[package]]
-name = "foreign-types-macros"
-version = "0.2.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ea5190182e6915eb873ddbc16e23b711b6eb1f9c00a0d0a3a91b5f6228475225"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 3.0.6",
+ "foreign-types-shared",
 ]
 
 [[package]]
@@ -1310,12 +1301,6 @@ name = "foreign-types-shared"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "00b0228411908ca8685dba7fc2cdd70ec9990a6e753e89b6ac91a84c40fbaf4b"
-
-[[package]]
-name = "foreign-types-shared"
-version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aa9a19cbb55df58761df49b23516a86d432839add4af60fc256da840f66ed35b"
 
 [[package]]
 name = "form_urlencoded"
@@ -1662,9 +1647,9 @@ dependencies = [
 
 [[package]]
 name = "gettext-rs"
-version = "0.7.7"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5d5857dc1b7f0fee86961de833f434e29494d72af102ce5355738c0664222bdf"
+checksum = "9df5e3fa8c077b15fdfa8ce130e2bc73d663b8aaa6d51b71421b8659980b1d80"
 dependencies = [
  "gettext-sys",
  "locale_config",
@@ -1721,6 +1706,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "gio-unix"
+version = "0.22.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ce8d768735e229742c135afa3d3326604088d2df0679901cdb05e791fe2fbe0a"
+dependencies = [
+ "gio",
+ "gio-unix-sys",
+ "glib",
+ "libc",
+]
+
+[[package]]
+name = "gio-unix-sys"
+version = "0.22.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7c01dbb58f92f67548d85e2209e073acc7ee04e107c7e04ee69b49e38b4933b4"
+dependencies = [
+ "gio-sys",
+ "glib-sys",
+ "gobject-sys",
+ "libc",
+ "system-deps 9.0.0",
+]
+
+[[package]]
 name = "glam"
 version = "0.30.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1771,7 +1781,7 @@ version = "0.22.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c9597c68fa7bdf4154a3079642cd21c4dccac0b0bdd2897d82861523bf91e7b9"
 dependencies = [
- "heck",
+ "heck 0.5.0",
  "proc-macro2",
  "quote",
  "syn 3.0.6",
@@ -1795,46 +1805,28 @@ checksum = "e4eba85ea1d0a966a983acd07deee566e67395d2d96b6fb39e62b5a833f1eb0b"
 
 [[package]]
 name = "glycin"
-version = "3.1.0"
+version = "4.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "923674c1f2b1a28f69ebdc0f572672e63874e17ce0e60c96b8bfaff47a8ef4e9"
+checksum = "1a2c4f0b15d8ec7347ba0e67d0c5c80533a7994929f3e02e2801d5b22e8946dc"
 dependencies = [
- "async-fs",
- "async-global-executor",
- "async-io",
- "async-lock",
- "async-task",
- "blocking",
- "futures-channel",
- "futures-lite",
- "futures-timer",
- "futures-util",
- "gdk4",
- "gio",
- "glib",
- "glycin-common",
- "glycin-utils",
- "gufo-common",
- "gufo-exif",
- "lcms2",
- "lcms2-sys",
- "libc",
- "libseccomp",
- "memfd",
- "memmap2",
- "nix",
- "static_assertions",
- "thiserror 2.0.21",
- "tracing",
- "yeslogic-fontconfig-sys",
- "zbus",
+ "glycin-builtin",
+ "glycin-external",
+]
+
+[[package]]
+name = "glycin-builtin"
+version = "4.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2c9179cb8e55f66d0ae3a3234e1afcac77f4aa95b7e879d283955eb9f6c13ce5"
+dependencies = [
+ "glycin-core",
 ]
 
 [[package]]
 name = "glycin-common"
-version = "1.0.4"
+version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "db28cec888051ccbf68f9f352d57ba2a292179863524a0769e54dbb72d152a03"
+checksum = "f34692fa7314e5108eafaba7621460d958caba839a6d5040f1caba98d7b4a692"
 dependencies = [
  "bitflags 2.13.2",
  "gufo-common",
@@ -1850,19 +1842,94 @@ dependencies = [
 ]
 
 [[package]]
-name = "glycin-utils"
-version = "4.1.0"
+name = "glycin-core"
+version = "4.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b49cd2451bced7416341a5e89d74f547e92b85b67e8f66c8723a7505930a50ab"
+checksum = "6886f3ab6bf3a35879287f875e76dca58df050879854fabfecadcd6add1b0545"
+dependencies = [
+ "async-fs",
+ "async-global-executor",
+ "async-io",
+ "async-lock",
+ "async-task",
+ "blocking",
+ "bytemuck",
+ "futures-channel",
+ "futures-lite",
+ "futures-timer",
+ "futures-util",
+ "gdk4",
+ "gio",
+ "gio-unix",
+ "glib",
+ "glycin-common",
+ "glycin-image-rs",
+ "glycin-utils",
+ "gufo",
+ "gufo-common",
+ "gufo-exif",
+ "half",
+ "libc",
+ "libseccomp",
+ "moxcms",
+ "nix",
+ "static_assertions",
+ "thiserror 2.0.21",
+ "tracing",
+ "yeslogic-fontconfig-sys",
+ "zbus",
+]
+
+[[package]]
+name = "glycin-external"
+version = "4.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b3b3161e8473d47f45656e8fb32903f8a29e0bd2e97e631443b4f8b15b864ef0"
+dependencies = [
+ "glycin-core",
+]
+
+[[package]]
+name = "glycin-image-rs"
+version = "2.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3df0cbc11fe5d5523575b04f724c82d8d50e2c03830622b655e7d4015eba6472"
+dependencies = [
+ "bytemuck",
+ "exr",
+ "glycin-utils",
+ "gufo",
+ "gufo-common",
+ "gufo-exif",
+ "gufo-jpeg",
+ "hayro-jpeg2000",
+ "image",
+ "image-extras",
+ "jpeg-encoder",
+ "log",
+ "moxcms",
+ "tiff",
+ "zune-jpeg",
+]
+
+[[package]]
+name = "glycin-utils"
+version = "5.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "43a93c6dfde7ab29b8e3c9844cb9e59a5bcd58ffdd9b24aab500d3a78a4b4cb0"
 dependencies = [
  "async-lock",
  "bitflags 2.13.2",
  "blocking",
  "env_logger",
+ "futures-lite",
+ "futures-timer",
  "futures-util",
+ "glib",
  "glycin-common",
  "gufo-common",
  "half",
+ "image",
  "libc",
  "libseccomp",
  "log",
@@ -1992,10 +2059,27 @@ dependencies = [
 ]
 
 [[package]]
-name = "gufo-common"
-version = "1.1.0"
+name = "gufo"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9f23bc0d0e791259ce4fe703c4d988c64317e33477bc4d1d7526ab8eb9fcaab6"
+checksum = "6a16d7faeeb03e2925ac6b0f40630b15b1992d08c50add402f35fde495e44f64"
+dependencies = [
+ "gufo-common",
+ "gufo-exif",
+ "gufo-jpeg",
+ "gufo-png",
+ "gufo-tiff",
+ "gufo-webp",
+ "gufo-xmp",
+ "static_assertions",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "gufo-common"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d583cdde9eb6985dbb6e596d27677e5d353d5eee44763cbf7c7ead3147d337bf"
 dependencies = [
  "paste",
  "serde",
@@ -2005,13 +2089,75 @@ dependencies = [
 
 [[package]]
 name = "gufo-exif"
-version = "0.4.0"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ad61fccc591119491879e7bee63ebbfbd27811b35367b4728a857119fde78843"
+checksum = "e99100988e312c22c6f209663b289e727db3918d06fbcbbc2315149457b42b75"
+dependencies = [
+ "gufo-common",
+ "indexmap",
+ "ouroboros",
+ "thiserror 2.0.21",
+ "tracing",
+ "zerocopy",
+]
+
+[[package]]
+name = "gufo-jpeg"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "383907a5c532bff484b2914d649e368e98ce6426829458353fe40070225b07a5"
+dependencies = [
+ "gufo-common",
+ "indexmap",
+ "jpeg-encoder",
+ "thiserror 2.0.21",
+ "tracing",
+ "zerocopy",
+]
+
+[[package]]
+name = "gufo-png"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e5c3065acab6cf458afbe53f73462a0dbf17348a2af3c889183f8714b3bff6fc"
+dependencies = [
+ "crc32fast",
+ "encoding_rs",
+ "gufo-common",
+ "hex",
+ "miniz_oxide 0.9.1",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "gufo-tiff"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e9c77c38e7815b76e08b1943dc67517e02543504c14a29e071a4ddf9bee111ec"
 dependencies = [
  "gufo-common",
  "thiserror 2.0.21",
- "tracing",
+]
+
+[[package]]
+name = "gufo-webp"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "04d6d3dc0ccd22a30619df68ce347c844d8adb49b822f42660d9a92e6ae14540"
+dependencies = [
+ "gufo-common",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "gufo-xmp"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "903aaa13213b860bbad3565e62f3fbd1087ca9404692ebe53728654653470561"
+dependencies = [
+ "gufo-common",
+ "thiserror 2.0.21",
+ "xml",
 ]
 
 [[package]]
@@ -2087,6 +2233,23 @@ checksum = "824e001ac4f3012dd16a264bec811403a67ca9deb6c102fc5049b32c4574b35f"
 dependencies = [
  "hashbrown 0.16.1",
 ]
+
+[[package]]
+name = "hayro-jpeg2000"
+version = "0.3.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c75ab947623ef4ccaa7acf0579edf7cbb5a73838e3839a7be73335e522f433a1"
+dependencies = [
+ "fearless_simd",
+ "image",
+ "moxcms",
+]
+
+[[package]]
+name = "heck"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "95505c38b4572b2d910cecb0281560f54b440a19336cbbcb27bf6ce6adc6f5a8"
 
 [[package]]
 name = "heck"
@@ -2451,6 +2614,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "image-extras"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "60d02eb2c9ccbbab470538fce34c7bc3be7b4e59268e65a3171367b296cdb842"
+dependencies = [
+ "image",
+]
+
+[[package]]
 name = "image-webp"
 version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2674,6 +2846,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "jpeg-encoder"
+version = "0.7.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a0370574b86f7eca156b9f298392b5e69a23f8c86f3f865add60bbc2e79467a6"
+
+[[package]]
 name = "js-sys"
 version = "0.3.106"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2698,29 +2876,6 @@ name = "lazy_static"
 version = "1.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "20870f649af7073d53e38067b2a84312175d56ea15217e1b15bc83506ec50afb"
-
-[[package]]
-name = "lcms2"
-version = "6.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "80205450f4d8b4de92f18111de879f3df4a6b728915e89b73c38f7a59a81ad90"
-dependencies = [
- "bytemuck",
- "foreign-types 0.5.0",
- "lcms2-sys",
-]
-
-[[package]]
-name = "lcms2-sys"
-version = "4.0.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "264db0b78119c5a37d78bb41fb355daab29b3b29430b53cd92e3da51f0ab06cc"
-dependencies = [
- "cc",
- "dunce",
- "libc",
- "pkg-config",
-]
 
 [[package]]
 name = "lebe"
@@ -2986,15 +3141,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
 
 [[package]]
-name = "memfd"
-version = "0.6.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "57804b2c9b69967f1536a56f86297e367a33b19e98852ed624b84551cdbc0d90"
-dependencies = [
- "rustix",
-]
-
-[[package]]
 name = "memmap"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3197,9 +3343,9 @@ checksum = "650eef8c711430f1a879fdd01d4745a7deea475becfb90269c06775983bbf086"
 
 [[package]]
 name = "nix"
-version = "0.30.1"
+version = "0.31.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "74523f3a35e05aba87a1d978330aef40f67b0304ac79c1c00b294c9830543db6"
+checksum = "cf20d2fde8ff38632c426f1165ed7436270b44f199fc55284c38276f9db47c3d"
 dependencies = [
  "bitflags 2.13.2",
  "cfg-if",
@@ -3439,7 +3585,7 @@ checksum = "77823a27f0babb03091cb9ed9ef80af3b39dbc82f97e8fa530374b7dafd87a45"
 dependencies = [
  "bitflags 2.13.2",
  "cfg-if",
- "foreign-types 0.3.2",
+ "foreign-types",
  "libc",
  "openssl-macros",
  "openssl-sys",
@@ -3522,6 +3668,30 @@ dependencies = [
  "hmac-sha256",
  "lzma-rust2",
  "ureq",
+]
+
+[[package]]
+name = "ouroboros"
+version = "0.18.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1e0f050db9c44b97a94723127e6be766ac5c340c48f2c4bb3ffa11713744be59"
+dependencies = [
+ "aliasable",
+ "ouroboros_macro",
+ "static_assertions",
+]
+
+[[package]]
+name = "ouroboros_macro"
+version = "0.18.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3c7028bdd3d43083f6d8d4d5187680d0d3560d54df4cc9d752005268b41e64d0"
+dependencies = [
+ "heck 0.4.1",
+ "proc-macro2",
+ "proc-macro2-diagnostics",
+ "quote",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -3748,6 +3918,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "985e7ec9bb745e6ce6535b544d84d6cd6f7ad8bd711c398938ae983b91a766d9"
 dependencies = [
  "unicode-ident",
+]
+
+[[package]]
+name = "proc-macro2-diagnostics"
+version = "0.10.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "af066a9c399a26e020ada66a034357a868728e72cd426f3adcd35f80d88d88c8"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
+ "version_check",
+ "yansi",
 ]
 
 [[package]]
@@ -4787,7 +4970,7 @@ version = "0.28.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ab85eea0270ee17587ed4156089e10b9e6880ee688791d45a905f5b1ca36f664"
 dependencies = [
- "heck",
+ "heck 0.5.0",
  "proc-macro2",
  "quote",
  "syn 2.0.119",
@@ -4878,7 +5061,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "396a35feb67335377e0251fcbc1092fc85c484bd4e3a7a54319399da127796e7"
 dependencies = [
  "cfg-expr",
- "heck",
+ "heck 0.5.0",
  "pkg-config",
  "toml 1.1.6+spec-1.1.0",
  "version-compare",
@@ -4891,7 +5074,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8a0dae2cbca1f0ff93795713cfe0a4c02f760e3c0b8ae2ab4ec4045808ff429f"
 dependencies = [
  "cfg-expr",
- "heck",
+ "heck 0.5.0",
  "pkg-config",
  "toml 1.1.6+spec-1.1.0",
  "version-compare",
@@ -5864,10 +6047,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "xml"
+version = "1.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2f45bb2c13fec6a6cb4c0f76a7e94839e110a14ec803ec2940777a94c347bc52"
+
+[[package]]
 name = "y4m"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7a5a4b21e1a62b67a2970e6831bc091d7b87e119e7f9791aef9702e3bef04448"
+
+[[package]]
+name = "yansi"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cfe53a6657fd280eaa890a3bc59152892ffa3e30101319d168b781ed6529b049"
 
 [[package]]
 name = "yeslogic-fontconfig-sys"
