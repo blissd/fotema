@@ -7,7 +7,7 @@ use byteorder::{ByteOrder, LittleEndian};
 
 /// fixed point to double
 fn conv_fp(x: i32) -> f64 {
-    x as f64 / (1 << 16) as f64
+    x as f64 / 65536.0
 }
 
 /// Based on https://ffmpeg.org/doxygen/3.4/display_8c_source.html
@@ -38,6 +38,6 @@ pub fn av_display_rotation_get(matrix: &[u8]) -> f64 {
     }
 
     let mut rotation = f64::atan2(c, a) * 180.0 / std::f64::consts::PI;
-    rotation = rotation.round() / 90.0 * 90.0;
-    return -rotation;
+    rotation = rotation.round() / 90.0 * 90.0; // Round to nearest 90°
+    -rotation
 }
