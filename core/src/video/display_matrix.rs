@@ -3,10 +3,10 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use byteorder::{BigEndian, ByteOrder};
+use byteorder::{ByteOrder, LittleEndian};
 
 /// fixed point to double
-fn conv_fp(x: u32) -> f64 {
+fn conv_fp(x: i32) -> f64 {
     x as f64 / (1 << 16) as f64
 }
 
@@ -18,31 +18,26 @@ pub fn av_display_rotation_get(matrix: &[u8]) -> f64 {
         return f64::NAN;
     }
 
-    // Convert matrix of 36 bytes to matrix of 9 u32s.
-    // u32 is 4 bytes so sizeof(u32) * 9 == 36.
-    let matrix: &[u32; 9] = &[
-        BigEndian::read_u32(&matrix[0..4]),
-        BigEndian::read_u32(&matrix[4..8]),
-        BigEndian::read_u32(&matrix[8..12]),
-        BigEndian::read_u32(&matrix[12..16]),
-        BigEndian::read_u32(&matrix[16..20]),
-        BigEndian::read_u32(&matrix[20..24]),
-        BigEndian::read_u32(&matrix[24..28]),
-        BigEndian::read_u32(&matrix[28..32]),
-        BigEndian::read_u32(&matrix[32..36]),
+    let matrix: &[i32; 9] = &[
+        LittleEndian::read_i32(&matrix[0..4]),
+        LittleEndian::read_i32(&matrix[4..8]),
+        LittleEndian::read_i32(&matrix[8..12]),
+        LittleEndian::read_i32(&matrix[12..16]),
+        LittleEndian::read_i32(&matrix[16..20]),
+        LittleEndian::read_i32(&matrix[20..24]),
+        LittleEndian::read_i32(&matrix[24..28]),
+        LittleEndian::read_i32(&matrix[28..32]),
+        LittleEndian::read_i32(&matrix[32..36]),
     ];
 
-    let scale: &[f64; 2] = &[
-        f64::hypot(conv_fp(matrix[0]), conv_fp(matrix[3])),
-        f64::hypot(conv_fp(matrix[1]), conv_fp(matrix[4])),
-    ];
+    let a = conv_fp(matrix[0]);
+    let c = conv_fp(matrix[3]);
 
-    if scale[0] == 0.0 || scale[1] == 0.0 {
+    if a == 0.0 && c == 0.0 {
         return f64::NAN;
     }
 
-    let rotation = f64::atan2(conv_fp(matrix[1]) / scale[1], conv_fp(matrix[0]) / scale[0]) * 180.
-        / std::f64::consts::PI;
-
-    return rotation;
+    let mut rotation = f64::atan2(c, a) * 180.0 / std::f64::consts::PI;
+    rotation = rotation.round() / 90.0 * 90.0;
+    return -rotation;
 }
