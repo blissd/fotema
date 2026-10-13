@@ -118,6 +118,13 @@
   </screenshots>
 
   <releases>
+    <release version="2.5.1" date="unreleased">
+      <description>
+        <ul>
+          <li>Add "Graphics" category.</li>
+        </ul>
+      </description>
+    </release>
     <release version="2.5.0" date="2026-10-07">
       <description>
         <ul>
