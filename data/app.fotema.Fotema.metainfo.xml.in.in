@@ -118,7 +118,7 @@
   </screenshots>
 
   <releases>
-    <release version="2.5.1" date="unreleased">
+    <release version="2.5.1">
       <description>
         <ul>
           <li>Add "Graphics" category.</li>
