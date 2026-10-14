@@ -14,7 +14,7 @@ anyhow = "1.0.101"
 base64 = "0.23.0"
 chrono = "0.4.44"
 fast_image_resize = { version = "6.0.0", features = ["image"] }
-ffmpeg-next = "8.0.0"
+ffmpeg-next = "9.0.0"
 gdk4 = "0.11.5"
 gio = "0.22.10"
 glycin = { version = "4.0.2", features = ["gdk4"] }
@@ -39,4 +39,4 @@ md5 = "0.8.0"
 png = "0.18.0"
 thiserror = "2.0.18"
 byteorder = "1.5.0"
-video-rs = {version = "0.11", features = ["ndarray"]}
+video-rs = {version = "0.12", features = ["ndarray"]}
