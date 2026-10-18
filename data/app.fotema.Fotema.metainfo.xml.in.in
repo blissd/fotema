@@ -118,6 +118,14 @@
   </screenshots>
 
   <releases>
+    <release version="2.5.2" date="2026-10-18">
+      <description>
+        <ul>
+          <li>Thumbnail fixes.</li>
+          <li>Bump ort library.</li>
+        </ul>
+      </description>
+    </release>
     <release version="2.5.1" date="2026-10-14">
       <description>
         <ul>
