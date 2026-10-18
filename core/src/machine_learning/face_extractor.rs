@@ -18,6 +18,7 @@ use rust_faces::{
 };
 
 use image::DynamicImage;
+use ort::environment::Environment;
 use tracing::{debug, error, info};
 
 #[derive(Debug, Clone)]
@@ -90,8 +91,15 @@ pub struct FaceExtractor {
     detectors: Vec<(Box<dyn rust_faces::FaceDetector>, String)>,
 }
 
-impl FaceExtractor {
-    pub fn build(base_path: &Path, thumbnailer: Thumbnailer) -> Result<FaceExtractor> {
+pub struct FaceExtractorBuilder {
+    faces_base_path: PathBuf,
+    thumbnail_base_path: PathBuf,
+    thumbnailer: Thumbnailer,
+    env: Environment,
+}
+
+impl FaceExtractorBuilder {
+    pub fn new(base_path: &Path, thumbnailer: Thumbnailer) -> Result<FaceExtractorBuilder> {
         let faces_base_path = PathBuf::from(base_path).join("faces");
         let _ = std::fs::create_dir_all(&faces_base_path)?;
 
@@ -100,6 +108,17 @@ impl FaceExtractor {
             .join("small");
         let _ = std::fs::create_dir_all(&thumbnail_base_path)?;
 
+        let env = ort::init().build()?;
+
+        Ok(FaceExtractorBuilder {
+            faces_base_path,
+            thumbnail_base_path,
+            thumbnailer,
+            env,
+        })
+    }
+
+    pub fn build(&self) -> Result<FaceExtractor> {
         let mut detectors: Vec<(Box<dyn rust_faces::FaceDetector>, String)> = vec![];
 
         let bz_params_default = BlazeFaceParams::default();
@@ -107,7 +126,7 @@ impl FaceExtractor {
         let blaze_face_default =
             FaceDetectorBuilder::new(FaceDetection::BlazeFace640(bz_params_default.clone()))
                 .download()
-                .build()?;
+                .build(&self.env)?;
 
         detectors.push((blaze_face_default, "blaze_face_640_default".into()));
 
@@ -115,18 +134,20 @@ impl FaceExtractor {
 
         let mtcnn = FaceDetectorBuilder::new(FaceDetection::MtCnn(mtcnn_params))
             .download()
-            .build()?;
+            .build(&self.env)?;
 
         detectors.push((mtcnn, "mtcnn".into()));
 
         Ok(FaceExtractor {
-            faces_base_path,
-            thumbnail_base_path,
-            thumbnailer,
+            faces_base_path: self.faces_base_path.clone(),
+            thumbnail_base_path: self.thumbnail_base_path.clone(),
+            thumbnailer: self.thumbnailer.clone(),
             detectors,
         })
     }
+}
 
+impl FaceExtractor {
     /// Identify faces in a photo and return a vector of paths of extracted face images.
     pub async fn extract_faces(&mut self, candidate: &FaceDetectionCandidate) -> Result<Vec<Face>> {
         info!("Detecting faces in {:?}", candidate.path.host_path);

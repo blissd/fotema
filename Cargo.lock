@@ -1360,6 +1360,7 @@ dependencies = [
  "kamadak-exif",
  "md5",
  "opencv",
+ "ort",
  "png",
  "rayon",
  "refinery",
@@ -4491,7 +4492,7 @@ dependencies = [
 [[package]]
 name = "rust-faces"
 version = "2.0.0"
-source = "git+https://github.com/blissd/fotema-rust-faces.git?rev=ebc2c130b5b663f6ab7c161dcd42bbb3efd3293f#ebc2c130b5b663f6ab7c161dcd42bbb3efd3293f"
+source = "git+https://github.com/blissd/fotema-rust-faces.git?rev=0bf0080431b7614c739014830a4eac16fae31b58#0bf0080431b7614c739014830a4eac16fae31b58"
 dependencies = [
  "directories",
  "image",

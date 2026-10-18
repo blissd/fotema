@@ -31,7 +31,7 @@ impl PhotoThumbnailer {
             anyhow::bail!("Failed thumbnail marker exists for {:?}", path.host_path);
         }
 
-        self.thumbnail_internal(path, ThumbnailSize::Large, ThumbnailQuality::High)
+        self.thumbnail_internal(path, ThumbnailSize::XLarge, ThumbnailQuality::High)
             .await
             .map_err(|err| {
                 let _ = self.thumbnailer.write_failed_thumbnail(path);

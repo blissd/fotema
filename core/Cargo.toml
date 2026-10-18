@@ -21,10 +21,11 @@ glycin = { version = "4.0.2", features = ["gdk4"] }
 h3o = "0.11.0"
 image = "0.25.9"
 kamadak-exif = "0.6.1"
+ort = { version = "2.0.0-rc.14",  }
 rayon = "1.11.0"
 refinery = { version = "0.10.0", features = ["rusqlite"] }
 rusqlite = { version = "0.40.2", features = ["bundled", "chrono"] }
-rust-faces = {git = "https://github.com/blissd/fotema-rust-faces.git", rev = "ebc2c130b5b663f6ab7c161dcd42bbb3efd3293f", features = ["viz"]}
+rust-faces = {git = "https://github.com/blissd/fotema-rust-faces.git", rev = "0bf0080431b7614c739014830a4eac16fae31b58", features = ["viz"]}
 sm_motion_photo = "0.1.5"
 strum = { version = "0.28", features = ["derive"] }
 tempfile = "3.27.0"
