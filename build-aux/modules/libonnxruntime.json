@@ -17,7 +17,7 @@
             "only-arches": [
                 "aarch64"
             ],
-            "sha256": "1031b36dd3bdaa8d976a6130d9cf2a05e9be320b93ae804f8427b91dc3432afc",
+            "sha256": "c5b8b3cca31f3d643a3b313b8f42e2d0f16a4fcefd02cda343d97bd5306afaab",
             "type": "archive",
             "url": "https://github.com/microsoft/onnxruntime/releases/download/v1.31.0/onnxruntime-linux-aarch64-1.31.0.tgz"
         }
