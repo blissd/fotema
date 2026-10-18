@@ -16,7 +16,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use futures::executor::block_on;
 use tracing::{error, info};
 
-use fotema_core::machine_learning::face_extractor::FaceExtractor;
+use fotema_core::machine_learning::face_extractor::{FaceExtractor, FaceExtractorBuilder};
 use fotema_core::people;
 use fotema_core::people::FaceDetectionCandidate;
 use fotema_core::photo;
@@ -32,9 +32,7 @@ enum PoolError {
 }
 
 struct FaceDetectorPoolManager {
-    /// Base directory for storing photo faces
-    faces_base_dir: PathBuf,
-    thumbnailer: Thumbnailer,
+    face_extractor_builder: FaceExtractorBuilder,
 }
 
 impl managed::Manager for FaceDetectorPoolManager {
@@ -42,7 +40,7 @@ impl managed::Manager for FaceDetectorPoolManager {
     type Error = Error;
 
     async fn create(&self) -> Result<FaceExtractor, Error> {
-        FaceExtractor::build(&self.faces_base_dir, self.thumbnailer.clone())
+        self.face_extractor_builder.build()
     }
 
     async fn recycle(
@@ -142,17 +140,18 @@ impl PhotoDetectFacesTask {
         // We must do this before using the object pool and parallel processing, otherwise
         // multiple threads will try to download the same model.
         // FIXME add a method to the face detection library to download models.
-        let _ = FaceExtractor::build(&self.faces_base_dir, self.thumbnailer.clone());
+        let face_extractor_builder =
+            FaceExtractorBuilder::new(&self.faces_base_dir, self.thumbnailer.clone())?;
+        let _ = face_extractor_builder.build();
 
         let detector_pool_manager = FaceDetectorPoolManager {
-            faces_base_dir: self.faces_base_dir.clone(),
-            thumbnailer: self.thumbnailer.clone(),
+            face_extractor_builder,
         };
         let detector_pool = FaceDetectorPool::builder(detector_pool_manager).build()?;
 
         unprocessed
-            .par_iter()
-            .take_any_while(|_| !self.stop.load(Ordering::Relaxed))
+            .iter()
+            .take_while(|_| !self.stop.load(Ordering::Relaxed))
             .for_each(|candidate| {
                 let mut repo = self.people_repo.clone();
 
