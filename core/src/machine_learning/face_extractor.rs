@@ -18,6 +18,7 @@ use rust_faces::{
 };
 
 use image::DynamicImage;
+use ort::environment::Environment;
 use tracing::{debug, error, info};
 
 #[derive(Debug, Clone)]
@@ -94,6 +95,7 @@ pub struct FaceExtractorBuilder {
     faces_base_path: PathBuf,
     thumbnail_base_path: PathBuf,
     thumbnailer: Thumbnailer,
+    env: Environment,
 }
 
 impl FaceExtractorBuilder {
@@ -106,10 +108,13 @@ impl FaceExtractorBuilder {
             .join("small");
         let _ = std::fs::create_dir_all(&thumbnail_base_path)?;
 
+        let env = ort::init().build()?;
+
         Ok(FaceExtractorBuilder {
             faces_base_path,
             thumbnail_base_path,
             thumbnailer,
+            env,
         })
     }
 
@@ -121,7 +126,7 @@ impl FaceExtractorBuilder {
         let blaze_face_default =
             FaceDetectorBuilder::new(FaceDetection::BlazeFace640(bz_params_default.clone()))
                 .download()
-                .build()?;
+                .build(&self.env)?;
 
         detectors.push((blaze_face_default, "blaze_face_640_default".into()));
 
@@ -129,7 +134,7 @@ impl FaceExtractorBuilder {
 
         let mtcnn = FaceDetectorBuilder::new(FaceDetection::MtCnn(mtcnn_params))
             .download()
-            .build()?;
+            .build(&self.env)?;
 
         detectors.push((mtcnn, "mtcnn".into()));
 

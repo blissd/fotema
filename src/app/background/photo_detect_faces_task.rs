@@ -150,8 +150,8 @@ impl PhotoDetectFacesTask {
         let detector_pool = FaceDetectorPool::builder(detector_pool_manager).build()?;
 
         unprocessed
-            .iter()
-            .take_while(|_| !self.stop.load(Ordering::Relaxed))
+            .par_iter()
+            .take_any_while(|_| !self.stop.load(Ordering::Relaxed))
             .for_each(|candidate| {
                 let mut repo = self.people_repo.clone();
 
