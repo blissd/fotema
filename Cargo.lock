@@ -1805,9 +1805,9 @@ checksum = "e4eba85ea1d0a966a983acd07deee566e67395d2d96b6fb39e62b5a833f1eb0b"
 
 [[package]]
 name = "glycin"
-version = "4.0.3"
+version = "4.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "72739235a1990a8ce4fcf35918b8109b83b17a4fe46ff187b399f6697cb721b1"
+checksum = "4435b4e3908ef32618d2fdf34cf0991a08420ac89c1a8d2cb2add9b5c8f6037a"
 dependencies = [
  "glycin-builtin",
  "glycin-external",
