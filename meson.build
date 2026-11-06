@@ -14,6 +14,7 @@ i18n = import('i18n')
 gnome = import('gnome')
 
 base_id = 'app.fotema.Fotema'
+base_conf_path = '/app/fotema/Fotema'
 
 dependency('glib-2.0', version: '>= 2.66')
 dependency('gio-2.0', version: '>= 2.66')
@@ -54,16 +55,20 @@ if get_option('profile') == 'development'
     version_suffix = '-@0@'.format(vcs_tag)
   endif
   application_id = '@0@.@1@'.format(base_id, profile)
+  settings_path = '@0@/@1@'.format(base_conf_path, profile)
 else
   profile = ''
   version_suffix = ''
   application_id = base_id
+  settings_path = base_conf_path
 endif
 
 meson.add_dist_script(
   'build-aux/dist-vendor.sh',
-  meson.project_build_root() / 'meson-dist' / meson.project_name() + '-' + version,
-  meson.project_source_root()
+  meson.project_build_root() / 'meson-dist' / meson.project_name()
+  + '-'
+  + version,
+  meson.project_source_root(),
 )
 
 subdir('data')
