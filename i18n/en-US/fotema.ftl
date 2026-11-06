@@ -264,6 +264,10 @@ prefs-library-section-pictures-dir =
   .title = Pictures Directory
   .tooltip = Choose pictures directory.
 
+prefs-library-section-db-clean =
+  .title = Clean Database at Start
+  .subtitle = Remove missing photos or videos at startup
+
 ## Progress bar for background tasks
 
 # Extracting details from photo EXIF data
