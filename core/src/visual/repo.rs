@@ -11,8 +11,7 @@ use crate::path_encoding;
 use anyhow::*;
 use chrono::*;
 use h3o::LatLng;
-use rusqlite;
-use rusqlite::Row;
+use rusqlite::{self, OptionalExtension, Row};
 use std::path;
 use std::path::PathBuf;
 use std::result::Result::Ok;
@@ -22,8 +21,11 @@ use std::sync::{Arc, Mutex};
 /// Repository is backed by a Sqlite database.
 #[derive(Debug, Clone)]
 pub struct Repository {
-    /// Base path to library
-    library_base_dir: FlatpakPathBuf,
+    /// Base paths to library
+    library_base_dirs: Vec<FlatpakPathBuf>,
+
+    /// Cached mapping of (root_id, FlatpakPathBuf)
+    roots: Vec<(i64, FlatpakPathBuf)>,
 
     /// Base path for transcoded videos
     cache_dir_base_path: path::PathBuf,
@@ -39,12 +41,54 @@ impl Repository {
         cache_dir_base_path: &path::Path,
         con: Arc<Mutex<rusqlite::Connection>>,
     ) -> Result<Repository> {
+        Self::open_multiple(&[library_base_dir.clone()], cache_dir_base_path, con)
+    }
+
+    pub fn open_multiple(
+        library_base_dirs: &[FlatpakPathBuf],
+        cache_dir_base_path: &path::Path,
+        con: Arc<Mutex<rusqlite::Connection>>,
+    ) -> Result<Repository> {
+        let roots = {
+            let con_guard = con.lock().unwrap();
+            library_base_dirs
+                .iter()
+                .map(|dir| {
+                    let host_b64 = path_encoding::to_base64(&dir.host_path);
+                    let root_id: Option<i64> = con_guard
+                        .query_row(
+                            "SELECT root_id FROM library_roots WHERE host_path_b64 = ?1",
+                            rusqlite::params![host_b64],
+                            |row| row.get(0),
+                        )
+                        .optional()
+                        .ok()
+                        .flatten();
+                    (root_id.unwrap_or(1), dir.clone())
+                })
+                .collect()
+        };
+
         let repo = Repository {
-            library_base_dir: library_base_dir.clone(),
+            library_base_dirs: library_base_dirs.to_vec(),
+            roots,
             cache_dir_base_path: cache_dir_base_path.into(),
             con,
         };
         Ok(repo)
+    }
+
+    fn get_root_by_id(&self, root_id: i64) -> FlatpakPathBuf {
+        for (id, dir) in &self.roots {
+            if *id == root_id {
+                return dir.clone();
+            }
+        }
+        self.roots
+            .first()
+            .map(|(_, d)| d.clone())
+            .or_else(|| self.library_base_dirs.first().cloned())
+            .unwrap_or_default()
     }
 
     /// Gets all visual artefacts.
@@ -53,6 +97,7 @@ impl Repository {
         let mut stmt = con.prepare(
             "SELECT
                     visual_id,
+                    root_id,
                     link_path_b64,
 
                     picture_id,
@@ -90,10 +135,13 @@ impl Repository {
             .map(VisualId::new)
             .expect("Must have visual_id");
 
+        let root_id: i64 = row.get("root_id").unwrap_or(1);
+        let root = self.get_root_by_id(root_id);
+
         let link_path: String = row.get("link_path_b64")?;
         let link_path =
             path_encoding::from_base64(&link_path).map_err(|_| rusqlite::Error::InvalidQuery)?;
-        let link_path = self.library_base_dir.host_path.join(link_path);
+        let link_path = root.host_path.join(link_path);
 
         let picture_id: Option<PictureId> = row.get("picture_id").map(PictureId::new).ok();
 
@@ -104,10 +152,10 @@ impl Repository {
 
         let picture_host_path = picture_relative_path
             .as_ref()
-            .map(|x| self.library_base_dir.host_path.join(x));
+            .map(|x| root.host_path.join(x));
 
         let picture_sandbox_path =
-            picture_relative_path.map(|x| self.library_base_dir.sandbox_path.join(x));
+            picture_relative_path.map(|x| root.sandbox_path.join(x));
 
         let picture_path = if let (Some(host_path), Some(sandbox_path)) =
             (picture_host_path, picture_sandbox_path)
@@ -133,10 +181,10 @@ impl Repository {
 
         let video_host_path = video_relative_path
             .as_ref()
-            .map(|x| self.library_base_dir.host_path.join(x));
+            .map(|x| root.host_path.join(x));
 
         let video_sandbox_path =
-            video_relative_path.map(|x| self.library_base_dir.sandbox_path.join(x));
+            video_relative_path.map(|x| root.sandbox_path.join(x));
 
         let video_path =
             if let (Some(host_path), Some(sandbox_path)) = (video_host_path, video_sandbox_path) {

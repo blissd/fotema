@@ -15,31 +15,40 @@ use walkdir::{DirEntry, WalkDir};
 /// Scans a file system for pictures.
 #[derive(Debug, Clone)]
 pub struct Scanner {
-    /// File system path to scan.
-    scan_base: PathBuf,
+    /// File system paths to scan.
+    scan_bases: Vec<PathBuf>,
 }
 
 impl Scanner {
     pub fn build(scan_base: &Path) -> Result<Self> {
-        fs::create_dir_all(scan_base)?;
-        let scan_base = PathBuf::from(scan_base);
-        Ok(Self { scan_base })
+        Self::build_multiple(&[scan_base.to_path_buf()])
     }
 
-    /// Scans all pictures in the base directory for function `func` to visit.
-    pub fn scan_all_visit<F>(&self, func: F)
+    pub fn build_multiple(scan_bases: &[PathBuf]) -> Result<Self> {
+        for scan_base in scan_bases {
+            let _ = fs::create_dir_all(scan_base);
+        }
+        Ok(Self {
+            scan_bases: scan_bases.to_vec(),
+        })
+    }
+
+    /// Scans all pictures in the base directories for function `func` to visit.
+    pub fn scan_all_visit<F>(&self, mut func: F)
     where
         F: FnMut(ScannedFile),
     {
-        WalkDir::new(&self.scan_base)
-            .into_iter()
-            .filter_entry(|e| !Scanner::is_hidden(e))
-            .inspect(Self::inspect_err)
-            .filter_map(|e| e.ok()) // skip files we failed to read
-            .filter(|x| x.path().is_file()) // only process files
-            .map(Self::to_scanned_file)
-            .filter_map(|e| e.ok()) // ignore any errors when reading images
-            .for_each(func); // visit
+        for scan_base in &self.scan_bases {
+            WalkDir::new(scan_base)
+                .into_iter()
+                .filter_entry(|e| !Scanner::is_hidden(e))
+                .inspect(Self::inspect_err)
+                .filter_map(|e| e.ok()) // skip files we failed to read
+                .filter(|x| x.path().is_file()) // only process files
+                .map(Self::to_scanned_file)
+                .filter_map(|e| e.ok()) // ignore any errors when reading images
+                .for_each(&mut func); // visit
+        }
     }
 
     fn inspect_err(entry: &std::result::Result<DirEntry, walkdir::Error>) {

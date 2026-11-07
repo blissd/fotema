@@ -95,13 +95,16 @@ pub enum TaskName {
 #[derive(Debug)]
 pub enum BootstrapInput {
     /// Configure the pictures library root and host path
-    Configure(FlatpakPathBuf),
+    Configure(Vec<FlatpakPathBuf>),
 
     /// Settings updated
     SettingsUpdated(Settings),
 
     /// Start the initial background processes for setting up Fotema.
     Start,
+
+    /// Restart the background processes for the configured library roots.
+    Refresh,
 
     // Stop all background tasks
     Stop,
@@ -237,6 +240,19 @@ impl Controllers {
                     "Task completed: {:?}. Items updated? {:?}",
                     task_name, updated
                 );
+
+                // Reload the library when new thumbnails are available. This rebuilds visual
+                // paths from the current library roots as well as refreshing the active grid.
+                // The latter is necessary when a root's Flatpak portal path was renewed.
+                let thumbnails_updated = matches!(
+                    &task_name,
+                    TaskName::Thumbnail(ThumbnailType::Photo | ThumbnailType::Video)
+                ) && updated.is_some_and(|count| count > 0);
+
+                if thumbnails_updated {
+                    self.add_task_refresh_library();
+                }
+
                 self.library_stale
                     .fetch_or(updated.is_some_and(|x| x > 0), Ordering::Relaxed);
 
@@ -398,6 +414,15 @@ impl Controllers {
         }));
     }
 
+    /// Queue an unconditional refresh for changes that do not modify database rows, such as
+    /// generated thumbnails or renewed Flatpak portal paths.
+    fn add_task_refresh_library(&mut self) {
+        let sender = self.load_library_task.sender().clone();
+        self.enqueue(Box::new(move || {
+            sender.emit(LoadLibraryTaskInput::Refresh);
+        }));
+    }
+
     fn add_task_tidy(&mut self) {
         let sender = self.tidy_task.sender().clone();
         self.enqueue(Box::new(move || sender.emit(TidyTaskInput::Start)));
@@ -442,13 +467,13 @@ pub struct Bootstrap {
     controllers: Option<Controllers>,
 
     /// Current pictures base directory used by background tasks.
-    library_base_dir: Option<FlatpakPathBuf>,
+    library_base_dirs: Option<Vec<FlatpakPathBuf>>,
 }
 
 impl Bootstrap {
     fn build_controllers(
         &mut self,
-        library_base_dir: &FlatpakPathBuf,
+        library_base_dirs: &[FlatpakPathBuf],
         sender: &ComponentSender<Self>,
     ) -> anyhow::Result<Controllers> {
         let data_dir = glib::user_data_dir().join(APP_ID);
@@ -466,21 +491,24 @@ impl Bootstrap {
 
         let thumbnailer = Thumbnailer::build(&thumbnail_dir);
 
-        let photo_repo =
-            photo::Repository::open(library_base_dir, &cache_dir, &data_dir, self.con.clone())?;
+        let mut photo_repo =
+            photo::Repository::open_multiple(library_base_dirs, &cache_dir, &data_dir, self.con.clone())?;
+        let _ = photo_repo.clean_removed_roots(library_base_dirs);
 
         let photo_thumbnailer = photo::PhotoThumbnailer::build(thumbnailer.clone())?;
 
-        let scanner = Scanner::build(&library_base_dir.sandbox_path)?;
+        let scan_paths: Vec<std::path::PathBuf> = library_base_dirs.iter().map(|d| d.sandbox_path.clone()).collect();
+        let scanner = Scanner::build_multiple(&scan_paths)?;
 
-        let video_repo =
-            video::Repository::open(library_base_dir, &cache_dir, &data_dir, self.con.clone())?;
+        let mut video_repo =
+            video::Repository::open_multiple(library_base_dirs, &cache_dir, &data_dir, self.con.clone())?;
+        let _ = video_repo.clean_removed_roots(library_base_dirs);
 
         let video_thumbnailer = video::VideoThumbnailer::build(thumbnailer.clone())?;
 
         let motion_photo_extractor = photo::MotionPhotoExtractor::build(&cache_dir)?;
 
-        let visual_repo = visual::Repository::open(library_base_dir, &cache_dir, self.con.clone())?;
+        let visual_repo = visual::Repository::open_multiple(library_base_dirs, &cache_dir, self.con.clone())?;
 
         let people_repo = people::Repository::open(&cache_dir, &data_dir, self.con.clone())?;
 
@@ -666,7 +694,8 @@ impl Bootstrap {
                     }
                 });
 
-        let migrate = Migrate::build(people_repo, &data_dir, library_base_dir.clone());
+        let primary_dir = library_base_dirs.first().cloned().unwrap_or_default();
+        let migrate = Migrate::build(people_repo, &data_dir, primary_dir);
 
         let migrate_task = MigrateTask::builder()
             .detach_worker((stop.clone(), migrate))
@@ -751,6 +780,10 @@ impl Bootstrap {
 
         controllers.add_task_person_thumbnails();
 
+        // Always reload after the initial task pipeline. A renewed Flatpak portal path changes
+        // how existing database entries are resolved even when scanning finds no new files.
+        controllers.add_task_refresh_library();
+
         Ok(controllers)
     }
 }
@@ -779,7 +812,7 @@ impl Worker for Bootstrap {
             progress_monitor,
             con,
             controllers: None,
-            library_base_dir: None,
+            library_base_dirs: None,
         }
     }
 
@@ -787,15 +820,15 @@ impl Worker for Bootstrap {
         // This match block coordinates the background tasks launched immediately after
         // the app starts up.
         match msg {
-            BootstrapInput::Configure(library_base_dir) => {
+            BootstrapInput::Configure(library_base_dirs) => {
                 info!(
-                    "Configuring with pictures base directory: {:?}",
-                    library_base_dir
+                    "Configuring with pictures base directories: {:?}",
+                    library_base_dirs
                 );
 
-                match self.build_controllers(&library_base_dir, &sender) {
+                match self.build_controllers(&library_base_dirs, &sender) {
                     Ok(controllers) => {
-                        self.library_base_dir = Some(library_base_dir);
+                        self.library_base_dirs = Some(library_base_dirs);
                         self.controllers = Some(controllers);
                         sender.input(BootstrapInput::Start);
                     }
@@ -804,14 +837,30 @@ impl Worker for Bootstrap {
                     }
                 }
             }
+            BootstrapInput::Refresh => {
+                info!("Refreshing library");
+                if self
+                    .controllers
+                    .as_ref()
+                    .is_some_and(|controllers| controllers.is_running)
+                {
+                    // Follow the same stop-and-reconfigure path used for changed settings.
+                    self.library_base_dirs = None;
+                    sender.input(BootstrapInput::Stop);
+                } else {
+                    self.controllers = None;
+                    let settings = self.settings_state.read();
+                    sender.input(BootstrapInput::Configure(settings.library_base_dirs.clone()));
+                }
+            }
             BootstrapInput::SettingsUpdated(settings) => {
                 info!("Settings updated.");
-                // Only stop, reconfigure, and restart tasks if pictures dir changes.
-                if self
-                    .library_base_dir
-                    .as_ref()
-                    .is_some_and(|dir| *dir != settings.library_base_dir)
-                {
+                let should_reconfigure = match &self.library_base_dirs {
+                    Some(dirs) => *dirs != settings.library_base_dirs,
+                    None => !settings.library_base_dirs.is_empty(),
+                };
+
+                if should_reconfigure {
                     // If running, then shutdown running and queued tasks, and then reconfigure.
                     // Otherwise simply reconfigure with new path.
                     if self
@@ -819,21 +868,21 @@ impl Worker for Bootstrap {
                         .as_ref()
                         .is_some_and(|controllers| controllers.is_running)
                     {
-                        self.library_base_dir = None;
+                        self.library_base_dirs = None;
                         sender.input(BootstrapInput::Stop);
                     } else {
                         self.controllers = None;
-                        sender.input(BootstrapInput::Configure(settings.library_base_dir.clone()));
+                        sender.input(BootstrapInput::Configure(settings.library_base_dirs.clone()));
                     }
                 }
             }
-            BootstrapInput::Stopped if self.library_base_dir.is_none() => {
+            BootstrapInput::Stopped if self.library_base_dirs.is_none() => {
                 // If stopped and no pictures base dir, then background tasks were
                 // shutdown in response to the user changing the pictures base directory.
                 // Now that tasks are shutdown, it is safe to reconfigure with
                 // the new directory.
                 let settings = self.settings_state.read();
-                sender.input(BootstrapInput::Configure(settings.library_base_dir.clone()));
+                sender.input(BootstrapInput::Configure(settings.library_base_dirs.clone()));
             }
             BootstrapInput::TaskCompleted(TaskName::LoadLibrary, _)
                 if self.controllers.is_some() =>
