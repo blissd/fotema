@@ -10,11 +10,9 @@ use crate::file_types;
 use crate::path_encoding;
 use crate::video::model::{Video, VideoId};
 
-use anyhow::*;
+use anyhow::{Result, bail};
 use chrono::*;
-use rusqlite;
-use rusqlite::Row;
-use rusqlite::params;
+use rusqlite::{self, OptionalExtension, Row, params};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use tracing::error;
@@ -23,8 +21,11 @@ use tracing::error;
 /// Repository is backed by a Sqlite database.
 #[derive(Debug, Clone)]
 pub struct Repository {
-    /// Base path to library
-    library_base_dir: FlatpakPathBuf,
+    /// Base paths to library
+    library_base_dirs: Vec<FlatpakPathBuf>,
+
+    /// Cached mapping of (root_id, FlatpakPathBuf)
+    roots: Vec<(i64, FlatpakPathBuf)>,
 
     /// Base path for transcoded videos
     cache_dir_base_path: PathBuf,
@@ -44,16 +45,167 @@ impl Repository {
         data_dir_base_path: &Path,
         con: Arc<Mutex<rusqlite::Connection>>,
     ) -> Result<Repository> {
+        Self::open_multiple(
+            &[library_base_dir.clone()],
+            cache_dir_base_path,
+            data_dir_base_path,
+            con,
+        )
+    }
+
+    pub fn open_multiple(
+        library_base_dirs: &[FlatpakPathBuf],
+        cache_dir_base_path: &Path,
+        data_dir_base_path: &Path,
+        con: Arc<Mutex<rusqlite::Connection>>,
+    ) -> Result<Repository> {
         std::fs::create_dir_all(cache_dir_base_path)?;
 
-        let repo = Repository {
-            library_base_dir: library_base_dir.clone(),
+        let mut repo = Repository {
+            library_base_dirs: library_base_dirs.to_vec(),
+            roots: Vec::new(),
             cache_dir_base_path: cache_dir_base_path.into(),
             data_dir_base_path: data_dir_base_path.into(),
             con,
         };
-
+        repo.sync_roots()?;
         Ok(repo)
+    }
+
+    pub fn sync_roots(&mut self) -> Result<()> {
+        let con = self.con.lock().unwrap();
+        if let Some(first) = self.library_base_dirs.first() {
+            let first_host_b64 = path_encoding::to_base64(&first.host_path);
+            let existing_first_root: Option<i64> = con
+                .query_row(
+                    "SELECT root_id FROM library_roots WHERE host_path_b64 = ?1",
+                    params![first_host_b64],
+                    |row| row.get(0),
+                )
+                .optional()?;
+
+            if let Some(existing_id) = existing_first_root {
+                if existing_id != 1 {
+                    con.execute(
+                        "UPDATE OR IGNORE videos SET root_id = ?1 WHERE root_id = 1",
+                        params![existing_id],
+                    )?;
+                    con.execute(
+                        "DELETE FROM library_roots WHERE root_id = 1 AND host_path_b64 = ''",
+                        [],
+                    )?;
+                }
+            } else {
+                con.execute(
+                    "UPDATE library_roots SET host_path_b64 = ?1 WHERE root_id = 1 AND host_path_b64 = ''",
+                    params![first_host_b64],
+                )?;
+            }
+        }
+
+        for dir in &self.library_base_dirs {
+            let host_b64 = path_encoding::to_base64(&dir.host_path);
+            con.execute(
+                "INSERT INTO library_roots (host_path_b64) VALUES (?1) ON CONFLICT (host_path_b64) DO NOTHING",
+                params![host_b64],
+            )?;
+        }
+
+        self.roots = self
+            .library_base_dirs
+            .iter()
+            .map(|dir| {
+                let host_b64 = path_encoding::to_base64(&dir.host_path);
+                let root_id: Option<i64> = con
+                    .query_row(
+                        "SELECT root_id FROM library_roots WHERE host_path_b64 = ?1",
+                        params![host_b64],
+                        |row| row.get(0),
+                    )
+                    .optional()
+                    .ok()
+                    .flatten();
+                (root_id.unwrap_or(1), dir.clone())
+            })
+            .collect();
+
+        Ok(())
+    }
+
+    pub fn clean_removed_roots(&mut self, active_dirs: &[FlatpakPathBuf]) -> Result<()> {
+        let active_b64s: Vec<String> = active_dirs
+            .iter()
+            .map(|d| path_encoding::to_base64(&d.host_path))
+            .collect();
+        let con = self.con.lock().unwrap();
+        let mut stmt = con.prepare("SELECT root_id, host_path_b64 FROM library_roots")?;
+        let roots: Vec<(i64, String)> = stmt
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
+            .flatten()
+            .collect();
+        drop(stmt);
+        drop(con);
+
+        for (root_id, host_b64) in roots {
+            if !active_b64s.contains(&host_b64) && !host_b64.is_empty() {
+                self.remove_root(root_id)?;
+            }
+        }
+        self.library_base_dirs = active_dirs.to_vec();
+        self.roots.retain(|(_, dir)| active_dirs.contains(dir));
+        Ok(())
+    }
+
+    pub fn remove_root(&mut self, root_id: i64) -> Result<()> {
+        let con = self.con.lock().unwrap();
+        let mut vid_stmt = con.prepare("SELECT video_id FROM videos WHERE root_id = ?1")?;
+        let vid_ids: Vec<VideoId> = vid_stmt
+            .query_map([root_id], |row| Ok(VideoId::new(row.get(0)?)))?
+            .flatten()
+            .collect();
+        drop(vid_stmt);
+        drop(con);
+
+        for vid_id in vid_ids {
+            if let Ok(files) = self.find_files_to_cleanup(vid_id) {
+                for file in files {
+                    let _ = std::fs::remove_file(file);
+                }
+            }
+        }
+
+        let con = self.con.lock().unwrap();
+        con.execute("DELETE FROM videos WHERE root_id = ?1", [root_id])?;
+        con.execute("DELETE FROM library_roots WHERE root_id = ?1", [root_id])?;
+        Ok(())
+    }
+
+    fn find_root_for_sandbox_path(&self, path: &Path) -> Result<(i64, FlatpakPathBuf)> {
+        for (root_id, dir) in &self.roots {
+            if path.starts_with(&dir.sandbox_path) {
+                return Ok((*root_id, dir.clone()));
+            }
+        }
+        if let Some((root_id, first)) = self.roots.first() {
+            Ok((*root_id, first.clone()))
+        } else if let Some(first) = self.library_base_dirs.first() {
+            Ok((1, first.clone()))
+        } else {
+            bail!("No library base directories configured");
+        }
+    }
+
+    fn get_root_by_id(&self, root_id: i64) -> FlatpakPathBuf {
+        for (id, dir) in &self.roots {
+            if *id == root_id {
+                return dir.clone();
+            }
+        }
+        self.roots
+            .first()
+            .map(|(_, d)| d.clone())
+            .or_else(|| self.library_base_dirs.first().cloned())
+            .unwrap_or_default()
     }
 
     pub fn mark_broken(&mut self, video_id: &VideoId) -> Result<()> {
@@ -170,48 +322,53 @@ impl Repository {
         {
             let mut vid_stmt = tx.prepare_cached(
                 "INSERT INTO videos (
+                        root_id,
                         video_path_b64,
                         video_path_lossy,
                         link_path_b64,
                         link_path_lossy,
                         insert_ts
                     ) VALUES (
-                        ?1, ?2, ?3, ?4, CURRENT_TIMESTAMP
-                    ) ON CONFLICT(video_path_b64) DO UPDATE SET
-                        link_path_b64 = ?3,
-                        link_path_lossy = ?4",
+                        ?1, ?2, ?3, ?4, ?5, CURRENT_TIMESTAMP
+                    ) ON CONFLICT(root_id, video_path_b64) DO UPDATE SET
+                        link_path_b64 = ?4,
+                        link_path_lossy = ?5",
             )?;
 
             for scanned_file in vids {
                 if let ScannedFile::Video(path) = scanned_file {
-                    // convert to relative path before saving to database
-                    let video_path = path.strip_prefix(&self.library_base_dir.sandbox_path)?;
-                    let video_path_b64 = path_encoding::to_base64(video_path);
+                    if let Ok((root_id, root)) = self.find_root_for_sandbox_path(path) {
+                        // convert to relative path before saving to database
+                        if let Ok(video_path) = path.strip_prefix(&root.sandbox_path) {
+                            let video_path_b64 = path_encoding::to_base64(video_path);
 
-                    // Path without suffix so sibling pictures and videos can be related
-                    // Some Apple photo exports name the video component after the
-                    // picture component, so you get names like 'img_1234.heic.mp4' instead
-                    // of 'img_1234.mp4'. After removing the file suffix, check if a supported
-                    // picture suffix is now present and remove it.
-                    let link_path = match video_path.file_stem() {
-                        Some(stem) if file_types::is_supported_picture(&stem.as_ref()) => {
-                            let path: &Path = stem.as_ref();
-                            path.file_stem()
+                            // Path without suffix so sibling pictures and videos can be related
+                            // Some Apple photo exports name the video component after the
+                            // picture component, so you get names like 'img_1234.heic.mp4' instead
+                            // of 'img_1234.mp4'. After removing the file suffix, check if a supported
+                            // picture suffix is now present and remove it.
+                            let link_path = match video_path.file_stem() {
+                                Some(stem) if file_types::is_supported_picture(&stem.as_ref()) => {
+                                    let path: &Path = stem.as_ref();
+                                    path.file_stem()
+                                }
+                                any => any,
+                            };
+
+                            let link_path = link_path.and_then(|x| x.to_str()).expect("Must exist");
+
+                            let link_path = video_path.with_file_name(link_path);
+                            let link_path_b64 = path_encoding::to_base64(&link_path);
+
+                            vid_stmt.execute(params![
+                                root_id,
+                                video_path_b64,
+                                video_path.to_string_lossy(),
+                                link_path_b64,
+                                link_path.to_string_lossy(),
+                            ])?;
                         }
-                        any => any,
-                    };
-
-                    let link_path = link_path.and_then(|x| x.to_str()).expect("Must exist");
-
-                    let link_path = video_path.with_file_name(link_path);
-                    let link_path_b64 = path_encoding::to_base64(&link_path);
-
-                    vid_stmt.execute(params![
-                        video_path_b64,
-                        video_path.to_string_lossy(),
-                        link_path_b64,
-                        link_path.to_string_lossy(),
-                    ])?;
+                    }
                 } else {
                     error!("Expected a video, but got: {:?}", scanned_file);
                 }
@@ -228,6 +385,7 @@ impl Repository {
         let mut stmt = con.prepare(
             "SELECT
                     video_id,
+                    root_id,
                     video_path_b64,
                     COALESCE(
                         videos.stream_created_ts,
@@ -254,6 +412,7 @@ impl Repository {
         let mut stmt = con.prepare(
             "SELECT
                     video_id,
+                    root_id,
                     video_path_b64,
                     COALESCE(
                         videos.stream_created_ts,
@@ -291,12 +450,14 @@ impl Repository {
 
     fn to_video(&self, row: &Row<'_>) -> rusqlite::Result<Video> {
         let video_id = row.get("video_id").map(VideoId::new)?;
+        let root_id: i64 = row.get("root_id").unwrap_or(1);
+        let root = self.get_root_by_id(root_id);
 
         let relative_path: String = row.get("video_path_b64")?;
         let relative_path = path_encoding::from_base64(&relative_path)
             .map_err(|_| rusqlite::Error::InvalidQuery)?;
-        let sandbox_path = self.library_base_dir.sandbox_path.join(&relative_path);
-        let host_path = self.library_base_dir.host_path.join(&relative_path);
+        let sandbox_path = root.sandbox_path.join(&relative_path);
+        let host_path = root.host_path.join(&relative_path);
 
         let ordering_ts = row.get("ordering_ts").expect("must have ordering_ts");
 

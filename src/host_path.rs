@@ -20,7 +20,7 @@ pub async fn host_path(sandbox_path: &Path) -> Option<FlatpakPathBuf> {
     let doc_id: Option<DocumentID> = sandbox_path
         .to_str()
         .and_then(|s| {
-            let re = Regex::new(r"^/run/user/[0-9]+/doc/([0-9a-fA-F]+)/").unwrap();
+            let re = Regex::new(r"^/run/user/[0-9]+/doc/([^/]+)/").unwrap();
             re.captures(s)
         })
         .and_then(|re_match| re_match.get(1))
@@ -28,8 +28,8 @@ pub async fn host_path(sandbox_path: &Path) -> Option<FlatpakPathBuf> {
 
     if let Some(doc_id) = doc_id {
         debug!("Document ID={:?}", doc_id);
-        let proxy = Documents::new().await.unwrap();
-        let host_paths = proxy.host_paths(&[doc_id.clone()]).await.unwrap();
+        let proxy = Documents::new().await.ok()?;
+        let host_paths = proxy.host_paths(&[doc_id.clone()]).await.ok()?;
         host_paths
             .get(&doc_id)
             .map(|file_path| FlatpakPathBuf::build(file_path.as_ref().to_path_buf(), sandbox_path))

@@ -34,12 +34,12 @@ use fotema_core::thumbnailify::Thumbnailer;
 
 use h3o::CellIndex;
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 
-use anyhow::*;
+use anyhow::Result;
 
 use strum::{AsRefStr, FromRepr};
 
@@ -165,9 +165,9 @@ pub struct Settings {
     /// the picture library root directory?
     pub is_onboarding_complete: bool,
 
-    /// Base path of pictures directory inside Flatpak sandbox.
+    /// Base paths of pictures directories inside Flatpak sandbox.
     /// Will be under `/run/users/<uid>/docs/<doc-id>/...`
-    pub library_base_dir: FlatpakPathBuf,
+    pub library_base_dirs: Vec<FlatpakPathBuf>,
 }
 
 /// Active settings
@@ -286,6 +286,8 @@ pub(super) enum AppMsg {
     ScanPicturesForFaces,
 
     ProcessMotionPhotos,
+
+    RefreshLibrary,
 
     // Stop all background tasks
     StopBackgroundTasks,
@@ -579,6 +581,7 @@ impl SimpleAsyncComponent for App {
         let thumbnail_dir = glib::user_cache_dir()
             .join(APP_ID) // Remove to use standard XDG thumbnail path
             .join("thumbnails");
+        let _ = std::fs::create_dir_all(&thumbnail_dir);
 
         let thumbnailer = Rc::new(Thumbnailer::build(&thumbnail_dir));
 
@@ -813,6 +816,7 @@ impl SimpleAsyncComponent for App {
             .forward(sender.input_sender(), |msg| match msg {
                 PreferencesOutput::EnableFaceDetection => AppMsg::ScanPicturesForFaces,
                 PreferencesOutput::ProcessMotionPhotos => AppMsg::ProcessMotionPhotos,
+                PreferencesOutput::RefreshLibrary => AppMsg::RefreshLibrary,
             });
 
         let picture_navigation_view = adw::NavigationView::builder().build();
@@ -896,14 +900,14 @@ impl SimpleAsyncComponent for App {
         sender.input(AppMsg::Activate(widgets.main_window.default_width()));
 
         let settings = settings_state.read();
-        let is_onboarding_complete =
-            settings.is_onboarding_complete && settings.library_base_dir.exists();
+        let is_onboarding_complete = settings.is_onboarding_complete
+            && !settings.library_base_dirs.is_empty();
         if is_onboarding_complete {
             model.picture_navigation_view.set_visible(true);
             model.onboard_view.set_visible(false);
-            sender.input(AppMsg::OnboardDone(
-                settings.library_base_dir.sandbox_path.clone(),
-            ));
+            model
+                .bootstrap
+                .emit(BootstrapInput::Configure(settings.library_base_dirs.clone()));
         } else {
             model.picture_navigation_view.set_visible(false);
             model.onboard_view.set_visible(true);
@@ -1098,6 +1102,10 @@ impl SimpleAsyncComponent for App {
                 info!("Process motion photos");
                 self.bootstrap.emit(BootstrapInput::ProcessMotionPhotos);
             }
+            AppMsg::RefreshLibrary => {
+                info!("Refresh library");
+                self.bootstrap.emit(BootstrapInput::Refresh);
+            }
             AppMsg::StopBackgroundTasks => {
                 info!("Stop all background tasks");
                 self.banner.set_button_label(None);
@@ -1127,13 +1135,21 @@ impl SimpleAsyncComponent for App {
             AppMsg::OnboardDone(library_base_dir) => {
                 let mut settings = self.settings_state.read().clone();
                 settings.is_onboarding_complete = true;
-                settings.library_base_dir = host_path::host_path(&library_base_dir)
+                let flatpak_dir = host_path::host_path(&library_base_dir)
                     .await
                     .unwrap_or(FlatpakPathBuf::build(&library_base_dir, &library_base_dir));
+                if settings.library_base_dirs.is_empty() {
+                    settings.library_base_dirs.push(flatpak_dir);
+                } else {
+                    settings.library_base_dirs[0] = flatpak_dir;
+                }
+                if let Err(e) = Self::save_settings(&settings) {
+                    error!("Failed to save settings: {}", e);
+                }
                 *self.settings_state.write() = settings.clone();
 
                 self.bootstrap
-                    .emit(BootstrapInput::Configure(settings.library_base_dir.clone()));
+                    .emit(BootstrapInput::Configure(settings.library_base_dirs.clone()));
                 self.picture_navigation_view.set_visible(true);
                 self.onboard_view.set_visible(false);
             }
@@ -1151,12 +1167,30 @@ impl App {
 
         let gio_settings = gio::Settings::new(APP_ID);
 
-        let pic_base_dir: PathBuf =
-            path_encoding::from_base64(&gio_settings.string("pictures-base-dir-b64").into())?;
+        let mut library_base_dirs = Vec::new();
+        let dirs_b64 = gio_settings.strv("pictures-base-dirs-b64");
+        for dir_b64 in dirs_b64.iter() {
+            if let Ok(pic_base_dir) = path_encoding::from_base64(&dir_b64.as_str().into()) {
+                let flatpak_dir = host_path::host_path(&pic_base_dir)
+                    .await
+                    .unwrap_or(FlatpakPathBuf::build(&pic_base_dir, &pic_base_dir));
+                library_base_dirs.push(flatpak_dir);
+            }
+        }
 
-        let library_base_dir = host_path::host_path(&pic_base_dir)
-            .await
-            .unwrap_or(FlatpakPathBuf::build(&pic_base_dir, &pic_base_dir));
+        // Fallback to legacy single directory setting if empty
+        if library_base_dirs.is_empty() {
+            if let Ok(pic_base_dir) =
+                path_encoding::from_base64(&gio_settings.string("pictures-base-dir-b64").into())
+            {
+                if pic_base_dir != Path::new("/var/empty") {
+                    let flatpak_dir = host_path::host_path(&pic_base_dir)
+                        .await
+                        .unwrap_or(FlatpakPathBuf::build(&pic_base_dir, &pic_base_dir));
+                    library_base_dirs.push(flatpak_dir);
+                }
+            }
+        }
 
         Ok(Settings {
             show_selfies: gio_settings.boolean("show-selfies"),
@@ -1168,7 +1202,7 @@ impl App {
             album_sort: AlbumSort::from_str(&gio_settings.string("album-sort"))
                 .unwrap_or(AlbumSort::Ascending),
             is_onboarding_complete: gio_settings.boolean("onboarding-complete"),
-            library_base_dir,
+            library_base_dirs,
         })
     }
 
@@ -1180,10 +1214,21 @@ impl App {
         gio_settings.set_string("face-detection-mode", settings.face_detection_mode.as_ref())?;
         gio_settings.set_string("album-sort", settings.album_sort.as_ref())?;
         gio_settings.set_boolean("onboarding-complete", settings.is_onboarding_complete)?;
-        gio_settings.set_string(
-            "pictures-base-dir-b64",
-            &path_encoding::to_base64(&settings.library_base_dir.sandbox_path),
-        )?;
+
+        let dirs_b64: Vec<String> = settings
+            .library_base_dirs
+            .iter()
+            .map(|dir| path_encoding::to_base64(&dir.sandbox_path))
+            .collect();
+        let dirs_glib: Vec<&str> = dirs_b64.iter().map(|s| s.as_str()).collect();
+        gio_settings.set_strv("pictures-base-dirs-b64", &dirs_glib[..])?;
+
+        if let Some(first) = settings.library_base_dirs.first() {
+            gio_settings.set_string(
+                "pictures-base-dir-b64",
+                &path_encoding::to_base64(&first.sandbox_path),
+            )?;
+        }
         Ok(())
     }
 }

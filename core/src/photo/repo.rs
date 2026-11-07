@@ -13,9 +13,7 @@ use super::metadata;
 use super::model::MotionPhotoVideo;
 use super::motion_photo;
 use anyhow::{Result, bail};
-use rusqlite;
-use rusqlite::Row;
-use rusqlite::params;
+use rusqlite::{self, OptionalExtension, Row, params};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use tracing::error;
@@ -24,8 +22,11 @@ use tracing::error;
 /// Repository is backed by a Sqlite database.
 #[derive(Debug, Clone)]
 pub struct Repository {
-    /// Base path to library
-    library_base_dir: FlatpakPathBuf,
+    /// Base paths to library
+    library_base_dirs: Vec<FlatpakPathBuf>,
+
+    /// Cached mapping of (root_id, FlatpakPathBuf)
+    roots: Vec<(i64, FlatpakPathBuf)>,
 
     /// Base path cache directory for motion photo videos
     cache_dir_base_path: PathBuf,
@@ -45,18 +46,165 @@ impl Repository {
         data_dir_base_path: &Path,
         con: Arc<Mutex<rusqlite::Connection>>,
     ) -> Result<Repository> {
-        if !library_base_dir.sandbox_path.is_dir() {
-            bail!("{:?} is not a directory", library_base_dir);
-        }
+        Self::open_multiple(
+            &[library_base_dir.clone()],
+            cache_dir_base_path,
+            data_dir_base_path,
+            con,
+        )
+    }
 
-        let repo = Repository {
-            library_base_dir: library_base_dir.clone(),
+    pub fn open_multiple(
+        library_base_dirs: &[FlatpakPathBuf],
+        cache_dir_base_path: &Path,
+        data_dir_base_path: &Path,
+        con: Arc<Mutex<rusqlite::Connection>>,
+    ) -> Result<Repository> {
+        let mut repo = Repository {
+            library_base_dirs: library_base_dirs.to_vec(),
+            roots: Vec::new(),
             cache_dir_base_path: cache_dir_base_path.into(),
             data_dir_base_path: data_dir_base_path.into(),
             con,
         };
-
+        repo.sync_roots()?;
         Ok(repo)
+    }
+
+    pub fn sync_roots(&mut self) -> Result<()> {
+        let con = self.con.lock().unwrap();
+        if let Some(first) = self.library_base_dirs.first() {
+            let first_host_b64 = path_encoding::to_base64(&first.host_path);
+            let existing_first_root: Option<i64> = con
+                .query_row(
+                    "SELECT root_id FROM library_roots WHERE host_path_b64 = ?1",
+                    params![first_host_b64],
+                    |row| row.get(0),
+                )
+                .optional()?;
+
+            if let Some(existing_id) = existing_first_root {
+                if existing_id != 1 {
+                    con.execute(
+                        "UPDATE OR IGNORE pictures SET root_id = ?1 WHERE root_id = 1",
+                        params![existing_id],
+                    )?;
+                    con.execute(
+                        "DELETE FROM library_roots WHERE root_id = 1 AND host_path_b64 = ''",
+                        [],
+                    )?;
+                }
+            } else {
+                con.execute(
+                    "UPDATE library_roots SET host_path_b64 = ?1 WHERE root_id = 1 AND host_path_b64 = ''",
+                    params![first_host_b64],
+                )?;
+            }
+        }
+
+        for dir in &self.library_base_dirs {
+            let host_b64 = path_encoding::to_base64(&dir.host_path);
+            con.execute(
+                "INSERT INTO library_roots (host_path_b64) VALUES (?1) ON CONFLICT (host_path_b64) DO NOTHING",
+                params![host_b64],
+            )?;
+        }
+
+        self.roots = self
+            .library_base_dirs
+            .iter()
+            .map(|dir| {
+                let host_b64 = path_encoding::to_base64(&dir.host_path);
+                let root_id: Option<i64> = con
+                    .query_row(
+                        "SELECT root_id FROM library_roots WHERE host_path_b64 = ?1",
+                        params![host_b64],
+                        |row| row.get(0),
+                    )
+                    .optional()
+                    .ok()
+                    .flatten();
+                (root_id.unwrap_or(1), dir.clone())
+            })
+            .collect();
+
+        Ok(())
+    }
+
+    pub fn clean_removed_roots(&mut self, active_dirs: &[FlatpakPathBuf]) -> Result<()> {
+        let active_b64s: Vec<String> = active_dirs
+            .iter()
+            .map(|d| path_encoding::to_base64(&d.host_path))
+            .collect();
+        let con = self.con.lock().unwrap();
+        let mut stmt = con.prepare("SELECT root_id, host_path_b64 FROM library_roots")?;
+        let roots: Vec<(i64, String)> = stmt
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
+            .flatten()
+            .collect();
+        drop(stmt);
+        drop(con);
+
+        for (root_id, host_b64) in roots {
+            if !active_b64s.contains(&host_b64) && !host_b64.is_empty() {
+                self.remove_root(root_id)?;
+            }
+        }
+        self.library_base_dirs = active_dirs.to_vec();
+        self.roots.retain(|(_, dir)| active_dirs.contains(dir));
+        Ok(())
+    }
+
+    pub fn remove_root(&mut self, root_id: i64) -> Result<()> {
+        let con = self.con.lock().unwrap();
+        let mut pic_stmt = con.prepare("SELECT picture_id FROM pictures WHERE root_id = ?1")?;
+        let pic_ids: Vec<PictureId> = pic_stmt
+            .query_map([root_id], |row| Ok(PictureId::new(row.get(0)?)))?
+            .flatten()
+            .collect();
+        drop(pic_stmt);
+        drop(con);
+
+        for pic_id in pic_ids {
+            if let Ok(files) = self.find_files_to_cleanup(pic_id) {
+                for file in files {
+                    let _ = std::fs::remove_file(file);
+                }
+            }
+        }
+
+        let con = self.con.lock().unwrap();
+        con.execute("DELETE FROM pictures WHERE root_id = ?1", [root_id])?;
+        con.execute("DELETE FROM library_roots WHERE root_id = ?1", [root_id])?;
+        Ok(())
+    }
+
+    fn find_root_for_sandbox_path(&self, path: &Path) -> Result<(i64, FlatpakPathBuf)> {
+        for (root_id, dir) in &self.roots {
+            if path.starts_with(&dir.sandbox_path) {
+                return Ok((*root_id, dir.clone()));
+            }
+        }
+        if let Some((root_id, first)) = self.roots.first() {
+            Ok((*root_id, first.clone()))
+        } else if let Some(first) = self.library_base_dirs.first() {
+            Ok((1, first.clone()))
+        } else {
+            bail!("No library base directories configured");
+        }
+    }
+
+    fn get_root_by_id(&self, root_id: i64) -> FlatpakPathBuf {
+        for (id, dir) in &self.roots {
+            if *id == root_id {
+                return dir.clone();
+            }
+        }
+        self.roots
+            .first()
+            .map(|(_, d)| d.clone())
+            .or_else(|| self.library_base_dirs.first().cloned())
+            .unwrap_or_default()
     }
 
     pub fn add_metadatas(&mut self, pics: Vec<(PictureId, Metadata)>) -> Result<()> {
@@ -149,37 +297,42 @@ impl Repository {
         {
             let mut pic_insert_stmt = tx.prepare_cached(
                 "INSERT INTO pictures (
+                    root_id,
                     picture_path_b64,
                     picture_path_lossy,
                     link_path_b64,
                     link_path_lossy,
                     insert_ts
                 ) VALUES (
-                    ?1, ?2, ?3, ?4, CURRENT_TIMESTAMP
-                ) ON CONFLICT(picture_path_b64) DO NOTHING",
+                    ?1, ?2, ?3, ?4, ?5, CURRENT_TIMESTAMP
+                ) ON CONFLICT(root_id, picture_path_b64) DO NOTHING",
             )?;
 
             for scanned_file in pics {
                 if let ScannedFile::Photo(path) = scanned_file {
-                    // convert to relative path before saving to database
-                    let picture_path = path.strip_prefix(&self.library_base_dir.sandbox_path)?;
-                    let picture_path_b64 = path_encoding::to_base64(picture_path);
+                    if let Ok((root_id, root)) = self.find_root_for_sandbox_path(path) {
+                        // convert to relative path before saving to database
+                        if let Ok(picture_path) = path.strip_prefix(&root.sandbox_path) {
+                            let picture_path_b64 = path_encoding::to_base64(picture_path);
 
-                    // Path without suffix so sibling pictures and videos can be related
-                    let link_path = picture_path
-                        .file_stem()
-                        .and_then(|x| x.to_str())
-                        .expect("Must exist");
+                            // Path without suffix so sibling pictures and videos can be related
+                            let link_path = picture_path
+                                .file_stem()
+                                .and_then(|x| x.to_str())
+                                .expect("Must exist");
 
-                    let link_path = picture_path.with_file_name(link_path);
-                    let link_path_b64 = path_encoding::to_base64(&link_path);
+                            let link_path = picture_path.with_file_name(link_path);
+                            let link_path_b64 = path_encoding::to_base64(&link_path);
 
-                    pic_insert_stmt.execute(params![
-                        picture_path_b64,
-                        picture_path.to_string_lossy(),
-                        link_path_b64,
-                        link_path.to_string_lossy(),
-                    ])?;
+                            pic_insert_stmt.execute(params![
+                                root_id,
+                                picture_path_b64,
+                                picture_path.to_string_lossy(),
+                                link_path_b64,
+                                link_path.to_string_lossy(),
+                            ])?;
+                        }
+                    }
                 } else {
                     error!("Expected a photo, but got: {:?}", scanned_file);
                 }
@@ -196,6 +349,7 @@ impl Repository {
         let mut stmt = con.prepare(
             "SELECT
                     pictures.picture_id,
+                    pictures.root_id,
                     pictures.picture_path_b64,
                     COALESCE(
                         pictures.exif_created_ts,
@@ -226,6 +380,7 @@ impl Repository {
         let mut stmt = con.prepare(
             "SELECT
                     pictures.picture_id,
+                    pictures.root_id,
                     pictures.picture_path_b64,
                     COALESCE(
                         pictures.exif_created_ts,
@@ -255,6 +410,7 @@ impl Repository {
         let mut stmt = con.prepare(
             "SELECT
                     pictures.picture_id,
+                    pictures.root_id,
                     pictures.picture_path_b64,
                     COALESCE(
                         pictures.exif_created_ts,
@@ -370,13 +526,15 @@ impl Repository {
 
     fn to_picture(&self, row: &Row<'_>) -> rusqlite::Result<Picture> {
         let picture_id = row.get("picture_id").map(PictureId::new)?;
+        let root_id: i64 = row.get("root_id").unwrap_or(1);
+        let root = self.get_root_by_id(root_id);
 
         let relative_path: String = row.get("picture_path_b64")?;
         let relative_path = path_encoding::from_base64(&relative_path)
             .map_err(|_| rusqlite::Error::InvalidQuery)?;
 
-        let sandbox_path = self.library_base_dir.sandbox_path.join(&relative_path);
-        let host_path = self.library_base_dir.host_path.join(&relative_path);
+        let sandbox_path = root.sandbox_path.join(&relative_path);
+        let host_path = root.host_path.join(&relative_path);
 
         let ordering_ts = row.get("ordering_ts").expect("must have ordering_ts");
         let is_selfie = row.get("is_selfie").ok();
@@ -422,6 +580,7 @@ impl Repository {
                 detected_at,
 
                 is_source_original,
+                pictures.root_id,
                 pictures.picture_path_b64 AS picture_path_b64,
 
                 bounds_path,
@@ -465,12 +624,15 @@ impl Repository {
     }
 
     fn to_library_path(&self, row: &Row<'_>) -> rusqlite::Result<FlatpakPathBuf> {
+        let root_id: i64 = row.get("root_id").unwrap_or(1);
+        let root = self.get_root_by_id(root_id);
+
         let relative_path: String = row.get("picture_path_b64")?;
         let relative_path = path_encoding::from_base64(&relative_path)
             .map_err(|_| rusqlite::Error::InvalidQuery)?;
 
-        let sandbox_path = self.library_base_dir.sandbox_path.join(&relative_path);
-        let host_path = self.library_base_dir.host_path.join(&relative_path);
+        let sandbox_path = root.sandbox_path.join(&relative_path);
+        let host_path = root.host_path.join(&relative_path);
 
         std::result::Result::Ok(FlatpakPathBuf {
             host_path,
@@ -545,6 +707,7 @@ impl Repository {
         let mut stmt = con.prepare(
             "SELECT
                     pictures.picture_id,
+                    pictures.root_id,
                     pictures.picture_path_b64,
                     COALESCE(
                         pictures.exif_created_ts,
@@ -580,6 +743,7 @@ impl Repository {
         let mut stmt = con.prepare(
             "SELECT
                     pictures.picture_id,
+                    pictures.root_id,
                     pictures.picture_path_b64
                 FROM pictures
                 WHERE pictures.picture_id = ?1",
@@ -601,6 +765,8 @@ impl Repository {
         row: &Row<'_>,
     ) -> rusqlite::Result<FaceDetectionCandidate> {
         let picture_id = row.get("picture_id").map(PictureId::new)?;
+        let root_id: i64 = row.get("root_id").unwrap_or(1);
+        let root = self.get_root_by_id(root_id);
 
         let relative_path = row
             .get("picture_path_b64")
@@ -609,9 +775,9 @@ impl Repository {
 
         let host_path = relative_path
             .as_ref()
-            .map(|x| self.library_base_dir.host_path.join(x));
+            .map(|x| root.host_path.join(x));
 
-        let sandbox_path = relative_path.map(|x| self.library_base_dir.sandbox_path.join(x));
+        let sandbox_path = relative_path.map(|x| root.sandbox_path.join(x));
 
         Ok(FaceDetectionCandidate {
             picture_id,

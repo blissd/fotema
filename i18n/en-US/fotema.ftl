@@ -257,12 +257,30 @@ prefs-processing-motion-photos = Motion photos
 
 prefs-library-section =
   .title = Library
-  .description = Configure library directory.
-  Warning: changing the pictures directory can cause { -app-name } to reprocess all your pictures.
+  .description = Configure library directories.
+  Warning: changing or removing a pictures directory can cause { -app-name } to reprocess pictures or remove their cached data.
 
 prefs-library-section-pictures-dir =
   .title = Pictures Directory
   .tooltip = Choose pictures directory.
+
+prefs-library-section-add-pictures-dir =
+  .title = Add Pictures Directory
+  .tooltip = Add another pictures directory.
+
+prefs-library-section-reload-pictures-dir =
+  .tooltip = Reload this pictures directory.
+
+prefs-library-unavailable-title = Pictures Directory Unavailable
+prefs-library-unavailable-body = This folder is not currently accessible. Connect or mount its drive, then try again.
+
+prefs-library-section-remove-pictures-dir =
+  .tooltip = Remove this pictures directory.
+
+prefs-library-error-title = Invalid Directory Selection
+prefs-library-error-duplicate = This directory has already been added to your library.
+prefs-library-error-nested = This directory is nested inside or contains an existing library directory.
+prefs-library-error-ok = OK
 
 ## Progress bar for background tasks
 

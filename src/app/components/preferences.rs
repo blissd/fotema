@@ -12,18 +12,54 @@ use gtk::glib;
 
 use tracing::{error, info};
 
-use crate::app::AlbumSort;
-use crate::app::FaceDetectionMode;
-use crate::app::{Settings, SettingsState};
+use crate::app::{AlbumSort, App, FaceDetectionMode, Settings, SettingsState};
 use crate::fl;
 use crate::host_path;
 use fotema_core::FlatpakPathBuf;
+use std::cell::RefCell;
 use std::path::PathBuf;
+
+#[derive(Debug, Clone, Copy)]
+enum DirectoryValidationError {
+    Duplicate,
+    Nested,
+}
+
+fn validate_candidate_dir(
+    candidate: &FlatpakPathBuf,
+    existing: &[FlatpakPathBuf],
+    skip_index: Option<usize>,
+) -> Option<DirectoryValidationError> {
+    for (idx, dir) in existing.iter().enumerate() {
+        if Some(idx) == skip_index {
+            continue;
+        }
+        if candidate.host_path == dir.host_path || candidate.sandbox_path == dir.sandbox_path {
+            return Some(DirectoryValidationError::Duplicate);
+        }
+        if candidate.host_path.starts_with(&dir.host_path)
+            || dir.host_path.starts_with(&candidate.host_path)
+            || candidate.sandbox_path.starts_with(&dir.sandbox_path)
+            || dir.sandbox_path.starts_with(&candidate.sandbox_path)
+        {
+            return Some(DirectoryValidationError::Nested);
+        }
+    }
+    None
+}
+
+fn is_external_library_dir(dir: &FlatpakPathBuf) -> bool {
+    dir.host_path.starts_with("/mnt")
+        || dir.host_path.starts_with("/media")
+        || dir.host_path.starts_with("/run/media")
+}
 
 pub struct PreferencesDialog {
     parent: adw::ApplicationWindow,
     dialog: adw::PreferencesDialog,
     album_sort: adw::ComboRow,
+    library_group: adw::PreferencesGroup,
+    library_rows: RefCell<Vec<gtk::Widget>>,
 
     settings_state: SettingsState,
 
@@ -36,12 +72,129 @@ impl PreferencesDialog {
         self.settings.face_detection_mode == FaceDetectionMode::On
     }
 
-    pub fn picture_base_dir_host_path(&self) -> String {
-        self.settings
-            .library_base_dir
-            .host_path
-            .to_string_lossy()
-            .to_string()
+    fn show_validation_error(&self, error: DirectoryValidationError) {
+        let body_text = match error {
+            DirectoryValidationError::Duplicate => fl!("prefs-library-error-duplicate"),
+            DirectoryValidationError::Nested => fl!("prefs-library-error-nested"),
+        };
+        let dialog = adw::AlertDialog::builder()
+            .heading(fl!("prefs-library-error-title"))
+            .body(body_text)
+            .build();
+        dialog.add_response("ok", &fl!("prefs-library-error-ok"));
+        dialog.set_default_response(Some("ok"));
+        dialog.set_close_response("ok");
+        dialog.present(Some(&self.dialog));
+    }
+
+    fn update_library_rows(&self, sender: &AsyncComponentSender<Self>) {
+        for row in self.library_rows.borrow_mut().drain(..) {
+            self.library_group.remove(&row);
+        }
+
+        // Primary directory row (row 0)
+        if let Some(primary_dir) = self.settings.library_base_dirs.first() {
+            let row = adw::ActionRow::builder()
+                .title(&fl!("prefs-library-section-pictures-dir", "title"))
+                .subtitle(&primary_dir.host_path.to_string_lossy().to_string())
+                .build();
+
+            if is_external_library_dir(primary_dir) {
+                let refresh_btn = gtk::Button::builder()
+                    .valign(gtk::Align::Center)
+                    .icon_name("view-refresh-symbolic")
+                    .tooltip_text(&fl!("prefs-library-section-reload-pictures-dir", "tooltip"))
+                    .build();
+
+                let sender_clone = sender.clone();
+                refresh_btn.connect_clicked(move |_| {
+                    sender_clone.input(PreferencesInput::RefreshPicturesDir(0));
+                });
+                row.add_suffix(&refresh_btn);
+            }
+
+            let btn = gtk::Button::builder()
+                .valign(gtk::Align::Center)
+                .icon_name("folder-open-symbolic")
+                .tooltip_text(&fl!("prefs-library-section-pictures-dir", "tooltip"))
+                .build();
+
+            let sender_clone = sender.clone();
+            btn.connect_clicked(move |_| {
+                sender_clone.input(PreferencesInput::ChangePrimaryPicturesDir);
+            });
+            row.add_suffix(&btn);
+            self.library_group.add(&row);
+            self.library_rows.borrow_mut().push(row.upcast());
+        }
+
+        // Additional directory rows (rows 1..)
+        for (idx, dir) in self.settings.library_base_dirs.iter().enumerate().skip(1) {
+            let folder_name = dir
+                .host_path
+                .file_name()
+                .map(|s| s.to_string_lossy().to_string())
+                .unwrap_or_else(|| fl!("prefs-library-section-pictures-dir", "title"));
+
+            let row = adw::ActionRow::builder()
+                .title(&folder_name)
+                .subtitle(&dir.host_path.to_string_lossy().to_string())
+                .build();
+
+            if is_external_library_dir(dir) {
+                let refresh_btn = gtk::Button::builder()
+                    .valign(gtk::Align::Center)
+                    .icon_name("view-refresh-symbolic")
+                    .tooltip_text(&fl!("prefs-library-section-reload-pictures-dir", "tooltip"))
+                    .build();
+
+                let sender_clone = sender.clone();
+                refresh_btn.connect_clicked(move |_| {
+                    sender_clone.input(PreferencesInput::RefreshPicturesDir(idx));
+                });
+                row.add_suffix(&refresh_btn);
+            }
+
+            let btn = gtk::Button::builder()
+                .valign(gtk::Align::Center)
+                .icon_name("user-trash-symbolic")
+                .tooltip_text(&fl!("prefs-library-section-remove-pictures-dir", "tooltip"))
+                .build();
+
+            let sender_clone = sender.clone();
+            btn.connect_clicked(move |_| {
+                sender_clone.input(PreferencesInput::RemovePicturesDir(idx));
+            });
+            row.add_suffix(&btn);
+            self.library_group.add(&row);
+            self.library_rows.borrow_mut().push(row.upcast());
+        }
+
+        // Add Pictures Directory row
+        let add_row = adw::ActionRow::builder()
+            .title(&fl!("prefs-library-section-add-pictures-dir", "title"))
+            .activatable(true)
+            .build();
+
+        let add_btn = gtk::Button::builder()
+            .valign(gtk::Align::Center)
+            .icon_name("list-add-symbolic")
+            .tooltip_text(&fl!("prefs-library-section-add-pictures-dir", "tooltip"))
+            .build();
+
+        let sender_clone = sender.clone();
+        add_btn.connect_clicked(move |_| {
+            sender_clone.input(PreferencesInput::AddPicturesDir);
+        });
+        add_row.add_suffix(&add_btn);
+
+        let sender_clone2 = sender.clone();
+        add_row.connect_activated(move |_| {
+            sender_clone2.input(PreferencesInput::AddPicturesDir);
+        });
+
+        self.library_group.add(&add_row);
+        self.library_rows.borrow_mut().push(add_row.upcast());
     }
 }
 
@@ -62,7 +215,14 @@ pub enum PreferencesInput {
 
     Sort(AlbumSort),
 
-    ChoosePicturesDir,
+    ChangePrimaryPicturesDir,
+
+    AddPicturesDir,
+
+    /// Reload an external library directory after its drive becomes available.
+    RefreshPicturesDir(usize),
+
+    RemovePicturesDir(usize),
 }
 
 // Note that some settings update through the shared state, and others through output messages.
@@ -74,6 +234,9 @@ pub enum PreferencesOutput {
 
     /// Process motion photos right now.
     ProcessMotionPhotos,
+
+    /// Reload the configured library after an external drive becomes available.
+    RefreshLibrary,
 }
 
 #[relm4::component(pub async)]
@@ -87,24 +250,8 @@ impl SimpleAsyncComponent for PreferencesDialog {
             set_title: &fl!("prefs-title"),
             add = &adw::PreferencesPage {
 
-                add = &adw::PreferencesGroup {
-                    set_title: &fl!("prefs-library-section", "title"),
-                    set_description: Some(&fl!("prefs-library-section", "description")),
-
-                    adw::ActionRow {
-                        set_title: &fl!("prefs-library-section-pictures-dir", "title"),
-
-                        #[watch]
-                        set_subtitle: &model.picture_base_dir_host_path(),
-
-                        add_suffix = &gtk::Button {
-                            set_valign: gtk::Align::Center,
-                            set_icon_name: "folder-open-symbolic",
-                            set_tooltip_text: Some(&fl!("prefs-library-section-pictures-dir", "tooltip")),
-                            connect_clicked => PreferencesInput::ChoosePicturesDir,
-                        }
-                    }
-                },
+                #[local_ref]
+                library_group -> adw::PreferencesGroup {},
 
                 add = &adw::PreferencesGroup {
                     set_title: &fl!("prefs-albums-section"),
@@ -182,6 +329,11 @@ impl SimpleAsyncComponent for PreferencesDialog {
             PreferencesInput::SettingsChanged(settings.clone())
         });
 
+        let library_group = adw::PreferencesGroup::builder()
+            .title(&fl!("prefs-library-section", "title"))
+            .description(&fl!("prefs-library-section", "description"))
+            .build();
+
         let face_detection_mode_row = adw::SwitchRow::builder()
             .active(settings_state.read().face_detection_mode == FaceDetectionMode::On)
             .build();
@@ -199,10 +351,13 @@ impl SimpleAsyncComponent for PreferencesDialog {
             dialog: dialog.clone(),
             settings: settings_state.read().clone(),
             album_sort: album_sort_row.clone(),
+            library_group: library_group.clone(),
+            library_rows: RefCell::new(Vec::new()),
         };
 
         let widgets = view_output!();
 
+        model.update_library_rows(&sender);
         sender.input(PreferencesInput::SettingsChanged(model.settings.clone()));
 
         AsyncComponentParts { model, widgets }
@@ -212,6 +367,7 @@ impl SimpleAsyncComponent for PreferencesDialog {
         match msg {
             PreferencesInput::Present => {
                 self.settings = self.settings_state.read().clone();
+                self.update_library_rows(&sender);
                 self.dialog.present(Some(&self.parent));
             }
             PreferencesInput::SettingsChanged(settings) => {
@@ -224,15 +380,18 @@ impl SimpleAsyncComponent for PreferencesDialog {
                 };
 
                 self.album_sort.set_selected(index);
+                self.update_library_rows(&sender);
             }
             PreferencesInput::UpdateShowSelfies(show_selfies) => {
                 info!("Update show selfies: {}", show_selfies);
                 self.settings.show_selfies = show_selfies;
+                let _ = App::save_settings(&self.settings);
                 *self.settings_state.write() = self.settings.clone();
             }
             PreferencesInput::UpdateProcessMotionPhotos(enable) => {
                 info!("Update process motion photos: {:?}", enable);
                 self.settings.process_motion_photos = enable;
+                let _ = App::save_settings(&self.settings);
                 *self.settings_state.write() = self.settings.clone();
                 if enable {
                     let _ = sender.output(PreferencesOutput::ProcessMotionPhotos);
@@ -241,6 +400,7 @@ impl SimpleAsyncComponent for PreferencesDialog {
             PreferencesInput::UpdateFaceDetectionMode(mode) => {
                 info!("Update face detection mode: {:?}", mode);
                 self.settings.face_detection_mode = mode;
+                let _ = App::save_settings(&self.settings);
                 *self.settings_state.write() = self.settings.clone();
                 if mode == FaceDetectionMode::On {
                     let _ = sender.output(PreferencesOutput::EnableFaceDetection);
@@ -249,56 +409,115 @@ impl SimpleAsyncComponent for PreferencesDialog {
             PreferencesInput::Sort(mode) => {
                 info!("Update album sort: {:?}", mode);
                 self.settings.album_sort = mode;
+                let _ = App::save_settings(&self.settings);
                 *self.settings_state.write() = self.settings.clone();
             }
-            PreferencesInput::ChoosePicturesDir => {
-                info!("Presenting select pictures directory file chooser");
+            PreferencesInput::ChangePrimaryPicturesDir => {
+                info!("Presenting select pictures directory file chooser for primary directory");
                 if let Some(root) = gtk::Widget::root(self.parent.widget_ref()) {
                     let identifier = WindowIdentifier::from_native(&root).await;
                     let request = OpenFileRequest::default()
                         .directory(true)
                         .identifier(identifier)
-                        .modal(true) // can't be modal without identifier.
+                        .modal(true)
                         .multiple(false);
 
                     match request.send().await.and_then(|r| r.response()) {
                         Ok(files) => {
-                            info!("Open: {:?}", files);
-                            if let Some(first) = files.uris().first() {
-                                let some_library_base_dir = files.uris().first().and_then(|uri| {
-                                    glib::Uri::parse(uri.as_str(), glib::UriFlags::NONE)
-                                        .map(|glib_uri| PathBuf::from(glib_uri.path()))
-                                        .ok()
-                                });
+                            if let Some(uri) = files.uris().first() {
+                                if let Ok(glib_uri) = glib::Uri::parse(uri.as_str(), glib::UriFlags::NONE) {
+                                    let chosen_path = PathBuf::from(glib_uri.path());
+                                    let flatpak_dir = host_path::host_path(&chosen_path)
+                                        .await
+                                        .unwrap_or(FlatpakPathBuf::build(&chosen_path, &chosen_path));
 
-                                if let Some(library_base_dir) = some_library_base_dir {
-                                    info!(
-                                        "User has chosen picture library at: {:?}",
-                                        library_base_dir
-                                    );
-                                    if self.settings.library_base_dir.sandbox_path
-                                        != library_base_dir
-                                    {
-                                        info!(
-                                            "New pictures base director is: {:?}",
-                                            library_base_dir
-                                        );
-                                        self.settings.library_base_dir =
-                                            host_path::host_path(&library_base_dir)
-                                                .await
-                                                .unwrap_or(FlatpakPathBuf::build(
-                                                    &library_base_dir,
-                                                    &library_base_dir,
-                                                ));
+                                    if let Some(err) = validate_candidate_dir(&flatpak_dir, &self.settings.library_base_dirs, Some(0)) {
+                                        self.show_validation_error(err);
+                                    } else {
+                                        if self.settings.library_base_dirs.is_empty() {
+                                            self.settings.library_base_dirs.push(flatpak_dir);
+                                        } else {
+                                            self.settings.library_base_dirs[0] = flatpak_dir;
+                                        }
+                                        let _ = App::save_settings(&self.settings);
                                         *self.settings_state.write() = self.settings.clone();
+                                        self.update_library_rows(&sender);
                                     }
                                 }
                             }
                         }
                         Err(err) => {
-                            error!("Failed to open a file: {err}");
+                            error!("Failed to open a directory: {err}");
                         }
                     }
+                }
+            }
+            PreferencesInput::AddPicturesDir => {
+                info!("Presenting select pictures directory file chooser to add directory");
+                if let Some(root) = gtk::Widget::root(self.parent.widget_ref()) {
+                    let identifier = WindowIdentifier::from_native(&root).await;
+                    let request = OpenFileRequest::default()
+                        .directory(true)
+                        .identifier(identifier)
+                        .modal(true)
+                        .multiple(false);
+
+                    match request.send().await.and_then(|r| r.response()) {
+                        Ok(files) => {
+                            if let Some(uri) = files.uris().first() {
+                                if let Ok(glib_uri) = glib::Uri::parse(uri.as_str(), glib::UriFlags::NONE) {
+                                    let chosen_path = PathBuf::from(glib_uri.path());
+                                    let flatpak_dir = host_path::host_path(&chosen_path)
+                                        .await
+                                        .unwrap_or(FlatpakPathBuf::build(&chosen_path, &chosen_path));
+
+                                    if let Some(err) = validate_candidate_dir(&flatpak_dir, &self.settings.library_base_dirs, None) {
+                                        self.show_validation_error(err);
+                                    } else {
+                                        self.settings.library_base_dirs.push(flatpak_dir);
+                                        let _ = App::save_settings(&self.settings);
+                                        *self.settings_state.write() = self.settings.clone();
+                                        self.update_library_rows(&sender);
+                                    }
+                                }
+                            }
+                        }
+                        Err(err) => {
+                            error!("Failed to open a directory: {err}");
+                        }
+                    }
+                }
+            }
+            PreferencesInput::RefreshPicturesDir(index) => {
+                let Some(dir) = self
+                    .settings
+                    .library_base_dirs
+                    .get(index)
+                else {
+                    return;
+                };
+
+                if dir.exists() {
+                    info!("Refreshing accessible external library directory");
+                    let _ = sender.output(PreferencesOutput::RefreshLibrary);
+                } else {
+                    let dialog = adw::AlertDialog::builder()
+                        .heading(fl!("prefs-library-unavailable-title"))
+                        .body(fl!("prefs-library-unavailable-body"))
+                        .build();
+                    dialog.add_response("ok", &fl!("prefs-library-error-ok"));
+                    dialog.set_default_response(Some("ok"));
+                    dialog.set_close_response("ok");
+                    dialog.present(Some(&self.dialog));
+                }
+            }
+            PreferencesInput::RemovePicturesDir(index) => {
+                info!("Removing pictures directory at index {}", index);
+                if index > 0 && index < self.settings.library_base_dirs.len() {
+                    self.settings.library_base_dirs.remove(index);
+                    let _ = App::save_settings(&self.settings);
+                    *self.settings_state.write() = self.settings.clone();
+                    self.update_library_rows(&sender);
                 }
             }
         }
