@@ -1367,6 +1367,7 @@ dependencies = [
  "reqwest",
  "rusqlite",
  "rust-faces",
+ "sha2",
  "sm_motion_photo",
  "strum",
  "tempfile",
