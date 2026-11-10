@@ -95,9 +95,8 @@ impl PhotoRecognizeFacesTask {
                             if let Some(embedder) = embedder.as_mut() {
                                 match embedder.embedding(&face) {
                                     Ok(embedding) => {
-                                        if let Err(e) = self
-                                            .repo
-                                            .store_face_embedding(face.face_id, &embedding)
+                                        if let Err(e) =
+                                            self.repo.store_face_embedding(face.face_id, &embedding)
                                         {
                                             error!(
                                                 "Failed storing embedding for face {}: {:?}",
