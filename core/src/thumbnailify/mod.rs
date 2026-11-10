@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: © 2025 David Bliss
+// SPDX-FileCopyrightText: © 2024 David Bliss
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -10,10 +10,13 @@ pub mod sizes;
 pub mod thumbnailer;
 
 pub use error::ThumbnailError;
+pub use file::MigrationStats;
+pub use file::find_existing_thumbnail;
 pub use file::get_file_uri;
 pub use file::get_thumbnail_hash_output;
 pub use file::get_thumbnail_path;
 pub use file::is_failed;
+pub use file::migrate_legacy_png_thumbnails;
 pub use file::write_failed_thumbnail;
 pub use hash::compute_hash;
 pub use hash::compute_hash_for_path;
