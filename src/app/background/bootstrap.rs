@@ -306,13 +306,19 @@ impl Controllers {
     }
 
     fn add_task_photo_clean(&mut self) {
-        let sender = self.photo_clean_task.sender().clone();
-        self.enqueue(Box::new(move || sender.emit(PhotoCleanTaskInput::Start)));
+        let enable = self.settings_state.read().should_db_clean;
+        if enable {
+            let sender = self.photo_clean_task.sender().clone();
+            self.enqueue(Box::new(move || sender.emit(PhotoCleanTaskInput::Start)));
+        }
     }
 
     fn add_task_video_clean(&mut self) {
-        let sender = self.video_clean_task.sender().clone();
-        self.enqueue(Box::new(move || sender.emit(VideoCleanTaskInput::Start)));
+        let enable = self.settings_state.read().should_db_clean;
+        if enable {
+            let sender = self.video_clean_task.sender().clone();
+            self.enqueue(Box::new(move || sender.emit(VideoCleanTaskInput::Start)));
+        }
     }
 
     fn add_task_photo_extract_motion(&mut self) {

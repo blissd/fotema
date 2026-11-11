@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <schemalist>
-  <schema path="/app/fotema/Fotema/" id="@app-id@" gettext-domain="@gettext-package@">
+  <schema path="@settings-path@/" id="@app-id@" gettext-domain="@gettext-package@">
     <key name="window-width" type="i">
       <default>600</default>
       <summary>Window width</summary>
@@ -32,11 +32,16 @@
     </key>
     <key name="pictures-base-dir-b64" type="s">
       <default>'L3Zhci9lbXB0eQ=='</default>
-      <summary>Sandbox view of user selected pictures directory. Base64 encoded because paths aren't strings. Default is /var/empty</summary>
+      <summary>Sandbox view of user selected pictures directory. Base64 encoded because paths aren't
+        strings. Default is /var/empty</summary>
     </key>
     <key name="process-motion-photos" type="b">
       <default>false</default>
       <summary>Extract videos from Android motion photos.</summary>
+    </key>
+    <key name="should-db-clean" type="b">
+      <default>true</default>
+      <summary>Clean the database when Fotema starts.</summary>
     </key>
   </schema>
 </schemalist>

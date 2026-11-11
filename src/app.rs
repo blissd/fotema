@@ -168,6 +168,10 @@ pub struct Settings {
     /// Base path of pictures directory inside Flatpak sandbox.
     /// Will be under `/run/users/<uid>/docs/<doc-id>/...`
     pub library_base_dir: FlatpakPathBuf,
+
+    /// Should the database be cleaned
+    /// https://github.com/blissd/fotema/issues/301
+    pub should_db_clean: bool,
 }
 
 /// Active settings
@@ -1169,6 +1173,7 @@ impl App {
                 .unwrap_or(AlbumSort::Ascending),
             is_onboarding_complete: gio_settings.boolean("onboarding-complete"),
             library_base_dir,
+            should_db_clean: gio_settings.boolean("should-db-clean"),
         })
     }
 
@@ -1184,6 +1189,7 @@ impl App {
             "pictures-base-dir-b64",
             &path_encoding::to_base64(&settings.library_base_dir.sandbox_path),
         )?;
+        gio_settings.set_boolean("should-db-clean", settings.should_db_clean)?;
         Ok(())
     }
 }

@@ -63,6 +63,8 @@ pub enum PreferencesInput {
     Sort(AlbumSort),
 
     ChoosePicturesDir,
+
+    UpdateCleanDb(bool),
 }
 
 // Note that some settings update through the shared state, and others through output messages.
@@ -102,6 +104,18 @@ impl SimpleAsyncComponent for PreferencesDialog {
                             set_icon_name: "folder-open-symbolic",
                             set_tooltip_text: Some(&fl!("prefs-library-section-pictures-dir", "tooltip")),
                             connect_clicked => PreferencesInput::ChoosePicturesDir,
+                        }
+                    },
+                    adw::SwitchRow {
+                        set_title: &fl!("prefs-library-section-db-clean", "title"),
+                        set_subtitle: &fl!("prefs-library-section-db-clean", "subtitle"),
+
+
+                        #[watch]
+                        set_active: model.settings.should_db_clean,
+
+                        connect_active_notify[sender] => move |switch| {
+                            let _ = sender.input_sender().send(PreferencesInput::UpdateCleanDb(switch.is_active()));
                         }
                     }
                 },
@@ -249,6 +263,11 @@ impl SimpleAsyncComponent for PreferencesDialog {
             PreferencesInput::Sort(mode) => {
                 info!("Update album sort: {:?}", mode);
                 self.settings.album_sort = mode;
+                *self.settings_state.write() = self.settings.clone();
+            }
+            PreferencesInput::UpdateCleanDb(mode) => {
+                info!("Update clean db: {:?}", mode);
+                self.settings.should_db_clean = mode;
                 *self.settings_state.write() = self.settings.clone();
             }
             PreferencesInput::ChoosePicturesDir => {
