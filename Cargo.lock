@@ -1805,9 +1805,9 @@ checksum = "e4eba85ea1d0a966a983acd07deee566e67395d2d96b6fb39e62b5a833f1eb0b"
 
 [[package]]
 name = "glycin"
-version = "4.0.4"
+version = "4.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4435b4e3908ef32618d2fdf34cf0991a08420ac89c1a8d2cb2add9b5c8f6037a"
+checksum = "7e5b54873fd0e4ea8fe447e4f2b8c670c485862b5d9d0d624dcc886bb3a89ecd"
 dependencies = [
  "glycin-builtin",
  "glycin-external",
@@ -1815,9 +1815,9 @@ dependencies = [
 
 [[package]]
 name = "glycin-builtin"
-version = "4.0.3"
+version = "4.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4d0f24f915439a9b1aa51b63c4e0026fc5c29b3cfe727e6a90fc117b4fd8275b"
+checksum = "c47ae9011448c83bfa8841543c41d3c3dd20759096a1b565e366fd39d54029f3"
 dependencies = [
  "glycin-core",
 ]
@@ -1843,9 +1843,9 @@ dependencies = [
 
 [[package]]
 name = "glycin-core"
-version = "4.0.3"
+version = "4.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1bb9767eb1a57ae1b0177f181331fe8e8c3935ae631271e752940753d4adedbe"
+checksum = "fdade20eb67ac75b5c306a99c594155e1096ea7aa536741f64158afa1ffdeb36"
 dependencies = [
  "async-fs",
  "async-global-executor",
@@ -1882,9 +1882,9 @@ dependencies = [
 
 [[package]]
 name = "glycin-external"
-version = "4.0.3"
+version = "4.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "93859463358b481ab88eb16c25e5c78cfe08e924d6fadc1a945f03ba439e32f4"
+checksum = "2c9b985c8fe1d1c2cdc91566faa52f5d3226506201a4121580ae8cfcb71992e5"
 dependencies = [
  "glycin-core",
 ]
@@ -2089,9 +2089,9 @@ dependencies = [
 
 [[package]]
 name = "gufo-exif"
-version = "0.5.3"
+version = "0.5.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4183c4b2bf6cfd58823cf02b2e8a4d955da3605f8e1b98adbd3456a97e35ae16"
+checksum = "b7a91a52ac6ea8d25e0752b1f3552d7a8252dcdf0b0b8154d1118d5e2582129c"
 dependencies = [
  "gufo-common",
  "indexmap",
