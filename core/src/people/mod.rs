@@ -14,5 +14,7 @@ pub use model::FaceToMigrate;
 pub use model::MigratedFace;
 pub use model::Person;
 pub use model::PersonId;
+pub use repo::RecognitionReference;
 pub use repo::Repository;
+pub use repo::UnnamedEmbedding;
 pub use thumbnailer::PersonThumbnailer;

@@ -13,11 +13,14 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use tracing::{error, info};
 
-use fotema_core::machine_learning::face_recognizer::FaceRecognizer;
+use fotema_core::machine_learning::face_recognizer::FaceEmbedder;
 use fotema_core::people;
-use fotema_core::people::model::{DetectedFace, PersonForRecognition};
 
 use crate::app::components::progress_monitor::{ProgressMonitor, ProgressMonitorInput, TaskName};
+
+/// Cosine similarity above which an unknown face is taken to be a named person.
+/// ArcFace separates identities well; this leans towards precision.
+const COSINE_THRESHOLD: f32 = 0.42;
 
 #[derive(Debug)]
 pub enum PhotoRecognizeFacesTaskInput {
@@ -50,90 +53,159 @@ impl PhotoRecognizeFacesTask {
     fn recognize(&self, sender: ComponentSender<Self>) -> Result<()> {
         let start = std::time::Instant::now();
 
-        let people: Vec<PersonForRecognition> = self
-            .repo
-            .find_people_for_recognition()?
-            .into_iter()
-            .collect();
+        // Named reference faces and the current embeddings in the DB. The
+        // recognition pass compares these vectors; it does not run inference.
+        let references = self.repo.find_recognition_references()?;
+
+        // All faces (named or not) lacking a current ArcFace embedding. Covers
+        // the one-time recompute after switching from SFace.
+        let need_embedding = self.repo.find_faces_needing_embedding()?;
 
         info!(
-            "Found {} people as candidates for face recognition",
-            people.len()
+            "Face recognition: {} faces need embeddings, {} reference faces",
+            need_embedding.len(),
+            references.len()
         );
 
-        // Short-circuit before sending progress messages to stop
-        // banner from appearing and disappearing.
-        if people.is_empty() {
-            let _ = sender.output(PhotoRecognizeFacesTaskOutput::Completed);
-            return Ok(());
-        }
-
-        let min_recognized_at = people.iter().map(|x| x.recognized_at).min().unwrap();
-
-        let unprocessed: Vec<DetectedFace> = self
-            .repo
-            .find_unknown_faces()?
-            .into_iter()
-            .filter(|unknown_face| unknown_face.detected_at > min_recognized_at)
-            .collect();
-
-        if unprocessed.is_empty() {
+        if need_embedding.is_empty() && references.is_empty() {
             let _ = sender.output(PhotoRecognizeFacesTaskOutput::Completed);
             return Ok(());
         }
 
         let _ = sender.output(PhotoRecognizeFacesTaskOutput::Started);
-        self.progress_monitor.emit(ProgressMonitorInput::Start(
-            TaskName::RecognizeFaces,
-            unprocessed.len(),
-        ));
 
-        let recognizer = FaceRecognizer::build(&self.cache_dir, people.clone())?;
+        // Cap concurrency: each worker thread loads its own ~166 MB ArcFace net,
+        // so a bounded pool keeps memory (and GPU memory) in check.
+        if !need_embedding.is_empty() {
+            let (sface_path, arcface_path) = FaceEmbedder::ensure_models(&self.cache_dir)?;
 
-        unprocessed
-            //.into_iter()
-            .into_par_iter()
-            .take_any_while(|_| !self.stop.load(Ordering::Relaxed))
-            .for_each(|unknown_face| {
-                let is_match = recognizer.recognize(&unknown_face);
-                if let Ok(Some(person_id)) = is_match {
-                    info!(
-                        "Face {} looks like person {}",
-                        unknown_face.face_id, person_id
+            self.progress_monitor.emit(ProgressMonitorInput::Start(
+                TaskName::RecognizeFaces,
+                need_embedding.len(),
+            ));
+
+            let pool = rayon::ThreadPoolBuilder::new().num_threads(4).build()?;
+            pool.install(|| {
+                need_embedding
+                    .into_par_iter()
+                    .take_any_while(|_| !self.stop.load(Ordering::Relaxed))
+                    .for_each_init(
+                        || FaceEmbedder::new(&sface_path, &arcface_path).ok(),
+                        |embedder, face| {
+                            if let Some(embedder) = embedder.as_mut() {
+                                match embedder.embedding(&face) {
+                                    Ok(embedding) => {
+                                        if let Err(e) =
+                                            self.repo.store_face_embedding(face.face_id, &embedding)
+                                        {
+                                            error!(
+                                                "Failed storing embedding for face {}: {:?}",
+                                                face.face_id, e
+                                            );
+                                        }
+                                    }
+                                    Err(e) => error!(
+                                        "Failed computing embedding for face {}: {:?}",
+                                        face.face_id, e
+                                    ),
+                                }
+                            }
+                            self.progress_monitor.emit(ProgressMonitorInput::Advance);
+                        },
                     );
-                    let mut repo = self.repo.clone();
-                    let result = repo.mark_as_person_unconfirmed(unknown_face.face_id, person_id);
-                    if let Err(e) = result {
-                        error!(
-                            "Failed marking face {} as person: {:?}",
-                            unknown_face.face_id, e
-                        );
-                    }
-                }
-
-                self.progress_monitor.emit(ProgressMonitorInput::Advance);
             });
 
-        let mut repo = self.repo.clone();
-        for person in people {
-            if let Err(e) = repo.mark_face_recognition_complete(person.person_id) {
-                error!(
-                    "Failed marking face recognition complete for person {}: {:?}",
-                    person.person_id, e
-                );
-            }
+            self.progress_monitor.emit(ProgressMonitorInput::Complete);
+        }
+
+        if !references.is_empty() {
+            self.recognize_from_embeddings(&references)?;
         }
 
         info!(
-            "Recognized people in {} seconds.",
+            "Recognized/embedded faces in {} seconds.",
             start.elapsed().as_secs()
         );
-
-        self.progress_monitor.emit(ProgressMonitorInput::Complete);
 
         let _ = sender.output(PhotoRecognizeFacesTaskOutput::Completed);
 
         Ok(())
+    }
+
+    /// Match unnamed faces to named people using only the embeddings already
+    /// stored in the database. Pure cosine comparison: no model load, image
+    /// read or inference per face.
+    fn recognize_from_embeddings(
+        &self,
+        references: &[people::RecognitionReference],
+    ) -> Result<usize> {
+        let min_recognized_at = references
+            .iter()
+            .map(|reference| reference.recognized_at)
+            .min()
+            .expect("references is not empty");
+
+        let unnamed = self
+            .repo
+            .find_unnamed_with_embeddings()?
+            .into_iter()
+            .filter(|face| face.detected_at > min_recognized_at)
+            .collect::<Vec<_>>();
+
+        let assignments: Vec<(fotema_core::FaceId, fotema_core::PersonId)> = unnamed
+            .par_iter()
+            .take_any_while(|_| !self.stop.load(Ordering::Relaxed))
+            .filter_map(|face| {
+                let mut best: Option<(fotema_core::PersonId, f32)> = None;
+                for reference in references {
+                    // Only match against people known before this face was detected.
+                    if reference.recognized_at > face.detected_at {
+                        continue;
+                    }
+                    let score = people::Repository::cosine_normalized(
+                        &face.embedding,
+                        &reference.embedding,
+                    );
+                    if score >= COSINE_THRESHOLD
+                        && best.is_none_or(|(_, best_score)| score > best_score)
+                    {
+                        best = Some((reference.person_id, score));
+                    }
+                }
+                best.map(|(person_id, score)| {
+                    info!(
+                        "Face {} looks like person {} (score {:.3})",
+                        face.face_id, person_id, score
+                    );
+                    (face.face_id, person_id)
+                })
+            })
+            .collect();
+
+        let count = assignments.len();
+        let mut repo = self.repo.clone();
+        for (face_id, person_id) in assignments {
+            if let Err(e) = repo.mark_as_person_unconfirmed(face_id, person_id) {
+                error!("Failed marking face {} as person: {:?}", face_id, e);
+            }
+        }
+
+        let mut person_ids: Vec<i64> = references
+            .iter()
+            .map(|reference| reference.person_id.id())
+            .collect();
+        person_ids.sort_unstable();
+        person_ids.dedup();
+        for id in person_ids {
+            if let Err(e) = repo.mark_face_recognition_complete(fotema_core::PersonId::new(id)) {
+                error!(
+                    "Failed marking recognition complete for person {}: {:?}",
+                    id, e
+                );
+            }
+        }
+
+        Ok(count)
     }
 }
 

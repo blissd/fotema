@@ -15,6 +15,7 @@ use crate::people::model::PersonForRecognition;
 use crate::people::model::Rect;
 
 use anyhow::*;
+use chrono::{DateTime, Utc};
 use rusqlite;
 use rusqlite::Row;
 use rusqlite::params;
@@ -22,6 +23,24 @@ use std::path::{Path, PathBuf};
 use std::result::Result::Ok;
 use std::sync::{Arc, Mutex};
 use tracing::warn;
+
+/// A confirmed, named reference face together with its stored ArcFace embedding
+/// (already L2-normalised) and its person's last-recognition timestamp.
+#[derive(Debug, Clone)]
+pub struct RecognitionReference {
+    pub person_id: PersonId,
+    pub recognized_at: DateTime<Utc>,
+    pub embedding: Vec<f32>,
+}
+
+/// An unnamed, non-ignored face with its stored (L2-normalised) ArcFace
+/// embedding and detection time.
+#[derive(Debug, Clone)]
+pub struct UnnamedEmbedding {
+    pub face_id: FaceId,
+    pub detected_at: DateTime<Utc>,
+    pub embedding: Vec<f32>,
+}
 
 /// Repository of people data.
 /// Repository is backed by a Sqlite database.
@@ -322,6 +341,137 @@ impl Repository {
             .collect();
 
         Ok(result)
+    }
+
+    /// Store an L2-normalised ArcFace embedding (little-endian f32 vector) for a
+    /// face.
+    pub fn store_face_embedding(&self, face_id: FaceId, embedding: &[f32]) -> Result<()> {
+        let bytes: Vec<u8> = embedding.iter().flat_map(|f| f.to_le_bytes()).collect();
+        let con = self.con.lock().unwrap();
+        con.execute(
+            "UPDATE pictures_faces SET embedding = ?1 WHERE face_id = ?2",
+            params![bytes, face_id.id()],
+        )?;
+        Ok(())
+    }
+
+    /// Confirmed, named faces that carry a current (512-dim ArcFace) embedding,
+    /// each paired with its person's last-recognition time.
+    pub fn find_recognition_references(&self) -> Result<Vec<RecognitionReference>> {
+        let con = self.con.lock().unwrap();
+        let mut stmt = con.prepare(
+            "SELECT faces.person_id AS person_id,
+                    people.recognized_at AS recognized_at,
+                    faces.embedding AS embedding
+             FROM pictures_faces AS faces
+             INNER JOIN people USING (person_id)
+             WHERE faces.is_confirmed = TRUE
+               AND length(faces.embedding) = 2048",
+        )?;
+        let rows = stmt.query_map([], |row| {
+            let person_id = row.get("person_id").map(PersonId::new)?;
+            let recognized_at: DateTime<Utc> = row.get("recognized_at")?;
+            let bytes: Vec<u8> = row.get("embedding")?;
+            Ok((person_id, recognized_at, bytes))
+        })?;
+
+        let mut out = Vec::new();
+        for (person_id, recognized_at, bytes) in rows.flatten() {
+            out.push(RecognitionReference {
+                person_id,
+                recognized_at,
+                embedding: Self::bytes_to_normalized(&bytes),
+            });
+        }
+        Ok(out)
+    }
+
+    /// Unnamed, non-ignored faces that carry a current (512-dim ArcFace)
+    /// embedding, with their detection time.
+    pub fn find_unnamed_with_embeddings(&self) -> Result<Vec<UnnamedEmbedding>> {
+        let con = self.con.lock().unwrap();
+        let mut stmt = con.prepare(
+            "SELECT face_id, detected_at, embedding
+             FROM pictures_faces
+             WHERE person_id IS NULL
+               AND is_ignored = FALSE
+               AND length(embedding) = 2048",
+        )?;
+        let rows = stmt.query_map([], |row| {
+            let face_id = row.get("face_id").map(FaceId::new)?;
+            let detected_at: DateTime<Utc> = row.get("detected_at")?;
+            let bytes: Vec<u8> = row.get("embedding")?;
+            Ok((face_id, detected_at, bytes))
+        })?;
+
+        let mut out = Vec::new();
+        for (face_id, detected_at, bytes) in rows.flatten() {
+            out.push(UnnamedEmbedding {
+                face_id,
+                detected_at,
+                embedding: Self::bytes_to_normalized(&bytes),
+            });
+        }
+        Ok(out)
+    }
+
+    /// All non-ignored faces (named or not) that lack a current-dimension
+    /// embedding, so embeddings are (re)computed for everything.
+    pub fn find_faces_needing_embedding(&self) -> Result<Vec<model::DetectedFace>> {
+        let con = self.con.lock().unwrap();
+        let mut stmt = con.prepare(
+            "SELECT
+                face_id,
+                detected_at,
+                is_source_original,
+                bounds_path,
+                thumbnail_path,
+                bounds_x,
+                bounds_y,
+                bounds_width,
+                bounds_height,
+                right_eye_x,
+                right_eye_y,
+                left_eye_x,
+                left_eye_y,
+                nose_x,
+                nose_y,
+                right_mouth_corner_x,
+                right_mouth_corner_y,
+                left_mouth_corner_x,
+                left_mouth_corner_y,
+                confidence
+            FROM pictures_faces AS faces
+            WHERE faces.is_ignored = FALSE
+            AND (faces.embedding IS NULL OR length(faces.embedding) != 2048)",
+        )?;
+
+        let result: Vec<model::DetectedFace> = stmt
+            .query_map([], |row| self.to_detected_face(row))?
+            .flatten()
+            .collect();
+
+        Ok(result)
+    }
+
+    /// Cosine similarity of two already-L2-normalised embeddings (a plain dot
+    /// product). Higher = more similar.
+    pub fn cosine_normalized(a: &[f32], b: &[f32]) -> f32 {
+        a.iter().zip(b).map(|(x, y)| x * y).sum()
+    }
+
+    /// Decode a little-endian f32 embedding BLOB and L2-normalise it.
+    fn bytes_to_normalized(bytes: &[u8]) -> Vec<f32> {
+        let v: Vec<f32> = bytes
+            .chunks_exact(4)
+            .map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]]))
+            .collect();
+        let norm = v.iter().map(|x| x * x).sum::<f32>().sqrt();
+        if norm > 0.0 {
+            v.iter().map(|x| x / norm).collect()
+        } else {
+            v
+        }
     }
 
     /// Finds all pictures that feature a known person.
