@@ -58,6 +58,9 @@ pub enum PreferencesInput {
 
     UpdateFaceDetectionMode(FaceDetectionMode),
 
+    /// Enable or disable MTCNN as a second face detector.
+    UpdateFaceDetectionMtcnn(bool),
+
     UpdateProcessMotionPhotos(bool),
 
     Sort(AlbumSort),
@@ -171,6 +174,21 @@ impl SimpleAsyncComponent for PreferencesDialog {
                     },
 
                     adw::SwitchRow {
+                        set_title: &fl!("prefs-processing-face-detection-mtcnn"),
+                        set_subtitle: &fl!("prefs-processing-face-detection-mtcnn", "subtitle"),
+
+                        #[watch]
+                        set_active: model.settings.face_detection_mtcnn,
+
+                        #[watch]
+                        set_sensitive: model.is_face_detection_active(),
+
+                        connect_active_notify[sender] => move |switch| {
+                            let _ = sender.input_sender().send(PreferencesInput::UpdateFaceDetectionMtcnn(switch.is_active()));
+                        },
+                    },
+
+                    adw::SwitchRow {
                         set_title: &fl!("prefs-processing-motion-photos"),
                         set_subtitle: &fl!("prefs-processing-motion-photos", "subtitle"),
 
@@ -259,6 +277,11 @@ impl SimpleAsyncComponent for PreferencesDialog {
                 if mode == FaceDetectionMode::On {
                     let _ = sender.output(PreferencesOutput::EnableFaceDetection);
                 }
+            }
+            PreferencesInput::UpdateFaceDetectionMtcnn(enable) => {
+                info!("Update MTCNN face detection: {:?}", enable);
+                self.settings.face_detection_mtcnn = enable;
+                *self.settings_state.write() = self.settings.clone();
             }
             PreferencesInput::Sort(mode) => {
                 info!("Update album sort: {:?}", mode);
