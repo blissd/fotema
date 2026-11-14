@@ -146,13 +146,17 @@ impl FromStr for FaceDetectionMode {
 
 /// Settings the user can change in the preferences dialog.
 /// Should not include any non-preference dialog settings like window size or maximization state.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct Settings {
     /// Is selfies view enabled?
     pub show_selfies: bool,
 
     /// Enable or disable face detection.
     pub face_detection_mode: FaceDetectionMode,
+
+    /// Run MTCNN as a second face detector. When off, use BlazeFace only.
+    /// Enabled by default because MTCNN finds more faces, especially in group photos.
+    pub face_detection_mtcnn: bool,
 
     /// Sorting for albums.
     /// NOTE: doesn't include folder's album.
@@ -168,6 +172,21 @@ pub struct Settings {
     /// Base path of pictures directory inside Flatpak sandbox.
     /// Will be under `/run/users/<uid>/docs/<doc-id>/...`
     pub library_base_dir: FlatpakPathBuf,
+}
+
+impl Default for Settings {
+    fn default() -> Self {
+        Self {
+            show_selfies: false,
+            face_detection_mode: FaceDetectionMode::default(),
+            // Higher recall is the default. The user can opt out in Preferences.
+            face_detection_mtcnn: true,
+            album_sort: AlbumSort::default(),
+            process_motion_photos: false,
+            is_onboarding_complete: false,
+            library_base_dir: FlatpakPathBuf::default(),
+        }
+    }
 }
 
 /// Active settings
@@ -1165,6 +1184,7 @@ impl App {
                 &gio_settings.string("face-detection-mode"),
             )
             .unwrap_or(FaceDetectionMode::Off),
+            face_detection_mtcnn: gio_settings.boolean("face-detection-mtcnn"),
             album_sort: AlbumSort::from_str(&gio_settings.string("album-sort"))
                 .unwrap_or(AlbumSort::Ascending),
             is_onboarding_complete: gio_settings.boolean("onboarding-complete"),
@@ -1178,6 +1198,7 @@ impl App {
         gio_settings.set_boolean("show-selfies", settings.show_selfies)?;
         gio_settings.set_boolean("process-motion-photos", settings.process_motion_photos)?;
         gio_settings.set_string("face-detection-mode", settings.face_detection_mode.as_ref())?;
+        gio_settings.set_boolean("face-detection-mtcnn", settings.face_detection_mtcnn)?;
         gio_settings.set_string("album-sort", settings.album_sort.as_ref())?;
         gio_settings.set_boolean("onboarding-complete", settings.is_onboarding_complete)?;
         gio_settings.set_string(

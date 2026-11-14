@@ -629,6 +629,7 @@ impl Bootstrap {
                 thumbnailer.clone(),
                 photo_repo.clone(),
                 people_repo.clone(),
+                self.settings_state.clone(),
                 self.progress_monitor.clone(),
             ))
             .forward(sender.input_sender(), |msg| match msg {
