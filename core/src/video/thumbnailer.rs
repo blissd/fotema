@@ -12,8 +12,10 @@ use anyhow::*;
 use image::ImageBuffer;
 use image::imageops;
 use std::result::Result::Ok;
+use tracing::debug;
 
-use video_rs::decode::Decoder;
+use video_rs::decode::{Decoder, DecoderBuilder};
+use video_rs::hwaccel::HardwareAccelerationDeviceType;
 
 use ffmpeg_next::frame::side_data::Type as SideDataType;
 
@@ -65,7 +67,7 @@ impl VideoThumbnailer {
     ) -> Result<()> {
         // Extract first frame of video for thumbnail
 
-        let mut decoder = Decoder::new(path.sandbox_path.clone())?;
+        let mut decoder = Self::build_decoder(path)?;
 
         let (width, height) = decoder.size();
 
@@ -109,5 +111,38 @@ impl VideoThumbnailer {
             .generate_thumbnail(path, size, quality, src_image)?;
 
         Ok(())
+    }
+
+    /// Make a decoder. The function prefers VAAPI hardware decode if the
+    /// computer has a serviceable VA driver. After each failure the function
+    /// uses software decode. Thus this function cannot cause a thumbnail
+    /// failure. It can only make the operation faster.
+    ///
+    /// Set `FOTEMA_DISABLE_VAAPI` to select software decode. Use this variable
+    /// if a driver operates incorrectly.
+    fn build_decoder(path: &FlatpakPathBuf) -> Result<Decoder> {
+        let source = path.sandbox_path.clone();
+
+        if std::env::var_os("FOTEMA_DISABLE_VAAPI").is_some() {
+            debug!("VAAPI disabled via FOTEMA_DISABLE_VAAPI; using software decode");
+        } else if HardwareAccelerationDeviceType::VaApi.is_available() {
+            match DecoderBuilder::new(source.clone())
+                .with_hardware_acceleration(HardwareAccelerationDeviceType::VaApi)
+                .build()
+            {
+                Ok(decoder) => {
+                    debug!("VAAPI hardware decode enabled for {:?}", path.host_path);
+                    return Ok(decoder);
+                }
+                Err(err) => {
+                    debug!(
+                        "VAAPI decode unavailable for {:?} ({}); using software decode",
+                        path.host_path, err
+                    );
+                }
+            }
+        }
+
+        Ok(Decoder::new(source)?)
     }
 }
