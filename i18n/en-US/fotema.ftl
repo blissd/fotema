@@ -249,6 +249,10 @@ prefs-processing-section = Photo and video processing
 prefs-processing-face-detection = Face detection
   .subtitle = Detect faces and recognize people you've named. This is a time consuming process.
 
+# Enable or disable MTCNN as a second face detector.
+prefs-processing-face-detection-mtcnn = High-recall face detection
+  .subtitle = Also run the MTCNN detector. Finds more faces, especially in group photos, but scans slower. Turn off for BlazeFace-only detection.
+
 # Motion photo processing enabled or disabled.
 # Attributes:
 #   .subtitle - Description of toggle button action.

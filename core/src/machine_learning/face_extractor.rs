@@ -96,10 +96,15 @@ pub struct FaceExtractorBuilder {
     thumbnail_base_path: PathBuf,
     thumbnailer: Thumbnailer,
     env: Environment,
+    use_mtcnn: bool,
 }
 
 impl FaceExtractorBuilder {
-    pub fn new(base_path: &Path, thumbnailer: Thumbnailer) -> Result<FaceExtractorBuilder> {
+    pub fn new(
+        base_path: &Path,
+        thumbnailer: Thumbnailer,
+        use_mtcnn: bool,
+    ) -> Result<FaceExtractorBuilder> {
         let faces_base_path = PathBuf::from(base_path).join("faces");
         let _ = std::fs::create_dir_all(&faces_base_path)?;
 
@@ -115,6 +120,7 @@ impl FaceExtractorBuilder {
             thumbnail_base_path,
             thumbnailer,
             env,
+            use_mtcnn,
         })
     }
 
@@ -130,13 +136,15 @@ impl FaceExtractorBuilder {
 
         detectors.push((blaze_face_default, "blaze_face_640_default".into()));
 
-        let mtcnn_params = rust_faces::MtCnnParams::default();
+        if self.use_mtcnn {
+            let mtcnn_params = rust_faces::MtCnnParams::default();
 
-        let mtcnn = FaceDetectorBuilder::new(FaceDetection::MtCnn(mtcnn_params))
-            .download()
-            .build(&self.env)?;
+            let mtcnn = FaceDetectorBuilder::new(FaceDetection::MtCnn(mtcnn_params))
+                .download()
+                .build(&self.env)?;
 
-        detectors.push((mtcnn, "mtcnn".into()));
+            detectors.push((mtcnn, "mtcnn".into()));
+        }
 
         Ok(FaceExtractor {
             faces_base_path: self.faces_base_path.clone(),

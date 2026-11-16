@@ -22,6 +22,10 @@
       <default>'Off'</default>
       <summary>Enable face detection and person recognition. 'Off', 'Mobile', 'Desktop'.</summary>
     </key>
+    <key name="face-detection-mtcnn" type="b">
+      <default>true</default>
+      <summary>Run MTCNN as a second face detector for higher recall. When off, use BlazeFace only.</summary>
+    </key>
     <key name="album-sort" type="s">
       <default>'Ascending'</default>
       <summary>Sort direction for albums. 'Ascending', 'Descending'.</summary>
