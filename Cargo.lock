@@ -1361,7 +1361,6 @@ dependencies = [
  "md5",
  "opencv",
  "ort",
- "png",
  "rayon",
  "refinery",
  "reqwest",

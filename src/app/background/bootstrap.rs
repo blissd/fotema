@@ -675,7 +675,7 @@ impl Bootstrap {
         let migrate = Migrate::build(people_repo, &data_dir, library_base_dir.clone());
 
         let migrate_task = MigrateTask::builder()
-            .detach_worker((stop.clone(), migrate))
+            .detach_worker((stop.clone(), migrate, thumbnailer.clone()))
             .forward(sender.input_sender(), |msg| match msg {
                 MigrateTaskOutput::Started => BootstrapInput::TaskStarted(TaskName::Migrate),
                 MigrateTaskOutput::Completed => {
