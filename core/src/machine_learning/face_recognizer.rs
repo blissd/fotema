@@ -3,9 +3,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use std::fs::File;
-use std::io::BufWriter;
+use std::io::{BufWriter, Read, Write};
 use std::path::Path;
 use std::path::PathBuf;
+use std::time::Duration;
 
 use anyhow::{Result, anyhow};
 
@@ -15,10 +16,22 @@ use opencv::objdetect::{FaceRecognizerSF, FaceRecognizerSF_DisType};
 use opencv::prelude::*;
 
 use reqwest::header::{ACCEPT, HeaderMap, HeaderValue};
+use reqwest::redirect::Policy;
 
 use tracing::info;
 
 use crate::people::model::{DetectedFace, PersonForRecognition, PersonId};
+
+/// Time limit for the connection setup.
+const CONNECT_TIMEOUT: Duration = Duration::from_secs(30);
+
+/// Time limit for the whole transfer. The blocking client has no limit for a
+/// single read, so this limit covers the complete download. A stalled server
+/// then no longer blocks the calling thread forever.
+const TRANSFER_TIMEOUT: Duration = Duration::from_secs(60 * 60);
+
+/// Upper limit for HTTP redirects.
+const MAX_REDIRECTS: usize = 10;
 
 pub struct FaceRecognizer {
     /// Person recognition data and a opencv matrix of aligned face features.
@@ -127,28 +140,84 @@ impl FaceRecognizer {
             headers
         };
 
-        let client = reqwest::blocking::Client::new();
+        let client = reqwest::blocking::Client::builder()
+            .connect_timeout(CONNECT_TIMEOUT)
+            .timeout(TRANSFER_TIMEOUT)
+            .redirect(Policy::limited(MAX_REDIRECTS))
+            .build()?;
+
         let mut response = client.get(url).headers(headers).send()?;
 
-        if response.status().is_success() {
-            let tmp_path = destination.with_extension("tmp");
-            let tmp_file = File::create(&tmp_path)?;
-            let mut writer = BufWriter::new(tmp_file);
-            while let Ok(bytes_read) = response.copy_to(&mut writer) {
-                if bytes_read == 0 {
-                    break;
-                }
-            }
-            info!("Face recognition model successfully downloaded.");
-            std::fs::rename(tmp_path, destination)?;
-
-            Ok(())
-        } else {
-            Err(anyhow!(
+        if !response.status().is_success() {
+            return Err(anyhow!(
                 "Failed to download face recognition model: {}",
                 response.status()
-            ))
+            ));
         }
+
+        // The expected length, if the server reports it. A short transfer then
+        // gives an error instead of a truncated model file.
+        let expected_len = response.content_length();
+
+        // The temporary file carries the process id. Thus two processes never
+        // write into the same file.
+        let tmp_path = destination.with_extension(format!("{}.tmp", std::process::id()));
+
+        let written = match Self::write_body(&mut response, &tmp_path) {
+            Ok(written) => written,
+            Err(e) => {
+                let _ = std::fs::remove_file(&tmp_path);
+                return Err(e);
+            }
+        };
+
+        if let Some(expected) = expected_len {
+            if written != expected {
+                let _ = std::fs::remove_file(&tmp_path);
+                return Err(anyhow!(
+                    "Face recognition model is incomplete: got {} bytes, expected {} bytes",
+                    written,
+                    expected
+                ));
+            }
+        }
+
+        std::fs::rename(&tmp_path, destination)?;
+        info!("Face recognition model successfully downloaded.");
+
+        Ok(())
+    }
+
+    /// Write the response body to `tmp_path` and return the number of bytes.
+    ///
+    /// The body is read once, in blocks. The previous code called `copy_to` in a
+    /// loop. That is wrong: the first call already consumes the whole body, and
+    /// a later call only returns 0. A read error also ended that loop without an
+    /// error, so a truncated file became the final model file.
+    fn write_body(response: &mut reqwest::blocking::Response, tmp_path: &Path) -> Result<u64> {
+        let tmp_file = File::create(tmp_path)?;
+        let mut writer = BufWriter::new(tmp_file);
+
+        let mut buffer = vec![0u8; 256 * 1024];
+        let mut written: u64 = 0;
+        loop {
+            let n = response.read(&mut buffer)?;
+            if n == 0 {
+                break;
+            }
+            writer.write_all(&buffer[..n])?;
+            written += n as u64;
+        }
+
+        // Flush the buffer and the file. Without these steps the rename can
+        // publish a file that is still incomplete on disk.
+        writer.flush()?;
+        let file = writer
+            .into_inner()
+            .map_err(|e| anyhow!("Failed to flush face recognition model: {e}"))?;
+        file.sync_all()?;
+
+        Ok(written)
     }
 }
 
