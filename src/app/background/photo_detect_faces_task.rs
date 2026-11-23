@@ -23,6 +23,7 @@ use fotema_core::photo;
 use fotema_core::photo::PictureId;
 use fotema_core::thumbnailify::Thumbnailer;
 
+use crate::app::SettingsState;
 use crate::app::components::progress_monitor::{ProgressMonitor, ProgressMonitorInput, TaskName};
 use deadpool::managed;
 
@@ -82,6 +83,9 @@ pub struct PhotoDetectFacesTask {
     people_repo: people::Repository,
 
     progress_monitor: Arc<Reducer<ProgressMonitor>>,
+
+    /// Read at the start of each scan so preference changes apply to the next run.
+    settings_state: SettingsState,
 }
 
 impl PhotoDetectFacesTask {
@@ -140,8 +144,9 @@ impl PhotoDetectFacesTask {
         // We must do this before using the object pool and parallel processing, otherwise
         // multiple threads will try to download the same model.
         // FIXME add a method to the face detection library to download models.
+        let use_mtcnn = self.settings_state.read().face_detection_mtcnn;
         let face_extractor_builder =
-            FaceExtractorBuilder::new(&self.faces_base_dir, self.thumbnailer.clone())?;
+            FaceExtractorBuilder::new(&self.faces_base_dir, self.thumbnailer.clone(), use_mtcnn)?;
         let _ = face_extractor_builder.build();
 
         let detector_pool_manager = FaceDetectorPoolManager {
@@ -206,13 +211,22 @@ impl Worker for PhotoDetectFacesTask {
         Thumbnailer,
         photo::Repository,
         people::Repository,
+        SettingsState,
         Arc<Reducer<ProgressMonitor>>,
     );
     type Input = PhotoDetectFacesTaskInput;
     type Output = PhotoDetectFacesTaskOutput;
 
     fn init(
-        (stop, faces_base_dir, thumbnailer, photo_repo, people_repo, progress_monitor): Self::Init,
+        (
+            stop,
+            faces_base_dir,
+            thumbnailer,
+            photo_repo,
+            people_repo,
+            settings_state,
+            progress_monitor,
+        ): Self::Init,
         _sender: ComponentSender<Self>,
     ) -> Self {
         PhotoDetectFacesTask {
@@ -221,6 +235,7 @@ impl Worker for PhotoDetectFacesTask {
             thumbnailer,
             photo_repo,
             people_repo,
+            settings_state,
             progress_monitor,
         }
     }
