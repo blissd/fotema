@@ -22,12 +22,6 @@ pub enum ThumbnailError {
 
     //#[error("Shell parse error: {0}")]
     //Parse(#[from] shell_words::ParseError),
-    #[error("PNG encoding error: {0}")]
-    PngEncoding(#[from] png::EncodingError),
-
-    #[error("PNG decoding error: {0}")]
-    PngDecoding(#[from] png::DecodingError),
-
     #[error("Image resize error: {0}")]
     ResizeError(#[from] fast_image_resize::ResizeError),
 }
